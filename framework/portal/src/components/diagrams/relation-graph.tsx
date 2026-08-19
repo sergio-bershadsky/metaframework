@@ -15,8 +15,9 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
-import { Crosshair, Maximize2 } from 'lucide-react'
+import { Crosshair, Scan } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FullscreenButton } from '@/components/diagrams/fullscreen-button'
 import type { EdgeType, EntityKind } from '@/lib/catalog/frontmatter'
 import {
   DIAGRAM_BACKGROUND,
@@ -338,8 +339,10 @@ export function RelationGraph({
     return fitCanvasHeight(bottom - top, height)
   }, [placed, height])
 
+  const surfaceRef = useRef<HTMLElement>(null)
+
   return (
-    <figure className={cn('panel overflow-hidden', className)} aria-label={label}>
+    <figure ref={surfaceRef} className={cn('panel diagram-surface overflow-hidden', className)} aria-label={label}>
       <div className="relative" style={{ height: canvasHeight, ...DIAGRAM_CANVAS_VARS }}>
         {failed ? (
           <TextFallback lines={text} />
@@ -388,6 +391,7 @@ export function RelationGraph({
                   })
                 }
                 focus={focus}
+                surfaceRef={surfaceRef}
               />
             </Panel>
           </ReactFlow>
@@ -411,11 +415,13 @@ function GraphToolbar({
   hiddenTypes,
   onToggle,
   focus,
+  surfaceRef,
 }: {
   counts: Map<EdgeType, number>
   hiddenTypes: ReadonlySet<EdgeType>
   onToggle: (type: EdgeType) => void
   focus?: string
+  surfaceRef: React.RefObject<HTMLElement | null>
 }) {
   const { fitView } = useReactFlow()
   const present = EDGE_ORDER.filter((type) => counts.has(type))
@@ -434,8 +440,9 @@ function GraphToolbar({
           aria-label="Fit the whole graph in view"
           title="Fit graph"
         >
-          <Maximize2 className="size-3" aria-hidden />
+          <Scan className="size-3" aria-hidden />
         </button>
+        <FullscreenButton target={surfaceRef} className="p-1 hover:bg-surface-raised" />
         {focus && (
           <button
             type="button"

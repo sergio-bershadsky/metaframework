@@ -218,6 +218,22 @@
     border-radius: var(--radius-lg);
   }
 
+  /*
+   * A diagram taken fullscreen. The canvas carries an inline height computed to
+   * fit its content, which would otherwise pin it to a few hundred pixels in the
+   * middle of a black screen — so the inline value is overridden here, which
+   * needs !important precisely because it is inline.
+   */
+  .diagram-surface:fullscreen {
+    background-color: var(--background);
+    border-radius: 0;
+    border: none;
+  }
+
+  .diagram-surface:fullscreen > * {
+    height: 100% !important;
+  }
+
   /* Focus ring consistent across custom controls. */
   .focusable:focus-visible {
     outline: 2px solid var(--ring);

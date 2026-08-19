@@ -20,6 +20,7 @@ import {
   type NodeTypes,
 } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FullscreenButton } from '@/components/diagrams/fullscreen-button'
 import {
   DIAGRAM_BACKGROUND,
   DIAGRAM_CANVAS_VARS,
@@ -434,8 +435,10 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
     return fitCanvasHeight(bottom - top, height)
   }, [flow, height])
 
+  const surfaceRef = useRef<HTMLElement>(null)
+
   return (
-    <figure className={cn('panel overflow-hidden', className)}>
+    <figure ref={surfaceRef} className={cn('panel diagram-surface overflow-hidden', className)}>
       {/* A <figure> may carry exactly one <figcaption>, and the a11y text
           equivalent below is it — the machine's own description is plain prose. */}
       {chart.description && (
@@ -478,6 +481,12 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
             />
             <Controls showInteractive={false} style={{ margin: 10 }} />
             <Panel position="top-right" style={{ margin: 10 }}>
+              <div className="mb-1 flex justify-end">
+                <FullscreenButton
+                  target={surfaceRef}
+                  className="rounded-md border border-border bg-surface/90 backdrop-blur-sm hover:bg-surface-raised"
+                />
+              </div>
               <ul className="flex flex-col gap-1 rounded-md border border-border bg-surface/90 px-2 py-1.5 font-mono text-[10.5px] text-muted-foreground backdrop-blur-sm">
                 <li className="flex items-center gap-1.5">
                   <span className="size-1.5 rounded-full" style={{ backgroundColor: PROTOCOL_HUE }} aria-hidden />
