@@ -1,4 +1,4 @@
-import { Hexagon } from 'lucide-react'
+import { Hexagon, Map as MapIcon } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { CatalogTree } from '@/components/catalog-tree'
@@ -29,7 +29,18 @@ export async function AppShell({ children }: { children: ReactNode }) {
           {catalog.entities.size} {catalog.entities.size === 1 ? 'entity' : 'entities'} in{' '}
           {catalog.solutions.length} {catalog.solutions.length === 1 ? 'solution' : 'solutions'}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          {/* The rail answers "where is X"; the map answers "how is this put
+              together". Different questions, so the map gets its own way in
+              rather than living inside a tree node. */}
+          <Link
+            href="/map"
+            className="focusable flex items-center gap-1.5 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground"
+          >
+            <MapIcon className="size-3.5" aria-hidden />
+            Map
+          </Link>
+          <span className="h-4 w-px bg-border" aria-hidden />
           <DiagnosticsIndicator errors={errors} warnings={warnings} />
         </div>
       </header>

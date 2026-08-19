@@ -46,14 +46,34 @@ export function StatusBadge({ status, className }: { status: string; className?:
   )
 }
 
-export function VersionBadge({ version, className }: { version: number; className?: string }) {
+/**
+ * The version chip's shape, split out from the badge so an interactive control
+ * can wear it without cloning the class list. The version picker is a button
+ * that must read as *the same chip* — a second, near-identical style would make
+ * "v4" mean one thing in the header and another in a revision list.
+ */
+export const VERSION_CHIP =
+  'inline-flex items-center rounded-md border px-1.5 py-0.5 font-mono text-[11px] font-medium'
+
+/** Current version: the primary hue, as everywhere else in the console. */
+export const VERSION_CHIP_CURRENT = 'border-primary/35 bg-primary/10 text-primary'
+
+/** A version that is not what is on disk — the console's warning register. */
+export const VERSION_CHIP_HISTORICAL = 'border-warning/35 bg-warning/[0.07] text-warning'
+
+export function VersionBadge({
+  version,
+  historical = false,
+  className,
+}: {
+  version: number
+  /** Render in the warning register — the version shown is not the current one. */
+  historical?: boolean
+  className?: string
+}) {
   return (
     <span
-      className={cn(
-        'inline-flex items-center rounded-md border border-primary/35 bg-primary/10 px-1.5 py-0.5',
-        'font-mono text-[11px] font-medium text-primary',
-        className,
-      )}
+      className={cn(VERSION_CHIP, historical ? VERSION_CHIP_HISTORICAL : VERSION_CHIP_CURRENT, className)}
     >
       v{version}
     </span>

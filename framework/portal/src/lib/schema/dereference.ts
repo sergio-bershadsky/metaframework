@@ -8,18 +8,18 @@ import { isSchemaUrl, schemaUrlToPath, schemaUrlToSrn } from './url'
 /**
  * Resolve a datamodel's schema into a single self-contained document.
  *
- * Every cross-entity `$ref` is now an absolute HTTP URL, which the parser would
+ * Every cross-entity `$ref` is a canonical HTTP URL, which the parser would
  * happily go and *fetch*. It must not. Rendering an entity page would then
- * depend on the portal being able to reach itself over the network — a
- * self-request during SSR, one that deadlocks on a single-threaded dev server
- * and fails outright at build time when nothing is listening.
+ * depend on network access at SSR and build time — for documents this process
+ * already holds on disk.
  *
  * So the URLs are resolved the only correct way for a process that already
  * holds the catalog: a resolver ordered ahead of the built-in HTTP one
- * recognises a schema URL, maps it back through SRN ≡ path ≡ URL path, and
- * reads the file off disk. The document a consumer *outside* this process gets
- * by dereferencing those URLs is byte-identical — same bytes, same route, one
- * fewer round trip.
+ * recognises a canonical schema URL, maps it back through SRN ≡ path ≡ URL
+ * path, and reads the file off disk. This is exactly the "map the canonical
+ * host onto a local source" step any offline resolver performs — identity is in
+ * the artifact, retrieval is the resolver's problem — and the document an
+ * outside consumer gets is byte-identical.
  *
  * `bundle` (rather than `dereference`) keeps shared and recursive shapes as
  * internal `#/` pointers, so a self-referential model cannot expand forever.
@@ -32,7 +32,7 @@ export interface BundledSchema {
 }
 
 /**
- * The catalog-relative directory a schema URL addresses. Containment is
+ * The catalog-relative directory a canonical schema URL addresses. Containment is
  * structural rather than checked: `schemaUrlToSrn` only answers for strings that
  * parse as a legal SRN, and an SRN path cannot contain `..`, a separator, or an
  * absolute prefix — so the segments it yields can only ever descend.
@@ -47,8 +47,8 @@ export async function bundleSchema(entity: Entity, catalogDir: string): Promise<
 
   /**
    * A resolver in json-schema-ref-parser's plugin shape. `order: 1` puts it
-   * ahead of the bundled `http` resolver, and `canRead` claims only URLs this
-   * portal serves — anything else still falls through to the defaults, so a
+   * ahead of the bundled `http` resolver, and `canRead` claims only canonical
+   * schema URLs — anything else still falls through to the defaults, so a
    * genuinely foreign `$ref` fails loudly instead of being silently mis-read.
    */
   const catalogResolver = {

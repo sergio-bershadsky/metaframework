@@ -7,9 +7,10 @@ import { bundleSchema } from './dereference'
 /**
  * Bundling runs against the *shipped* catalog, because the property under test
  * is exactly the one a hermetic fixture would hide: every cross-entity `$ref` is
- * now an `http://` URL, and the bundler must satisfy it from disk. If the
- * catalog resolver ever stops matching, these tests do not fail with a wrong
- * shape — they fail by trying to reach the network, which is the point.
+ * a canonical `https://schemas.metaframework.dev/…` URL, and the bundler must
+ * satisfy it from disk. If the catalog resolver ever stops matching, these tests
+ * do not fail with a wrong shape — they fail by trying to reach the network,
+ * which is the point.
  */
 
 const CATALOG = path.resolve(process.cwd(), '../../solutions')
@@ -27,7 +28,7 @@ function entity(srn: string): Entity {
 }
 
 describe('bundleSchema', () => {
-  it('resolves http $id references off the filesystem, with no network access', async () => {
+  it('resolves canonical $id references off the filesystem, with no network access', async () => {
     const order = entity('srn://acme/product/shop/component/checkout/component/payment/datamodel/order')
     const { schema, error } = await bundleSchema(order, CATALOG)
 

@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { schemaBaseUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
+import { CANONICAL_SCHEMA_HOST, schemaServingUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
+import { withSchemaRegistry } from './index'
 import { loadCatalog } from './load'
 import type { Catalog, Diagnostic } from './types'
 
@@ -15,10 +16,12 @@ import type { Catalog, Diagnostic } from './types'
 
 const format = (d: Diagnostic) => `${d.code} ${d.path} — ${d.message}`
 
+const CATALOG = path.resolve(process.cwd(), '../../solutions')
+
 let catalog: Catalog
 
 beforeAll(async () => {
-  catalog = await loadCatalog({ catalogDir: path.resolve(process.cwd(), '../../solutions') })
+  catalog = await loadCatalog({ catalogDir: CATALOG })
 })
 
 describe('shipped catalog', () => {
@@ -27,8 +30,35 @@ describe('shipped catalog', () => {
     expect(errors.map(format)).toEqual([])
   })
 
-  it('exposes exactly the acme solution root', () => {
-    expect(catalog.solutions).toEqual(['srn://acme'])
+  it('surfaces datamodel schema diagnostics through the catalog the portal renders', () => {
+    // `getCatalog` composes these two, so /diagnostics and the header indicator
+    // see E_DM_* beside E_FM_* and E_SRN_*. Before that composition existed the
+    // registry ran only in this suite, and a broken `$id` or a dangling `$ref`
+    // reached the portal as a silently empty schema view.
+    const { catalog: merged, registry } = withSchemaRegistry(catalog)
+
+    expect(registry.entries.size).toBe(
+      [...catalog.entities.values()].filter((entity) => entity.kind === 'datamodel').length,
+    )
+    expect(registry.diagnostics.map(format)).toEqual([])
+    expect(merged.diagnostics.length).toBe(catalog.diagnostics.length + registry.diagnostics.length)
+    for (const diagnostic of catalog.diagnostics) expect(merged.diagnostics).toContain(diagnostic)
+  })
+
+  it('exposes exactly one solution root per catalog directory', async () => {
+    const { readdir } = await import('node:fs/promises')
+    const entries = await readdir(CATALOG, { withFileTypes: true })
+    const directories = entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map((entry) => `srn://${entry.name}`)
+      .sort()
+
+    // Derived from disk rather than hard-coded, so adding a solution is not a
+    // red test — but a directory the loader silently skipped, or a root it
+    // invented, still is. `acme` is asserted by name because the spec's worked
+    // example is written against it.
+    expect([...catalog.solutions].sort()).toEqual(directories)
+    expect(catalog.solutions).toContain('srn://acme')
   })
 
   it('carries every ontology kind, so the portal has something of each to render', () => {
@@ -89,23 +119,37 @@ describe('shipped catalog', () => {
     ])
   })
 
-  it('identifies every datamodel schema by the URL the portal serves it at', () => {
+  it('identifies every datamodel schema by its canonical URL and its SRN', () => {
     const datamodels = [...catalog.entities.values()].filter((entity) => entity.kind === 'datamodel')
     expect(datamodels.length).toBeGreaterThanOrEqual(6)
 
     for (const entity of datamodels) {
       const schema = entity.artifacts.find((artifact) => artifact.file === 'schema.json')
       const data = schema?.data as { $id?: string; 'x-srn'?: string } | undefined
-      // $id is the identity now, and it must be dereferenceable: the URL below is
-      // one this portal answers (decision record amendment 2026-08-19-c).
+      // $id is the identity: a canonical URL on a constant host, so a schema
+      // means the same thing on a laptop and in production (decision record
+      // amendment 2026-08-19-d, which moved the host off SCHEMA_BASE_URL).
       expect(data?.$id, `${entity.srn} schema.json $id`).toBe(srnToSchemaUrl(entity.srn))
-      // x-srn said the same thing in a keyword no validator acts on. Two identity
-      // fields is one too many, so the annotation is retired.
-      expect(data?.['x-srn'], `${entity.srn} schema.json must not carry x-srn`).toBeUndefined()
+      // x-srn says the same fact in the framework's own vocabulary, so a schema
+      // lifted out of the catalog still states where it came from.
+      expect(data?.['x-srn'], `${entity.srn} schema.json x-srn`).toBe(entity.srn)
     }
   })
 
-  it('uses only absolute schema URLs as $refs, each naming an entity that exists', async () => {
+  it('never lets a serving address into an artifact', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const nodePath = await import('node:path')
+
+    // SCHEMA_BASE_URL says where this deployment serves schemas; it is not
+    // identity and must appear in no file. A catalog that baked it in would mean
+    // something different on every machine.
+    for (const entity of [...catalog.entities.values()].filter((e) => e.kind === 'datamodel')) {
+      const raw = await readFile(nodePath.join(entity.dir, 'schema.json'), 'utf8')
+      expect(raw, `${entity.srn} schema.json must not name a serving origin`).not.toContain('/schemas/')
+    }
+  })
+
+  it('uses only canonical schema URLs as $refs, each naming an entity that exists', async () => {
     const { readFile } = await import('node:fs/promises')
     const nodePath = await import('node:path')
     const { existsSync } = await import('node:fs')
@@ -122,8 +166,8 @@ describe('shipped catalog', () => {
         // inside the document and always did.
         if (ref.startsWith('#')) continue
 
-        expect(ref, `${entity.srn}: $ref must be an absolute schema URL`).toMatch(
-          new RegExp(`^${schemaBaseUrl()}/schemas/`),
+        expect(ref, `${entity.srn}: $ref must be a canonical schema URL`).toMatch(
+          new RegExp(`^${CANONICAL_SCHEMA_HOST}/`),
         )
         // Not merely well-formed: the URL must name a real datamodel entity, and
         // the file behind it must be on disk — otherwise "dereferenceable" is a
@@ -143,20 +187,25 @@ describe('shipped catalog', () => {
     expect(checked).toBeGreaterThan(10)
   })
 
-  it('serves each of those URLs from the route that backs them', async () => {
+  it('serves each canonical identity from this deployment’s own route', async () => {
     const { GET } = await import('../../app/schemas/[...path]/route')
     const money = catalog.entities.get('srn://acme/datamodel/money')
-    const url = srnToSchemaUrl(money?.srn as string)
+    const identity = srnToSchemaUrl(money?.srn as string)
+    const serving = schemaServingUrl(money?.srn as string)
 
-    const response = await GET(new Request(url), {
+    // Identity and retrieval are two different strings by design: one is fixed,
+    // the other is a property of wherever this portal happens to run.
+    expect(serving).not.toBe(identity)
+
+    const response = await GET(new Request(serving), {
       params: Promise.resolve({ path: ['acme', 'datamodel', 'money'] }),
     })
 
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toContain('application/schema+json')
-    // The document the route serves is the document whose $id is that URL —
-    // which is what closes the loop between identity and retrieval.
-    expect(((await response.json()) as { $id: string }).$id).toBe(url)
+    // The document this route hands over is the document whose $id is the
+    // canonical URL — which is what closes the loop between the two.
+    expect(((await response.json()) as { $id: string }).$id).toBe(identity)
   })
 
   it('refuses a schema URL that climbs out of the catalog', async () => {

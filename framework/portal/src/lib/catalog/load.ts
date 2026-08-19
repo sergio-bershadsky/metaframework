@@ -252,24 +252,31 @@ async function readArtifacts(dir: string, prefix = ''): Promise<Artifact[]> {
     if (!ARTIFACT_EXTENSIONS.has(extension)) continue
 
     const raw = await readFile(path.join(dir, relFile), 'utf8')
+    const { data, error } = parseArtifact(extension, raw)
     artifacts.push({
       file: relFile,
       extension: extension as Artifact['extension'],
-      data: parseArtifact(extension, raw),
+      data,
       raw,
+      ...(error ? { error } : {}),
     })
   }
   return artifacts.sort((a, b) => a.file.localeCompare(b.file))
 }
 
-function parseArtifact(extension: string, raw: string): unknown {
+/**
+ * Parsing is fail-soft like everything else in the loader, but the reason is
+ * kept rather than swallowed: "this file is not valid YAML" is only actionable
+ * with the parser's own message and the position it points at.
+ */
+function parseArtifact(extension: string, raw: string): { data: unknown; error?: string } {
   try {
-    if (extension === '.json') return JSON.parse(raw)
-    if (extension === '.yaml' || extension === '.yml') return parseYaml(raw)
-  } catch {
-    return null
+    if (extension === '.json') return { data: JSON.parse(raw) }
+    if (extension === '.yaml' || extension === '.yml') return { data: parseYaml(raw) }
+  } catch (cause) {
+    return { data: null, error: cause instanceof Error ? cause.message : String(cause) }
   }
-  return null
+  return { data: null }
 }
 
 function collectRelations(

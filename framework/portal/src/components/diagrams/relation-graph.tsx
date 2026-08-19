@@ -16,8 +16,9 @@ import {
   type NodeTypes,
 } from '@xyflow/react'
 import { Crosshair, Scan } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ExpandButton } from '@/components/diagrams/expand-button'
+import { MeasureProbe, type MeasuredGeometry } from '@/components/diagrams/measure-probe'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
 import { useGraphHighlight } from '@/lib/diagrams/use-graph-highlight'
 import type { EdgeType, EntityKind } from '@/lib/catalog/frontmatter'
@@ -133,11 +134,15 @@ function EntityBox({ data }: NodeProps<EntityFlowNode>) {
     </>
   )
 
+  // No explicit size: the box is sized by its own content, which is what makes
+  // the measurement React Flow takes of it worth re-running the layout on.
   const chrome = cn(
-    'flex h-full w-full items-center gap-2 rounded-md border px-2.5 text-left transition-colors',
+    'flex items-center gap-2 rounded-md border px-2.5 py-2 text-left transition-colors',
     navigate && 'hover:bg-surface-raised',
   )
   const tint = {
+    minWidth: MIN_WIDTH,
+    maxWidth: MAX_WIDTH,
     borderColor: `color-mix(in oklab, ${hue} 45%, transparent)`,
     backgroundColor: `color-mix(in oklab, ${hue} 7%, var(--surface))`,
     ...(data.focused ? { outline: `1px solid ${FOCUS_STROKE}`, outlineOffset: 2 } : {}),
@@ -186,21 +191,32 @@ const nodeTypes: NodeTypes = { entity: EntityBox }
 const FIT_PADDING = { top: '24px', right: '188px', bottom: '24px', left: '48px' } as const
 
 /**
- * Sizes are estimated, not measured: ELK needs them before anything reaches the
- * DOM, and a measure-then-relayout pass makes the graph visibly jump.
+ * Estimates for the first pass only.
+ *
+ * ELK needs sizes before anything reaches the DOM, so the graph is laid out
+ * once on these, rendered but not shown, measured by React Flow, and laid out
+ * again on the truth. Being a few pixels out here therefore costs nothing.
  */
 const MONO_CHAR = 7
 const SANS_CHAR = 5.6
-const NODE_HEIGHT = 46
+const NODE_HEIGHT = 47
 const MIN_WIDTH = 156
 const MAX_WIDTH = 268
 
-function measure(node: RelationGraphNode): { width: number; height: number } {
+function estimateBox(node: RelationGraphNode): { width: number; height: number } {
   const width = Math.min(
     MAX_WIDTH,
     Math.max(MIN_WIDTH, Math.max(node.name.length * MONO_CHAR, node.title.length * SANS_CHAR) + 42),
   )
   return { width, height: NODE_HEIGHT }
+}
+
+interface GraphLayout {
+  placed: Map<string, PlacedNode>
+  /** Height of the laid-out graph, for fitting the canvas to it. */
+  contentHeight: number
+  /** 1 = laid out on estimates, 2 = laid out on what the browser drew. */
+  pass: 1 | 2
 }
 
 export function RelationGraph({
@@ -213,8 +229,11 @@ export function RelationGraph({
   label = 'Entity relation graph',
   className,
 }: RelationGraphProps) {
-  const [placed, setPlaced] = useState<Map<string, PlacedNode> | null>(null)
-  const [failed, setFailed] = useState(false)
+  // Every piece of layout state is tagged with the layout it belongs to and
+  // read back by comparison, rather than being cleared when the inputs change:
+  // clearing means a setState inside an effect, and a cascade of renders.
+  const [built, setBuilt] = useState<{ key: string; layout: GraphLayout } | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
   const [hiddenTypes, setHiddenTypes] = useState<ReadonlySet<EdgeType>>(() => new Set())
 
   // Callers commonly build these arrays inline, so the effect keys off the
@@ -237,15 +256,34 @@ export function RelationGraph({
     input.current = { nodes, edges }
   })
 
+  // One key for "this is a different layout problem"; a measurement is only
+  // valid for the layout it was taken from.
+  const layoutKey = `${signature}|${direction}`
+  const [measured, setMeasured] = useState<{ key: string; geometry: MeasuredGeometry } | null>(null)
+  const reported = useRef<string | null>(null)
+
+  const onMeasure = useCallback(
+    (geometry: MeasuredGeometry) => {
+      // The probe has no memory by design, so the guard lives here: one
+      // measurement per layout, or the second pass would re-measure itself.
+      if (reported.current === layoutKey) return
+      reported.current = layoutKey
+      setMeasured({ key: layoutKey, geometry })
+    },
+    [layoutKey],
+  )
+
   useEffect(() => {
     const { nodes: current, edges: currentEdges } = input.current
     if (current.length === 0) return
     let cancelled = false
-    setPlaced(null)
-    setFailed(false)
+    const geometry = measured?.key === layoutKey ? measured.geometry : null
 
     layoutGraph({
-      nodes: current.map((node) => ({ id: node.srn, ...measure(node) })),
+      nodes: current.map((node) => ({
+        id: node.srn,
+        ...(geometry?.nodes.get(node.srn) ?? estimateBox(node)),
+      })),
       edges: currentEdges.map((edge, index) => ({
         id: `${edge.from}--${edge.edge}--${edge.to}--${index}`,
         source: edge.from,
@@ -254,17 +292,41 @@ export function RelationGraph({
       direction,
     }).then(
       (result) => {
-        if (!cancelled) setPlaced(new Map(result.nodes.map((node) => [node.id, node])))
+        if (cancelled) return
+        const top = result.nodes.length > 0 ? Math.min(...result.nodes.map((node) => node.y)) : 0
+        const bottom = result.nodes.length > 0 ? Math.max(...result.nodes.map((node) => node.y + node.height)) : 0
+        setBuilt({
+          key: layoutKey,
+          layout: {
+            placed: new Map(result.nodes.map((node) => [node.id, node])),
+            contentHeight: bottom - top,
+            pass: geometry ? 2 : 1,
+          },
+        })
       },
       () => {
-        if (!cancelled) setFailed(true)
+        // A failed second pass is not worth throwing the first one away for.
+        if (!cancelled && !geometry) setFailure(layoutKey)
       },
     )
 
     return () => {
       cancelled = true
     }
-  }, [signature, direction])
+  }, [layoutKey, direction, measured])
+
+  const layout = built?.key === layoutKey ? built.layout : null
+  const failed = failure === layoutKey
+
+  // Nothing is shown until the measured pass lands, so the reader never sees
+  // the estimate correct itself. The timer is the escape hatch: if measurement
+  // never arrives, an approximate graph beats a permanent skeleton.
+  const [timedOutFor, setTimedOutFor] = useState<string | null>(null)
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOutFor(layoutKey), 900)
+    return () => clearTimeout(timer)
+  }, [layoutKey])
+  const settled = layout !== null && (layout.pass === 2 || timedOutFor === layoutKey)
 
   const known = useMemo(() => new Set(nodes.map((node) => node.srn)), [nodes])
   /** Edges pointing outside the supplied node set cannot be drawn. */
@@ -274,14 +336,13 @@ export function RelationGraph({
   )
 
   const flowNodes = useMemo<EntityFlowNode[]>(() => {
-    if (!placed) return []
+    if (!layout) return []
     return nodes.map((node) => {
-      const box = placed.get(node.srn)
+      const box = layout.placed.get(node.srn)
       return {
         id: node.srn,
         type: 'entity',
         position: { x: box?.x ?? 0, y: box?.y ?? 0 },
-        style: { width: box?.width ?? MIN_WIDTH, height: box?.height ?? NODE_HEIGHT },
         data: {
           srn: node.srn,
           name: node.name,
@@ -293,7 +354,7 @@ export function RelationGraph({
         },
       }
     })
-  }, [nodes, placed, focus, direction, onNavigate])
+  }, [nodes, layout, focus, direction, onNavigate])
 
   // Visibility is a filter on drawn edges only: toggling a type must never
   // reshuffle the graph, or the reader loses the map they had just learned.
@@ -329,16 +390,7 @@ export function RelationGraph({
 
   // Fit the canvas to the graph. `height` is a ceiling, not a fixed size: a
   // small neighbourhood in a large empty panel reads as a failed render.
-  const canvasHeight = useMemo(() => {
-    if (!placed || placed.size === 0) return fitCanvasHeight(null, height)
-    let top = Number.POSITIVE_INFINITY
-    let bottom = Number.NEGATIVE_INFINITY
-    for (const box of placed.values()) {
-      top = Math.min(top, box.y)
-      bottom = Math.max(bottom, box.y + box.height)
-    }
-    return fitCanvasHeight(bottom - top, height)
-  }, [placed, height])
+  const canvasHeight = useMemo(() => fitCanvasHeight(layout?.contentHeight ?? null, height), [layout, height])
   const { expanded, toggle: toggleExpanded } = useExpandable()
 
   // Same rule as the state chart: hovering an entity lights its relations and
@@ -372,57 +424,68 @@ export function RelationGraph({
       >
         {failed ? (
           <TextFallback lines={text} />
-        ) : placed === null ? (
-          <LayoutPending />
         ) : (
-          <ReactFlow
-            nodes={litNodes}
-            edges={litEdges}
-            {...highlight.handlers}
-            nodeTypes={nodeTypes}
-            colorMode="dark"
-            fitView
-            fitViewOptions={{ padding: FIT_PADDING, maxZoom: 1 }}
-            minZoom={0.2}
-            maxZoom={2}
-            nodesConnectable={false}
-            // The node itself carries a button, so the wrapper must not be a
-            // second tab stop for the same target.
-            nodesFocusable={false}
-            edgesFocusable={false}
-            elementsSelectable={false}
-            zoomOnDoubleClick={false}
-            // The graph sits inside a scrolling document: hijacking the wheel
-            // would trap the page. Zoom stays on the controls and on pinch.
-            zoomOnScroll={false}
-            panOnScroll={false}
-            preventScrolling={false}
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={DIAGRAM_BACKGROUND.gap}
-              size={DIAGRAM_BACKGROUND.size}
-              color={DIAGRAM_BACKGROUND.color}
-            />
-            <Controls showInteractive={false} style={{ margin: 10 }} />
-            <Panel position="top-right" style={{ margin: 10 }}>
-              <GraphToolbar
-                counts={counts}
-                hiddenTypes={hiddenTypes}
-                onToggle={(type) =>
-                  setHiddenTypes((current) => {
-                    const next = new Set(current)
-                    if (next.has(type)) next.delete(type)
-                    else next.add(type)
-                    return next
-                  })
-                }
-                focus={focus}
-                expanded={expanded}
-                onToggleExpanded={toggleExpanded}
-              />
-            </Panel>
-          </ReactFlow>
+          <>
+            {layout !== null && (
+              // Hidden rather than unmounted: the first pass has to be in the
+              // DOM to be measurable, and `visibility` keeps layout running
+              // where `display: none` would report every node as zero.
+              <div className="absolute inset-0" style={{ visibility: settled ? undefined : 'hidden' }}>
+                <ReactFlow
+                  nodes={litNodes}
+                  edges={litEdges}
+                  {...highlight.handlers}
+                  nodeTypes={nodeTypes}
+                  colorMode="dark"
+                  fitView
+                  fitViewOptions={{ padding: FIT_PADDING, maxZoom: 1 }}
+                  minZoom={0.2}
+                  maxZoom={2}
+                  nodesConnectable={false}
+                  // The node itself carries a button, so the wrapper must not be
+                  // a second tab stop for the same target.
+                  nodesFocusable={false}
+                  edgesFocusable={false}
+                  elementsSelectable={false}
+                  zoomOnDoubleClick={false}
+                  // The graph sits inside a scrolling document: hijacking the
+                  // wheel would trap the page. Zoom stays on the controls and on
+                  // pinch.
+                  zoomOnScroll={false}
+                  panOnScroll={false}
+                  preventScrolling={false}
+                >
+                  <Background
+                    variant={BackgroundVariant.Dots}
+                    gap={DIAGRAM_BACKGROUND.gap}
+                    size={DIAGRAM_BACKGROUND.size}
+                    color={DIAGRAM_BACKGROUND.color}
+                  />
+                  <Controls showInteractive={false} style={{ margin: 10 }} />
+                  <MeasureProbe onMeasure={onMeasure} />
+                  <Panel position="top-right" style={{ margin: 10 }}>
+                    <GraphToolbar
+                      counts={counts}
+                      hiddenTypes={hiddenTypes}
+                      onToggle={(type) =>
+                        setHiddenTypes((current) => {
+                          const next = new Set(current)
+                          if (next.has(type)) next.delete(type)
+                          else next.add(type)
+                          return next
+                        })
+                      }
+                      focus={focus}
+                      expanded={expanded}
+                      onToggleExpanded={toggleExpanded}
+                      refitOn={`${layout.pass}`}
+                    />
+                  </Panel>
+                </ReactFlow>
+              </div>
+            )}
+            {!settled && <LayoutPending />}
+          </>
         )}
       </div>
 
@@ -445,6 +508,7 @@ function GraphToolbar({
   focus,
   expanded,
   onToggleExpanded,
+  refitOn,
 }: {
   counts: Map<EdgeType, number>
   hiddenTypes: ReadonlySet<EdgeType>
@@ -452,12 +516,21 @@ function GraphToolbar({
   focus?: string
   expanded: boolean
   onToggleExpanded: () => void
+  /** Changes whenever the graph is re-laid-out under the viewport. */
+  refitOn: string
 }) {
   const { fitView } = useReactFlow()
   const present = EDGE_ORDER.filter((type) => counts.has(type))
 
   const duration = () =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320
+
+  useEffect(() => {
+    // Instant, not animated: this runs while the canvas is still hidden, on the
+    // measured pass. An animation here would be motion nobody asked for.
+    const frame = requestAnimationFrame(() => void fitView({ padding: FIT_PADDING, maxZoom: 1, duration: 0 }))
+    return () => cancelAnimationFrame(frame)
+  }, [refitOn, fitView])
 
   return (
     <div className="w-[168px] rounded-md border border-border bg-surface/90 p-1.5 backdrop-blur-sm">

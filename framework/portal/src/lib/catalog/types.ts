@@ -21,6 +21,13 @@ export interface Artifact {
   /** Parsed content for json/yaml; raw text for md. Null when parsing failed. */
   data: unknown
   raw: string
+  /**
+   * Why parsing failed, when it did. `data: null` alone cannot say: a markdown
+   * artifact is never parsed and a YAML file may legitimately hold `null`. The
+   * portal shows this beside the source rather than dropping the artifact —
+   * an unparseable file is exactly the one somebody needs to look at.
+   */
+  error?: string
 }
 
 export interface Relation {

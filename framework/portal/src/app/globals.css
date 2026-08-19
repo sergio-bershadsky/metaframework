@@ -5,11 +5,18 @@
  * beats Tailwind's utilities no matter the order — that is how it silently
  * flattened prose headings and replaced the type system.
  *
- * Declaring `stoplight` as the FIRST layer demotes the whole stylesheet below
- * everything Tailwind emits, which is exactly the priority it should have: it
- * styles one embedded widget, not the application.
+ * WHERE the layer sits is as load-bearing as the fact that it exists. It must
+ * sit ABOVE `base`: Tailwind's preflight zeroes margin and padding on `*`, and
+ * with Mosaic below it every `sl-m*`/`sl-p*` utility computed to nothing — the
+ * schema viewer rendered with property names fused to their types and its
+ * dropdown collapsed onto the content (measured: `sl-pl-3` → padding 0). And it
+ * must sit BELOW `components` and `utilities`, so Mosaic's global font and
+ * heading resets keep losing to everything this application actually says.
+ * This declaration comes before the Tailwind import on purpose — the first
+ * @layer statement fixes the order, and Tailwind's own declaration then cannot
+ * rearrange it.
  */
-@layer stoplight;
+@layer theme, base, stoplight, components, utilities;
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -230,6 +237,45 @@
   }
 
   /*
+   * Two further steps back, used by the solution map, where recession answers a
+   * different question than hover does: not "is this connected to what I am
+   * pointing at" but "is this on the branch I am looking at".
+   *
+   * SOFT is context the map admits it is not framing — the ring past the two it
+   * promises. FAR is everything off the focused branch: still drawn, because a
+   * dependency leaving the branch is exactly the edge somebody opens a map to
+   * find, but far enough back that the branch reads as the subject. They stack
+   * with `.dgm-recede`, and stacking is correct — off-branch AND unconnected to
+   * the pointer is the least interesting thing on the canvas.
+   */
+  .react-flow__node.dgm-recede-soft,
+  .react-flow__edge.dgm-recede-soft {
+    opacity: 0.34;
+  }
+
+  .react-flow__node.dgm-recede-far,
+  .react-flow__edge.dgm-recede-far {
+    opacity: 0.12;
+  }
+
+  /*
+   * React Flow owns the element that takes focus, and a custom node's own
+   * markup is a child of it — so both the focus ring and the reveal of
+   * whatever a compact node keeps behind hover have to be attached from here.
+   * Without this a keyboard reader could reach a state box and see nothing
+   * happen.
+   */
+  .react-flow__node:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--xy-node-border-radius, 6px);
+  }
+
+  .react-flow__node:focus-visible [data-diagram-detail] {
+    display: block;
+  }
+
+  /*
    * A diagram expanded to fill the browser viewport. It is a fixed overlay
    * rather than a real fullscreen element: taking over the display and hiding
    * the browser's own chrome is the wrong scale for reading one diagram.
@@ -238,6 +284,50 @@
    */
   .diagram-surface[data-expanded] {
     box-shadow: 0 0 0 100vmax var(--background);
+  }
+
+  /*
+   * Mermaid state charts (state-chart.tsx). The SVG arrives themed through
+   * mermaid's themeVariables; these rules cover what a variable cannot reach —
+   * layout of the SVG in its panel, and the interactivity classes the
+   * component's post-processing pins onto elements.
+   */
+  /* Flex + auto margins centres the SVG both ways (the expanded overlay)
+     while keeping overflow reachable by scroll, which grid centring clips. */
+  .smc-host {
+    display: flex;
+  }
+
+  .smc-host svg.smc-svg {
+    display: block;
+    margin: auto;
+    height: auto;
+  }
+
+  /* Clickable states and transitions — the join to the source pane. */
+  .smc-hit {
+    cursor: pointer;
+  }
+
+  /* Adjacency: everything not connected to the hovered element recedes. */
+  .smc-dim {
+    opacity: 0.18;
+    transition: opacity 120ms ease;
+  }
+
+  /* The source pane is pointing at this state or transition. */
+  .smc-linked {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /*
+   * A named final state keeps the UML double edge in the protocol hue —
+   * colour stays ontology, exactly as the old renderer drew it.
+   */
+  .smc-final rect {
+    stroke: var(--kind-protocol);
+    stroke-width: 1.25;
   }
 
   /* Focus ring consistent across custom controls. */
@@ -301,4 +391,24 @@ body {
   font-family: var(--font-sans);
   background-color: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * The join between an artifact's drawing and its source.
+ *
+ * Monaco applies these classes through a decorations collection, and its own
+ * stylesheet is injected unlayered at runtime — so these rules are unlayered
+ * too, or the editor's defaults would outrank them whatever the import order.
+ *
+ * The accent is `--primary`, the one non-ontology colour in the system: a lit
+ * line range is not an entity kind, it is "this is the thing you selected".
+ * Opacity is deliberately not used — in this console it already means "context,
+ * not a match", and a second meaning on the same channel is the bug.
+ */
+.monaco-editor .code-anchor-lines {
+  background-color: color-mix(in oklab, var(--primary) 14%, transparent);
+}
+
+.monaco-editor .code-anchor-gutter {
+  box-shadow: inset 3px 0 0 var(--primary);
 }

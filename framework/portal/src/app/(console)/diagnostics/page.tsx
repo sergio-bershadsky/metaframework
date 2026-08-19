@@ -9,6 +9,10 @@ export const metadata: Metadata = { title: 'Diagnostics' }
 /**
  * The validation report. With no CLI in v1, this page *is* the integrity gate —
  * it must name the file, the rule, and the fix, not merely report a count.
+ *
+ * `getCatalog` folds the datamodel schema registry's diagnostics into the
+ * loader's own (lib/catalog/index.ts), so E_DM_* appears here beside E_FM_* and
+ * E_SRN_*. A reader must not have to know which validator found a problem.
  */
 export default async function DiagnosticsPage() {
   const catalog = await getCatalog()
@@ -21,8 +25,9 @@ export default async function DiagnosticsPage() {
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Integrity</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Diagnostics</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Every reference, frontmatter field, and directory placement is validated when the catalog loads.
-          Errors mean the catalog contradicts the specification; warnings mean it will drift if left alone.
+          Every reference, frontmatter field, directory placement, and datamodel schema is validated when
+          the catalog loads. Errors mean the catalog contradicts the specification; warnings mean it will
+          drift if left alone.
         </p>
       </header>
 
@@ -33,8 +38,8 @@ export default async function DiagnosticsPage() {
           <CheckCircle2 className="size-7 text-kind-environment" aria-hidden />
           <h2 className="text-base font-medium">Catalog is valid</h2>
           <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-            Every entity satisfies the frontmatter contract, every reference resolves, and every entity sits
-            where its kind allows.
+            Every entity satisfies the frontmatter contract, every reference resolves, every entity sits
+            where its kind allows, and every datamodel schema states its own identity and resolves its refs.
           </p>
         </div>
       ) : (

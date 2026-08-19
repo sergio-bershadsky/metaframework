@@ -44,6 +44,16 @@ export interface SequenceDiagramProps {
   participants: Record<string, SequenceParticipant>
   /** Called with a payload datamodel's absolute SRN. */
   onNavigate?: (srn: string) => void
+  /**
+   * Step and fragment paths the source side is pointing at. The path a step
+   * carries *is* its position in the YAML, so no translation happens here — the
+   * diagram lights whatever it is handed by the same key it already owns.
+   */
+  activeAnchors?: readonly string[]
+  /** The pointer moved onto a row, or off every row (null). */
+  onAnchorHover?: (path: string | null) => void
+  /** A row was clicked; the selection outlives the pointer. */
+  onAnchorSelect?: (path: string | null) => void
   className?: string
 }
 
@@ -69,11 +79,22 @@ const ARROW_STYLES: Record<MessageKind, ArrowStyle> = {
 
 const DATAMODEL_COLOR = kindColorVar('datamodel')
 
-export function SequenceDiagram({ workflow, participants, onNavigate, className }: SequenceDiagramProps) {
+export function SequenceDiagram({
+  workflow,
+  participants,
+  onNavigate,
+  activeAnchors,
+  onAnchorHover,
+  onAnchorSelect,
+  className,
+}: SequenceDiagramProps) {
   // SVG marker ids must be unique per instance and valid in a url(#…) reference.
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
+
+  const lit = useMemo(() => new Set(activeAnchors ?? []), [activeAnchors])
+  const linked = Boolean(onAnchorHover || onAnchorSelect)
 
   const labelOf = useMemo(
     () => (alias: string) => participants[alias]?.label ?? alias,
@@ -105,6 +126,12 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
   const clearHover = () => {
     setHoveredRow(null)
     setHoveredLane(null)
+    onAnchorHover?.(null)
+  }
+
+  const enterRow = (path: string) => {
+    setHoveredRow(path)
+    onAnchorHover?.(path)
   }
 
   return (
@@ -186,7 +213,7 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
           {/* Fragments first: they are the substrate the rows sit on. */}
           <g>
             {layout.fragments.map((fragment) => (
-              <FragmentBox key={fragment.path} fragment={fragment} />
+              <FragmentBox key={fragment.path} fragment={fragment} lit={lit.has(fragment.path)} />
             ))}
           </g>
 
@@ -200,12 +227,34 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
                 width={layout.width}
                 height={message.rowHeight}
                 fill="var(--surface-raised)"
-                opacity={hoveredRow === message.path ? 1 : 0}
+                opacity={hoveredRow === message.path || lit.has(message.path) ? 1 : 0}
                 pointerEvents="all"
-                className="transition-opacity duration-150 motion-reduce:transition-none"
-                onMouseEnter={() => setHoveredRow(message.path)}
+                className={cn(
+                  'transition-opacity duration-150 motion-reduce:transition-none',
+                  linked && 'cursor-pointer',
+                )}
+                onMouseEnter={() => enterRow(message.path)}
+                onClick={() => onAnchorSelect?.(message.path)}
               />
             ))}
+          </g>
+
+          {/* The marker for "these are the lines the caret is in". A bar in the
+              margin rather than a tint on the row: the row tint already means
+              hover, and one channel may carry one meaning. */}
+          <g pointerEvents="none">
+            {layout.messages
+              .filter((message) => lit.has(message.path))
+              .map((message) => (
+                <rect
+                  key={`lit-${message.path}`}
+                  x={0}
+                  y={message.rowTop}
+                  width={3}
+                  height={message.rowHeight}
+                  fill="var(--primary)"
+                />
+              ))}
           </g>
 
           <g pointerEvents="none">
@@ -229,7 +278,7 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
                 uid={uid}
                 opacity={rowOpacity(message)}
                 onNavigate={onNavigate}
-                onEnter={() => setHoveredRow(message.path)}
+                onEnter={() => enterRow(message.path)}
               />
             ))}
           </g>
@@ -497,7 +546,7 @@ function Message({
   )
 }
 
-function FragmentBox({ fragment }: { fragment: FragmentLayout }) {
+function FragmentBox({ fragment, lit = false }: { fragment: FragmentLayout; lit?: boolean }) {
   const tabHeight = 20
 
   return (
@@ -510,8 +559,8 @@ function FragmentBox({ fragment }: { fragment: FragmentLayout }) {
         rx={5}
         fill="var(--surface)"
         fillOpacity={0.4}
-        stroke="var(--border-strong)"
-        strokeWidth={1}
+        stroke={lit ? 'var(--primary)' : 'var(--border-strong)'}
+        strokeWidth={lit ? 1.5 : 1}
       />
       <path
         d={`M ${fragment.x} ${fragment.y}

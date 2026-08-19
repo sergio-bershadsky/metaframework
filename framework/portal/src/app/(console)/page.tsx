@@ -1,6 +1,6 @@
 import { ArrowRight, FolderOpen } from 'lucide-react'
 import Link from 'next/link'
-import { KindBadge, StatusBadge, VersionBadge } from '@/components/kind-badge'
+import { StatusBadge, VersionBadge } from '@/components/kind-badge'
 import { SrnAddress } from '@/components/srn-address'
 import { type Entity, entitiesOfSolution, entityHref, getCatalog } from '@/lib/catalog'
 import { ENTITY_KINDS } from '@/lib/catalog/frontmatter'
