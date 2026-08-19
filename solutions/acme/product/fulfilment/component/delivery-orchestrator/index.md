@@ -1,7 +1,7 @@
 ---
 name: delivery-orchestrator
 kind: component
-version: 2
+version: 3
 title: Delivery orchestrator
 summary: Decides what ships in which parcel, by which carrier, and owns the shipment aggregate end to end.
 status: approved
@@ -13,6 +13,7 @@ relations:
     - /environment/staging
     - /datamodel/money@1
     - /product/shop/datamodel/order-placed@1
+    - /product/fulfilment/datamodel/carrier-quote@1
     - /product/fulfilment/protocol/tracking-events
   exposes:
     - /product/fulfilment/protocol/carrier-booking
@@ -86,6 +87,33 @@ customer promise and the customer promise is acme's to make. The warehouse
 knows where stock is; only this component knows that telling a customer "two
 deliveries, Tuesday and Thursday" is better than "one delivery, Thursday", and
 that judgement changes with the season and never with the stock location.
+
+## Choosing between quotes
+
+The `uses` edge toward
+[carrier-quote](srn://acme/product/fulfilment/datamodel/carrier-quote@1) was
+missing from this page for as long as the selection rule was "cheapest", because
+a rule that simple reads like an implementation detail. It is not, and the edge
+is here now because the rule is a decision this component makes on the customer's
+behalf.
+
+What it actually selects is the cheapest quote whose promised date is not later
+than the date the storefront was prepared to show — not the cheapest quote. Those
+differ often enough to matter: a carrier two pounds cheaper and a day slower is
+the wrong answer for an order placed on a Thursday before a holiday and the right
+one on a Monday, and only this component knows which Thursday it is.
+
+Ties break toward the carrier with the better recent delivery record rather than
+the better contracted rate, which is a deliberate inversion. The contracted rate
+is what acme negotiated; the recent record is what the customer will experience,
+and
+[delivery-promise-accuracy](srn://acme/product/fulfilment/requirement/delivery-promise-accuracy)
+is measured on the second.
+
+Once a quote is accepted its `promised-delivery-at` is copied onto the shipment
+and the quote is not consulted again. Everything after that point is a fact about
+what was agreed, not an input to a decision, which is why the edge is `uses` on a
+datamodel and not a `depends-on` toward whatever produced it.
 
 ## Failure posture
 

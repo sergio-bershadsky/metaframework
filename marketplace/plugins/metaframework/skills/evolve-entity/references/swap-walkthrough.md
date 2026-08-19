@@ -245,13 +245,15 @@ own successor, its own migration window and its own deprecation.
 Count the cost before proposing it:
 
 ```bash
-find solutions/acme/product/shop -name index.md | wc -l                 # 23 entities
+find solutions/acme/product/shop -name index.md | wc -l     # entities that must each swap
 grep -rl "product/shop" solutions/ --include='*.md' --include='*.json' \
-     --include='*.yaml' | wc -l                                          # 84 files mention it
+     --include='*.yaml' | wc -l                             # files that mention the old path
 ```
 
-Twenty-three swaps and eighty-four files touched — to change a word that is the
-entity's address, not its label: the portal titles entities by `title`. Fix
+Against the fixture as it stands that is 23 and 86 — twenty-three swaps and
+eighty-six files touched, to change a word that is the entity's address, not its
+label: the portal titles entities by `title`. Run the two commands rather than
+quoting these numbers; both grow with the catalog. Fix
 `title` and `summary` in place, bump the version, and leave the address alone.
 Reserve the container swap for a genuine change of concept: a product being
 split in two, or absorbed into another.
