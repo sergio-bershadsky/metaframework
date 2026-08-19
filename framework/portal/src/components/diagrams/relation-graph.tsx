@@ -227,7 +227,14 @@ export function RelationGraph({
     [nodes, edges],
   )
   const input = useRef({ nodes, edges })
-  input.current = { nodes, edges }
+  // Kept in a ref so the layout effect can read the newest value without
+  // re-running on every render. Written in an effect rather than during render:
+  // a render-phase ref write is unsafe when React renders concurrently or
+  // double-invokes in StrictMode. This effect is declared first, so the value
+  // is current before the layout effect below reads it.
+  useEffect(() => {
+    input.current = { nodes, edges }
+  })
 
   useEffect(() => {
     const { nodes: current, edges: currentEdges } = input.current
@@ -319,14 +326,6 @@ export function RelationGraph({
 
   const text = useMemo(() => describe(nodes, drawable), [nodes, drawable])
 
-  if (nodes.length === 0) {
-    return (
-      <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
-        Nothing to draw — this entity has no relations.
-      </p>
-    )
-  }
-
   // Fit the canvas to the graph. `height` is a ceiling, not a fixed size: a
   // small neighbourhood in a large empty panel reads as a failed render.
   const canvasHeight = useMemo(() => {
@@ -339,8 +338,16 @@ export function RelationGraph({
     }
     return fitCanvasHeight(bottom - top, height)
   }, [placed, height])
-
   const { expanded, toggle: toggleExpanded } = useExpandable()
+
+  if (nodes.length === 0) {
+    return (
+      <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
+        Nothing to draw — this entity has no relations.
+      </p>
+    )
+  }
+
 
   return (
     <figure

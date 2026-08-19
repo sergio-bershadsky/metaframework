@@ -392,7 +392,14 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
   // object on every render would otherwise relayout forever.
   const signature = useMemo(() => JSON.stringify(chart), [chart])
   const latest = useRef(chart)
-  latest.current = chart
+  // Kept in a ref so the layout effect can read the newest value without
+  // re-running on every render. Written in an effect rather than during render:
+  // a render-phase ref write is unsafe when React renders concurrently or
+  // double-invokes in StrictMode. This effect is declared first, so the value
+  // is current before the layout effect below reads it.
+  useEffect(() => {
+    latest.current = chart
+  })
 
   useEffect(() => {
     const source = latest.current
@@ -413,14 +420,6 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
     }
   }, [signature, direction])
 
-  if (chart.nodes.length === 0) {
-    return (
-      <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
-        This machine declares no states.
-      </p>
-    )
-  }
-
   // Same rule as the relation graph: the canvas fits the chart, and `height`
   // only caps how tall it may grow before panning takes over.
   const canvasHeight = useMemo(() => {
@@ -435,8 +434,16 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
     }
     return fitCanvasHeight(bottom - top, height)
   }, [flow, height])
-
   const { expanded, toggle: toggleExpanded } = useExpandable()
+
+  if (chart.nodes.length === 0) {
+    return (
+      <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
+        This machine declares no states.
+      </p>
+    )
+  }
+
 
   return (
     <figure
