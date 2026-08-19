@@ -37,10 +37,11 @@
     "authentication-strength": {
       "enum": [
         "none",
+        "recovery",
         "single-factor",
         "multi-factor"
       ],
-      "description": "How much was proved. A permission with requires-multi-factor is denied below \"multi-factor\"."
+      "description": "How much was proved. Ordered none < recovery < single-factor < multi-factor by acl; the order is not expressible here. A permission with requires-multi-factor is denied below \"multi-factor\", and \"recovery\" additionally denies everything but credential repair."
     },
     "issued-at": {
       "type": "string",

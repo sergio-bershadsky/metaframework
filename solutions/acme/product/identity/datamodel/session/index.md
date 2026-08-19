@@ -1,7 +1,7 @@
 ---
 name: session
 kind: datamodel
-version: 2
+version: 3
 title: Session
 summary: One authentication episode — opaque to its holder, resolvable only by the store that issued it.
 status: approved
@@ -47,6 +47,23 @@ is which permissions match, because
 `requires-multi-factor`. Modelling strength as a state would have forced a
 transition for every elevation and left `expired` ambiguous about what it expired
 from.
+
+`recovery` was added to that enum for the session a principal holds immediately
+after an account-recovery flow, where a mailbox was reached but no live factor
+was presented. It is deliberately not `single-factor`: possession of an inbox is
+what an attacker who has already taken the inbox also has, and the two must be
+distinguishable at the point a permission is evaluated rather than reconstructed
+afterwards from the login audit. The ordering — `none` below `recovery` below
+`single-factor` below `multi-factor` — is enforced by
+[acl](srn://acme/product/identity/component/acl) and is not expressible in the
+enum, which is an honest limitation of describing a lattice with a list.
+
+The practical consequence is narrow and intended: a recovery session can change
+a password and enrol a factor, and can do nothing that spends money or reads
+another principal's data. Consumers written against version 2 see an unfamiliar
+value and must treat it as they treat any unknown enum member — as *not* one of
+the values they were checking for, which lands on refusal for a strength test and
+is the safe direction.
 
 ## Tenant on the session, not on the account
 
