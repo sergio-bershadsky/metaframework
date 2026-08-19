@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 3
+version: 5
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, document map, and reading order.
@@ -70,11 +70,36 @@ example. A rule without an example is an incomplete rule and a spec defect.
    solution-absolute (`/product/shop/datamodel/order-placed@1`) rather than a
    chain of `..`. See [srn.md](srn.md).
 
-   The single exception is `schema.json`, whose `$id` and `$ref`s are HTTP URLs
-   the portal serves, so that stock JSON Schema validators and code generators
-   can dereference them unaided. That URL is the entity's SRN with a different
-   prefix, so identity is unchanged. See
-   [kinds/datamodel.md](kinds/datamodel.md).
+   `schema.json` is the one artifact that *spells* references differently: its
+   root `$id` and every cross-entity `$ref` are canonical HTTP URLs, so that
+   stock JSON Schema validators and code generators can dereference them
+   unaided. That is not a second addressing scheme — the URL path after the host
+   is the entity's SRN path verbatim, and the schema states the SRN itself in a
+   required `x-srn`:
+
+   ```text
+   srn://acme/datamodel/money                              # identity   — also written as x-srn
+   solutions/acme/datamodel/money/                         # storage
+   https://schemas.metaframework.dev/acme/datamodel/money  # dereferenceable projection — $id
+   ```
+
+   The host is a stable canonical constant, not configuration: identity must not
+   vary between a laptop and production. `SCHEMA_BASE_URL` still says where the
+   portal *serves* schemas, and never appears in a file.
+
+   > The SRN is the identity. The schema URL is its dereferenceable projection.
+   > The disk path is its storage. All three are mechanically inter-convertible,
+   > and none of them is a second addressing scheme.
+
+   That sentence is normative and is stated in full in [srn.md](srn.md); see
+   [kinds/datamodel.md](kinds/datamodel.md) for the schema rules it governs.
+   **Retired** (amendment 2026-08-19-b, superseded by 2026-08-19-c): the earlier
+   convention in which a `schema.json` carried no `$id` and referenced its
+   neighbours by relative file path. Such references could not be dereferenced
+   outside a clone of this repository, which is the requirement they existed to
+   satisfy. **Also retired** (the 2026-08-19-c window, closed by 2026-08-19-d):
+   dropping `x-srn`. It is required again, so identity is never left implicit in
+   a URL-parsing rule.
 
 3. **Additive-only evolution.** An entity's contract surface is never reduced —
    only extended (with a version bump), or replaced by a new entity that is
@@ -103,7 +128,7 @@ example. A rule without an example is an incomplete rule and a spec defect.
 | -------------------------------- | ------- | ---------------------------------------------------------------------------- |
 | [index.md](index.md)             | review  | This overview: purpose, principles, document map, reading order.             |
 | [structure.md](structure.md)     | review  | Directory layout contract: monorepo, kind buckets, entity directories.       |
-| [srn.md](srn.md)                 | review  | SRN grammar (bucket/name pairs), parsing, disk resolution, relative references, placement, validation. |
+| [srn.md](srn.md)                 | review  | The consolidating principle (SRN / schema URL / disk path), SRN grammar (bucket/name pairs), parsing, disk resolution, relative references, placement, validation. |
 | [frontmatter.md](frontmatter.md) | review  | Common frontmatter contract for every entity `index.md`.                     |
 | [evolution.md](evolution.md)     | review  | Versioning, additive-only rules, swap procedure, git-backed history, status. |
 | `portal.md`                      | planned | Portal loader contract: validation pipeline, derived-diagram inputs.         |
@@ -117,7 +142,7 @@ never overriding them:
 | [kinds/solution.md](kinds/solution.md)       | review | Sealed universe and catalog root; `vision`/`scope`/`contacts`; container rules C1–C7.  |
 | [kinds/product.md](kinds/product.md)         | review | The `product/` bucket at solution level; `lifecycle`, `primary-actors`.                |
 | [kinds/component.md](kinds/component.md)     | review | The `component/` bucket under a product or component; `component-type`; reuse.         |
-| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), `$id`/`$ref` as served schema URLs, registry.     |
+| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), canonical `$id`/`$ref`, `x-srn`, registry.        |
 | [kinds/protocol.md](kinds/protocol.md)       | review | `participants`/`style`, `transport.yaml`, `workflows/*.yaml`, `states.json`.           |
 | [kinds/actor.md](kinds/actor.md)             | review | Solution-level counterparts; `actor-type`, `goals`, protocol participation.            |
 | [kinds/environment.md](kinds/environment.md) | review | Solution-level deployment targets; `environment-type`, `topology.yaml`, `config.yaml`. |

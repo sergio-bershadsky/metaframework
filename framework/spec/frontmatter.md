@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: frontmatter
-version: 2
+version: 4
 status: review
 title: Common frontmatter
 summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges, and validation.
@@ -188,17 +188,38 @@ x-jira-epic: SHOP-142
 # Order
 
 Prose: intent, invariants, review notes. The machine-readable shape lives in
-the sibling `schema.json`, whose `$id` and `$ref`s are served HTTP URLs, so
-stock JSON Schema tooling can dereference them unaided
-(decision-record amendment 2026-08-19-b). Its identity is this entity's SRN,
-`srn://acme/product/shop/component/checkout/component/payment/datamodel/order`,
-derived from the path; the version above is the only copy of the version.
+the sibling `schema.json`, whose REQUIRED root `$id` and every cross-entity
+`$ref` are canonical HTTP URLs, so stock JSON Schema tooling can dereference
+them unaided (decision-record amendments 2026-08-19-c and 2026-08-19-d).
+Identity is unchanged by the spelling: the `$id`
+`https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/order`
+is this entity's SRN
+`srn://acme/product/shop/component/checkout/component/payment/datamodel/order`
+with a different prefix ([srn.md](srn.md)) — and the schema states that SRN
+outright in its REQUIRED `x-srn`. The `version` above is the only copy of the
+version: neither `$id` nor `x-srn` carries one.
 ```
+
+`status` is the one frontmatter field a datamodel mirrors into its schema. When
+it reaches `deprecated`, `schema.json` SHOULD also set `"deprecated": true` at
+the root — a standard 2020-12 meta-data keyword, so the annotation reaches every
+consumer that only ever sees the schema, not just the portal
+([evolution.md](evolution.md), [kinds/datamodel.md](kinds/datamodel.md)). No
+other frontmatter field is duplicated inside the schema.
 
 The schema's `$ref` edges are deliberately **not** repeated under `relations` —
 the portal derives them from `schema.json`
 ([kinds/datamodel.md](kinds/datamodel.md)). `relations` on a datamodel carries
-only what the schema cannot say.
+only what the schema cannot say, and the standing example is a **version pin**: a
+schema URL addresses the current schema and a `@N` inside one is rejected, so a
+pin has exactly one legal home.
+
+```yaml
+relations:
+  uses:
+    - /datamodel/money@1      # good — the pin the schema's URL $ref cannot carry
+    - /datamodel/base-record  # redundant — unpinned, and schema.json already $refs it
+```
 
 Counter-examples:
 

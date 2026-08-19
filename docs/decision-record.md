@@ -178,6 +178,11 @@ remedy and is explicitly not in v1.
 
 ## Amendment 2026-08-19-c — schema references become dereferenceable URLs
 
+> **Partly superseded by 2026-08-19-d** (below), on two points: the host is now a
+> canonical constant rather than `SCHEMA_BASE_URL`, and `x-srn` is required
+> again. The URL form itself, and everything else here, stands. This section is
+> left as written — history is appended to, never rewritten.
+
 **This supersedes amendment 2026-08-19-b.** That amendment's requirement stands
 and is not in dispute; its *mechanism* is replaced. Everything else about the
 SRN — frontmatter `relations`, workflow YAML, prose links — remains exactly as
@@ -264,6 +269,10 @@ complete.
 
 ### The SCHEMA_BASE_URL portability rule
 
+> **Retired by 2026-08-19-d.** Identity no longer varies by deployment, so there
+> is nothing per-deployment left in the artifacts to rewrite. Recorded as
+> written; do not follow it.
+
 The origin is configuration, never a literal. It comes from `SCHEMA_BASE_URL`
 (default `http://localhost:3000`), exposed by
 `framework/portal/src/lib/schema/url.ts`, and every module — the portal, the
@@ -308,3 +317,148 @@ outsiders*; for the portal they are identity.
   `E_SRN_DANGLING` (the registry holds only datamodels, so a URL naming anything
   else has no entry). `E_DM_REF_ESCAPE` survives with a narrowed subject — a URL
   on this origin that leaves the `/schemas/` namespace.
+
+---
+
+## Amendment 2026-08-19-d — identity is canonical, and the SRN stays in the file
+
+**This amends 2026-08-19-c on two points and leaves the rest of it standing.**
+The URL form, the one-spelling rule, the absence of a version suffix, the
+entity-private `$defs` and the local JSON Pointers are all unchanged. What
+changes is *which host* an artifact names, and whether `x-srn` exists.
+
+### 1. The host is a canonical constant, not `SCHEMA_BASE_URL`
+
+2026-08-19-c made `$id` the URL *the portal serves the schema at*, derived from
+`SCHEMA_BASE_URL`. That conflated two different things:
+
+|                      | Identity                        | Retrieval                                |
+|----------------------|---------------------------------|------------------------------------------|
+| What it answers      | what this schema **is**         | where a copy can be **fetched**          |
+| Where it lives       | in the artifact (`$id`, `$ref`) | in deployment config (`SCHEMA_BASE_URL`) |
+| Varies by deployment | **never**                       | yes, by definition                       |
+
+Making identity track a deployment variable is a defect, not a configuration
+choice. Registries, caches, generated client packages and `$ref` graphs all key
+on `$id`; a laptop saying `http://localhost:3000/schemas/acme/datamodel/money`
+and production saying `https://catalog.acme.example/schemas/acme/datamodel/money`
+hold **two** schemas where there is one, and the disagreement surfaces as a
+resolution failure far from its cause. It also made the "portability rule" of
+2026-08-19-c necessary at all: rewriting every artifact on a config change is
+work that only exists because the config was in the artifacts.
+
+The decision:
+
+- `$id` and every cross-entity `$ref` are built on
+  **`https://schemas.metaframework.dev`**, a constant defined once in
+  `framework/portal/src/lib/schema/url.ts` (`CANONICAL_SCHEMA_HOST`) and
+  mirrored in `scripts/migrate_schema_ids.py`.
+- `SCHEMA_BASE_URL` still exists and still controls the `/schemas` route — where
+  *this* deployment hands the bytes over. It MUST NOT appear in any artifact. A
+  `$ref` naming a serving address is `E_DM_REF_TARGET`, with the canonical URL in
+  the diagnostic message.
+- The `SCHEMA_BASE_URL` portability rule of 2026-08-19-c is **retired**: there is
+  nothing per-deployment left in the artifacts to rewrite.
+
+Nothing about dereferenceability is lost. In JSON Schema, `$id` is an identifier
+and retrieval is a resolver's problem: a consumer that prefers fetching to
+trusting a cache maps the canonical host onto a serving address in resolver
+config — one line, outside the artifacts. The measurement in 2026-08-19-c
+proves the *URL form* is dereferenceable, which is unaffected by which host the
+file names. The portal's own bundler is exactly such a mapping, resolving each
+canonical URL to a local file.
+
+### 2. `x-srn` is required again
+
+2026-08-19-c retired `x-srn` on the grounds that `$id` had made it redundant and
+that two identity fields can disagree. Both halves were wrong in practice:
+
+- **The SRN vanished from schema files entirely.** Identity became implicit in a
+  URL-parsing rule — "strip this host, prefix `srn://`" — that a reader has to
+  know to apply. A schema pasted into a validator, vendored into a client repo or
+  attached to a ticket could no longer say where it came from in the framework's
+  own vocabulary, and `grep -r 'srn://acme/datamodel/money' solutions/` stopped
+  finding the schema that *is* that entity.
+- **They cannot disagree.** Both `$id` and `x-srn` are derived from, and checked
+  against, the file's own directory at load. They are two spellings of one
+  derived fact, not two hand-maintained fields. The disagreement 2026-08-19-c
+  feared requires a field that is *trusted*; neither of these is.
+
+`x-srn` is REQUIRED, carries the entity's **unversioned** SRN, and is validated
+against the path (`E_DM_SRN_MISSING`, `E_DM_SRN_MISMATCH`).
+
+### 3. `deprecated` is named as the lifecycle keyword
+
+Recorded here because it was previously only implicit: `deprecated` is a
+**standard 2020-12 meta-data keyword**, verified present in the meta-data
+vocabulary (`node_modules/ajv/dist/refs/json-schema-2020-12/meta/meta-data.json`).
+A datamodel whose entity `status` is `deprecated` SHOULD set `"deprecated": true`
+at the schema root, and any property being phased out MAY carry it. It is an
+annotation, so setting it is always additive. No framework extension is defined
+for this — stock tooling already understands it.
+
+### Consequences
+
+- Error codes: `E_DM_SRN_MISSING` and `E_DM_SRN_MISMATCH` are (re)introduced.
+  `E_DM_SRN_RETIRED` is retired with the window that produced it.
+  `E_DM_REF_ESCAPE` is retired: it meant "on this origin but outside
+  `/schemas/`", and the canonical host carries no route prefix — the whole host
+  is the entity namespace — so a bad path is `E_DM_REF_TARGET`.
+  `E_DM_REF_KIND` stays retired (2026-08-19-c).
+- `scripts/migrate_schema_ids.py` normalises a catalog written against any host
+  or serving address onto canonical identity, and adds `x-srn`. It is idempotent
+  and doubles as a drift guard (`--check`).
+- The consolidating principle is unchanged and is now stated verbatim in
+  `framework/spec/srn.md` and in the plugin's reference bundle:
+
+  > The SRN is the identity. The schema URL is its dereferenceable projection.
+  > The disk path is its storage. All three are mechanically inter-convertible,
+  > and none of them is a second addressing scheme.
+
+---
+
+## Amendment 2026-08-19-e — state diagrams render with mermaid, always
+
+The portal section above chose "React Flow primary, mermaid fallback" for
+derived diagrams. **That part is superseded for state charts only.** Sequence
+diagrams (hand-rolled SVG), the relation graph and the solution map (React
+Flow + ELK) are unchanged, and mermaid remains unavailable to them.
+
+### The decision
+
+Decided by the owner, 2026-08-19: the state-chart widget is rebuilt from
+scratch on **mermaid** (`stateDiagram-v2`), and mermaid is the renderer for
+state diagrams, always. `states.json` stays the artifact and `parseStates`
+stays the validator and the model; only the renderer behind the parsed
+`StateChart` changes — a pure generator emits mermaid text from it, and a
+client component renders that text.
+
+### Why
+
+The custom React Flow chart earned its keep on interactivity but not on
+layout. It went through repeated legibility rounds — a two-pass
+measure-then-relayout pipeline, a label-spread solver with obstacle avoidance,
+per-chart calibration constants — and residual label grazes still survived on
+the charts that mattered (promotion-evaluation's compound regions, the brass
+action-composition chart with 30 edge labels). Mermaid's deterministic
+state-diagram layout places labels on dedicated edge-label tracks and has
+never needed any of that machinery. The owner watched the fix rounds and made
+an informed call: deterministic layout beats interactive custom layout for
+this diagram kind.
+
+### What is knowingly given up
+
+- **Pan/zoom and the React Flow controls.** The mermaid SVG is a static
+  drawing; the expand-to-viewport affordance is kept, wheel-zooming a canvas
+  is not.
+- **The density toggle.** Compact/detailed state boxes were a React Flow
+  feature; mermaid draws one density.
+- **Hover detail panels** on states (description, entry/exit behind a hover)
+  and hover-expanded transition labels (guard/actions behind a dot). Mermaid
+  renders what the text declares, inline.
+- **Fine-grained interactivity is best-effort, not contractual.** The
+  source-line join (anchors) and adjacency dimming survive only as far as
+  mermaid's generated SVG exposes stable, addressable element ids; whatever
+  does not survive is reported, not faked.
+
+Recorded rather than rewritten, per this file's additive-only principle.
