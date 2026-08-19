@@ -1,7 +1,7 @@
 ---
 name: order-line
 kind: datamodel
-version: 1
+version: 2
 title: Order line
 summary: One sellable item, its quantity, and the price it was sold at — the atom of every basket and order.
 status: approved
@@ -23,6 +23,28 @@ line that resolved its price at read time would silently rewrite history.
 price. The redundancy is deliberate — rounding is a policy, the policy has
 changed once, and a stored total makes an old order re-readable without knowing
 which policy applied that year.
+
+## The discount is allocated down to the line
+
+`line-discount` is this line's share of whatever
+[promotion-quote](srn://acme/product/growth/datamodel/promotion-quote@1) decided
+the basket was worth, allocated at the moment the cart became an order. Most
+promotions are cart-level — "£10 off orders over £50" applies to no line in
+particular — so allocating is a choice, not a reading, and the choice is made
+once here rather than re-derived by every consumer that needs it.
+
+The consumer that forces it is the partial refund. A customer returning one of
+five items must be refunded what they paid for that item, and what they paid is
+the unit price less this line's share. Without the allocation, computing a refund
+means replaying the promotion engine against a cart that no longer exists,
+against campaign definitions that may since have been deleted — a reconstruction
+that is wrong in exactly the cases anybody notices.
+
+Allocation is proportional to `line-total` with the remainder pence going to the
+largest line, which is arbitrary but fixed: the sum of `line-discount` across an
+order equals the discount the customer was shown, and no rounding drifts into a
+penny nobody can account for. `line-total` stays gross, so it means the same
+thing it meant at version 1.
 
 ## Local shapes
 

@@ -25,17 +25,17 @@ other stray key.
 
 ## Common fields — every kind
 
-| Field       | Type                                        | Required | Rule                                                                |             |     |                                                                        |
-| ----------- | ------------------------------------------- | -------- | ---------------------------------------------------------------     |             |     |                                                                        |
-| `name`      | string, kebab-case                          | yes      | MUST equal the directory name (`E_FM_NAME_MISMATCH`).               |             |     |                                                                        |
-| `kind`      | one of the nine kinds                       | yes      | MUST equal the bucket the directory sits in (`E_FM_KIND_LOCATION`). |             |     |                                                                        |
-| `version`   | integer ≥ 1                                 | yes      | Integer, never a string; bumped per `evolution.md`.                 |             |     |                                                                        |
-| `title`     | string, ≤ 80 chars                          | yes      | Human display name; any characters.                                 |             |     |                                                                        |
-| `summary`   | string, one line, ≤ 200 chars               | yes      | One sentence, no markdown; shown in catalog lists.                  |             |     |                                                                        |
-| `status`    | `draft \                                    | review \ | approved \                                                          | deprecated` | yes | **Document** lifecycle — never the described thing's real-world stage. |
-| `owner`     | string                                      | no       | Responsible team/person handle, e.g. `team-payments`.               |             |     |                                                                        |
-| `relations` | map of edge type → list of SRN refs         | no       | Typed **outgoing** edges; see below.                                |             |     |                                                                        |
-| `tags`      | list of kebab-case strings                  | no       | Free navigation facets; no semantics attached.                      |             |     |                                                                        |
+| Field       | Type                                | Required | Rule                                                                                                    |
+|-------------|-------------------------------------|----------|---------------------------------------------------------------------------------------------------------|
+| `name`      | string, kebab-case                  | yes      | MUST equal the directory name (`E_FM_NAME_MISMATCH`).                                                   |
+| `kind`      | one of the nine kinds               | yes      | MUST equal the bucket the directory sits in (`E_FM_KIND_LOCATION`).                                     |
+| `version`   | integer ≥ 1                         | yes      | Integer, never a string; bumped per `evolution.md`.                                                     |
+| `title`     | string, ≤ 80 chars                  | yes      | Human display name; any characters.                                                                     |
+| `summary`   | string, one line, ≤ 200 chars       | yes      | One sentence, no markdown; shown in catalog lists.                                                      |
+| `status`    | enum: `draft`, `review`, `approved`, `deprecated` | yes | **Document** lifecycle — never the described thing's real-world stage.                     |
+| `owner`     | string                              | no       | Responsible team/person handle, e.g. `team-payments`.                                                   |
+| `relations` | map of edge type → list of SRN refs | no       | Typed **outgoing** edges; see below.                                                                    |
+| `tags`      | list of kebab-case strings          | no       | Free navigation facets; no semantics attached.                                                          |
 
 `kind` enum (the closed v1 ontology):
 

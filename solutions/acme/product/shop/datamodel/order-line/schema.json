@@ -25,7 +25,11 @@
     },
     "line-total": {
       "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
-      "description": "Quantity times unit price under the rounding policy in force."
+      "description": "Quantity times unit price under the rounding policy in force. Gross: the discount below is not subtracted from it."
+    },
+    "line-discount": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "This line's allocated share of the order's total discount, fixed when the cart became an order. Absent on an undiscounted line."
     }
   },
   "required": [
