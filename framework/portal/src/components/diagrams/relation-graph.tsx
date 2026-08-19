@@ -19,6 +19,7 @@ import { Crosshair, Scan } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ExpandButton } from '@/components/diagrams/expand-button'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
+import { useGraphHighlight } from '@/lib/diagrams/use-graph-highlight'
 import type { EdgeType, EntityKind } from '@/lib/catalog/frontmatter'
 import {
   DIAGRAM_BACKGROUND,
@@ -340,6 +341,12 @@ export function RelationGraph({
   }, [placed, height])
   const { expanded, toggle: toggleExpanded } = useExpandable()
 
+  // Same rule as the state chart: hovering an entity lights its relations and
+  // whatever sits at the far end, and lifts them clear of everything else.
+  const highlight = useGraphHighlight(flowNodes, flowEdges)
+  const litNodes = useMemo(() => flowNodes.map(highlight.decorate), [flowNodes, highlight])
+  const litEdges = useMemo(() => flowEdges.map(highlight.decorate), [flowEdges, highlight])
+
   if (nodes.length === 0) {
     return (
       <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
@@ -369,8 +376,9 @@ export function RelationGraph({
           <LayoutPending />
         ) : (
           <ReactFlow
-            nodes={flowNodes}
-            edges={flowEdges}
+            nodes={litNodes}
+            edges={litEdges}
+            {...highlight.handlers}
             nodeTypes={nodeTypes}
             colorMode="dark"
             fitView

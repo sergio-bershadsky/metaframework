@@ -219,6 +219,17 @@
   }
 
   /*
+   * Adjacency highlighting: everything not connected to the hovered element
+   * recedes. Applied to the group React Flow owns, so a node, an edge, its
+   * marker and its label all recede together — an edge's `style` reaches only
+   * its path, which a custom edge component may never apply.
+   */
+  .react-flow__node.dgm-recede,
+  .react-flow__edge.dgm-recede {
+    opacity: 0.18;
+  }
+
+  /*
    * A diagram expanded to fill the browser viewport. It is a fixed overlay
    * rather than a real fullscreen element: taking over the display and hiding
    * the browser's own chrome is the wrong scale for reading one diagram.

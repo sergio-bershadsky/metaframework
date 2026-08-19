@@ -22,6 +22,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ExpandButton } from '@/components/diagrams/expand-button'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
+import { useGraphHighlight } from '@/lib/diagrams/use-graph-highlight'
 import {
   DIAGRAM_BACKGROUND,
   DIAGRAM_CANVAS_VARS,
@@ -436,6 +437,12 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
   }, [flow, height])
   const { expanded, toggle: toggleExpanded } = useExpandable()
 
+  // Hovering a state reveals only what it connects to, and lifts that subgraph
+  // above the rest so its transitions and labels stay readable.
+  const highlight = useGraphHighlight(flow?.nodes ?? [], flow?.edges ?? [])
+  const litNodes = useMemo(() => (flow?.nodes ?? []).map(highlight.decorate), [flow, highlight])
+  const litEdges = useMemo(() => (flow?.edges ?? []).map(highlight.decorate), [flow, highlight])
+
   if (chart.nodes.length === 0) {
     return (
       <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
@@ -470,8 +477,9 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
           <LayoutPending label="Laying out the state chart" />
         ) : (
           <ReactFlow
-            nodes={flow.nodes}
-            edges={flow.edges}
+            nodes={litNodes}
+            edges={litEdges}
+            {...highlight.handlers}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             colorMode="dark"
