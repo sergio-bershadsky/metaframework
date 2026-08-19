@@ -1,7 +1,7 @@
 ---
 name: promotion-engine
 kind: component
-version: 3
+version: 4
 title: Promotion engine
 summary: Stateless evaluator on the checkout hot path — decides what a cart is worth and answers within a budget.
 status: review
@@ -28,6 +28,7 @@ relations:
 tags:
   - promotions
   - hot-path
+  - privacy
 x-runtime: rust
 ---
 
@@ -115,7 +116,10 @@ That edge is the concrete form of growth's product-level `depends-on` toward
 is checkout's to author, and the portal will show it here as an inverse once it
 exists.
 
-## Both dependencies are allowed to fail
+## Both request-path dependencies are allowed to fail
+
+Campaign-manager is not one of them — it is a startup dependency, as above. The
+two that are reached while a customer waits are audience and coupon-service.
 
 The engine calls audience and coupon-service on the request path, and treats a
 timeout from either as a rejection rather than an error: an account whose
@@ -129,6 +133,27 @@ Only when the engine cannot complete the evaluation *at all* does it set
 these, applied those" and "could not tell" is load-bearing and is the reason
 [promotion-quote](srn://acme/product/growth/datamodel/promotion-quote@1) carries
 both fields.
+
+## The non-goal is enforced by shape, not by policy
+
+[personalized-pricing](srn://acme/product/growth/requirement/personalized-pricing)
+records that acme will not price a basket differently for one named person than
+for their segment. This component is where that would have to happen, and the
+reason it cannot is structural rather than a rule somebody follows.
+
+The only thing it ever learns about an account is a boolean per segment:
+[audience](srn://acme/product/growth/component/audience) answers "is this account
+in this segment", never "what is this account like". No purchase history, no
+propensity score, no feature vector of any kind crosses that boundary, and the
+`is-member` call in `workflows/price-cart.yaml` has no shape in which one could.
+Per-individual pricing is therefore not a feature the engine declines to use — it
+is a computation it has no inputs for.
+
+That is the difference worth writing down. A policy holds until someone with a
+deadline reads it as advice; an interface that cannot express the thing holds
+until someone changes the interface, which is a reviewable act with a name on it.
+The `privacy` tag is on this page for the same reason: the constraint lives here,
+in the component, and not only in the requirement that asked for it.
 
 ## Written in Rust, and why that is in the catalog at all
 
