@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/industry-type",
+  "title": "Industry type",
+  "description": "One of the six Brass: Birmingham industries. Closed by the printed board.",
+  "type": "string",
+  "enum": [
+    "coal",
+    "iron",
+    "brewery",
+    "cotton",
+    "manufacturer",
+    "pottery"
+  ]
+}

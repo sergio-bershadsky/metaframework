@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/owned-piece",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/owned-piece",
+  "title": "Owned piece",
+  "description": "A numbered piece on the board belonging to one player. Extended through allOf by built-tile and built-link; never instantiated alone.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Per-match monotonic id from next-tile-id or next-link-id. The two counters are independent, so a tile and a link may share a number."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Player id, \"0\" through \"3\". Colour is looked up through the seat, never stored here."
+    }
+  },
+  "required": [
+    "id",
+    "owner"
+  ]
+}

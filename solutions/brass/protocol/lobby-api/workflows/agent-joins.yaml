@@ -1,0 +1,81 @@
+name: agent-joins
+title: An agent finds a match and takes a seat
+summary: The MCP server discovers an open match with a free seat and claims it, using the same routes a browser uses.
+participants: [mcp, game-server]
+steps:
+  - alt:
+      - when: the agent supplied a matchID
+        steps:
+          - message: get-match
+            from: mcp
+            to: game-server
+            kind: call
+          - message: match-metadata
+            from: game-server
+            to: mcp
+            kind: return
+            payload: /datamodel/match-summary@1
+      - when: no matchID was supplied
+        steps:
+          - message: list-matches
+            from: mcp
+            to: game-server
+            kind: call
+            condition: isGameover = false
+          - message: open-matches
+            from: game-server
+            to: mcp
+            kind: return
+            payload: /datamodel/match-summary@1
+            note: >-
+              The session picks the first match holding any seat without a name.
+              There is no ranking, no age check and no capacity heuristic — first
+              hit wins.
+          - message: get-match
+            from: mcp
+            to: game-server
+            kind: call
+          - message: match-metadata
+            from: game-server
+            to: mcp
+            kind: return
+            payload: /datamodel/match-summary@1
+
+  - opt:
+      when: the agent named a specific seat that is missing or already taken
+      steps:
+        - message: get-match
+          from: mcp
+          to: game-server
+          kind: call
+          condition: re-read before committing to the named seat
+        - message: seat-unavailable
+          from: game-server
+          to: mcp
+          kind: error
+          note: >-
+            Decided locally by the session against the metadata it just read, not
+            by a server rejection: a named seat that does not exist, or one that
+            already carries a name, fails before any join is attempted. The tool
+            returns isError instead of throwing, so the model can list again and
+            retry.
+
+  - message: join-match
+    from: mcp
+    to: game-server
+    kind: call
+    condition: playerID = the chosen free seat
+    note: >-
+      Display name defaults to "Bot N" (N = seat index + 1). Nothing on the wire
+      marks this caller as an agent — the bot flag is set later, by the sit-down
+      move in game state.
+
+  - message: seat-claimed
+    from: game-server
+    to: mcp
+    kind: return
+    payload: /datamodel/match-credentials@1
+    note: >-
+      Held in process memory only. There is no persistence, so a restarted MCP
+      process cannot re-enter the seat it holds — see requirement
+      long-running-reconnect, which is unmet.

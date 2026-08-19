@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/seat",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/seat",
+  "title": "Seat",
+  "description": "One lobby seat. Held on the game state itself, so the lobby is a game phase rather than server infrastructure.",
+  "type": "object",
+  "properties": {
+    "joined": {
+      "type": "boolean",
+      "description": "Set by the in-game sitDown move. A seat reserved through the lobby REST join but not yet sat down is named and not joined."
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name, supplied at the lobby REST join. Empty string on a free seat."
+    },
+    "color": {
+      "anyOf": [
+        {
+          "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/player-color"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Claimed colour, or null before pickColor. Uniqueness across seats is enforced by the move handler."
+    },
+    "avatar": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Claimed avatar emoji from the eight-item AVATARS set, or null before pickAvatar. Unique across seats."
+    },
+    "ready": {
+      "type": "boolean",
+      "description": "Toggled by toggleReady. The host's start move requires every joined seat to be ready."
+    },
+    "ai": {
+      "type": "boolean",
+      "description": "True when the seat is driven by the MCP session rather than a human. Source of truth for the client's bot badge; omitted or false means human."
+    }
+  },
+  "required": [
+    "joined",
+    "name",
+    "color",
+    "avatar",
+    "ready"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/decision",
+  "x-srn": "srn://brass/product/play/component/rules/component/move-enumerator/datamodel/decision",
+  "title": "Decision",
+  "description": "One cube, barrel or tile-sale and everything that could satisfy it. Zero candidates means the move is illegal; exactly one means it is forced and must not be prompted.",
+  "type": "object",
+  "properties": {
+    "need": {
+      "const": 1,
+      "description": "Units this decision covers. Always 1: coal re-measures the nearest mine per cube and the market price rises per cube, so units cannot be collapsed."
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/candidate"
+      },
+      "description": "Sources that could satisfy this unit, after simulating the depletion caused by earlier decisions in the same array. Empty means unsatisfiable."
+    },
+    "forced": {
+      "type": "boolean",
+      "description": "True when exactly one candidate remains. The caller applies it silently rather than prompting."
+    }
+  },
+  "required": [
+    "need",
+    "candidates",
+    "forced"
+  ]
+}

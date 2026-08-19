@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/card",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/card",
+  "title": "Card",
+  "description": "One hand card. Every action discards exactly one. Other seats' cards are replaced by hidden placeholders before broadcast.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Content-derived id: loc-<city>-<i>, ind-<industry>-<n>, ind-cm-<i>, or wl-/wi-<next-tile-id>-<player-id>. Redacted opponent cards use hidden-<player-id>-<index>."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "location",
+        "industry",
+        "wild-location",
+        "wild-industry"
+      ],
+      "description": "Card face. Wilds are minted only by Scout and returned to a shared pool when discarded."
+    },
+    "city": {
+      "type": "string",
+      "description": "Board-location id, on a location card. Absent on every other face, and absent on a redacted placeholder even though its type is \"location\"."
+    },
+    "industries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+      },
+      "description": "Allowed industries on an industry card. Two entries only for the dual cotton/manufacturer face."
+    },
+    "face-down": {
+      "type": "boolean",
+      "description": "Seeded into the canal-era discard pile face down, so it is attributed to no played action. Cleared when the era transition reshuffles."
+    }
+  },
+  "required": [
+    "id",
+    "type"
+  ]
+}

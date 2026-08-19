@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/board-location",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/board-location",
+  "title": "Board location",
+  "description": "A labelled point on the printed map. Extended through allOf by city and merchant; never instantiated alone.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Vertex key of the board graph. Cities and merchants share one id namespace."
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name as printed on the board, e.g. \"Burton-on-Trent\"."
+    },
+    "x": {
+      "type": "integer",
+      "description": "Board-art x coordinate. Within BOARD_EXTENT 25..871."
+    },
+    "y": {
+      "type": "integer",
+      "description": "Board-art y coordinate. Within BOARD_EXTENT 26..939."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "x",
+    "y"
+  ]
+}

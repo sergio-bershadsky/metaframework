@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/datamodel/match-summary",
+  "x-srn": "srn://brass/datamodel/match-summary",
+  "title": "Match summary",
+  "description": "Public match metadata from the lobby REST API. Defined by boardgame.io; consumed by both products and owned by neither.",
+  "type": "object",
+  "properties": {
+    "match-id": {
+      "type": "string",
+      "description": "Framework-generated match id. Also the invite URL's path segment: /play/:matchID."
+    },
+    "game-name": {
+      "type": "string",
+      "const": "brass",
+      "description": "The registered game. This deployment serves exactly one."
+    },
+    "players": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Seat index. Note this is an integer here, while the game state keys seats by the same value as a string."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name, set at join. ABSENT means the seat is free: both clients test occupancy with exactly this."
+          },
+          "is-connected": {
+            "type": "boolean",
+            "description": "Whether a socket is currently attached to this seat. Not read anywhere in this repository."
+          },
+          "data": {
+            "description": "Opaque per-seat payload the framework allows. Unused here."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Public seat metadata. The per-seat credentials are stripped from this view and returned only to the joiner."
+      },
+      "description": "One entry per seat, created at match creation. Length is the room size, not the number of players present."
+    },
+    "setup-data": {
+      "description": "Opaque setup payload passed at match creation. Unused here; the game derives everything from seat count at start."
+    },
+    "gameover": {
+      "description": "The endIf result once the match is finished: { winner, winners }. Absent while playing. listMatches filters on it."
+    },
+    "next-match-id": {
+      "type": "string",
+      "description": "Set by the framework's play-again endpoint. No code in this repository calls it or reads this."
+    },
+    "unlisted": {
+      "type": "boolean",
+      "description": "Hides the match from listMatches. Never set here: every room is listed, which is what lets an agent discover one."
+    },
+    "created-at": {
+      "type": "integer",
+      "description": "Epoch milliseconds, from Date.now(). Not an RFC 3339 string."
+    },
+    "updated-at": {
+      "type": "integer",
+      "description": "Epoch milliseconds of the last state change."
+    }
+  },
+  "required": [
+    "match-id",
+    "players",
+    "created-at",
+    "updated-at"
+  ]
+}

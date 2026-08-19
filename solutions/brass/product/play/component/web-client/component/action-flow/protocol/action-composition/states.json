@@ -1,0 +1,144 @@
+{
+  "id": "action-composition",
+  "initial": "idle",
+  "description": "The client-side composition of one action. Every state narrows the engine's enumerated move list; none of them decides legality.",
+  "states": {
+    "idle": {
+      "description": "No action in progress. The action bar shows one button per move kind, disabled where the enumeration offers nothing of that kind.",
+      "on": {
+        "START_BUILD": { "target": "build" },
+        "START_NETWORK": { "target": "network" },
+        "START_LOAN": { "target": "simple", "actions": ["set-kind-loan"] },
+        "START_SCOUT": { "target": "simple", "actions": ["set-kind-scout"] },
+        "START_PASS": { "target": "simple", "actions": ["set-kind-pass"] }
+      }
+    },
+    "build": {
+      "description": "Map-first build: a slot, then a card, then — only if the card is ambiguous — an industry.",
+      "initial": "location",
+      "on": {
+        "CANCEL": { "target": "idle" },
+        "TURN_ENDED": { "target": "idle" }
+      },
+      "states": {
+        "location": {
+          "description": "Every slot carrying at least one enumerated build is highlighted. Clicking anything else does nothing.",
+          "on": {
+            "PICK_SLOT": { "target": "card", "actions": ["narrow-to-slot"] }
+          }
+        },
+        "card": {
+          "description": "The card picker offers the union of eligibleCards across the builds at this slot.",
+          "on": {
+            "PICK_CARD": [
+              {
+                "target": "#action-composition.dispatching",
+                "guard": "exactly one industry is legal for this card at this slot",
+                "actions": ["narrow-to-card"],
+                "description": "The common case. A slot that allows one industry, or a location card that names one, resolves without a third question."
+              },
+              {
+                "target": "industry",
+                "actions": ["narrow-to-card"]
+              }
+            ]
+          }
+        },
+        "industry": {
+          "description": "Reached only by a card that authorises more than one industry at this slot — a dual Cotton/Manufacturer card, or a wild.",
+          "on": {
+            "PICK_INDUSTRY": { "target": "#action-composition.dispatching", "actions": ["narrow-to-industry"] }
+          }
+        }
+      }
+    },
+    "network": {
+      "description": "Map-first link building. In the canal era this is always link then card; the rail era adds the two-road question.",
+      "initial": "link",
+      "on": {
+        "CANCEL": { "target": "idle" },
+        "TURN_ENDED": { "target": "idle" }
+      },
+      "states": {
+        "link": {
+          "description": "Every edge appearing in any enumerated network move is highlighted.",
+          "on": {
+            "PICK_EDGE": [
+              {
+                "target": "choose",
+                "guard": "a legal two-edge rail move includes this edge",
+                "description": "The enumerator has already gated this on two links left, fifteen pounds and a reachable barrel — the flow only asks the question when the answer can be yes."
+              },
+              { "target": "card", "actions": ["narrow-to-edge"] }
+            ]
+          }
+        },
+        "choose": {
+          "description": "One road or two. The only question in the whole interface that the map cannot ask for itself.",
+          "on": {
+            "CHOOSE_DOUBLE": [
+              { "target": "link2", "guard": "the player chose two roads" },
+              { "target": "card", "actions": ["narrow-to-edge"] }
+            ]
+          }
+        },
+        "link2": {
+          "description": "Re-highlights only the edges that form a legal pair with the first — derived from the two-edge moves that contain it, never recomputed.",
+          "on": {
+            "PICK_EDGE": { "target": "card", "actions": ["narrow-to-edge-pair"] }
+          }
+        },
+        "card": {
+          "description": "eligibleCards for the single- or double-link move now selected.",
+          "on": {
+            "PICK_CARD": { "target": "#action-composition.dispatching", "actions": ["narrow-to-card"] }
+          }
+        }
+      }
+    },
+    "simple": {
+      "description": "Loan, scout and pass. No map target — the only input is which card or cards to discard.",
+      "initial": "card",
+      "on": {
+        "CANCEL": { "target": "idle" },
+        "TURN_ENDED": { "target": "idle" }
+      },
+      "states": {
+        "card": {
+          "description": "Scout takes three cards, the others take one. The picker is skipped entirely when only one distinct card face is eligible.",
+          "on": {
+            "PICK_CARD": { "target": "#action-composition.dispatching", "actions": ["narrow-to-card"] }
+          }
+        }
+      }
+    },
+    "dispatching": {
+      "description": "Exactly one enumerated move is selected. The planner is asked what it would consume before anything is sent.",
+      "on": {
+        "NEEDS_SOURCE": {
+          "target": "sourcing",
+          "actions": ["build-prompt-queue"],
+          "description": "Raised only when at least one decision has more than one candidate. Forced and empty decisions never produce a prompt."
+        },
+        "MOVE_DISPATCHED": { "target": "idle", "actions": ["submit-move"] },
+        "CANCEL": { "target": "idle" },
+        "TURN_ENDED": { "target": "idle" }
+      }
+    },
+    "sourcing": {
+      "description": "Walking the prompt queue one decision at a time — which coal, which iron, which barrel, which merchant.",
+      "on": {
+        "PICK_CANDIDATE": [
+          {
+            "target": "dispatching",
+            "guard": "the prompt queue is now empty",
+            "actions": ["assemble-move-choices"]
+          },
+          { "actions": ["advance-prompt-queue"] }
+        ],
+        "CANCEL": { "target": "idle" },
+        "TURN_ENDED": { "target": "idle" }
+      }
+    }
+  }
+}

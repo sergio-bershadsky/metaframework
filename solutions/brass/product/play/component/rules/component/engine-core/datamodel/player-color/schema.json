@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/player-color",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/player-color",
+  "title": "Player colour",
+  "description": "One of the four player sets in the box. Uniqueness across seats is enforced by the lobby move, not by this schema.",
+  "type": "string",
+  "enum": [
+    "red",
+    "yellow",
+    "purple",
+    "teal"
+  ]
+}

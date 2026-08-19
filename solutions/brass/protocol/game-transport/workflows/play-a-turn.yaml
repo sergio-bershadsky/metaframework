@@ -1,0 +1,86 @@
+name: play-a-turn
+title: Play one turn
+summary: A seat submits its actions, each broadcast as a full state, then commits the turn — and, at the end of an era, triggers scoring.
+participants: [web-client, mcp, game-server]
+steps:
+  - loop:
+      while: the seat still has an action left this turn
+      max: 2
+      steps:
+        - message: make-move
+          from: web-client
+          to: game-server
+          kind: call
+          channel: move-submit
+          payload: /datamodel/move-envelope@1
+          note: >-
+            One of build, network, develop, sell, loan, scout, pass. The envelope
+            carries stateID; a stale one is dropped by the master with no reply.
+        - alt:
+            - when: the engine accepts the move
+              steps:
+                - message: state-update
+                  from: game-server
+                  to: [web-client, mcp]
+                  kind: event
+                  channel: state-update
+                  payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+                  note: >-
+                    Broadcast to every seat including the sender, each copy
+                    filtered by playerView. The sender learns its move landed the
+                    same way a spectator would.
+            - when: the engine returns INVALID_MOVE
+              steps:
+                - message: invalid-move
+                  from: game-server
+                  to: web-client
+                  kind: error
+                  note: >-
+                    Not a wire message. boardgame.io reverts every mutation the
+                    handler made and broadcasts nothing, so the client observes
+                    the rejection only as the absence of an update — which is why
+                    the UI is built to offer none but enumerated moves.
+
+  - message: confirm-turn
+    from: web-client
+    to: game-server
+    kind: call
+    channel: move-submit
+    payload: /datamodel/move-envelope@1
+    condition: awaitingCommit is set
+    note: >-
+      The engine never ends a turn by itself. Until this lands, the turn-scoped
+      undo stack is still live and every action taken this turn can be reverted.
+
+  - alt:
+      - when: the committing seat is not last in turn order
+        steps:
+          - message: state-update
+            from: game-server
+            to: [web-client, mcp]
+            kind: event
+            channel: state-update
+            payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+            condition: hand drawn back up to eight, next seat on turn
+      - when: the committing seat is last and the era continues
+        steps:
+          - message: state-update
+            from: game-server
+            to: [web-client, mcp]
+            kind: event
+            channel: state-update
+            payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+            condition: income collected, turn order recomputed by least spent, round advanced
+      - when: the deck and every hand are empty
+        steps:
+          - message: era-over
+            from: game-server
+            to: [web-client, mcp]
+            kind: event
+            channel: state-update
+            payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+            note: >-
+              Same wire event as any other update — the era boundary is visible
+              only in the state that arrives. In the canal era it carries the
+              scoring, the level-1 purge, the cleared links and a fresh deal; in
+              the rail era it carries the final scores and ctx.gameover.

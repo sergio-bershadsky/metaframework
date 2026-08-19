@@ -1,0 +1,53 @@
+name: compose-discard-action
+title: Compose loan, scout or pass
+summary: The three actions with no map target — the only input is which card or cards leave the hand.
+participants: [player, flow]
+steps:
+  - alt:
+      - when: the player takes a loan
+        steps:
+          - message: start-loan
+            from: player
+            to: flow
+            kind: call
+            note: £30 now, three income levels down. The enumerator withholds the move when the drop would take income below the floor.
+      - when: the player scouts
+        steps:
+          - message: start-scout
+            from: player
+            to: flow
+            kind: call
+            note: >-
+              Costs three cards for one Wild Location and one Wild Industry.
+              Offered only while both wild piles are non-empty and the hand holds
+              no wild already.
+      - when: the player passes
+        steps:
+          - message: start-pass
+            from: player
+            to: flow
+            kind: call
+            condition: always legal while an action remains
+
+  - message: offer-cards
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      Governing rule: the picker opens only when more than one *distinct card
+      face* is eligible. Three copies of the same location card are one choice,
+      not three, so the interface does not ask.
+
+  - message: pick-card
+    from: player
+    to: flow
+    kind: call
+    condition: three cards for a scout, one otherwise
+
+  - message: move-dispatched
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      None of these three consumes coal, iron or beer, so the sourcing queue is
+      always empty and the move goes straight out.

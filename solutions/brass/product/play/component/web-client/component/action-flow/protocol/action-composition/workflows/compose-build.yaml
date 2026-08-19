@@ -1,0 +1,111 @@
+name: compose-build
+title: Compose a build
+summary: Slot, then card, then industry only if the card is ambiguous — and a source prompt only where a real choice exists.
+participants: [player, flow]
+steps:
+  - message: start-build
+    from: player
+    to: flow
+    kind: call
+    note: >-
+      The build button is disabled when the enumeration contains no build at all,
+      so this step is unreachable in a state where it could fail.
+
+  - message: highlight-slots
+    from: flow
+    to: player
+    kind: return
+    note: Every slot carrying at least one enumerated build, derived by filtering — not by asking whether a build would be legal.
+
+  - message: pick-slot
+    from: player
+    to: flow
+    kind: call
+
+  - message: offer-cards
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      The union of eligibleCards across the builds at that slot. Non-wild faces
+      first, so the default pick never burns a wild the player still needs.
+
+  - message: pick-card
+    from: player
+    to: flow
+    kind: call
+
+  - alt:
+      - when: the card authorises more than one industry at this slot
+        steps:
+          - message: offer-industries
+            from: flow
+            to: player
+            kind: return
+            condition: dual Cotton/Manufacturer card, or a wild
+          - message: pick-industry
+            from: player
+            to: flow
+            kind: call
+      - when: exactly one industry is legal
+        steps:
+          - message: resolve-industry
+            from: flow
+            to: flow
+            kind: call
+            note: >-
+              A self-call, not a question. Asking "which industry?" when there is
+              one answer is the failure mode 0005-prompt-only-real-choices exists
+              to prevent.
+
+  - message: plan-move-choices
+    from: flow
+    to: flow
+    kind: call
+    note: One decision per cube the build consumes, each listing every candidate that could satisfy it.
+
+  - alt:
+      - when: at least one decision has more than one candidate
+        steps:
+          - message: needs-source
+            from: flow
+            to: player
+            kind: return
+          - loop:
+              while: the prompt queue is not empty
+              steps:
+                - message: pick-candidate
+                  from: player
+                  to: flow
+                  kind: call
+                  note: >-
+                    One question per cube, in queue order. A forced decision was
+                    never enqueued, so every question shown has at least two real
+                    answers.
+          - message: move-dispatched
+            from: flow
+            to: player
+            kind: return
+            note: >-
+              The assembled picks ride along with the move as MoveChoices. The
+              engine re-validates each by identity against a freshly replanned
+              candidate set, so a pick made against a stale board is refused, not
+              redirected.
+      - when: every decision is forced or the build consumes nothing
+        steps:
+          - message: move-dispatched
+            from: flow
+            to: player
+            kind: return
+            condition: sources auto-taken, no prompt shown
+
+  - opt:
+      when: the player abandons the composition at any point
+      steps:
+        - message: cancel
+          from: player
+          to: flow
+          kind: call
+          note: >-
+            Nothing has been sent yet, so cancelling costs nothing. The move only
+            exists on the wire after the last question is answered.

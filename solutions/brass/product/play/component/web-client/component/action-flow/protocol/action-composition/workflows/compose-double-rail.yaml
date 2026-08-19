@@ -1,0 +1,89 @@
+name: compose-double-rail
+title: Compose a double rail link
+summary: The one interaction where the flow has to ask a question the map cannot express — one road or two.
+participants: [player, flow]
+steps:
+  - message: start-network
+    from: player
+    to: flow
+    kind: call
+
+  - message: highlight-edges
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      Every edge appearing in any enumerated network move, single or double. The
+      player cannot see yet which of them can be doubled, and does not need to.
+
+  - message: pick-edge
+    from: player
+    to: flow
+    kind: call
+
+  - alt:
+      - when: a legal two-edge move includes this edge
+        steps:
+          - message: choose-double
+            from: flow
+            to: player
+            kind: return
+            note: >-
+              Only reachable when the enumerator already found a two-edge move,
+              which it gates on two links left, fifteen pounds and a barrel the
+              player can actually reach. The flow never offers a choice that
+              would then be refused.
+          - opt:
+              when: the player takes the second road
+              steps:
+                - message: pick-edge
+                  from: player
+                  to: flow
+                  kind: call
+                  condition: restricted to the edges that pair with the first
+                  note: >-
+                    The second-edge highlight is derived from the two-edge moves
+                    containing the first edge — the client never works out
+                    adjacency for itself.
+      - when: no two-edge move includes it
+        steps:
+          - message: single-link
+            from: flow
+            to: flow
+            kind: call
+            condition: canal era, or no legal pair
+            note: >-
+              Canal era always lands here: the handler refuses any network move
+              with more than one edge, so the enumerator produces none.
+
+  - message: offer-cards
+    from: flow
+    to: player
+    kind: return
+    note: eligibleCards of the specific one- or two-edge move now selected — a different set for each.
+
+  - message: pick-card
+    from: player
+    to: flow
+    kind: call
+
+  - message: move-dispatched
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      Coal is sourced per link and the beer for a double link is planned from the
+      second link's endpoints, so a two-road move can raise more source questions
+      than two one-road moves would.
+
+  - opt:
+      when: the broadcast that arrives ends this player's turn
+      steps:
+        - message: turn-ended
+          from: flow
+          to: player
+          kind: event
+          note: >-
+            The flow resets to idle whenever it stops being the player's turn,
+            including mid-composition. State arrives asynchronously and does not
+            wait for a half-built action.

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/agent-play/component/mcp-server/datamodel/tool-result",
+  "x-srn": "srn://brass/product/agent-play/component/mcp-server/datamodel/tool-result",
+  "title": "Tool result",
+  "description": "The envelope every MCP tool returns. Tagged union on the boolean \"ok\". Failures are returned with isError set on the MCP response, never thrown, so the model can recover.",
+  "oneOf": [
+    {
+      "title": "Success",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "applied": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "The move id that was played."
+            },
+            "kind": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "label"
+          ],
+          "description": "Echo of what make_move actually played, so the model confirms rather than infers."
+        },
+        "state": {
+          "$ref": "https://schemas.metaframework.dev/brass/product/agent-play/component/mcp-server/datamodel/state-view",
+          "description": "A fresh state view taken after the move, so a successful make_move needs no follow-up get_state."
+        },
+        "note": {
+          "type": "string",
+          "description": "Free-text guidance, e.g. that the host must still start the game after joining."
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "description": "Both applied and state are optional: join_match and leave_match succeed without either."
+    },
+    {
+      "title": "Failure",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "type": "string",
+          "description": "Readable cause. The model reads this as text and is expected to act on it."
+        },
+        "legal-ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Present when a move id matched nothing in a fresh enumeration: the ids that ARE valid now, so recovery costs no extra round trip."
+        },
+        "rejected": {
+          "type": "boolean",
+          "description": "The move dispatched but the authoritative state id did not advance in the wait window. Deliberately ambiguous between an engine rejection and a still-pending update, and the message says so."
+        },
+        "attempted": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "label"
+          ],
+          "description": "What was dispatched, on a rejected move."
+        },
+        "state": {
+          "$ref": "https://schemas.metaframework.dev/brass/product/agent-play/component/mcp-server/datamodel/state-view",
+          "description": "Current state where one exists, so the model can re-orient in the same call it failed on."
+        },
+        "current-player": {
+          "type": "string",
+          "description": "Present on a not-your-turn failure, so the model knows who to wait for."
+        },
+        "gameover": {
+          "description": "Present on a game-is-over failure."
+        }
+      },
+      "required": [
+        "ok",
+        "error"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/bgio-game/datamodel/move-choices",
+  "x-srn": "srn://brass/product/play/component/rules/component/bgio-game/datamodel/move-choices",
+  "title": "Move choices",
+  "description": "Optional per-unit resource picks attached to a build, network, develop or sell move. An omitted list falls through to the engine's auto-sourcing; every supplied pick is re-validated against a freshly replanned candidate set.",
+  "type": "object",
+  "properties": {
+    "coal": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/candidate"
+      },
+      "description": "One pick per coal cube, in decision order. For a double rail build that is one per link, in the move's link order."
+    },
+    "iron": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/candidate"
+      },
+      "description": "One pick per iron cube, in decision order."
+    },
+    "beer": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/candidate"
+      },
+      "description": "Flat list of barrel picks in tile order for a sale; a single barrel for a double rail build."
+    },
+    "merchant-per-tile": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/candidate"
+      },
+      "description": "Sell destination per tile, index-aligned to the move's tile-ids."
+    },
+    "develop-bonus": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+      },
+      "description": "Ordered queue, one entry per \"develop\" merchant bonus that fires during this sale. Routes each free develop to that industry's lowest mat tile. Omitted means the engine picks the lowest tile across the whole mat."
+    }
+  }
+}

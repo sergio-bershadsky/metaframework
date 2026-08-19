@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/tile-spec",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/tile-spec",
+  "title": "Tile spec",
+  "description": "One row of the static industry-tile table. 31 rows across six industries; a player mat holds 45 tiles in total.",
+  "type": "object",
+  "properties": {
+    "industry": {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "Tile level. Coal/iron/brewery/cotton go to 4, pottery to 5, manufacturer to 8."
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Copies of this row on a player mat."
+    },
+    "cost": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Money to build, before sourcing coal and iron. Pottery L2 and L4 cost 0."
+    },
+    "coal": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Coal cubes consumed to build. Sourced from the nearest connected mine before the market is priced."
+    },
+    "iron": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Iron cubes consumed to build. Sourced from any unflipped works, at any distance, before the market."
+    },
+    "beers-to-sell": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "Barrels needed to flip this tile by selling. null = never sold (coal, iron, brewery); 0 = sellable for free (Manufacturer L3 and L7)."
+    },
+    "vp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Victory points scored at end of era, only once the tile is flipped."
+    },
+    "income": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Income SPACES gained on flip. Spaces, not levels: the track is non-linear."
+    },
+    "link-vp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Connection icon. Scored for adjacent links whether or not the tile is flipped."
+    },
+    "can-develop": {
+      "type": "boolean",
+      "description": "false is the lightbulb: the tile cannot be removed by a Develop action. Pottery L1 and L3 only."
+    },
+    "canal-era": {
+      "type": "boolean",
+      "description": "Buildable in the canal era."
+    },
+    "rail-era": {
+      "type": "boolean",
+      "description": "Buildable in the rail era."
+    },
+    "produces": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Cubes placed on the tile when built. Always 0 for breweries: their real barrel count is beerProduced(era), 1 in canal and 2 in rail."
+    }
+  },
+  "required": [
+    "industry",
+    "level",
+    "count",
+    "cost",
+    "coal",
+    "iron",
+    "beers-to-sell",
+    "vp",
+    "income",
+    "link-vp",
+    "can-develop",
+    "canal-era",
+    "rail-era",
+    "produces"
+  ]
+}

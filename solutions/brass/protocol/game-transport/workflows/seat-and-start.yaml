@@ -1,0 +1,92 @@
+name: seat-and-start
+title: Sync a seat and start the game
+summary: A client syncs, sits down in game state, picks colour and avatar, readies up, and the host starts the match.
+participants: [web-client, mcp, game-server]
+steps:
+  - message: sync-request
+    from: web-client
+    to: game-server
+    kind: call
+    channel: sync-request
+    note: >-
+      Carries (matchID, playerID, credentials). This is where the seat is
+      authenticated; the lobby-api join only minted the credential.
+
+  - message: sync-response
+    from: game-server
+    to: web-client
+    kind: return
+    channel: sync-response
+    payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+    note: Already filtered by playerView — the first state a seat sees never contains another hand.
+
+  - message: match-data
+    from: game-server
+    to: [web-client, mcp]
+    kind: event
+    channel: match-data
+    payload: /datamodel/match-summary@1
+    note: The framework's own connection view. It disagrees with G.seats on purpose; only G.seats says who is playing.
+
+  - message: sit-down
+    from: web-client
+    to: game-server
+    kind: call
+    channel: move-submit
+    payload: /datamodel/move-envelope@1
+    note: >-
+      Takes (name, ai). The mcp participant sends the identical move with ai=true,
+      which is the whole implementation of the bot badge — the transport carries
+      no other marker.
+
+  - message: state-update
+    from: game-server
+    to: [web-client, mcp]
+    kind: event
+    channel: state-update
+    payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+
+  - loop:
+      while: the seat still has an unset colour, avatar or ready flag
+      max: 3
+      steps:
+        - message: make-move
+          from: web-client
+          to: game-server
+          kind: call
+          channel: move-submit
+          payload: /datamodel/move-envelope@1
+          condition: pick-color, pick-avatar or toggle-ready
+          note: >-
+            Colour is rejected if another seat already holds it; avatar likewise.
+            Ready is refused until both are set. Every seated client is active at
+            once, so these arrive interleaved from all seats.
+        - message: state-update
+          from: game-server
+          to: [web-client, mcp]
+          kind: event
+          channel: state-update
+          payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+
+  - message: host-start
+    from: web-client
+    to: game-server
+    kind: call
+    channel: move-submit
+    payload: /datamodel/move-envelope@1
+    condition: caller is seat 0
+    note: >-
+      Refused for anyone but hostID, and refused until at least two seats are
+      joined, coloured and ready. Nothing enforces an upper bound beyond the four
+      framework seats.
+
+  - message: state-update
+    from: game-server
+    to: [web-client, mcp]
+    kind: event
+    channel: state-update
+    payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+    note: >-
+      The phase is now canalEra, the deck is built for the seated count, hands
+      are dealt, and turn order is randomised. Everything after this point is
+      play-a-turn.

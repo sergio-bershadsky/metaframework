@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/player-state",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/player-state",
+  "title": "Player state",
+  "description": "One seat's off-board holdings. Setup: money 17, income space 10 (level 0), 14 links, 45 mat tiles, a hand of 8.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Player id, \"0\" through \"3\". The same key this record is filed under in game-state.players."
+    },
+    "money": {
+      "type": "integer",
+      "description": "Cash in hand. Starts at 17. May not go negative; a shortfall is what a Loan is for."
+    },
+    "income-space": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Position on the 100-space income track, NOT the income level. Level is levelFromSpace(space) and the mapping is non-linear. Starts at 10, which is level 0."
+    },
+    "vp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Victory points banked by end-of-era scoring."
+    },
+    "spent": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Money spent this round. Reset each round; ascending order of this value is next round's turn order."
+    },
+    "hand": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/card"
+      },
+      "description": "Private. Replaced by hidden placeholders for every other seat before broadcast."
+    },
+    "discard": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/card"
+      },
+      "description": "Public. Reshuffled back into the deck at the canal-to-rail transition."
+    },
+    "mat": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": "Remaining tile levels, ascending. A build always takes element 0."
+      },
+      "required": [
+        "coal",
+        "iron",
+        "brewery",
+        "cotton",
+        "manufacturer",
+        "pottery"
+      ],
+      "description": "Six stacks of remaining tiles. Only the head of each is buildable, which is what makes Develop necessary."
+    },
+    "links-left": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 14,
+      "description": "Unplaced link tokens. Starts at 14. A rail double build needs two."
+    }
+  },
+  "required": [
+    "id",
+    "money",
+    "income-space",
+    "vp",
+    "spent",
+    "hand",
+    "discard",
+    "mat",
+    "links-left"
+  ]
+}

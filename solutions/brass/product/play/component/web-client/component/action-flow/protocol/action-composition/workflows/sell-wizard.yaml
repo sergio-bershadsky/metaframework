@@ -1,0 +1,84 @@
+name: sell-wizard
+title: Walk the sell wizard
+summary: Sell bypasses the flow machine entirely — a paged wizard picks tiles, then a merchant and its barrels for each tile in turn.
+participants: [player, flow]
+steps:
+  - message: start-sell
+    from: player
+    to: flow
+    kind: call
+    note: >-
+      Deliberately absent from the states.json machine. Sell has no single map
+      target and its questions are ordered per tile, which is a sequence rather
+      than a lifecycle — so it is modelled here and nowhere else.
+
+  - message: offer-sellable-tiles
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      Every unflipped Cotton, Manufacturer or Pottery tile connected to a
+      merchant that buys it, taken straight from the enumerated sell moves. One
+      sell action may flip several tiles at once.
+
+  - message: pick-tiles
+    from: player
+    to: flow
+    kind: call
+    condition: one or more tiles, in any order
+
+  - loop:
+      while: a chosen tile still has an unresolved destination or barrel
+      steps:
+        - message: offer-merchants
+          from: flow
+          to: player
+          kind: return
+          condition: only when more than one merchant can take this tile
+          note: >-
+            Merchants are re-evaluated per tile, not once for the whole action,
+            because an earlier tile's sale can spend the barrel a later one
+            wanted.
+        - message: pick-candidate
+          from: player
+          to: flow
+          kind: call
+        - message: offer-barrels
+          from: flow
+          to: player
+          kind: return
+          note: >-
+            Re-planned after the merchant is known — the merchant choice changes
+            which barrels are reachable, which is why planSellTileBeer is a
+            separate call from planSell.
+        - message: pick-candidate
+          from: player
+          to: flow
+          kind: call
+          condition: own barrel, an opponent's, or a merchant barrel with its bonus
+
+  - opt:
+      when: a merchant bonus is a free develop
+      steps:
+        - message: offer-develop-bonus
+          from: flow
+          to: player
+          kind: return
+          note: >-
+            One pick per firing develop bonus, routing each free develop to the
+            chosen industry's lowest remaining tile. Omitting the picks falls
+            through to the engine's develop-lowest heuristic, which is legal but
+            rarely what a player wants.
+        - message: pick-candidate
+          from: player
+          to: flow
+          kind: call
+
+  - message: move-dispatched
+    from: flow
+    to: player
+    kind: return
+    note: >-
+      One sell move carrying merchantPerTile index-aligned to the tile ids, the
+      barrels in tile order, and the develop-bonus industries. Everything the
+      player answered travels together; nothing was committed until now.

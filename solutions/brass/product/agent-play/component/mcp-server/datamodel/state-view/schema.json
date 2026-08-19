@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/agent-play/component/mcp-server/datamodel/state-view",
+  "x-srn": "srn://brass/product/agent-play/component/mcp-server/datamodel/state-view",
+  "title": "State view",
+  "description": "The MCP session's projection of the match for one seat: derived values precomputed, opponents reduced to public standing, deck reduced to a count, log truncated to 15 entries.",
+  "type": "object",
+  "properties": {
+    "match-id": {
+      "type": "string"
+    },
+    "player-id": {
+      "$ref": "#/$defs/player-id",
+      "description": "The seat this session holds. A session holds exactly one at a time."
+    },
+    "phase": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "boardgame.io phase: lobby, canalEra or railEra. Framework spelling, passed through untouched."
+    },
+    "started": {
+      "type": "boolean"
+    },
+    "ended": {
+      "type": "boolean"
+    },
+    "era": {
+      "type": "string",
+      "enum": [
+        "canal",
+        "rail"
+      ]
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "current-player": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seat whose turn it is, from the framework context rather than from the game state."
+    },
+    "my-turn": {
+      "type": "boolean",
+      "description": "Precomputed: not over, started, and current-player is me. The model never has to assemble this itself."
+    },
+    "awaiting-commit": {
+      "type": "boolean",
+      "description": "When true the only legal move is confirm-turn, and get_legal_moves will return exactly one option."
+    },
+    "actions-this-turn": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "turn-order": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/player-id"
+      },
+      "description": "Seats in this round's play order, ascending by last round's spend."
+    },
+    "gameover": {
+      "description": "The endIf result once the match is finished, or null. Its presence is also how the tools detect that the game has ended."
+    },
+    "winner": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "winners": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/player-id"
+      },
+      "description": "Authoritative winner list; longer than one entry on a shared victory."
+    },
+    "me": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/player-id"
+            },
+            "money": {
+              "type": "integer"
+            },
+            "income-level": {
+              "type": "integer",
+              "minimum": -10,
+              "maximum": 30,
+              "description": "Income LEVEL, already resolved from the track space. This is the money collected at round end."
+            },
+            "vp": {
+              "type": "integer"
+            },
+            "spent-this-round": {
+              "type": "integer",
+              "description": "Drives next round's turn order: least spent plays first."
+            },
+            "links-left": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 14
+            },
+            "hand": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/card"
+              },
+              "description": "This seat's own cards, in full. The only hand in the document."
+            },
+            "mat": {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+              },
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "description": "Remaining tile levels per industry, ascending. Only the head of each stack is buildable."
+            }
+          },
+          "required": [
+            "id",
+            "money",
+            "income-level",
+            "vp",
+            "spent-this-round",
+            "links-left",
+            "hand",
+            "mat"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Null while the match is still in the lobby and no player record exists yet."
+    },
+    "opponents": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/player-id"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "anyOf": [
+                      {
+                        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/player-color"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "avatar": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "ai": {
+                    "type": "boolean",
+                    "description": "True when this opponent is another bot-driven seat."
+                  }
+                },
+                "required": [
+                  "name",
+                  "color",
+                  "avatar",
+                  "ai"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "money": {
+            "type": "integer"
+          },
+          "income-level": {
+            "type": "integer",
+            "minimum": -10,
+            "maximum": 30
+          },
+          "vp": {
+            "type": "integer"
+          },
+          "spent-this-round": {
+            "type": "integer"
+          },
+          "links-left": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 14
+          },
+          "hand-count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Cards held, as a number. There is no hand property on this shape at all: the redaction is structural, not filtered."
+          },
+          "tiles": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Count of this opponent's tiles on the board. The tiles themselves are public and appear under board.tiles."
+          }
+        },
+        "required": [
+          "id",
+          "money",
+          "income-level",
+          "vp",
+          "spent-this-round",
+          "links-left",
+          "hand-count",
+          "tiles"
+        ]
+      },
+      "description": "Public standing of every other seat. Exactly what a player at the table can see, minus their discard pile."
+    },
+    "seats": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/player-id"
+      },
+      "additionalProperties": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/seat"
+      },
+      "description": "The lobby seats verbatim, so the model can see who is present, coloured and ready before the game starts."
+    },
+    "board": {
+      "type": "object",
+      "properties": {
+        "coal-market": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 14
+        },
+        "iron-market": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "wild-location": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wild-industry": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deck-count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cards left to draw, as a count. The underlying game state carries the deck in order; projecting only the count is what keeps the order out of the model's context."
+        },
+        "merchants": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/merchant-tile-state"
+          }
+        },
+        "tiles": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/built-tile"
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/built-link"
+          }
+        }
+      },
+      "required": [
+        "coal-market",
+        "iron-market",
+        "wild-location",
+        "wild-industry",
+        "deck-count",
+        "merchants",
+        "tiles",
+        "links"
+      ],
+      "description": "Everything public. All of it is already visible to every seat; nothing here is redacted."
+    },
+    "log": {
+      "type": "array",
+      "maxItems": 15,
+      "items": {
+        "type": "string"
+      },
+      "description": "The last 15 log entries only. A whole match's log would dominate the model's context and is mostly not decision-relevant."
+    }
+  },
+  "required": [
+    "match-id",
+    "player-id",
+    "started",
+    "ended",
+    "era",
+    "round",
+    "my-turn",
+    "awaiting-commit",
+    "actions-this-turn",
+    "turn-order",
+    "me",
+    "opponents",
+    "seats",
+    "board",
+    "log"
+  ],
+  "$defs": {
+    "player-id": {
+      "type": "string",
+      "pattern": "^[0-3]$"
+    }
+  }
+}

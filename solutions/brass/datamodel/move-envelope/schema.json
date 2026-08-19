@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/datamodel/move-envelope",
+  "x-srn": "srn://brass/datamodel/move-envelope",
+  "title": "Move envelope",
+  "description": "One client action on the socket update event. On the wire these are four positional arguments (action, stateID, matchID, playerID); the catalog frames them as one document.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "MAKE_MOVE",
+        "GAME_EVENT",
+        "UNDO",
+        "REDO"
+      ],
+      "description": "Redux action type. MAKE_MOVE for the six actions and the lobby moves; GAME_EVENT for phase and turn events. UNDO and REDO are refused by the master for any match with more than one player."
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Move or event name, e.g. build, network, sell, confirmTurn, sitDown, hostStart."
+        },
+        "args": {
+          "type": "array",
+          "description": "Positional arguments of that move handler. The optional last argument of build/network/develop/sell is a move-choices object."
+        },
+        "player-id": {
+          "type": "string",
+          "pattern": "^[0-3]$",
+          "description": "The seat claiming to act."
+        },
+        "credentials": {
+          "type": "string",
+          "description": "That seat's secret, sent in full on every move. The master compares it against the stored value before applying anything."
+        }
+      },
+      "required": [
+        "type",
+        "args",
+        "player-id",
+        "credentials"
+      ]
+    },
+    "state-id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The client's view of the authoritative state version. The master refuses the action outright when it differs from its own, which is what makes optimistic local application safe."
+    },
+    "match-id": {
+      "type": "string",
+      "description": "Match the action targets. Also the socket.io room the resulting broadcast fans out to."
+    },
+    "player-id": {
+      "type": "string",
+      "pattern": "^[0-3]$",
+      "description": "Seat sending the action, repeated outside the payload because the transport routes on it before the master parses the action."
+    }
+  },
+  "required": [
+    "type",
+    "payload",
+    "state-id",
+    "match-id",
+    "player-id"
+  ]
+}

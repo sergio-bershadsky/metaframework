@@ -1,0 +1,10 @@
+config:
+  - key: PORT
+    for: /product/play/component/server
+    value: "8080"
+    description: Port the boardgame.io server listens on; the Service and both probes target it.
+
+  - key: CLIENT_ORIGIN
+    for: /product/play/component/server
+    value: https://brass.bershadsky.dev
+    description: Origin added to the socket handshake allowlist, even though client and server share it.

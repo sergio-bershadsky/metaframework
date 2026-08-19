@@ -1,0 +1,95 @@
+name: take-a-turn
+title: An agent takes one turn
+summary: Woken by the live-state notification, the model reads the state, reads the legal moves, plays one or two, then commits.
+participants: [agent, server]
+steps:
+  - message: resource-updated
+    from: server
+    to: agent
+    kind: event
+    note: >-
+      A resources/updated notification on match://current/state, the one
+      subscribable resource.
+      Fired on every transport update, not only on the agent's turn — the server
+      cannot tell which updates matter to the model. Best-effort: an unsubscribed
+      client silently gets nothing, and the fallback is polling get_state.
+
+  - message: get-state
+    from: agent
+    to: server
+    kind: call
+
+  - message: state-view
+    from: server
+    to: agent
+    kind: return
+    payload: /product/agent-play/component/mcp-server/datamodel/state-view@1
+    note: >-
+      myTurn and awaitingCommit are the two fields the loop branches on.
+      Opponent entries carry handCount but no hand, so there is nothing to leak
+      and nothing to redact.
+
+  - opt:
+      when: myTurn is true
+      steps:
+        - loop:
+            while: the turn is not yet committed
+            max: 3
+            steps:
+              - message: get-legal-moves
+                from: agent
+                to: server
+                kind: call
+              - message: move-options
+                from: server
+                to: agent
+                kind: return
+                payload: /product/agent-play/component/mcp-server/datamodel/move-option@1
+                note: >-
+                  While awaitingCommit is set this list holds exactly one entry,
+                  confirmTurn. The model does not need to know the turn-gate rule
+                  to obey it — the enumeration enforces it.
+              - message: make-move
+                from: agent
+                to: server
+                kind: call
+                condition: an id taken verbatim from the list just returned
+              - alt:
+                  - when: the id still matches a legal move
+                    steps:
+                      - message: move-applied
+                        from: server
+                        to: agent
+                        kind: return
+                        payload: /product/agent-play/component/mcp-server/datamodel/tool-result@1
+                        note: >-
+                          Carries the fresh state view, so a disciplined agent
+                          needs no extra get_state between its two actions.
+                  - when: the state changed under the model
+                    steps:
+                      - message: stale-move-id
+                        from: server
+                        to: agent
+                        kind: error
+                        payload: /product/agent-play/component/mcp-server/datamodel/tool-result@1
+                        note: >-
+                          ok:false with the current legalIds and isError on the
+                          envelope. The model re-picks from the ids it was just
+                          handed; nothing was applied.
+
+  - opt:
+      when: the model is finished with the match
+      steps:
+        - message: leave-match
+          from: agent
+          to: server
+          kind: call
+        - message: left
+          from: server
+          to: agent
+          kind: return
+          payload: /product/agent-play/component/mcp-server/datamodel/tool-result@1
+          note: >-
+            The socket closes and the session forgets its credentials. The seat
+            on the server stays claimed — there is no path back into it, which is
+            why this is the least safe step in the workflow.
