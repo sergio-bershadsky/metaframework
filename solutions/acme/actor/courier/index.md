@@ -1,7 +1,7 @@
 ---
 name: courier
 kind: actor
-version: 1
+version: 2
 title: Courier
 summary: The carrier's driver who collects, moves, and hands over a parcel, and whose scans are acme's only ground truth.
 status: approved
@@ -11,6 +11,8 @@ goals:
   - Collect a parcel from the dispatch point within the booked collection window.
   - Record a scan at every custody change, including a failed delivery attempt.
   - Hand a parcel to the named recipient, or return it when nobody can take it.
+  - Capture a signature where the service level demands one, from whoever
+    actually takes the parcel rather than from whoever was expected to.
 tags:
   - logistics
   - external-facing
@@ -39,6 +41,25 @@ Their participation is declared protocol-side only, as the `courier` alias in
 is exactly the split the framework intends: the component side owns edges, the
 protocol side owns aliases. Actors are exempt from the back-edge cross-check for
 this reason.
+
+## The signature goal is about a stranger
+
+The fourth goal is worded around "whoever actually takes the parcel" because that
+is nearly never the customer. A neighbour signs, a concierge signs, a colleague
+signs; acme's own record in
+[shipment](srn://acme/product/fulfilment/datamodel/shipment@3) says `signed-for-by`
+and not `signed-for-by-recipient` for exactly this reason.
+
+The alternative goal — "obtain the recipient's signature" — describes a world
+where the courier verifies identity, and no courier does. They ask for a name and
+write down what they are told. Stating the goal as it is performed keeps acme from
+building anything on a verification that never happened, and it explains why the
+field is shown to a support agent and never matched against an account.
+
+It also puts a boundary on the personal data acme takes in. The name belongs to a
+person who has no relationship with acme at all and never agreed to one, which is
+why it is blanked on erasure alongside the address and carries a shorter retention
+than the shipment it sits on.
 
 ## Human, not external-system
 
