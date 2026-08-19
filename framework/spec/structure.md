@@ -79,9 +79,14 @@ solutions/acme/shop/protocol/order-events/
     └── place-order.yaml
 ```
 
-Violations: an `index.md`-bearing directory nested inside a datamodel entity is
-`E_STRUCT_NESTED_ENTITY`; a directory sitting inside a kind bucket without an
-`index.md` is `E_STRUCT_MISSING_INDEX`.
+Violations:
+
+```text
+solutions/acme/shop/datamodel/order/examples/index.md   # E_STRUCT_NESTED_ENTITY
+                                                        # an entity below a datamodel
+solutions/acme/shop/datamodel/cart/schema.json          # E_STRUCT_MISSING_INDEX
+                                                        # bucket child without index.md
+```
 
 ## Kind buckets
 
@@ -126,10 +131,11 @@ Rules:
   responsibility, not visibility — any entity in the solution may reference
   them.
 - A protocol MUST live at the **nearest common ancestor (NCA)** of its
-  *component* participants (the containers that expose or use it). Actors MAY
-  participate in a protocol but do not affect placement — actors are
-  solution-level, so counting them would degenerate every placement to the
-  solution root.
+  *component and product* participants — the entries of the `participants` list
+  in the protocol's own `index.md` frontmatter, which is the authoritative input
+  to this rule ([kinds/protocol.md](kinds/protocol.md)). Actors MAY participate
+  in a protocol but do not affect placement — actors are solution-level, so
+  counting them would degenerate every placement to the solution root.
 
   ```text
   # participants: acme/shop/checkout and acme/shop/inventory → NCA = acme/shop
@@ -140,8 +146,8 @@ Rules:
   ```
 
   A protocol placed below the NCA of its declared participants is flagged
-  `W_STRUCT_PROTOCOL_NCA` (a warning, not an error: participant lists live in
-  protocol artifacts and may legitimately lead placement during a swap).
+  `W_STRUCT_PROTOCOL_NCA` (a warning, not an error: the `participants` list may
+  legitimately lead the directory's placement by a commit or two during a swap).
 
 ## Naming rules
 
@@ -170,9 +176,22 @@ Rules:
   ```
 
 - `index.md` is a reserved filename: it may appear only as an entity document.
-  Sibling artifact filenames MUST be kebab-case with a standard extension
-  (`.md`, `.yaml`, `.json`); e.g. `schema.json`, `transport.yaml`,
-  `state-machine.json`.
+  Sibling artifact filenames MUST be kebab-case, **bare** — never prefixed with
+  the entity name — and carry a standard extension (`.md`, `.yaml`, `.json`);
+  e.g. `schema.json`, `transport.yaml`, `states.json`, `topology.yaml`.
+
+  ```text
+  datamodel/order/schema.json          # correct — named by role
+  datamodel/order/order.schema.json    # ILLEGAL — prefixed with the entity name
+  protocol/order-events/transport.yaml # correct
+  ```
+
+  A kind document MAY additionally recognise a foreign extension for a file it
+  merely *links* rather than interprets — `openapi.yaml`, `pricing.proto`,
+  `schema.graphql` under a protocol's `spec.file`
+  ([kinds/protocol.md](kinds/protocol.md)). Such a file is named by the external
+  tool's convention; everything the framework itself parses obeys the rule
+  above.
 
 - The frontmatter `name` field MUST equal the entity's directory name
   (`E_FM_NAME_MISMATCH`, see [frontmatter.md](frontmatter.md)).
@@ -230,7 +249,7 @@ solutions/
 | `E_STRUCT_MISSING_INDEX`   | Directory inside a kind bucket has no `index.md`.                 |
 | `E_STRUCT_NESTED_ENTITY`   | `index.md` found below a non-container entity.                    |
 | `E_STRUCT_KIND_PLACEMENT`  | `actor`/`environment` bucket below solution level.                |
-| `W_STRUCT_PROTOCOL_NCA`    | Protocol not at the NCA of its declared component participants.   |
+| `W_STRUCT_PROTOCOL_NCA`    | Protocol not at the NCA of its component/product participants.    |
 
 SRN-level naming violations (`E_SRN_SYNTAX`, `E_SRN_RESERVED`) are defined in
 [srn.md](srn.md); frontmatter violations in

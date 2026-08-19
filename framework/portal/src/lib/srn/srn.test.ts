@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SrnError, formatSrn, parseSrn, resolveRef, resolveSchemaRef, srnToDir } from './srn'
+import { SrnError, formatSrn, parseSrn, resolveRef, srnToDir } from './srn'
 
 /**
  * Cases are taken from framework/spec/srn.md. Every "notes pinned by tests"
@@ -170,29 +170,4 @@ describe('resolveRef — relative references (RFC 3986, base = referring documen
     )
   })
 
-})
-
-describe('resolveSchemaRef — JSON Schema $ref against a versioned $id', () => {
-  const id = 'srn://acme/shop/checkout/payment/datamodel/order@1'
-
-  it('replaces the last segment for a sibling reference', () => {
-    expect(resolveSchemaRef(id, 'refund@1')).toBe('srn://acme/shop/checkout/payment/datamodel/refund@1')
-  })
-
-  it('resolves parent-relative references', () => {
-    expect(resolveSchemaRef(id, '../../../datamodel/base@1')).toBe('srn://acme/shop/datamodel/base@1')
-  })
-
-  it('resolves path-absolute references against the solution root', () => {
-    expect(resolveSchemaRef(id, '/datamodel/money@1')).toBe('srn://acme/datamodel/money@1')
-  })
-
-  it('differs from entity semantics — the $id names a file, not a directory', () => {
-    // Entity semantics would descend *into* the datamodel, which is a leaf:
-    // the result would carry two segments after the kind and is not a legal SRN.
-    expect(() => resolveRef(id, 'refund@1')).toThrow(
-      expect.objectContaining({ code: 'E_SRN_SYNTAX' }),
-    )
-    expect(resolveSchemaRef(id, 'refund@1')).toBe('srn://acme/shop/checkout/payment/datamodel/refund@1')
-  })
 })

@@ -1,14 +1,28 @@
 /**
  * SRN — Solution Resource Name.
  *
- * Implements framework/spec/srn.md. The SRN is the framework's only identity
- * and reference syntax; it is a hierarchical URI whose path is identical to the
+ * Implements framework/spec/srn.md. The SRN is the framework's identity and
+ * reference syntax; it is a hierarchical URI whose path is identical to the
  * entity's directory under `solutions/`.
  *
- *     srn://{solution}/{product}/{components...}/{kind}/{name}[@{version}]
+ *     srn://{solution}( /{kind}/{name} )*  [@{version}]
+ *
+ * Every entity below the solution sits in a **kind bucket**, so the path is a
+ * strict alternation of bucket and name. That uniformity is the point: an
+ * entity's kind is stated at every level instead of inferred from depth, any
+ * directory listing shows buckets rather than a mix of buckets and names, and
+ * parsing needs no lookahead or reserved-word scan.
+ *
+ * One artifact is outside this scheme: `schema.json` references other schemas
+ * by relative file path so stock JSON Schema tooling can resolve them
+ * (decision-record 2026-08-19-b). A schema's identity is still the SRN of the
+ * entity whose directory holds it, which {@link dirToSrn} derives.
  */
 
+/** Buckets that may hold entities. */
 export const RESERVED_KINDS = [
+  'product',
+  'component',
   'datamodel',
   'protocol',
   'actor',
@@ -21,9 +35,18 @@ export type ReservedKind = (typeof RESERVED_KINDS)[number]
 
 const RESERVED = new Set<string>(RESERVED_KINDS)
 
+/** Kinds that may contain further entities. */
+export const CONTAINER_KINDS = ['product', 'component'] as const
+const CONTAINERS = new Set<string>(CONTAINER_KINDS)
+
+/** Kinds describing the solution as a whole; they may only sit at its root. */
+export const SOLUTION_LEVEL_KINDS = ['actor', 'environment'] as const
+const SOLUTION_LEVEL = new Set<string>(SOLUTION_LEVEL_KINDS)
+
 export type SrnErrorCode =
   | 'E_SRN_SYNTAX'
   | 'E_SRN_RESERVED'
+  | 'E_SRN_PLACEMENT'
   | 'E_SRN_CROSS_SOLUTION'
   | 'E_SRN_DANGLING'
   | 'E_SRN_VERSION'
@@ -40,12 +63,18 @@ export class SrnError extends Error {
   }
 }
 
+/** One `{kind}/{name}` pair — the atom of an SRN path. */
+export interface SrnSegment {
+  kind: ReservedKind
+  name: string
+}
+
 export interface Srn {
   /** Authority position — the sealed universe this entity belongs to. */
   solution: string
-  /** `[product, ...componentPath]`; empty for a solution, for solution-level entities. */
-  containers: string[]
-  /** `null` when the SRN addresses a container rather than an owned entity. */
+  /** The full alternating chain; empty when the SRN addresses the solution. */
+  path: SrnSegment[]
+  /** Kind of the addressed entity; `null` only for the solution root. */
   kind: ReservedKind | null
   /** `null` exactly when `kind` is null. */
   name: string | null
@@ -84,6 +113,31 @@ function splitVersion(body: string, ref: string): { body: string; version: numbe
   return { body: head, version: Number(raw) }
 }
 
+/**
+ * Structural placement, enforced by the grammar rather than by the loader: a
+ * product is always a direct child of the solution, components nest only inside
+ * products or components, and actors and environments describe the solution as
+ * a whole so nothing smaller may own them.
+ */
+function assertPlacement(path: SrnSegment[], ref: string): void {
+  path.forEach((segment, index) => {
+    const parent = index === 0 ? null : path[index - 1].kind
+
+    if (parent !== null && !CONTAINERS.has(parent)) {
+      throw new SrnError('E_SRN_PLACEMENT', `a ${parent} cannot own a ${segment.kind}`, ref)
+    }
+    if (segment.kind === 'product' && parent !== null) {
+      throw new SrnError('E_SRN_PLACEMENT', 'a product must be a direct child of the solution', ref)
+    }
+    if (segment.kind === 'component' && parent === null) {
+      throw new SrnError('E_SRN_PLACEMENT', 'a component must live inside a product', ref)
+    }
+    if (SOLUTION_LEVEL.has(segment.kind) && parent !== null) {
+      throw new SrnError('E_SRN_PLACEMENT', `${segment.kind} may only live at solution level`, ref)
+    }
+  })
+}
+
 /** Parse an absolute SRN. Relative references must be resolved first. */
 export function parseSrn(ref: string): Srn {
   if (typeof ref !== 'string' || !ref.startsWith(SCHEME)) {
@@ -104,37 +158,44 @@ export function parseSrn(ref: string): Srn {
     throw new SrnError('E_SRN_RESERVED', `reserved keyword "${solution}" as solution name`, ref)
   }
 
-  const containers: string[] = []
-  for (let i = 0; i < rest.length; i++) {
-    const segment = rest[i]
-    if (!RESERVED.has(segment)) {
-      containers.push(segment)
-      continue
+  if (rest.length % 2 !== 0) {
+    // An odd tail is a bucket with nothing in it; buckets are not addressable.
+    throw new SrnError(
+      'E_SRN_SYNTAX',
+      RESERVED.has(rest[rest.length - 1])
+        ? 'kind bucket is not addressable — a name must follow the kind'
+        : 'path must alternate {kind}/{name}',
+      ref,
+    )
+  }
+
+  const path: SrnSegment[] = []
+  for (let i = 0; i < rest.length; i += 2) {
+    const kind = rest[i]
+    const name = rest[i + 1]
+    if (!RESERVED.has(kind)) {
+      throw new SrnError('E_SRN_SYNTAX', `"${kind}" is not a kind bucket`, ref)
     }
-    // First reserved keyword ends the container path and starts the entity.
-    const tail = rest.slice(i + 1)
-    if (tail.length !== 1) {
-      throw new SrnError(
-        'E_SRN_SYNTAX',
-        tail.length === 0
-          ? 'kind bucket is not addressable — a name must follow the kind'
-          : 'exactly one name segment must follow the kind',
-        ref,
-      )
-    }
-    const [name] = tail
     if (RESERVED.has(name)) {
       throw new SrnError('E_SRN_RESERVED', `reserved keyword "${name}" as entity name`, ref)
     }
-    return { solution, containers, kind: segment as ReservedKind, name, version }
+    path.push({ kind: kind as ReservedKind, name })
   }
 
-  return { solution, containers, kind: null, name: null, version }
+  assertPlacement(path, ref)
+
+  const last = path[path.length - 1]
+  return {
+    solution,
+    path,
+    kind: last?.kind ?? null,
+    name: last?.name ?? null,
+    version,
+  }
 }
 
 export function formatSrn(srn: Srn): string {
-  const parts = [srn.solution, ...srn.containers]
-  if (srn.kind) parts.push(srn.kind, srn.name as string)
+  const parts = [srn.solution, ...srn.path.flatMap((segment) => [segment.kind, segment.name])]
   const suffix = srn.version === null ? '' : `@${srn.version}`
   return `${SCHEME}${parts.join('/')}${suffix}`
 }
@@ -144,14 +205,26 @@ export function unversioned(srn: Srn): string {
   return formatSrn({ ...srn, version: null })
 }
 
+/** The SRN of the entity that owns this one; `null` for a solution root. */
+export function parentSrn(srn: Srn): string | null {
+  if (srn.path.length === 0) return null
+  const path = srn.path.slice(0, -1)
+  const last = path[path.length - 1]
+  return formatSrn({
+    solution: srn.solution,
+    path,
+    kind: last?.kind ?? null,
+    name: last?.name ?? null,
+    version: null,
+  })
+}
+
 /**
  * Resolve an SRN to its entity directory, relative to the catalog root.
  * The `@version` suffix never appears on disk.
  */
 export function srnToDir(srn: Srn, catalogDir = 'solutions'): string {
-  const parts = [catalogDir, srn.solution, ...srn.containers]
-  if (srn.kind) parts.push(srn.kind, srn.name as string)
-  return parts.join('/')
+  return [catalogDir, srn.solution, ...srn.path.flatMap((s) => [s.kind, s.name])].join('/')
 }
 
 /** The entity document — `index.md` inside the entity directory. */
@@ -187,33 +260,22 @@ function removeDotSegments(segments: string[], ref: string): string[] {
   return out
 }
 
-interface ResolveOptions {
-  /**
-   * How to treat `base`:
-   * - `entity` (default) — an entity SRN, resolved with directory semantics, so
-   *   `datamodel/cart` is a child of the base entity. Used by frontmatter
-   *   relations, workflow YAML and prose links.
-   * - `document` — a file URI, resolved with stock RFC 3986 last-segment
-   *   replacement. Used by JSON Schema `$ref` against a schema's `$id`, which
-   *   is what lets standard validators resolve refs without a custom resolver.
-   */
-  baseKind?: 'entity' | 'document'
-}
-
 /**
- * Resolve a reference (absolute or relative) against a base, per srn.md.
- * Returns an absolute SRN string; throws SrnError on any violation.
+ * Resolve a reference (absolute or relative) against a base entity SRN.
+ *
+ * Relative references are path arithmetic from the base entity's directory, so
+ * one `..` pops one segment — and a bucket plus a name is two segments. Because
+ * bucketed paths are longer, solution-absolute references
+ * (`/product/shop/datamodel/money`) usually read better than deep `../../..`
+ * chains; the spec recommends them for anything outside the current entity.
  */
-export function resolveRef(base: string, ref: string, options: ResolveOptions = {}): string {
-  const { baseKind = 'entity' } = options
-
+export function resolveRef(base: string, ref: string): string {
   if (typeof ref !== 'string' || ref.length === 0) {
     throw new SrnError('E_SRN_SYNTAX', 'empty reference', String(ref))
   }
 
   const baseSrn = parseSrn(base)
 
-  // Absolute reference: legal only inside the same solution (sealed universes).
   if (ref.startsWith(SCHEME)) {
     const target = parseSrn(ref)
     if (target.solution !== baseSrn.solution) {
@@ -233,30 +295,13 @@ export function resolveRef(base: string, ref: string, options: ResolveOptions = 
 
   const { body: refBody, version } = splitVersion(ref, ref)
 
-  let merged: string[]
-  if (refBody.startsWith('/')) {
-    // Path-absolute: relative to the solution root.
-    merged = refBody.slice(1).split('/')
-  } else {
-    const basePath = [...baseSrn.containers]
-    if (baseSrn.kind) basePath.push(baseSrn.kind, baseSrn.name as string)
-    // Document semantics drop the final segment (the file); entity semantics
-    // keep the whole path and descend from it, as if `cd`-ing into it.
-    if (baseKind === 'document') basePath.pop()
-    merged = [...basePath, ...refBody.split('/')]
-  }
+  const merged = refBody.startsWith('/')
+    ? refBody.slice(1).split('/')
+    : [...baseSrn.path.flatMap((s) => [s.kind, s.name]), ...refBody.split('/')]
 
   const segments = removeDotSegments(merged, ref)
   for (const segment of segments) assertSegment(segment, ref)
 
   const suffix = version === null ? '' : `@${version}`
   return formatSrn(parseSrn(`${SCHEME}${[baseSrn.solution, ...segments].join('/')}${suffix}`))
-}
-
-/**
- * Resolve a JSON Schema `$ref` against the referring schema's `$id`.
- * Stock RFC 3986 semantics — the same resolution a standard validator performs.
- */
-export function resolveSchemaRef(baseId: string, ref: string): string {
-  return resolveRef(baseId, ref, { baseKind: 'document' })
 }

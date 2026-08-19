@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 1
+version: 2
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, document map, and reading order.
@@ -52,8 +52,14 @@ example. A rule without an example is an incomplete rule and a spec defect.
    →  solutions/acme/shop/checkout/payment/datamodel/order/
    ```
 
-   One reference syntax is used everywhere — frontmatter relations, JSON Schema
-   `$id`/`$ref`, workflow YAML, and prose markdown links. See [srn.md](srn.md).
+   One reference syntax is used everywhere the framework owns the format —
+   frontmatter relations, workflow YAML, and prose markdown links. See
+   [srn.md](srn.md).
+
+   The single exception is `schema.json`, which carries no `$id` and whose
+   `$ref`s are relative file paths, so that stock JSON Schema validators and
+   code generators consume it unaided. Its identity is still its entity's SRN,
+   derived from its path. See [kinds/datamodel.md](kinds/datamodel.md).
 
 3. **Additive-only evolution.** An entity's contract surface is never reduced —
    only extended (with a version bump), or replaced by a new entity that is
@@ -76,20 +82,37 @@ example. A rule without an example is an incomplete rule and a spec defect.
 
 ## Document map
 
+**Core contracts** — binding on every kind:
+
 | Document                         | Status  | Contents                                                                     |
 | -------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| [index.md](index.md)             | review  | This overview: purpose, principles, reading order.                           |
+| [index.md](index.md)             | review  | This overview: purpose, principles, document map, reading order.             |
 | [structure.md](structure.md)     | review  | Directory layout contract: monorepo, nesting, entity directories, placement. |
 | [srn.md](srn.md)                 | review  | SRN grammar, parsing, disk resolution, relative references, validation.      |
 | [frontmatter.md](frontmatter.md) | review  | Common frontmatter contract for every entity `index.md`.                     |
 | [evolution.md](evolution.md)     | review  | Versioning, additive-only rules, swap procedure, git-backed history, status. |
-| `kinds/*.md`                     | planned | Per-kind contracts (kind-specific frontmatter fields and sibling artifacts). |
 | `portal.md`                      | planned | Portal loader contract: validation pipeline, derived-diagram inputs.         |
+
+**Kind contracts** — one document per ontology kind, each adding frontmatter
+fields, sibling artifacts, and validation rules *on top of* the core contracts,
+never overriding them:
+
+| Document                                     | Status | Contents                                                                               |
+| -------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
+| [kinds/solution.md](kinds/solution.md)       | review | Sealed universe and catalog root; `vision`/`scope`/`contacts`; container rules C1–C7.  |
+| [kinds/product.md](kinds/product.md)         | review | Deliverable and ownership unit under a solution; `lifecycle`, `primary-actors`.        |
+| [kinds/component.md](kinds/component.md)     | review | Nestable container below product level; `component-type`; environments and reuse.      |
+| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), no `$id`, relative-path `$ref`, schema registry.  |
+| [kinds/protocol.md](kinds/protocol.md)       | review | `participants`/`style`, `transport.yaml`, `workflows/*.yaml`, `states.json`.           |
+| [kinds/actor.md](kinds/actor.md)             | review | Solution-level counterparts; `actor-type`, `goals`, protocol participation.            |
+| [kinds/environment.md](kinds/environment.md) | review | Solution-level deployment targets; `environment-type`, `topology.yaml`, `config.yaml`. |
+| [kinds/adr.md](kinds/adr.md)                 | review | Decision records; `decision-status` vs `status`, `date`, `deciders`, body template.    |
+| [kinds/requirement.md](kinds/requirement.md) | review | Obligations; `requirement-type`, `priority`, the `## Acceptance criteria` section.     |
 
 The closed v1 ontology (from the decision record) is: **Solution, Product,
 Component** (nestable) as containers, and **Protocol, DataModel, Actor,
 Environment, ADR, Requirement** as owned entity kinds. Extending the ontology is
-deferred; the `kinds/` documents will cover one kind each.
+deferred, so the nine kind documents above are the complete set.
 
 ## Reading order
 
@@ -97,12 +120,20 @@ deferred; the `kinds/` documents will cover one kind each.
 2. [srn.md](srn.md) — how everything is named and referenced.
 3. [frontmatter.md](frontmatter.md) — what every entity document declares.
 4. [evolution.md](evolution.md) — how anything is allowed to change.
-5. `kinds/*.md` (when written) — what each kind adds on top of the common
-   contract.
+5. The kind documents, outermost container first:
+   [solution](kinds/solution.md) → [product](kinds/product.md) →
+   [component](kinds/component.md), then the owned kinds
+   [datamodel](kinds/datamodel.md), [protocol](kinds/protocol.md),
+   [actor](kinds/actor.md), [environment](kinds/environment.md),
+   [adr](kinds/adr.md), [requirement](kinds/requirement.md).
 
 A portal implementer reads all of the above in order. An author adding a single
 entity can read structure.md, frontmatter.md, and the relevant kind document,
 and treat srn.md as reference material.
+
+Where two documents appear to disagree, the precedence is: the decision record,
+then the core contracts, then the kind document. A kind document never relaxes a
+core rule; where it looks like it does, that is a spec defect to be reported.
 
 ## Scope of this spec
 
