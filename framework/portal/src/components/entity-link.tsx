@@ -41,7 +41,7 @@ export function EntityLink({
       <span
         title={`Unresolved reference: ${rawRef ?? 'unknown'}`}
         className={cn(
-          'inline-flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-[5px] py-[1px] align-baseline',
+          'inline-flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-[6px] py-[2px] align-baseline',
           'font-mono text-[0.78em] leading-none text-destructive',
           className,
         )}
@@ -63,7 +63,7 @@ export function EntityLink({
         // leading-none plus minimal vertical padding: a badge must stay inside
         // the line box it appears in, or a paragraph full of references ends up
         // double-spaced compared with one without them.
-        'focusable group/link inline-flex items-center gap-1 rounded border px-[5px] py-[1px] align-baseline',
+        'focusable group/link inline-flex items-center gap-1 rounded border px-[6px] py-[2px] align-baseline',
         'font-mono text-[0.78em] leading-none no-underline transition',
         style.bg,
         style.border,
