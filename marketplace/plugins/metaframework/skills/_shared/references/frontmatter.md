@@ -66,17 +66,17 @@ fields above, and never overrides them.
 
 Value sets, all closed — anything outside is `E_FM_SCHEMA`:
 
-| Field              | Values                                                                            |                 |                   |                        |             |           |           |
-| ------------------ | --------------------------------------------------------------------------------- |                 |                   |                        |             |           |           |
-| `lifecycle`        | `concept \                                                                        | incubating \    | active \          | maintenance \          | sunset \    | retired`  |           |
-| `component-type`   | `service \                                                                        | library \       | ui \              | job \                  | datastore \ | gateway \ | external` |
-| `usage`            | `storage \                                                                        | exchange \      | both`             |                        |             |           |           |
-| `style`            | `point-to-point \                                                                 | bus \           | request-response` |                        |             |           |           |
-| `actor-type`       | `human \                                                                          | system \        | external-system \ | service-account`       |             |           |           |
-| `environment-type` | `dev \                                                                            | staging \       | production \      | edge \                 | local`      |           |           |
-| `decision-status`  | `proposed \                                                                       | accepted \      | rejected \        | superseded`            |             |           |           |
-| `requirement-type` | `functional \                                                                     | non-functional` |                   |                        |             |           |           |
-| `priority`         | `must \                                                                           | should \        | could \           | wont`  (no apostrophe) |             |           |           |
+| Field              | Values                                                                          |
+|--------------------|---------------------------------------------------------------------------------|
+| `lifecycle`        | `concept`, `incubating`, `active`, `maintenance`, `sunset`, `retired`           |
+| `component-type`   | `service`, `library`, `ui`, `job`, `datastore`, `gateway`, `external`           |
+| `usage`            | `storage`, `exchange`, `both`                                                   |
+| `style`            | `point-to-point`, `bus`, `request-response`                                     |
+| `actor-type`       | `human`, `system`, `external-system`, `service-account`                         |
+| `environment-type` | `dev`, `staging`, `production`, `edge`, `local`                                 |
+| `decision-status`  | `proposed`, `accepted`, `rejected`, `superseded`                                |
+| `requirement-type` | `functional`, `non-functional`                                                  |
+| `priority`         | `must`, `should`, `could`, `wont` — `wont` has no apostrophe                    |
 
 Shapes of the non-scalar kind fields:
 
@@ -99,7 +99,11 @@ Shapes of the non-scalar kind fields:
   fetched, never resolved. For *standards*, not for files — an OpenAPI document
   in the directory is bound in `transport.yaml` under `spec`.
 - `date` (adr) — calendar date `YYYY-MM-DD`, no time, no timezone
-  (`E_ADR_DATE`). Both the native YAML date and the quoted string are accepted.
+  (`E_ADR_DATE`). **Quote it: `date: "2026-02-03"`.** The spec says the native
+  YAML timestamp is also accepted, but the portal parses frontmatter with
+  gray-matter, which turns an unquoted `2026-02-03` into a JS `Date`, and the
+  zod schema wants a string — so the unquoted form is `E_FM_SCHEMA` today. Every
+  ADR in `solutions/acme/` is quoted.
 - `deciders` (adr) — list of free-form handles; REQUIRED and non-empty once
   `decision-status` is `accepted`, `rejected`, or `superseded`
   (`E_ADR_DECIDERS`).
@@ -171,6 +175,7 @@ relations:
     - /product/billing/component/ledger
   implements:
     - /product/shop/component/checkout/requirement/idem-cap
+    - /product/shop/component/checkout/requirement/p99-checkout-latency
     - /requirement/gdpr-erasure
 tags:
   - checkout

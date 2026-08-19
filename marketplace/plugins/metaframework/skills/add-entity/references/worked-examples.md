@@ -592,7 +592,10 @@ Order is not enforced and extra sections are allowed.
 `deciders` is required and non-empty once `decision-status` is `accepted`,
 `rejected` or `superseded`; while a decision is still `proposed` it may be
 omitted. `date` is a bare calendar date, `YYYY-MM-DD`, no time and no timezone —
-quoted or as a native YAML date.
+and note that this example **quotes** it. Quote it always: the loader parses
+frontmatter with gray-matter, which turns an unquoted `2026-02-03` into a JS
+`Date`, and the zod schema wants a string, so the unquoted form the spec says is
+legal is `E_FM_SCHEMA` today. Every ADR in the fixture is quoted.
 
 The ordinal prefix `0001-` is unique **per bucket**, not per solution, and is
 never reused even after an ADR is rejected or superseded:

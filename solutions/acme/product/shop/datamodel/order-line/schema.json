@@ -30,6 +30,10 @@
     "line-discount": {
       "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "This line's allocated share of the order's total discount, fixed when the cart became an order. Absent on an undiscounted line."
+    },
+    "tax": {
+      "$ref": "#/$defs/line-tax",
+      "description": "Tax as charged on this line. Absent means not recorded, which is not the same as zero."
     }
   },
   "required": [
@@ -41,6 +45,31 @@
     "positive-int": {
       "type": "integer",
       "minimum": 1
+    },
+    "line-tax": {
+      "type": "object",
+      "description": "Tax charged on one line, captured at sale. Local until a second entity needs it, at which point the promotion rule applies.",
+      "properties": {
+        "rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction applied, as a decimal. 0.2 is twenty percent. The rate in force at sale, never the current one."
+        },
+        "amount": {
+          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "description": "Tax charged on this line, already rounded under the policy in force."
+        },
+        "jurisdiction": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "Code of the authority that levied it. Stored because a rate does not identify one, and it outlives the address it was derived from."
+        }
+      },
+      "required": [
+        "rate",
+        "amount"
+      ]
     }
   }
 }

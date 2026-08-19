@@ -1,7 +1,7 @@
 ---
 name: order-line
 kind: datamodel
-version: 2
+version: 3
 title: Order line
 summary: One sellable item, its quantity, and the price it was sold at — the atom of every basket and order.
 status: approved
@@ -53,6 +53,34 @@ structurally trivial, has no meaning of its own, and no second entity needs it.
 [money](srn://acme/datamodel/money@1), by contrast, was promoted to its own
 entity the moment a second model referenced it — that is the whole of the
 promotion rule.
+
+`tax` is the interesting case, because it is *not* structurally trivial and still
+lives in `$defs`. It stays local for one reason: exactly one model needs it
+today. The rule promotes on the second referrer, not on complexity, and promoting
+early would put a shared entity in the solution bucket that only shop can
+currently explain. When billing needs to reconcile per-line tax against a
+[ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1), the promotion
+happens then, and the swap is a `$defs` block becoming a `$ref` — a change that
+accepts every instance written before it.
+
+## Tax is captured, for the same reason the price is
+
+`tax.rate` and `tax.amount` record what was charged, not what the current rate
+table says. A rate change is a fact about the future; an order already placed was
+taxed once, at a rate that a tax authority may ask about seven years later, and
+recomputing it at read time would answer that question with today's arithmetic.
+
+`tax.jurisdiction` is stored alongside because the rate alone does not identify
+it — several jurisdictions share 20%, and the one that applied depends on where
+the customer was, which is a fact this line no longer has access to once the
+address is erased under
+[gdpr-erasure](srn://acme/requirement/gdpr-erasure). The jurisdiction code
+survives erasure precisely because it is not personal data, which is what keeps
+the tax record intact after the address behind it is gone.
+
+The whole object is optional. Lines written before this version carry no `tax`,
+and a reader must treat its absence as "not recorded here" rather than as zero —
+the two are different, and only the first is true of an order from last year.
 
 ## Where it appears
 
