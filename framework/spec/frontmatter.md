@@ -188,8 +188,8 @@ x-jira-epic: SHOP-142
 # Order
 
 Prose: intent, invariants, review notes. The machine-readable shape lives in
-the sibling `schema.json`, which carries **no `$id`** and whose `$ref`s are
-relative file paths, so stock JSON Schema tooling consumes it unaided
+the sibling `schema.json`, whose `$id` and `$ref`s are served HTTP URLs, so
+stock JSON Schema tooling can dereference them unaided
 (decision-record amendment 2026-08-19-b). Its identity is this entity's SRN,
 `srn://acme/product/shop/component/checkout/component/payment/datamodel/order`,
 derived from the path; the version above is the only copy of the version.

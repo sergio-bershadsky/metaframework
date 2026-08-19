@@ -1,0 +1,56 @@
+name: redeem-coupon
+title: Burn a coupon and charge it to a campaign
+summary: Coupon-service burns a code inside one transaction, publishes the fact, and three consumers catch up.
+participants: [coupon-service, campaign-manager, audience, promotion-engine]
+steps:
+  - message: redemption-recorded
+    from: coupon-service
+    to: [campaign-manager, audience, promotion-engine]
+    kind: event
+    payload: /product/growth/datamodel/redemption@1
+    channel: acme.growth.redemption-recorded.v1
+    condition: published inside the transaction that incremented redeemed-count
+    note: >-
+      Never published before the burn commits. A published redemption that was
+      later rolled back would be a discount acme cannot account for, and the
+      whole reason the counter and the log are written together.
+
+  - message: increment-spent
+    from: campaign-manager
+    to: campaign-manager
+    kind: call
+    note: >-
+      The running total on the campaign. Keyed by campaign-id, so every fact
+      about one budget arrives in publication order on one partition.
+
+  - opt:
+      when: spent has reached the campaign budget
+      steps:
+        - message: campaign-state-changed
+          from: campaign-manager
+          to: [promotion-engine, audience]
+          kind: event
+          payload: /product/growth/datamodel/campaign@1
+          channel: acme.growth.campaign-state-changed.v1
+          note: >-
+            Cache-invalidation signal. Between the threshold being crossed and
+            this event landing, the engine keeps offering the promo — the
+            bounded overspend accepted in adr/0002-fail-open-pricing.
+
+  - opt:
+      when: the order behind the redemption is later cancelled or refunded
+      steps:
+        - message: redemption-reversed
+          from: coupon-service
+          to: [campaign-manager, audience, promotion-engine]
+          kind: event
+          payload: /product/growth/datamodel/redemption@1
+          channel: acme.growth.redemption-reversed.v1
+          note: >-
+            The same record with reversed-at set. The original fact stays on the
+            first topic, so gross and net campaign cost are both derivable.
+        - message: decrement-spent
+          from: campaign-manager
+          to: campaign-manager
+          kind: call
+          condition: never below zero, even if the reversal outruns its redemption

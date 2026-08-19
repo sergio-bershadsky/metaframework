@@ -1,0 +1,27 @@
+kind: kafka
+summary: Normalized carrier scans published by the gateway, and derived delivery status published by tracking.
+encoding: avro
+auth:
+  - sasl-scram
+  - mtls
+kafka:
+  cluster: acme-fulfilment
+  topics:
+    - name: acme.fulfilment.tracking-event.v1
+      key: shipment-id
+      message: /product/fulfilment/datamodel/tracking-event@1
+      partitions: 24
+      retention: 14d
+      summary: One event per carrier scan, already mapped onto acme's status vocabulary.
+    - name: acme.fulfilment.delivery-status.v1
+      key: shipment-id
+      message: /product/fulfilment/datamodel/shipment@1
+      partitions: 24
+      retention: 30d
+      summary: Emitted only when the fold changes a shipment's status — never once per scan.
+    - name: acme.fulfilment.delivery-exception.v1
+      key: shipment-id
+      message: /datamodel/problem@1
+      partitions: 6
+      retention: 30d
+      summary: Failed attempts, undeliverable addresses, and losses — the subset a human may have to act on.

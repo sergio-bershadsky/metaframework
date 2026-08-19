@@ -173,3 +173,138 @@ Unchanged, because no interoperability standard governs them: frontmatter
 `relations`, protocol/workflow YAML payload references, and prose links all
 keep SRN form. Editor navigation for those is a known gap; an LSP is the only
 remedy and is explicitly not in v1.
+
+---
+
+## Amendment 2026-08-19-c — schema references become dereferenceable URLs
+
+**This supersedes amendment 2026-08-19-b.** That amendment's requirement stands
+and is not in dispute; its *mechanism* is replaced. Everything else about the
+SRN — frontmatter `relations`, workflow YAML, prose links — remains exactly as
+2026-08-19-b left it. This changes `schema.json` artifacts only.
+
+### What was wrong with the previous answer
+
+2026-08-19-b asked for references that are "compliant and generic: resolvable by
+any standard tool". It delivered *well-formed* references, not resolvable ones.
+A relative path like `../../../../datamodel/money/schema.json` resolves for
+exactly one class of consumer: a tool running inside a clone of this repository,
+with the whole catalog on disk, invoked from the right directory. Paste the same
+schema into a validator, a browser playground, a generator in another repo, or a
+CI job that fetched one file — and the reference resolves to nothing. The
+measurement in 2026-08-19-b was real but its scope was narrower than the
+requirement: it proved that `json-schema-to-typescript` *can* follow a relative
+path off a filesystem, not that any consumer can follow the reference.
+
+The `$id`-less design compounded it. Without `$id` a document has no identity of
+its own, so the only base URI available is wherever the file happened to be
+retrieved from — which means a schema separated from its directory cannot say
+what it is or where its neighbours are.
+
+### The decision
+
+Inside `schema.json` only:
+
+- **`$id` is the URL the portal serves the schema at**, and the path after
+  `/schemas/` is the entity's SRN path verbatim:
+
+  ```text
+  srn://acme/datamodel/money
+    → http://localhost:3000/schemas/acme/datamodel/money
+  ```
+
+- **`$ref` is the absolute schema URL of its target.** One form, no relative
+  paths, no `srn://`, no depth arithmetic. The eight-`..` chains are gone.
+- **`x-srn` is retired.** It existed because the document had no identity
+  keyword; `$id` now carries identity in a keyword validators actually act on,
+  and two identity fields is one too many. A leftover `x-srn` is an error, not a
+  tolerated annotation.
+- **Local JSON Pointers (`#/$defs/...`) are unchanged**, and `$defs` stay
+  entity-private.
+- **No version suffix appears in a URL.** It addresses the *current* schema.
+  Pinning stays in frontmatter `relations`, where git-backed history can resolve
+  it — unchanged from 2026-08-19-b.
+
+### Why a served URL is the right answer
+
+Because it makes the reference *dereferenceable*, which is what "resolvable by
+any standard tool" actually requires. This is measured, not assumed. With the
+portal running, a stock `json-schema-ref-parser` — given nothing but the URL,
+with filesystem access unused — bundled the deepest schema in the catalog:
+
+```text
+$ node http-deref.mjs
+fetched documents:
+   .../schemas/acme/datamodel/auditable
+   .../schemas/acme/datamodel/base-record
+   .../schemas/acme/datamodel/money
+   .../schemas/acme/product/shop/datamodel/card-payment
+   .../schemas/acme/product/shop/datamodel/order-line
+   .../schemas/acme/product/shop/datamodel/payment-method
+   .../schemas/acme/product/shop/datamodel/sepa-payment
+   .../schemas/acme/product/shop/component/checkout/component/payment/datamodel/order
+inherited properties: id, created-at, changed-by, change-reason
+resolved without a single filesystem read: true
+```
+
+Eight documents, the full transitive closure, over HTTP, by a tool that has
+never heard of this framework. Under the previous form the same tool, handed the
+same starting point, resolved nothing.
+
+Two secondary gains, neither of them the reason: the reference no longer encodes
+the referrer's depth, so moving an entity stops rewriting every `$ref` that
+points *out* of it; and `$id` restores a base URI, so a schema copied out of the
+catalog still says what it is.
+
+The interoperability cost of `$id` that 2026-08-19-b feared does not
+materialise, because it was a cost of `$id` **plus relative refs** — an `srn://`
+`$id` re-basing `../money/schema.json` onto an unresolvable scheme. With
+absolute-URL refs there is nothing to re-base: every reference is already
+complete.
+
+### The SCHEMA_BASE_URL portability rule
+
+The origin is configuration, never a literal. It comes from `SCHEMA_BASE_URL`
+(default `http://localhost:3000`), exposed by
+`framework/portal/src/lib/schema/url.ts`, and every module — the portal, the
+migration script, the tests — reads it from there.
+
+But the origin is *baked into the artifacts on disk*, so it is a
+**deployment-wide constant, not a per-request setting**:
+
+- Changing `SCHEMA_BASE_URL` requires rewriting every `$id` and `$ref`.
+  `scripts/migrate_schema_ids.py` does exactly that and is idempotent; run it
+  after the change and commit the result.
+- Agreement is enforced, so the env var and the files cannot drift apart
+  silently: a document whose `$id` is not
+  `SCHEMA_BASE_URL + /schemas/ + <srn-path>` is `E_DM_ID_MISMATCH` in the schema
+  registry, and the shipped-catalog regression suite asserts the same equality
+  directly. A mismatch is a red test, not a subtly wrong link.
+
+  Caveat, recorded rather than glossed: `buildSchemaRegistry` is not yet called
+  by any page, so today that diagnostic surfaces through the test suite rather
+  than through a rendered diagnostics page. That gap predates this amendment —
+  the registry has never been wired into the portal — and closing it is separate
+  work.
+- A catalog served from more than one origin is out of scope for v1. One
+  catalog, one origin, one set of URLs.
+
+The portal itself never dereferences these URLs. It holds the files already, so
+ajv is given each document under its own `$id` and the bundler maps a schema URL
+back to a local file. That is deliberate: SSR must not depend on the server
+being able to reach itself over the network. The URLs are dereferenceable *for
+outsiders*; for the portal they are identity.
+
+### Consequences
+
+- New route: `GET /schemas/{srn-path}` returns the schema as
+  `application/schema+json`, 404s cleanly, rejects any path leaving the catalog,
+  carries an ETag, and sets `Access-Control-Allow-Origin: *` so browser-based
+  validators can read it.
+- Error codes: `E_DM_ID_MISSING` and `E_DM_ID_MISMATCH` are new;
+  `E_DM_ID_FORBIDDEN` narrows to *nested* `$id` only; `E_DM_SRN_RETIRED`
+  replaces `E_DM_SRN_MISMATCH`, which is retired with `x-srn`.
+- Retired with the relative-path form: `E_DM_REF_KIND` is now covered by
+  `E_SRN_DANGLING` (the registry holds only datamodels, so a URL naming anything
+  else has no entry). `E_DM_REF_ESCAPE` survives with a narrowed subject — a URL
+  on this origin that leaves the `/schemas/` namespace.

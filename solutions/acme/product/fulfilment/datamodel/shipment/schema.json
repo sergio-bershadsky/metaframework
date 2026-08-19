@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/shipment",
+  "title": "Shipment",
+  "description": "One parcel: its contents, destination, carrier booking, and current delivery status.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+    }
+  ],
+  "properties": {
+    "shipment-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this parcel, stable from creation to final state."
+    },
+    "order-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Order being fulfilled. Not unique here — one order may split into several shipments."
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
+      },
+      "minItems": 1,
+      "description": "The subset of the order's lines travelling in this parcel, in shop's own line model."
+    },
+    "destination": {
+      "$ref": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/delivery-address",
+      "description": "Where the parcel is going. Blanked in place on erasure; the shipment itself survives."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "booked",
+        "in-transit",
+        "delivered",
+        "returned",
+        "failed"
+      ],
+      "description": "Projection of the carrier-booking conversation state. The state machine is normative."
+    },
+    "carrier": {
+      "type": "string",
+      "maxLength": 32,
+      "description": "Carrier that accepted the booking, as the gateway names it. Absent until one has."
+    },
+    "service-level": {
+      "type": "string",
+      "enum": [
+        "economy",
+        "standard",
+        "express",
+        "signature-required"
+      ],
+      "description": "Normalized service class. Carrier product names are mapped onto this by the gateway."
+    },
+    "tracking-number": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Carrier's own reference. Opaque to acme and unique only within that carrier."
+    },
+    "shipping-cost": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "What the accepted carrier quote actually cost, including surcharges."
+    },
+    "weight-grams": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Gross weight as measured at dispatch. Carriers price on it, so it is not an estimate."
+    },
+    "promised-delivery-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date the customer was told, taken from the accepted quote and never recomputed."
+    },
+    "booked-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When a carrier accepted this parcel. Absent while status is requested or failed."
+    },
+    "delivered-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the courier recorded the handover. The scan time, not the time acme learned of it."
+    }
+  },
+  "required": [
+    "shipment-id",
+    "order-id",
+    "lines",
+    "destination",
+    "status"
+  ]
+}

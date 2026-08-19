@@ -1,0 +1,72 @@
+{
+  "id": "redemption-events",
+  "initial": "drafting",
+  "description": "Budget lifecycle of one campaign, as the bus reveals it. Not the internal state of any consumer.",
+  "states": {
+    "drafting": {
+      "description": "The campaign exists but has no money against it; no promo it funds is offered.",
+      "on": {
+        "BUDGET_APPROVED": {
+          "target": "funded",
+          "actions": ["record-approver"],
+          "description": "The auditable fields on the campaign are filled in here or nowhere."
+        }
+      }
+    },
+    "funded": {
+      "description": "Money is committed; the window has not opened yet.",
+      "on": {
+        "WINDOW_OPENED": {
+          "target": "serving"
+        },
+        "CAMPAIGN_CANCELLED": {
+          "target": "ended",
+          "actions": ["release-budget"]
+        }
+      }
+    },
+    "serving": {
+      "description": "Promos are being offered and redemptions are being charged against the budget.",
+      "entry": ["publish-campaign-state"],
+      "on": {
+        "REDEMPTION_RECORDED": {
+          "target": "serving",
+          "actions": ["increment-spent"],
+          "description": "Self-transition — the ordinary case, keyed by campaign-id so the sum needs no sort."
+        },
+        "REDEMPTION_REVERSED": {
+          "target": "serving",
+          "actions": ["decrement-spent"],
+          "description": "A reversal lowers the total but never removes the original fact."
+        },
+        "SPEND_REACHED_BUDGET": {
+          "target": "exhausted",
+          "actions": ["publish-campaign-state", "invalidate-engine-cache"]
+        },
+        "WINDOW_CLOSED": {
+          "target": "ended",
+          "actions": ["publish-campaign-state", "invalidate-engine-cache"]
+        }
+      }
+    },
+    "exhausted": {
+      "description": "The money ran out. Late redemptions still arrive and are still recorded.",
+      "on": {
+        "REDEMPTION_RECORDED": {
+          "target": "exhausted",
+          "actions": ["increment-spent", "flag-overspend"],
+          "description": "In-flight quotes convert after the threshold; the overspend is recorded, not refused."
+        },
+        "BUDGET_INCREASED": {
+          "target": "serving",
+          "guard": "the window is still open"
+        }
+      }
+    },
+    "ended": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "The clock ran out or the campaign was cancelled. Unspent budget is released."
+    }
+  }
+}

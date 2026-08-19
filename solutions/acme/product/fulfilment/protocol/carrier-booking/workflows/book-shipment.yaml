@@ -1,0 +1,76 @@
+name: book-shipment
+title: Book one parcel with a carrier
+summary: The orchestrator asks for a parcel to be taken; the gateway works down its carrier preference list until one accepts.
+participants: [orchestrator, gateway, carrier]
+steps:
+  - message: request-booking
+    from: orchestrator
+    to: gateway
+    kind: call
+    payload: /product/fulfilment/datamodel/shipment@1
+    note: Idempotency-Key is the shipment id — a replay must never produce a second physical parcel.
+
+  # The retry budget is spent here, inside the gateway. The orchestrator sees one
+  # answer and never learns how many carriers were tried; knowing would mean
+  # re-implementing the failover policy it delegated.
+  - loop:
+      while: the gateway has an untried carrier for this destination
+      max: 3
+      steps:
+        - message: quote-and-book
+          from: gateway
+          to: carrier
+          kind: call
+          condition: quote still inside its expiry
+        - alt:
+            - when: the carrier accepts and issues a label
+              steps:
+                - message: booking-accepted
+                  from: carrier
+                  to: gateway
+                  kind: return
+                  payload: /product/fulfilment/datamodel/carrier-quote@1
+                  note: Carries the accepted quote; the label reference and tracking number ride with it.
+            - when: the carrier refuses, or does not answer within 8 seconds
+              steps:
+                - message: booking-refused
+                  from: carrier
+                  to: gateway
+                  kind: error
+                  payload: /datamodel/problem@1
+                  note: A timeout is treated as a refusal, and the idempotency ledger absorbs the double-book risk.
+
+  - opt:
+      when: the accepted quote exceeds the shipping cost captured at checkout
+      steps:
+        - message: repricing-notice
+          from: gateway
+          to: orchestrator
+          kind: event
+          payload: /product/fulfilment/datamodel/carrier-quote@1
+          note: Informational — acme absorbs the difference rather than re-charging a paid order.
+
+  - alt:
+      - when: a carrier accepted within the retry budget
+        steps:
+          - message: booking-confirmed
+            from: gateway
+            to: orchestrator
+            kind: return
+            payload: /product/fulfilment/datamodel/shipment@1
+            note: The shipment now carries a carrier, a tracking number, and a promised date.
+          - opt:
+              when: the service level requires a signature
+              steps:
+                - message: collection-slot-reserved
+                  from: gateway
+                  to: orchestrator
+                  kind: event
+                  condition: slot inside the carrier's collection cutoff
+    otherwise:
+      - message: no-carrier-available
+        from: gateway
+        to: orchestrator
+        kind: error
+        payload: /datamodel/problem@1
+        note: Terminal. A support task is opened; nothing about this reaches shop, because the order is paid.

@@ -1,0 +1,18 @@
+kind: http
+summary: JSON over HTTPS on both hops — internal from the orchestrator, mutual-TLS outward to the carrier.
+encoding: json
+auth:
+  - oauth2-bearer
+  - mtls
+spec:
+  format: openapi
+  version: "3.1.0"
+  file: openapi.yaml
+http:
+  base-path: /internal/v1/bookings
+  tls: true
+# no `operations:` — openapi.yaml is the single source of operation truth for
+# acme's side of the conversation. The carrier hop is deliberately undescribed:
+# it is the carrier's contract, versioned by them, and the gateway exists so
+# that only code has to track it.
+x-carrier-timeout: 8s

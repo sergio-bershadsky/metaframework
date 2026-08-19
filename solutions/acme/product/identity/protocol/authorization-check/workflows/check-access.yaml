@@ -1,0 +1,79 @@
+name: check-access
+title: Check whether a session may perform an action
+summary: A relying component asserts a permission; acl resolves the session and answers allow or deny.
+participants: [registration, acl, session-store]
+steps:
+  - message: check-access
+    from: registration
+    to: acl
+    kind: call
+    payload: /product/identity/datamodel/permission@2
+    note: >-
+      The session reference travels in a header, not in the body. It is the
+      subject of the question, never the credential for asking it — the call
+      itself is authenticated by mTLS.
+
+  - message: resolve-session
+    from: acl
+    to: session-store
+    kind: call
+    note: Never cached. Grants are cached; the session is read fresh on every check.
+
+  - alt:
+      - when: the reference names a live session
+        steps:
+          - message: session-resolved
+            from: session-store
+            to: acl
+            kind: return
+            payload: /product/identity/datamodel/session@1
+
+          - alt:
+              - when: a grant matches the asserted permission at this instant
+                steps:
+                  - opt:
+                      when: the matched permission sets requires-multi-factor
+                      steps:
+                        - message: strength-checked
+                          from: acl
+                          to: acl
+                          kind: call
+                          condition: session authentication-strength is multi-factor
+                          note: >-
+                            A single-factor session falls through to the deny
+                            branch here rather than being challenged — acl cannot
+                            challenge anyone, only authentication can.
+                  - message: access-allowed
+                    from: acl
+                    to: registration
+                    kind: return
+                    note: 204 with an empty body. There is no decision envelope to parse.
+
+              - when: no grant matches, or the matched grant is outside its effective interval
+                steps:
+                  - message: access-denied
+                    from: acl
+                    to: registration
+                    kind: error
+                    payload: /datamodel/problem@1
+                    note: >-
+                      403. The detail says that access was denied and never which
+                      grant was missing — a precise explanation is an enumeration
+                      oracle.
+                  - message: decision-audited
+                    from: acl
+                    to: acl
+                    kind: event
+                    condition: sampled, plus every deny on an identity-account permission
+
+    otherwise:
+      - message: session-unresolvable
+        from: acl
+        to: registration
+        kind: error
+        payload: /datamodel/problem@1
+        note: >-
+          401, not 403. Unknown, expired, evicted, and store-unavailable all land
+          here — the caller must send the principal back to authentication rather
+          than tell them they lack permission. Default deny means the store being
+          down is an outage, deliberately, not an open door.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/datamodel/auditable",
+  "$id": "http://localhost:3000/schemas/acme/datamodel/auditable",
   "title": "Auditable",
   "description": "Optional audit annotations composed into models under an audit obligation.",
   "type": "object",

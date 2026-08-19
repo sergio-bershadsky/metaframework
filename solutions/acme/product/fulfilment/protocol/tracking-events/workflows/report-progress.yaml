@@ -1,0 +1,43 @@
+name: report-progress
+title: Report a parcel's progress
+summary: A courier scans; the gateway normalizes and publishes; tracking folds the scan and announces any status change.
+participants: [courier, gateway, tracking, orchestrator, customer]
+steps:
+  # No channel: this hop is not on the bus at all. It reaches the gateway's
+  # ingress as a carrier webhook, and the gateway is what puts it on a topic.
+  - message: parcel-scanned
+    from: courier
+    to: [gateway]
+    kind: event
+    note: The carrier's handheld posts to acme minutes to hours after the scan itself — occurred-at is not recorded-at.
+
+  - message: tracking-event-recorded
+    from: gateway
+    to: [tracking, orchestrator]
+    kind: event
+    payload: /product/fulfilment/datamodel/tracking-event@1
+    channel: acme.fulfilment.tracking-event.v1
+    note: Mapped onto acme's status vocabulary at the boundary, so nothing downstream branches on a raw carrier code.
+
+  - opt:
+      when: the fold changes the shipment's status
+      steps:
+        - message: delivery-status-changed
+          from: tracking
+          to: [orchestrator, customer]
+          kind: event
+          payload: /product/fulfilment/datamodel/shipment@1
+          channel: acme.fulfilment.delivery-status.v1
+          condition: monotonic except for returned and lost
+          note: A dozen scans produce two of these. The customer hop leaves the solution — see the entity document.
+
+  - opt:
+      when: the scan is a failed attempt, an undeliverable address, or a loss
+      steps:
+        - message: delivery-exception
+          from: tracking
+          to: [orchestrator, gateway, customer]
+          kind: event
+          payload: /datamodel/problem@1
+          channel: acme.fulfilment.delivery-exception.v1
+          note: Fanned out to three participants — the orchestrator may rebook, the gateway claims, the customer is told.

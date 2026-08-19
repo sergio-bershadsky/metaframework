@@ -1,0 +1,103 @@
+{
+  "id": "carrier-booking",
+  "initial": "requested",
+  "description": "Delivery lifecycle of one parcel as the booking conversation sees it — never the carrier's own internal state.",
+  "states": {
+    "requested": {
+      "description": "The orchestrator has asked for a parcel to be taken; no carrier has committed yet.",
+      "entry": ["reserve-idempotency-key"],
+      "on": {
+        "CARRIER_ACCEPTED": {
+          "target": "booked",
+          "actions": ["store-label-reference", "store-tracking-number"],
+          "description": "A carrier issued a label. The first commitment anyone has made."
+        },
+        "CARRIER_REFUSED": [
+          {
+            "target": "requested",
+            "guard": "an untried carrier remains within the retry budget",
+            "actions": ["advance-carrier-preference"],
+            "description": "Self-transition — the retry is the same request against the next carrier."
+          },
+          {
+            "target": "failed",
+            "actions": ["emit-problem", "open-support-task"]
+          }
+        ]
+      }
+    },
+    "booked": {
+      "description": "A carrier holds a label and a collection slot; the parcel is still on acme's premises.",
+      "exit": ["stop-collection-timer"],
+      "on": {
+        "PARCEL_SCANNED": {
+          "target": "in-transit",
+          "actions": ["record-custody-change"],
+          "description": "First scan. Custody has passed and the booking is no longer cancellable."
+        },
+        "COLLECTION_MISSED": [
+          {
+            "target": "booked",
+            "guard": "within the carrier's collection retry window",
+            "actions": ["rebook-collection-slot"]
+          },
+          {
+            "target": "failed",
+            "actions": ["release-slot", "emit-problem", "open-support-task"]
+          }
+        ],
+        "CANCEL_BOOKING": {
+          "target": "failed",
+          "guard": "no scan has been recorded",
+          "actions": ["release-slot", "cancel-with-carrier"],
+          "description": "Cancellation is only available before custody passes; afterwards it is a return."
+        }
+      }
+    },
+    "in-transit": {
+      "description": "The parcel is in the carrier's custody and moving. Acme observes and cannot intervene.",
+      "on": {
+        "DELIVERY_CONFIRMED": {
+          "target": "delivered",
+          "actions": ["record-delivered-at"]
+        },
+        "DELIVERY_ATTEMPT_FAILED": [
+          {
+            "target": "in-transit",
+            "guard": "attempts remaining under the carrier's own policy",
+            "actions": ["notify-customer"],
+            "description": "Attempt counting is the carrier's; acme mirrors it and never decides it."
+          },
+          {
+            "target": "returned",
+            "actions": ["open-return-leg", "notify-customer"]
+          }
+        ],
+        "ADDRESS_UNDELIVERABLE": {
+          "target": "returned",
+          "actions": ["open-return-leg", "open-support-task"],
+          "description": "The address does not resolve on the ground, whatever the schema accepted."
+        },
+        "PARCEL_LOST": {
+          "target": "failed",
+          "actions": ["emit-problem", "open-support-task", "open-carrier-claim"]
+        }
+      }
+    },
+    "delivered": {
+      "type": "final",
+      "tags": ["success", "terminal"],
+      "description": "A courier recorded a handover. Terminal — a later return is a new conversation."
+    },
+    "returned": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "The parcel is coming back. The refund that may follow belongs to billing, not here."
+    },
+    "failed": {
+      "type": "final",
+      "tags": ["failure", "terminal"],
+      "description": "No carrier took it, or it never arrived. A human owns it; the order stays paid."
+    }
+  }
+}

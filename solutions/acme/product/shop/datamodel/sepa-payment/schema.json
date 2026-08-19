@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/datamodel/sepa-payment",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/sepa-payment",
   "title": "SEPA payment",
   "description": "SEPA direct debit instrument, authorized by a mandate held at the acquirer.",
   "type": "object",

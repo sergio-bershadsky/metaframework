@@ -849,13 +849,13 @@ silently follows the datamodel's latest version, so a contract that was reviewed
 against `order@2` starts describing `order@3` with no diff on this file.
 
 A payload reference is an SRN even though the datamodel's own `schema.json` uses
-relative file paths in its `$ref`s ([kinds/datamodel.md](datamodel.md)). The two
+served HTTP URLs in its `$ref`s ([kinds/datamodel.md](datamodel.md)). The two
 are not in conflict and neither is a fallback for the other: `schema.json` is
-governed by an interoperability standard and must stay resolvable by stock JSON
-Schema tooling, while a workflow step's `payload` is a catalog reference in a
-framework-private YAML format that no external tool reads. That is also why
-pinning still works here and no longer works in a `$ref` — an SRN carries
-`@version`, a path does not.
+governed by an interoperability standard and must stay *dereferenceable* by
+stock JSON Schema tooling, while a workflow step's `payload` is a catalog
+reference in a framework-private YAML format that no external tool reads. That
+is also why pinning still works here and no longer works in a `$ref` — an SRN
+carries `@version`, and a schema URL addresses the current schema only.
 
 Relative references resolve against **the referring file's own URI**, which is
 the artifact path inside the entity — so the depth differs between a sibling

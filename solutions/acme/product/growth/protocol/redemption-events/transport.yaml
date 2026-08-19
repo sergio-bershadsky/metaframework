@@ -1,0 +1,27 @@
+kind: kafka
+summary: Redemption facts published by coupon-service and consumed by everything in growth that keeps a total.
+encoding: avro
+auth:
+  - sasl-scram
+  - mtls
+kafka:
+  cluster: acme-growth
+  topics:
+    - name: acme.growth.redemption-recorded.v1
+      key: campaign-id
+      message: /product/growth/datamodel/redemption@1
+      partitions: 6
+      retention: 90d
+      summary: Emitted inside the transaction that burnt the code, so a published fact is always durable.
+    - name: acme.growth.redemption-reversed.v1
+      key: campaign-id
+      message: /product/growth/datamodel/redemption@1
+      partitions: 6
+      retention: 90d
+      summary: The same record with reversed-at set. A correction is a new fact, never an edit of the first.
+    - name: acme.growth.campaign-state-changed.v1
+      key: campaign-id
+      message: /product/growth/datamodel/campaign@1
+      partitions: 6
+      retention: 90d
+      summary: Published by campaign-manager when a budget is exhausted or a window closes; the engine's cache-invalidation signal.

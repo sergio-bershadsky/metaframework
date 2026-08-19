@@ -11,27 +11,36 @@ import {
 } from './registry'
 import type { Catalog, Entity } from '../catalog/types'
 import { formatSrn, parseSrn } from '../srn/srn'
+import { schemaBaseUrl, srnToSchemaUrl } from './url'
 
 /**
  * The fixture is in-memory: the registry only ever sees a loaded Catalog, so
  * these tests must not depend on a filesystem walk. Cases follow the worked
  * example and the composition patterns in framework/spec/kinds/datamodel.md.
  *
- * Every `$ref` below is a relative file path to another `schema.json`, exactly
- * as a stock generator would resolve it, and no document carries `$id`
- * (decision-record 2026-08-19-b).
+ * Every document below carries the `$id` the portal serves it at, and every
+ * cross-entity `$ref` is another document's `$id` — the form a stock validator
+ * dereferences over HTTP and this registry satisfies from memory
+ * (decision-record 2026-08-19-c). `url()` is used everywhere instead of a
+ * literal host, for the same reason the production code does: the origin comes
+ * from SCHEMA_BASE_URL and is never typed out.
  */
 
 const DIALECT = 'https://json-schema.org/draft/2020-12/schema'
+
+/** The schema URL of an entity, by its catalog path. */
+function url(relDir: string): string {
+  return srnToSchemaUrl(`srn://${relDir}`)
+}
 
 function datamodel(relDir: string, source: SchemaNode | null, extra: Record<string, unknown> = {}): Entity {
   const parsed = parseSrn(`srn://${relDir}`)
   const srn = formatSrn({ ...parsed, version: null })
   const name = parsed.name as string
-  // x-srn is provenance, so the helper writes the true one and every fixture
-  // document looks like a shipped schema.json; a case that wants drift or a
-  // stray $id declares it itself and wins the spread.
-  const document = source === null ? null : { 'x-srn': srn, ...source }
+  // $id is identity, so the helper writes the true one and every fixture
+  // document looks like a shipped schema.json; a case that wants a wrong,
+  // missing or nested $id declares it itself and wins the spread.
+  const document = source === null ? null : { $id: srnToSchemaUrl(srn), ...source }
   const raw = document ? `${JSON.stringify(document, null, 2)}\n` : ''
 
   return {
@@ -93,15 +102,15 @@ const order: SchemaNode = {
   $schema: DIALECT,
   title: 'Order',
   type: 'object',
-  // Eight `..` — the order sits eight directories below its solution root, and
-  // a kind bucket is a directory like any other.
-  allOf: [{ $ref: '../../../../../../../../datamodel/base-record/schema.json' }],
+  // Depth is irrelevant to the reference now: a base eight directories away and
+  // a sibling one directory away are addressed the same way.
+  allOf: [{ $ref: url('acme/datamodel/base-record') }],
   properties: {
-    total: { $ref: '../../../../../../../../datamodel/money/schema.json', description: 'Gross amount payable.' },
-    discount: { $ref: '../../../../../../../../datamodel/money/schema.json' },
+    total: { $ref: url('acme/datamodel/money'), description: 'Gross amount payable.' },
+    discount: { $ref: url('acme/datamodel/money') },
     status: { enum: ['placed', 'paid', 'refunded'] },
     'line-count': { $ref: '#/$defs/positive-int' },
-    refund: { $ref: '../refund/schema.json' },
+    refund: { $ref: url('acme/product/shop/component/checkout/component/payment/datamodel/refund') },
   },
   required: ['total'],
   $defs: { 'positive-int': { type: 'integer', minimum: 1 } },
@@ -117,7 +126,10 @@ const refund: SchemaNode = {
 const paymentMethod: SchemaNode = {
   $schema: DIALECT,
   title: 'Payment method',
-  oneOf: [{ $ref: '../card-payment/schema.json' }, { $ref: '../sepa-payment/schema.json' }],
+  oneOf: [
+    { $ref: url('acme/product/shop/datamodel/card-payment') },
+    { $ref: url('acme/product/shop/datamodel/sepa-payment') },
+  ],
 }
 
 const cardPayment: SchemaNode = {
@@ -133,7 +145,7 @@ const sepaPayment: SchemaNode = {
   title: 'SEPA payment',
   type: 'object',
   // Inherits the tag property through allOf, which the flattener must see.
-  allOf: [{ $ref: '../sepa-tag/schema.json' }],
+  allOf: [{ $ref: url('acme/product/shop/datamodel/sepa-tag') }],
   properties: { iban: { type: 'string' } },
   required: ['iban'],
 }
@@ -150,15 +162,15 @@ const broken: SchemaNode = {
   $schema: DIALECT,
   title: 'Broken',
   type: 'object',
-  allOf: [{ $ref: '../nope/schema.json' }],
-  properties: { loose: { $ref: '../../../../datamodel/money/schema.json' } },
+  allOf: [{ $ref: url('acme/product/shop/datamodel/nope') }],
+  properties: { loose: { $ref: url('acme/datamodel/money') } },
 }
 
 const loopA: SchemaNode = {
   $schema: DIALECT,
   title: 'Loop A',
   type: 'object',
-  allOf: [{ $ref: '../loop-b/schema.json' }],
+  allOf: [{ $ref: url('acme/product/shop/datamodel/loop-b') }],
   properties: { a: { type: 'string' } },
 }
 
@@ -166,7 +178,7 @@ const loopB: SchemaNode = {
   $schema: DIALECT,
   title: 'Loop B',
   type: 'object',
-  allOf: [{ $ref: '../loop-a/schema.json' }],
+  allOf: [{ $ref: url('acme/product/shop/datamodel/loop-a') }],
   properties: { b: { type: 'string' } },
 }
 
@@ -189,13 +201,14 @@ function fixture(): SchemaRegistry {
   )
 }
 
-const ORDER = 'acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json'
-const BASE = 'acme/datamodel/base-record/schema.json'
-const MONEY = 'acme/datamodel/money/schema.json'
-const LOOP_A = 'acme/product/shop/datamodel/loop-a/schema.json'
-const LOOP_B = 'acme/product/shop/datamodel/loop-b/schema.json'
+const ORDER = url('acme/product/shop/component/checkout/component/payment/datamodel/order')
+const BASE = url('acme/datamodel/base-record')
+const MONEY = url('acme/datamodel/money')
+const LOOP_A = url('acme/product/shop/datamodel/loop-a')
+const LOOP_B = url('acme/product/shop/datamodel/loop-b')
 
-const MONEY_FROM_ORDER = '../../../../../../../../datamodel/money/schema.json'
+/** The `$ref` order writes for money — now identical to money's own `$id`. */
+const MONEY_FROM_ORDER = MONEY
 
 function codes(registry: SchemaRegistry, srn: string): string[] {
   return registry.diagnostics.filter((diagnostic) => diagnostic.srn === srn).map((diagnostic) => diagnostic.code)
@@ -204,25 +217,30 @@ function codes(registry: SchemaRegistry, srn: string): string[] {
 const ORDER_SRN = 'srn://acme/product/shop/component/checkout/component/payment/datamodel/order'
 
 describe('buildSchemaRegistry — keying', () => {
-  it('keys each document by its catalog-relative path and aliases both SRN forms', () => {
+  it('keys each document by its schema URL and aliases both SRN forms', () => {
     const registry = fixture()
     expect(resolveSchema(registry, ORDER)?.id).toBe(ORDER)
     expect(resolveSchema(registry, ORDER_SRN)?.id).toBe(ORDER)
     expect(resolveSchema(registry, `${ORDER_SRN}@3`)?.id).toBe(ORDER)
   })
 
-  it('derives the owning entity SRN from the path', () => {
+  it('keeps the file path as a lookup key — it is what a reviewer has in hand', () => {
+    const registry = fixture()
+    const entry = resolveSchema(registry, ORDER)
+    expect(entry?.file).toBe('acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json')
+    expect(resolveSchema(registry, entry?.file as string)?.id).toBe(ORDER)
+  })
+
+  it('derives the owning entity SRN from the URL path', () => {
     const registry = fixture()
     expect(resolveSchema(registry, ORDER)?.srn).toBe(ORDER_SRN)
     expect(resolveSchema(registry, BASE)?.srn).toBe('srn://acme/datamodel/base-record')
   })
 
-  it('resolves a relative file path against the referring schema', () => {
+  it('reports diagnostics against the file on disk, never against the URL', () => {
     const registry = fixture()
-    expect(resolveSchema(registry, MONEY_FROM_ORDER, ORDER)?.id).toBe(MONEY)
-    expect(resolveSchema(registry, '../refund/schema.json', ORDER)?.srn).toBe(
-      'srn://acme/product/shop/component/checkout/component/payment/datamodel/refund',
-    )
+    const dangling = registry.diagnostics.find((diagnostic) => diagnostic.code === 'E_SRN_DANGLING')
+    expect(dangling?.path).toBe('acme/product/shop/datamodel/broken/schema.json')
   })
 
   it('reports a datamodel entity with no schema.json', () => {
@@ -246,7 +264,8 @@ describe('stock JSON Schema resolution', () => {
     expect(validate?.(instance)).toBe(true)
     // The inherited `required` comes from base-record via allOf + $ref.
     expect(validate?.({ total: { amount: '49.90', currency: 'EUR' } })).toBe(false)
-    // The nested value object comes from an eight-levels-up relative file path.
+    // The nested value object arrives through an absolute schema URL that ajv
+    // resolves out of the registry — no network, no custom resolver.
     expect(validate?.({ ...instance, total: { amount: '49.90' } })).toBe(false)
     // The local $defs pointer is entity-private but still enforced.
     expect(validate?.({ ...instance, 'line-count': 0 })).toBe(false)
@@ -311,12 +330,12 @@ describe('effective fields', () => {
         datamodel('acme/product/shop/datamodel/narrow', {
           $schema: DIALECT,
           type: 'object',
-          allOf: [{ $ref: '../../../../datamodel/base-record/schema.json' }],
+          allOf: [{ $ref: url('acme/datamodel/base-record') }],
           properties: { id: { type: 'integer' }, note: { minLength: 8 } },
         }),
       ]),
     )
-    const model = effectiveModel(registry, 'acme/product/shop/datamodel/narrow/schema.json')
+    const model = effectiveModel(registry, url('acme/product/shop/datamodel/narrow'))
     const id = model?.properties.find((property) => property.name === 'id')
     const note = model?.properties.find((property) => property.name === 'note')
 
@@ -331,8 +350,8 @@ describe('effective fields', () => {
 describe('discriminated unions', () => {
   it('derives a variant map from oneOf with a shared const tag', () => {
     const registry = fixture()
-    const bundle = buildSchemaBundle(registry, 'acme/product/shop/datamodel/payment-method/schema.json')
-    const union = bundle?.unions[nodeKey('acme/product/shop/datamodel/payment-method/schema.json', '')]
+    const bundle = buildSchemaBundle(registry, url('acme/product/shop/datamodel/payment-method'))
+    const union = bundle?.unions[nodeKey(url('acme/product/shop/datamodel/payment-method'), '')]
 
     expect(union?.derivable).toBe(true)
     expect(union?.tag).toBe('method')
@@ -356,7 +375,7 @@ describe('discriminated unions', () => {
         }),
       ]),
     )
-    const id = 'acme/product/shop/datamodel/untagged/schema.json'
+    const id = url('acme/product/shop/datamodel/untagged')
     const bundle = buildSchemaBundle(registry, id)
     const union = bundle?.unions[nodeKey(id, '')]
 
@@ -371,11 +390,11 @@ describe('unresolvable references', () => {
   it('records a dangling $ref as an error instead of dropping it', () => {
     const registry = fixture()
     const dangling = registry.resolutions
-      .get('acme/product/shop/datamodel/broken/schema.json')
-      ?.get('../nope/schema.json')
+      .get(url('acme/product/shop/datamodel/broken'))
+      ?.get(url('acme/product/shop/datamodel/nope'))
 
     expect(dangling?.targetId).toBeNull()
-    // The path is still a legal entity address, so the author is told which one.
+    // The URL is still a legal entity address, so the author is told which one.
     expect(dangling?.targetSrn).toBe('srn://acme/product/shop/datamodel/nope')
     expect(dangling?.error?.code).toBe('E_SRN_DANGLING')
     expect(codes(registry, 'srn://acme/product/shop/datamodel/broken')).toContain('E_SRN_DANGLING')
@@ -383,10 +402,10 @@ describe('unresolvable references', () => {
 
   it('surfaces an unresolvable base in the lineage rather than silently skipping it', () => {
     const registry = fixture()
-    const model = effectiveModel(registry, 'acme/product/shop/datamodel/broken/schema.json')
+    const model = effectiveModel(registry, url('acme/product/shop/datamodel/broken'))
     const unresolved = model?.lineage.find((node) => node.status === 'unresolved')
 
-    expect(unresolved?.ref).toBe('../nope/schema.json')
+    expect(unresolved?.ref).toBe(url('acme/product/shop/datamodel/nope'))
     expect(unresolved?.error?.code).toBe('E_SRN_DANGLING')
     expect(model?.diagnostics.map((diagnostic) => diagnostic.code)).toContain('E_SRN_DANGLING')
   })
@@ -398,7 +417,7 @@ describe('unresolvable references', () => {
         datamodel('acme/product/shop/datamodel/nosy', {
           $schema: DIALECT,
           type: 'object',
-          properties: { c: { $ref: '../../../../datamodel/money/schema.json#/$defs/currency' } },
+          properties: { c: { $ref: `${url('acme/datamodel/money')}#/$defs/currency` } },
         }),
       ]),
     )
@@ -422,55 +441,98 @@ describe('reference form', () => {
     return codes(registry, 'srn://acme/product/shop/datamodel/probe')
   }
 
-  it('rejects a $ref that climbs above the catalog root', () => {
-    expect(refCodes('../../../../../../elsewhere/schema.json')).toContain('E_DM_REF_ESCAPE')
+  it('accepts the served URL of the target — the one form there is', () => {
+    expect(refCodes(url('acme/datamodel/money'))).toEqual([])
+  })
+
+  it('rejects a $ref that leaves the /schemas/ namespace on this very origin', () => {
+    expect(refCodes(`${schemaBaseUrl()}/api/history/acme/datamodel/money`)).toContain('E_DM_REF_ESCAPE')
+  })
+
+  it('rejects a $ref served by somebody else’s portal', () => {
+    expect(refCodes('https://elsewhere.example/schemas/acme/datamodel/money')).toContain('E_DM_REF_TARGET')
   })
 
   it('rejects a $ref that lands in another solution', () => {
-    expect(refCodes('../../../../../globex/datamodel/money/schema.json')).toContain('E_SRN_CROSS_SOLUTION')
+    expect(refCodes(`${schemaBaseUrl()}/schemas/globex/datamodel/money`)).toContain('E_SRN_CROSS_SOLUTION')
   })
 
-  it('rejects a $ref that does not name a schema.json', () => {
-    expect(refCodes('../../../../datamodel/money')).toContain('E_DM_REF_TARGET')
+  it('rejects a URL whose path is not an entity address', () => {
+    // A kind bucket with no name after it is not addressable.
+    expect(refCodes(`${schemaBaseUrl()}/schemas/acme/datamodel`)).toContain('E_DM_REF_TARGET')
   })
 
-  it('rejects an SRN $ref — stock tooling cannot open a private URI scheme', () => {
+  it('rejects a version pin in the URL — it would silently serve the current schema', () => {
+    expect(refCodes(`${url('acme/datamodel/money')}@1`)).toContain('E_DM_REF_TARGET')
+  })
+
+  it('rejects the retired relative file path, and says what to write instead', () => {
+    const registry = buildSchemaRegistry(
+      catalogOf([
+        datamodel('acme/datamodel/money', money),
+        datamodel('acme/product/shop/datamodel/probe', {
+          $schema: DIALECT,
+          type: 'object',
+          properties: { value: { $ref: '../../../../datamodel/money/schema.json' } },
+        }),
+      ]),
+    )
+    const diagnostic = registry.diagnostics.find(
+      (candidate) => candidate.srn === 'srn://acme/product/shop/datamodel/probe',
+    )
+    expect(diagnostic?.code).toBe('E_DM_REF_TARGET')
+    // The old form resolves against $id to exactly the new one, so the author is
+    // handed the replacement rather than a rule.
+    expect(diagnostic?.message).toContain(url('acme/datamodel/money'))
+  })
+
+  it('rejects an SRN $ref — a validator cannot dereference a private URI scheme', () => {
     expect(refCodes('srn://acme/datamodel/money@1')).toContain('E_DM_REF_TARGET')
-  })
-
-  it('rejects a root-absolute $ref, which has no base without $id', () => {
-    expect(refCodes('/acme/datamodel/money/schema.json')).toContain('E_DM_REF_TARGET')
-  })
-
-  it('accepts the relative file path a generator would follow', () => {
-    expect(refCodes('../../../../datamodel/money/schema.json')).toEqual([])
   })
 })
 
-describe('provenance and identity', () => {
-  it('accepts an x-srn that agrees with the file’s path', () => {
+describe('identity', () => {
+  it('accepts an $id that is the URL the portal serves the document at', () => {
     const registry = fixture()
     expect(codes(registry, 'srn://acme/datamodel/money')).toEqual([])
+    expect(resolveSchema(registry, MONEY)?.document.$id).toBe(MONEY)
   })
 
-  it('reports an x-srn that disagrees with the file’s path', () => {
+  it('reports a missing $id — identity is not optional any more', () => {
     const registry = buildSchemaRegistry(
-      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/product/shop/datamodel/money' })]),
+      catalogOf([datamodel('acme/datamodel/money', { ...money, $id: undefined })]),
     )
-    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_MISMATCH')
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_ID_MISSING')
   })
 
-  it('reports a versioned x-srn — the annotation is the entity, not a pin', () => {
+  it('reports an $id naming the wrong entity', () => {
     const registry = buildSchemaRegistry(
-      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/datamodel/money@1' })]),
+      catalogOf([datamodel('acme/datamodel/money', { ...money, $id: url('acme/product/shop/datamodel/money') })]),
     )
-    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_MISMATCH')
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_ID_MISMATCH')
   })
 
-  it('reports $id anywhere in the document', () => {
+  it('reports an $id on a foreign origin, and names SCHEMA_BASE_URL as the source', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
-        datamodel('acme/datamodel/money', { ...money, $id: 'srn://acme/datamodel/money@1' }),
+        datamodel('acme/datamodel/money', { ...money, $id: 'https://elsewhere.example/schemas/acme/datamodel/money' }),
+      ]),
+    )
+    const diagnostic = registry.diagnostics.find((candidate) => candidate.code === 'E_DM_ID_MISMATCH')
+    expect(diagnostic).toBeDefined()
+    expect(diagnostic?.message).toContain('SCHEMA_BASE_URL')
+  })
+
+  it('reports a retired x-srn rather than tolerating a second identity field', () => {
+    const registry = buildSchemaRegistry(
+      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/datamodel/money' })]),
+    )
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_RETIRED')
+  })
+
+  it('reports a nested $id, which would re-base every $ref beneath it', () => {
+    const registry = buildSchemaRegistry(
+      catalogOf([
         datamodel('acme/product/shop/datamodel/nested-id', {
           $schema: DIALECT,
           type: 'object',
@@ -478,8 +540,20 @@ describe('provenance and identity', () => {
         }),
       ]),
     )
-    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_ID_FORBIDDEN')
     expect(codes(registry, 'srn://acme/product/shop/datamodel/nested-id')).toContain('E_DM_ID_FORBIDDEN')
+  })
+
+  it('takes the origin from SCHEMA_BASE_URL rather than a literal host', () => {
+    process.env.SCHEMA_BASE_URL = 'https://catalog.acme.example'
+    try {
+      const registry = buildSchemaRegistry(catalogOf([datamodel('acme/datamodel/money', money)]))
+      expect(resolveSchema(registry, 'srn://acme/datamodel/money')?.id).toBe(
+        'https://catalog.acme.example/schemas/acme/datamodel/money',
+      )
+      expect(codes(registry, 'srn://acme/datamodel/money')).toEqual([])
+    } finally {
+      delete process.env.SCHEMA_BASE_URL
+    }
   })
 })
 
@@ -511,11 +585,11 @@ describe('cycles', () => {
         datamodel('acme/product/shop/datamodel/category', {
           $schema: DIALECT,
           type: 'object',
-          properties: { children: { type: 'array', items: { $ref: '../category/schema.json' } } },
+          properties: { children: { type: 'array', items: { $ref: url('acme/product/shop/datamodel/category') } } },
         }),
       ]),
     )
-    const id = 'acme/product/shop/datamodel/category/schema.json'
+    const id = url('acme/product/shop/datamodel/category')
     const validate = schemaValidator(registry, id)
     expect(validate?.({ children: [{ children: [] }] })).toBe(true)
     expect(effectiveModel(registry, id)?.lineage).toHaveLength(1)
@@ -535,14 +609,14 @@ describe('buildSchemaBundle', () => {
     // The chip shows which version the ref lands on today; refs carry no pin.
     expect(bundle?.refs[ORDER][MONEY_FROM_ORDER].version).toBe(1)
     expect(bundle?.meta[BASE].abstract).toBe(true)
-    expect(bundle?.raw).toContain('"x-srn"')
-    expect(bundle?.raw).not.toContain('"$id"')
+    expect(bundle?.raw).toContain('"$id"')
+    expect(bundle?.raw).not.toContain('"x-srn"')
   })
 
   it('flattens every reachable document so a nested $ref expands to effective fields', () => {
     const registry = fixture()
-    const bundle = buildSchemaBundle(registry, 'acme/product/shop/datamodel/payment-method/schema.json')
-    const sepa = bundle?.flat['acme/product/shop/datamodel/sepa-payment/schema.json']
+    const bundle = buildSchemaBundle(registry, url('acme/product/shop/datamodel/payment-method'))
+    const sepa = bundle?.flat[url('acme/product/shop/datamodel/sepa-payment')]
 
     expect(sepa?.map((property) => property.name)).toEqual(['iban', 'method'])
     expect(sepa?.find((property) => property.name === 'method')?.own).toBe(false)

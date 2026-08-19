@@ -1,0 +1,26 @@
+kind: http
+summary: JSON over mTLS inside the cluster. Checkout is the only caller with a client certificate.
+encoding: json
+auth:
+  - mtls
+http:
+  base-path: /api/v1/quotes
+  tls: true
+  operations:
+    - name: evaluate-cart
+      method: POST
+      path: /
+      request: /product/shop/component/checkout/datamodel/cart@1
+      response: /product/growth/datamodel/promotion-quote@1
+      summary: Price a cart against every promotion the account is eligible for. Always answers, possibly with fallback set.
+    - name: add-coupon
+      method: POST
+      path: /{quote-id}/coupons
+      request: /product/growth/datamodel/coupon@1
+      response: /product/growth/datamodel/promotion-quote@1
+      summary: Add a customer-entered code to an existing quote. Validates only; the code is not burnt here.
+    - name: get-quote
+      method: GET
+      path: /{quote-id}
+      response: /product/growth/datamodel/promotion-quote@1
+      summary: Re-read a quote before converting a cart. Returns a problem document once expires-at has passed.

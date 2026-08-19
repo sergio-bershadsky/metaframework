@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/promo",
+  "title": "Promo",
+  "description": "A discount acme applies on its own initiative, to every eligible cart, without the customer asking.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/product/growth/datamodel/discount"
+    }
+  ],
+  "properties": {
+    "source": {
+      "const": "promo",
+      "description": "Union tag distinguishing an automatic promo from a presented coupon."
+    },
+    "campaign-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Campaign that funds this promo. Its budget is what stops the promo."
+    },
+    "segment-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Audience segment this promo is restricted to. Absent means every cart is eligible."
+    },
+    "precedence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 999,
+      "description": "Tie-break rank within a campaign. Lower wins; equal ranks are resolved by promo id."
+    },
+    "starts-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "First instant the promo is offered. RFC 3339, UTC."
+    },
+    "ends-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "First instant it is no longer offered; exclusive, so windows abut without overlapping."
+    }
+  },
+  "required": [
+    "source",
+    "campaign-id",
+    "precedence",
+    "starts-at",
+    "ends-at"
+  ]
+}

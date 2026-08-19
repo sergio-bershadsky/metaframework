@@ -1,0 +1,79 @@
+{
+  "id": "session",
+  "initial": "anonymous",
+  "description": "Lifecycle of the session every authorization check is evaluated against. The check itself is one request and one response and has no state of its own.",
+  "states": {
+    "anonymous": {
+      "description": "A reference exists and names no account. Real, storable, and enough to own a cart.",
+      "entry": ["issue-reference", "start-expiry-timer"],
+      "on": {
+        "CREDENTIAL_VERIFIED": {
+          "target": "authenticated",
+          "actions": ["bind-account", "record-issued-at"],
+          "description": "The same reference is bound to an account; id and created-at survive."
+        },
+        "EXPIRY_ELAPSED": {
+          "target": "expired",
+          "description": "An abandoned anonymous session evicts by TTL like any other."
+        },
+        "REVOKE_SESSION": {
+          "target": "revoked",
+          "actions": ["record-revocation-reason"],
+          "guard": "an operator revoked the client, not the principal"
+        }
+      }
+    },
+    "authenticated": {
+      "description": "Bound to an account and inside its expiry window. Checks may now match grants.",
+      "initial": "single-factor",
+      "exit": ["stop-expiry-timer"],
+      "on": {
+        "EXPIRY_ELAPSED": {
+          "target": "expired",
+          "description": "Absolute deadline reached. Never extended in place — a refresh issues a new session."
+        },
+        "REVOKE_SESSION": {
+          "target": "revoked",
+          "actions": ["record-revocation-reason", "push-invalidation"]
+        },
+        "ACCOUNT_ERASED": {
+          "target": "revoked",
+          "actions": ["record-revocation-reason", "push-invalidation"],
+          "description": "A session must not outlive the account it speaks for."
+        }
+      },
+      "states": {
+        "single-factor": {
+          "description": "One proof presented. A permission with requires-multi-factor is denied here.",
+          "on": {
+            "SECOND_FACTOR_VERIFIED": {
+              "target": "multi-factor",
+              "actions": ["record-issued-at"],
+              "description": "Elevation in place — strength changes, identity does not."
+            }
+          }
+        },
+        "multi-factor": {
+          "description": "Two proofs presented. Every grant the principal holds is now reachable.",
+          "on": {
+            "STEP_DOWN_ELAPSED": {
+              "target": "single-factor",
+              "guard": "elevation window of 15 minutes has passed",
+              "description": "Elevation is time-boxed; the session itself continues."
+            }
+          }
+        }
+      }
+    },
+    "expired": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "Evicted by TTL. A resolution finds nothing, and acl denies — the same answer as an unknown reference."
+    },
+    "revoked": {
+      "type": "final",
+      "tags": ["terminal", "failure"],
+      "description": "Explicitly ended. The record survives its reference so the principal can be told why."
+    }
+  }
+}

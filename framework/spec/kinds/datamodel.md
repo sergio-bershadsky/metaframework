@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: datamodel
-version: 3
+version: 4
 status: review
 title: DataModel kind
-summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, no $id, relative-path $refs consumable by stock tooling, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
+summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, $id and $refs as dereferenceable schema URLs served by the portal, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
 ---
 
 # DataModel kind
@@ -21,10 +21,11 @@ references, [frontmatter.md](../frontmatter.md) for the common fields, and
 [index.md](../index.md) (RFC 2119).
 
 `schema.json` is the one artifact in the framework that does **not** use SRN
-references. It carries no `$id` and every cross-entity `$ref` is a relative file
-path, so that any standard validator or code generator can consume it with no
-knowledge of this framework ([below](#why-relative-paths)). Everything else a
-datamodel writes — frontmatter `relations`, prose links — is ordinary SRN.
+references. Its `$id` and every cross-entity `$ref` are **HTTP URLs the portal
+serves**, so that any standard validator or code generator can not merely parse
+the reference but actually *fetch* it, knowing nothing about this framework
+([below](#why-served-urls)). Everything else a datamodel writes — frontmatter
+`relations`, prose links — is ordinary SRN.
 
 ## Entity directory shape
 
@@ -33,7 +34,7 @@ A datamodel entity is a directory inside a `datamodel/` kind bucket:
 ```text
 solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/
 ├── index.md          # REQUIRED — common frontmatter + kind fields + prose
-├── schema.json       # REQUIRED — JSON Schema 2020-12, no $id, path-relative $refs
+├── schema.json       # REQUIRED — JSON Schema 2020-12, $id and $refs are schema URLs
 └── examples/         # OPTIONAL asset subdirectory — sample instances
     ├── minimal.json
     └── with-discount.json
@@ -46,8 +47,8 @@ Rules:
   in an ADR or a requirement.
 - The filename is **bare**: exactly `schema.json`. The entity name is already
   the directory name; repeating it is redundant and breaks greppability. It is
-  also load-bearing now: every `$ref` in the catalog ends in `/schema.json`, so
-  a renamed file is an unresolvable reference in every schema that points at it.
+  also what the portal's schema route looks for when serving an entity's URL, so
+  a renamed file is a 404 at every address that points at it.
 
   ```text
   datamodel/order/schema.json          # correct
@@ -79,79 +80,84 @@ solutions/acme/product/shop/component/checkout/component/payment/datamodel/order
 Exactly one dialect: **JSON Schema draft 2020-12**. There is no second schema
 language, no OpenAPI-flavoured subset, no proprietary extension layer.
 
-A `schema.json` carries **no `$id`**. Its identity is its owning entity's SRN,
-and that SRN is derived from the file's path, because SRN ≡ path
-([srn.md](../srn.md)):
+A `schema.json` carries an `$id`, and that `$id` is **the URL the portal serves
+it at**. The path after `/schemas/` is the entity's SRN path verbatim, because
+SRN ≡ path ≡ URL path ([srn.md](../srn.md)):
 
 ```text
 solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json
-→          srn://acme/product/shop/component/checkout/component/payment/datamodel/order
+→ srn://acme/product/shop/component/checkout/component/payment/datamodel/order
+→ http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order
 ```
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "type": "object"
 }
 ```
 
+The origin is **not part of the artifact's design**; it is configuration. It
+comes from `SCHEMA_BASE_URL` (default `http://localhost:3000`) and is never
+hand-typed — see [the portability rule](#the-schema_base_url-portability-rule).
+
 | Requirement                                                                   | Violation             |
 | ----------------------------------------------------------------------------- | --------------------- |
 | `$schema` present and exactly `https://json-schema.org/draft/2020-12/schema`. | `E_DM_DIALECT`        |
 | The document is valid against the 2020-12 meta-schema.                        | `E_DM_SCHEMA_INVALID` |
-| `$id` absent — at the root and at every nesting level.                        | `E_DM_ID_FORBIDDEN`   |
-| `x-srn`, if present, equals the entity's own unversioned SRN.                 | `E_DM_SRN_MISMATCH`   |
+| Root `$id` present.                                                           | `E_DM_ID_MISSING`     |
+| Root `$id` equals this entity's schema URL, origin included.                  | `E_DM_ID_MISMATCH`    |
+| No `$id` at any level **below** the root.                                     | `E_DM_ID_FORBIDDEN`   |
+| No `x-srn` — the annotation is retired.                                       | `E_DM_SRN_RETIRED`    |
 
-Any `$id` is `E_DM_ID_FORBIDDEN`, whatever its form:
-
-```json
-{ "$id": "srn://acme/product/shop/datamodel/order-line@2" }  /* E_DM_ID_FORBIDDEN */
-{ "$id": "srn://acme/product/shop/datamodel/order-line" }    /* E_DM_ID_FORBIDDEN */
-{ "$id": "https://acme.example/schemas/order.json" }         /* E_DM_ID_FORBIDDEN */
-{ "$id": "order.json" }                                      /* E_DM_ID_FORBIDDEN */
-```
-
-The reason is mechanical, not stylistic: JSON Schema resolves a relative `$ref`
-against the document's base URI, and the base URI is `$id` whenever `$id` is
-present. An `srn://` `$id` would therefore re-base every `../money/schema.json`
-onto a URI scheme no tool understands — undoing the interoperability the paths
-exist to buy. An `https://` `$id` would do the same, more quietly, by pointing
-resolution at a web server instead of the working tree.
-
-Omitting `$id` costs nothing. The authoritative `name` and `version` already
-live in the entity's `index.md` frontmatter ([frontmatter.md](../frontmatter.md)),
-and the SRN is the path.
-
-### The `x-srn` provenance annotation
-
-`x-srn` is OPTIONAL. It MAY appear once, at the document root, and holds the
-owning entity's **unversioned** SRN. Validators ignore unrecognized `x-`
-keywords, so it changes nothing about how the schema validates; it exists so
-that a `schema.json` copied out of the catalog into a code generator, a ticket,
-or another repository still says where it came from.
-
-For `solutions/acme/product/shop/datamodel/order-line/schema.json`:
+Each of these is `E_DM_ID_MISMATCH` for
+`solutions/acme/datamodel/money/schema.json`:
 
 ```json
-{ "x-srn": "srn://acme/product/shop/datamodel/order-line" }    /* correct     */
-
-/* the three below are each E_DM_SRN_MISMATCH: */
-{ "x-srn": "srn://acme/product/shop/datamodel/order-line@2" }  /* versioned   */
-{ "x-srn": "srn://acme/product/shop/datamodel/orderline" }     /* wrong name  */
-{ "x-srn": "srn://acme/datamodel/order-line" }                 /* wrong owner */
+{ "$id": "srn://acme/datamodel/money" }                       /* not a URL; nothing dereferences it   */
+{ "$id": "http://localhost:3000/schemas/acme/datamodel/money@1" }  /* a URL addresses the current schema */
+{ "$id": "https://acme.example/schemas/acme/datamodel/money" }     /* origin is SCHEMA_BASE_URL, not free */
+{ "$id": "money.json" }                                       /* relative: no identity of its own     */
 ```
 
-It is unversioned deliberately: a versioned annotation would have to be edited
-in lockstep with every frontmatter `version` bump, which is exactly the drift
-the annotation is supposed to avoid. Because the portal re-derives the expected
-value from the file's path on every load and compares
-(`E_DM_SRN_MISMATCH`), `x-srn` can be wrong for the length of one commit and no
-longer.
+A **nested** `$id` remains forbidden outright (`E_DM_ID_FORBIDDEN`). It would
+re-base every reference beneath it onto a second identity, which is how one
+document quietly becomes two. Local shapes are addressed by `#/$defs` pointers,
+which need no identity at all.
 
-Other `x-*` keywords are legal JSON Schema annotations; this framework neither
-validates nor renders them.
+### The `SCHEMA_BASE_URL` portability rule
+
+The origin lives in one place in code
+(`framework/portal/src/lib/schema/url.ts`) and one place in configuration
+(`SCHEMA_BASE_URL`). Every consumer — the portal, the migration script, the
+tests — asks that module; no module writes a host literal.
+
+It is nevertheless baked into the artifacts on disk, which makes it a
+**deployment-wide constant, not a per-request setting**:
+
+- Changing `SCHEMA_BASE_URL` requires rewriting every `$id` and `$ref`.
+  `scripts/migrate_schema_ids.py` does it and is idempotent; run it after the
+  change and commit the result.
+- The schema registry enforces agreement, so the variable and the files cannot
+  drift: an `$id` that does not match `SCHEMA_BASE_URL` + `/schemas/` + the
+  entity's SRN path is `E_DM_ID_MISMATCH`. The shipped-catalog regression suite
+  asserts the same thing directly, so a wrong origin is a red test rather than a
+  subtly dead link.
+- One catalog, one origin. Serving a catalog from several origins at once is out
+  of scope for v1.
+
+### `x-srn` is retired
+
+`x-srn` carried the entity's SRN as an annotation, for the sole reason that the
+document had no identity keyword. `$id` now carries identity in a keyword that
+validators, resolvers and generators all act on, so the annotation is pure
+duplication — a second identity field that can disagree with the first. A
+`schema.json` that still carries one is `E_DM_SRN_RETIRED`; remove it.
+
+Other `x-*` keywords remain legal JSON Schema annotations; this framework
+neither validates nor renders them.
 
 ### Forbidden keywords
 
@@ -169,8 +175,9 @@ The following 2020-12 keywords MUST NOT appear anywhere in a `schema.json`
 { "$defs": { "node": { "type": "object" } } }           /* correct — refer to it as "#/$defs/node" */
 ```
 
-`$id` is forbidden too, but under its own code (`E_DM_ID_FORBIDDEN`, above) —
-it is an identity rule, not a dialect-surface restriction.
+A *nested* `$id` is forbidden too, but under its own code
+(`E_DM_ID_FORBIDDEN`, above) — it is an identity rule, not a dialect-surface
+restriction.
 
 ## References and inheritance
 
@@ -182,171 +189,149 @@ is the entire inheritance layer.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "allOf": [
-    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" },
-    { "$ref": "../../../../../../../../datamodel/auditable/schema.json" }
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record" },
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable" }
   ],
   "properties": {
-    "total": { "$ref": "../../../../../../../../datamodel/money/schema.json" }
+    "total": { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }
   }
 }
 ```
 
-### Why relative paths
+### Why served URLs
 
-The reference form here was chosen against measurements, not taste. Two things
-were tested on the same pair of schemas.
+The reference form here was chosen against measurements, not taste — twice. The
+first answer (relative file paths, no `$id`) was measured against the wrong
+question and replaced; the reasoning is recorded in
+[docs/decision-record.md](../../../docs/decision-record.md) amendments
+2026-08-19-b and 2026-08-19-c, and summarised here.
 
-**1. Generic consumption is real, and SRN refs break it.** Off-the-shelf
-`json-schema-to-typescript`:
+**The requirement is that a reference be *resolvable by any standard tool*.** A
+relative path satisfies that only for a tool running inside a clone of this
+repository, with the whole catalog on disk, invoked from the right directory.
+Paste the schema into a validator, a browser playground, a generator in another
+repository, or a CI job that fetched one file, and
+`../../../../datamodel/money/schema.json` resolves to nothing. It is
+*well-formed*, not resolvable.
 
-```text
-"$ref": "/datamodel/money@1"      → FAILED: Error opening file "/datamodel/money@1"
-"$ref": "../money/schema.json"    → OK: interface Order { total?: Money } + interface Money
-```
-
-`ajv-cli`, `quicktype`, and `datamodel-code-generator` behave the same way: they
-resolve relative file references off the filesystem and have no way to resolve a
-private URI scheme. A relative path costs the catalog nothing and buys every one
-of those tools for free.
-
-**2. Editor navigation is unobtainable through reference syntax, so it is not a
-tiebreaker.** VS Code embeds `vscode-json-languageservice`, which produces
-navigable links only for same-document JSON Pointers (`#/$defs/money` — verified
-working). Every external form produced nothing: SRN refs, plain relative file
-paths, and relative paths with pointers alike. No choice of `$ref` syntax buys
-go-to-definition; only an editor extension or an LSP would, for any syntax. The
-gap is known and an LSP is explicitly out of scope for v1.
-
-That leaves interoperability as the only differentiator, and it points one way.
-The same measurement is why `$id` is omitted rather than kept in SRN form: with
-an `$id` present the relative paths would be re-based onto it and the tools
-would fail again.
-
-### `$ref` is a relative file path
-
-Every `$ref` to **another** entity is an ordinary relative file path ending in
-`/schema.json`. There is no absolute form: no `srn://`, no `https://`, no
-leading `/`.
-
-The base for resolution is the referring **file's own location** — the retrieval
-URI, which is what a base URI defaults to when no `$id` overrides it. This is
-stock RFC 3986 behaviour and it means the paths read exactly like `cd` from the
-entity's directory. From
-`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`:
+A served URL is **dereferenceable**, which is what the requirement actually
+asks. Measured with the portal running and a stock
+`json-schema-ref-parser` given nothing but the URL:
 
 ```text
-../refund/schema.json
-  → solutions/acme/product/shop/component/checkout/component/payment/datamodel/refund/schema.json
-../../../../../../datamodel/order-line/schema.json
-  → solutions/acme/product/shop/datamodel/order-line/schema.json
-../../../../../../../../datamodel/money/schema.json
-  → solutions/acme/datamodel/money/schema.json
-#/$defs/quantity
-  → local JSON Pointer inside this document
+bundle("http://localhost:3000/schemas/…/datamodel/order")
+  → 8 documents fetched, full transitive closure
+  → inherited properties: id, created-at, changed-by, change-reason
+  → filesystem reads: 0
 ```
 
-Count the `..` from the entity **directory**, not from the repository root, and
-count in **pairs**: one `..` leaves `order/` and lands in the `datamodel/`
-bucket, so a sibling entity is always `../{name}/schema.json` — but every level
-of owning container above that costs **two**, one for the container's name and
-one for its kind bucket. From `order/` the tally runs:
+The same tool, handed the same starting point under the relative-path form,
+resolved nothing.
 
-| `..` | Lands in                | Reaching                                    |
-| ---- | ----------------------- | ------------------------------------------- |
-| 1    | `datamodel/`            | siblings: `../refund/schema.json`           |
-| 2    | `payment/`              | —                                           |
-| 4    | `checkout/`             | —                                           |
-| 6    | `shop/`                 | `../../../../../../datamodel/order-line/schema.json` |
-| 8    | `acme/`                 | `../../../../../../../../datamodel/money/schema.json` |
-| 9    | `solutions/`            | another solution — `E_SRN_CROSS_SOLUTION`   |
-| 10   | the repository root     | outside the catalog — `E_DM_REF_ESCAPE`     |
+Two secondary gains, neither of them the reason. The reference no longer encodes
+the referrer's depth, so moving an entity no longer rewrites every `$ref`
+pointing out of it — the eight-`..` chains are gone. And `$id` restores a base
+URI, so a schema copied out of the catalog still says what it is.
 
-The even numbers are the useful ones: an odd count lands *on a kind bucket*,
-from which the only sensible next segment is a name, and that is almost never
-what a `$ref` wants to say. This is the same pairing that makes an off-by-one
-SRN unparseable ([srn.md](../srn.md)); a `$ref` gets no such protection, because
-it is a file path and every file path is grammatical — which is precisely why
-the count is written out here.
+**Editor navigation is still unobtainable through reference syntax, so it is
+still not a tiebreaker.** VS Code's `vscode-json-languageservice` produces
+navigable links only for same-document JSON Pointers (`#/$defs/money`). Neither
+relative paths nor URLs buy go-to-definition; only an editor extension or an LSP
+would, for any syntax. The gap is known and an LSP is out of scope for v1.
 
-Forms that are not a relative path to a `schema.json` are `E_DM_REF_TARGET`:
+### `$ref` is an absolute schema URL
+
+Every `$ref` to **another** entity is that entity's schema URL, complete with
+origin. There is no relative form, no `srn://`, no file path, and no depth
+arithmetic:
 
 ```json
-{ "$ref": "../money/schema.json" }                  /* correct                                        */
-{ "$ref": "srn://acme/datamodel/money@1" }          /* E_DM_REF_TARGET — SRNs do not appear in $ref   */
-{ "$ref": "/datamodel/money/schema.json" }          /* E_DM_REF_TARGET — absolute: resolves off the
-                                                       machine root, not the catalog                  */
-{ "$ref": "https://acme.example/money.json" }       /* E_DM_REF_TARGET — network reference            */
-{ "$ref": "../money/" }                             /* E_DM_REF_TARGET — a directory is not a schema  */
-{ "$ref": "../money/index.md" }                     /* E_DM_REF_TARGET — not a schema.json            */
-{ "$ref": "../money/examples/minimal.json" }        /* E_DM_REF_TARGET — an instance is not a schema  */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }
 ```
 
-A `$ref` MUST also stay **inside the catalog**. The catalog root is the
-`solutions/` directory; a `$ref` whose normalized target lies outside it is
-`E_DM_REF_ESCAPE`, and one that lands inside a *different* solution is
-`E_SRN_CROSS_SOLUTION` — solutions are sealed universes
-([kinds/solution.md](solution.md)). From the same `order/schema.json`:
+The `$id` at the document root is the base URI, so a relative `$ref` *would*
+resolve — and that is exactly why one form is mandated rather than two. Two
+spellings of one edge means two things to grep for, two things to rewrite when
+an entity moves, and a reader who must do arithmetic to know whether they are
+the same edge. A relative `$ref` is `E_DM_REF_TARGET`, and the portal resolves it
+against `$id` anyway so the diagnostic can name the URL that should have been
+written.
 
-```text
-../../../../../../../../../globex/datamodel/money/schema.json
-  # 9 up → solutions/ ; E_SRN_CROSS_SOLUTION
-../../../../../../../../../../framework/spec/schema.json
-  # 10 up → repo root ; E_DM_REF_ESCAPE
-../../../../../../../../../../../elsewhere/schema.json
-  # 11 up, past the repo ; E_DM_REF_ESCAPE
+Forms that are not an absolute schema URL of this portal:
+
+```json
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }
+                                          /* correct                                            */
+{ "$ref": "../money/schema.json" }        /* E_DM_REF_TARGET — the retired relative form        */
+{ "$ref": "srn://acme/datamodel/money@1" }/* E_DM_REF_TARGET — no tool dereferences srn://       */
+{ "$ref": "/schemas/acme/datamodel/money" }
+                                          /* E_DM_REF_TARGET — origin-relative: identity is not
+                                             portable out of the catalog                        */
+{ "$ref": "https://elsewhere.example/schemas/acme/datamodel/money" }
+                                          /* E_DM_REF_TARGET — a solution's schemas are served by
+                                             the portal that owns them                          */
+{ "$ref": "http://localhost:3000/api/history/acme/datamodel/money" }
+                                          /* E_DM_REF_ESCAPE — leaves the /schemas/ namespace   */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel" }
+                                          /* E_DM_REF_TARGET — a kind bucket is not addressable */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money@1" }
+                                          /* E_DM_REF_TARGET — a URL carries no version pin     */
+{ "$ref": "http://localhost:3000/schemas/globex/datamodel/money" }
+                                          /* E_SRN_CROSS_SOLUTION — sealed universes            */
 ```
 
-The decision is made on the **normalized** path, not on the `..` count, so a
-reference that climbs out of `solutions/` and back in resolves legally — it is
-merely pointless, and review is the place to say so.
+The solution boundary is checked on the URL path, which begins with the solution
+name — the same rule as everywhere else, now enforced without normalising
+anything ([kinds/solution.md](solution.md)).
 
-### Mapping a resolved path back to an SRN
+### Mapping a `$ref` back to an SRN
 
-Every derived view is a graph of entities, so the portal converts each resolved
-`$ref` target back into the SRN of the entity that owns it. The mapping is the
-inverse of `to_dir` in [srn.md](../srn.md): strip the `solutions/` prefix and the
-`/schema.json` suffix, prefix `srn://`.
+Every derived view is a graph of entities, so the portal converts each `$ref`
+into the SRN of the entity that owns its target. Because the URL path *is* the
+SRN path, the mapping is a rename:
 
 ```python
-CATALOG_ROOT = "solutions"
-
-def schema_path_to_srn(path: str) -> str:
-    """`path` is repo-relative and already normalized (no "." or ".." left)."""
-    parts = path.split("/")
-    if parts[0] != CATALOG_ROOT:
-        raise DmError("E_DM_REF_ESCAPE", f"{path} is outside {CATALOG_ROOT}/")
-    if parts[-1] != "schema.json":
-        raise DmError("E_DM_REF_TARGET", f"{path} does not name a schema.json")
-    return "srn://" + "/".join(parts[1:-1])
+def schema_url_to_srn(url: str, base: str) -> str:
+    """`base` is SCHEMA_BASE_URL; never a literal."""
+    prefix = base.rstrip("/") + "/schemas/"
+    if not url.startswith(prefix):
+        raise DmError("E_DM_REF_TARGET", f"{url} is not a schema URL of {base}")
+    path = url[len(prefix):]
+    if "@" in path:
+        raise DmError("E_DM_REF_TARGET", f"{url} carries a version pin")
+    return "srn://" + path          # parse_srn then validates the grammar
 ```
 
 ```text
-solutions/acme/datamodel/money/schema.json   → srn://acme/datamodel/money
+http://localhost:3000/schemas/acme/datamodel/money   → srn://acme/datamodel/money
 ```
 
 The result is **unversioned**, and the SRN it produces MUST parse and MUST
-address an entity whose `kind` is `datamodel` (`E_DM_REF_KIND`) — a path is free
-to point at any directory, so the kind check that SRN grammar used to give for
-free is now an explicit step. The concrete version of the edge is the target's
-current frontmatter `version`, read from its `index.md`, not from the reference.
+address an entity whose `kind` is `datamodel`. Only datamodels are registered, so
+a URL naming anything else has no entry and is reported as `E_SRN_DANGLING`. The
+concrete version of the edge is the target's current frontmatter `version`, read
+from its `index.md`, never from the reference.
 
-### Pinning left `$ref`
+### A URL carries no version
 
-**A `$ref` names an entity, never a version.** `money@1/schema.json` is not a
-path; and with git-backed history only current versions exist on the filesystem
-([evolution.md](../evolution.md)), so a pinned historical `$ref` never resolved
-to a file even when the syntax allowed one. Nothing is lost by removing it.
-
-Pinning remains fully available where it is actually resolvable: frontmatter
-`relations`, which no external tool consumes.
+**A `$ref` names an entity, never a version.** A URL addresses the *current*
+schema, and a pin is rejected rather than ignored — silently answering with the
+current schema for a reference that asked for `@1` is worse than refusing:
 
 ```json
-{ "total": { "$ref": "../money/schema.json" } }    /* the only legal form */
-{ "total": { "$ref": "../money@1/schema.json" } }  /* E_SRN_DANGLING — no such directory */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }    /* the only legal form */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money@1" }  /* E_DM_REF_TARGET     */
 ```
+
+This is unchanged in substance from the path form: with git-backed history only
+current versions exist on the filesystem ([evolution.md](../evolution.md)), so a
+pinned historical reference never resolved to anything anyway.
+
+Pinning remains fully available where it *is* resolvable — frontmatter
+`relations`, which no external tool consumes:
 
 ```yaml
 # index.md — where a version pin still means something
@@ -355,8 +340,8 @@ relations:
     - /datamodel/money@1
 ```
 
-Consequently `W_DM_UNPINNED_REF` is retired: there is no unpinned case left to
-warn about, because there is no pinned one.
+Consequently `W_DM_UNPINNED_REF` stays retired: there is no pinned case, so
+there is no unpinned one to warn about.
 
 ### Local JSON Pointers are unchanged
 
@@ -380,9 +365,11 @@ promoted to its own datamodel entity (see below). This keeps the reference graph
 a graph of entities, not of anonymous document fragments.
 
 ```json
-{ "$ref": "../money/schema.json" }                  /* correct — entity reference   */
-{ "$ref": "../money/schema.json#/$defs/currency" }  /* E_DM_FOREIGN_DEFS            */
-{ "$ref": "#/$defs/currency" }                      /* correct — own document       */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }
+                                        /* correct — entity reference   */
+{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money#/$defs/currency" }
+                                        /* E_DM_FOREIGN_DEFS            */
+{ "$ref": "#/$defs/currency" }          /* correct — own document       */
 ```
 
 ### Cycles
@@ -394,7 +381,7 @@ document's root:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/datamodel/category",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/category",
   "type": "object",
   "properties": {
     "children": { "type": "array", "items": { "$ref": "#" } }
@@ -410,8 +397,8 @@ edges — is `E_DM_INHERIT_CYCLE`. It cannot be flattened and cannot be drawn as
 tree:
 
 ```text
-order     allOf → invoice        # ../invoice/schema.json — sibling in the bucket
-invoice   allOf → order          # ../order/schema.json   — E_DM_INHERIT_CYCLE
+order     allOf → invoice        # …/schemas/acme/product/shop/datamodel/invoice
+invoice   allOf → order          # …/schemas/acme/product/shop/datamodel/order — E_DM_INHERIT_CYCLE
 ```
 
 ## Composition patterns
@@ -425,7 +412,7 @@ is never a storage row nor a wire payload.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/datamodel/base-record",
+  "$id": "http://localhost:3000/schemas/acme/datamodel/base-record",
   "type": "object",
   "properties": {
     "id":         { "type": "string", "format": "uuid" },
@@ -442,7 +429,7 @@ model adds — the classic composition trap.
 
 ```json
 /* E_DM_CLOSED_BASE: with this base, order's own "total" property is rejected */
-{ "x-srn": "srn://acme/datamodel/base-record", "additionalProperties": false }
+{ "$id": "http://localhost:3000/schemas/acme/datamodel/base-record", "additionalProperties": false }
 ```
 
 Concrete models SHOULD also leave `additionalProperties` unset: consumers MUST
@@ -458,18 +445,18 @@ compose; order is irrelevant (conjunction is commutative).
 
 ```json
 {
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "allOf": [
-    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" },
-    { "$ref": "../../../../../../../../datamodel/auditable/schema.json" }
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record" },
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable" }
   ]
 }
 ```
 
 The first branch contributes identity and timestamps; the second is the mixin
-(`changed-by`, `change-reason`). Both climb eight levels from
-`.../payment/datamodel/order/` to `solutions/acme/` — four owning containers,
-two segments each — because both bases are solution-level vocabulary.
+(`changed-by`, `change-reason`). Both are solution-level vocabulary, and both
+are addressed exactly as a sibling would be: the reference says *what* the base
+is, never how far away it sits.
 
 Mixins are datamodel entities like any other, `abstract: true`. The portal draws
 them in the inheritance tree with a dashed edge only as a rendering hint — there
@@ -483,10 +470,10 @@ the same name in every branch:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/datamodel/payment-method",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method",
   "oneOf": [
-    { "$ref": "../card-payment/schema.json" },
-    { "$ref": "../sepa-payment/schema.json" }
+    { "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/card-payment" },
+    { "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/sepa-payment" }
   ]
 }
 ```
@@ -494,7 +481,7 @@ the same name in every branch:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/datamodel/card-payment",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/card-payment",
   "type": "object",
   "properties": {
     "method": { "const": "card" },
@@ -504,8 +491,8 @@ the same name in every branch:
 }
 ```
 
-Both branches are siblings of the union in the same `datamodel/` bucket, hence
-the single `..`.
+Both branches are siblings of the union in the same `datamodel/` bucket, which
+the URL states rather than implies — the shared prefix is the shared owner.
 
 For the portal to derive a variant map, the union MUST satisfy: every branch is
 an object schema; every branch declares the **same** tag property; each tag is a
@@ -528,7 +515,7 @@ convention everywhere else.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/datamodel/order-line",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line",
   "type": "object",
   "properties": {
     "quantity": { "$ref": "#/$defs/positive-int" },
@@ -556,8 +543,8 @@ no independent meaning, no separate lifecycle — `positive-int`, a local enum, 
 tuple used twice in the same document.
 
 Promotion is an additive change to the promoting entity: add the new datamodel
-entity at `version: 1`, replace `#/$defs/x` with a path `$ref` to it, bump the
-promoting entity's `version`. The instance shape is unchanged, so the
+entity at `version: 1`, replace `#/$defs/x` with a `$ref` to its schema URL, bump
+the promoting entity's `version`. The instance shape is unchanged, so the
 instance-superset rule holds and no swap is needed.
 
 ## Frontmatter additions
@@ -601,8 +588,8 @@ flagged when a non-schema consumer — a protocol message payload, a component's
 
 **Deliberately not added** (each was considered and rejected for v1): `dialect`
 (fixed by this document), `schema-file` (fixed by the bare-filename convention),
-`schema-srn` (the path already says it, and `x-srn` carries it inside the
-artifact), `primary-key`/`identity` (belongs in the schema, and storage identity
+`schema-srn` (the path already says it, and `$id` carries the same identity
+inside the artifact), `primary-key`/`identity` (belongs in the schema, and storage identity
 is the component's concern), `storage-engine` (an environment/component property,
 not the model's), `classification`/`pii` (use `tags` until there is a rule that
 acts on it). The rule of thumb: a kind field must change portal behaviour or be
@@ -613,8 +600,8 @@ derived from `schema.json` itself, exactly as inverse edges are derived from
 forward edges. Restating each of them under `relations.uses` is double
 bookkeeping and drifts.
 
-The one thing the schema can no longer say is a **version**: `$ref` is a path,
-and paths carry no `@N`. A pinned `uses` edge is therefore not duplication — it
+The one thing the schema can no longer say is a **version**: `$ref` is a URL for
+the current schema, and a `@N` in one is rejected outright. A pinned `uses` edge is therefore not duplication — it
 is the only place the pin can live, and it records a real statement ("this model
 is reviewed against `money@1`; a `money@2` is a change I want to see"). Use it
 where reproducibility is an actual requirement, not on every edge.
@@ -626,7 +613,7 @@ relations:
                             # because a sibling entity is one level up from this
                             # entity's own directory — [srn.md](../srn.md))
   uses:
-    - /datamodel/money@1      # good — pins a version the path $ref cannot carry
+    - /datamodel/money@1      # good — pins a version the URL $ref cannot carry
     - /datamodel/base-record  # redundant — unpinned, and schema.json already $refs it
 ```
 
@@ -634,68 +621,78 @@ relations:
 
 The portal loads every schema into one validator registry so that **stock** JSON
 Schema validation resolves every `$ref` with no custom resolver. That was the
-goal before and it still is; what changed is that the mechanism is now the plain
-filesystem instead of a private URI scheme, so the same resolution works outside
-the portal — `ajv-cli`, `json-schema-to-typescript`, `quicktype`, and
-`datamodel-code-generator` walk the identical paths.
+goal before and it still is; what changed is that the key is now the document's
+own `$id`, which is the identity a stock tool reads out of the file anyway — so
+the portal's resolution and an outside consumer's resolution are the same
+operation on the same identifiers.
+
+**The portal never fetches these URLs.** It already holds the files, and SSR
+must not depend on the server being able to reach itself over the network — a
+self-request deadlocks a single-threaded dev server and fails outright at build
+time when nothing is listening. The URLs are dereferenceable *for outsiders*;
+inside the portal they are identity, resolved from memory.
 
 Load sequence:
 
-1. Glob `solutions/**/datamodel/*/schema.json`, parse, validate each against the
-   2020-12 meta-schema (`E_DM_SCHEMA_INVALID`), and reject any `$id`
-   (`E_DM_ID_FORBIDDEN`).
-2. Register each document under the `file:` URI of its absolute path — the base
-   URI a stock tool assigns when it opens the file, and the one thing that makes
-   relative `$ref`s resolve by ordinary RFC 3986 rules. No synthetic `$id` is
-   injected: injecting one would re-base every relative `$ref` and reintroduce
-   the failure this design removed.
-3. Verify `x-srn` where present against `schema_path_to_srn` of the file's own
-   path (`E_DM_SRN_MISMATCH`).
-4. Walk every `$ref`. Fragments resolve inside their own document. Every other
-   ref MUST name a `schema.json` (`E_DM_REF_TARGET`), stay under `solutions/`
-   (`E_DM_REF_ESCAPE`), stay inside the referring solution
-   (`E_SRN_CROSS_SOLUTION`), exist (`E_SRN_DANGLING`), and belong to a
-   `datamodel` entity (`E_DM_REF_KIND`).
-5. Map each resolved path to the owning entity's SRN and record the edge
+1. Glob `solutions/**/datamodel/*/schema.json`, parse, and validate each against
+   the 2020-12 meta-schema (`E_DM_SCHEMA_INVALID`).
+2. Compute each entity's schema URL from its path and `SCHEMA_BASE_URL`, and
+   require the document's root `$id` to equal it (`E_DM_ID_MISSING`,
+   `E_DM_ID_MISMATCH`). Identity is *derived and checked*, never trusted from the
+   file — that is what stops a wrong `$id` from becoming a wrong edge.
+3. Reject any nested `$id` (`E_DM_ID_FORBIDDEN`) and any leftover `x-srn`
+   (`E_DM_SRN_RETIRED`).
+4. Register each document under that URL. Because it is also the document's
+   `$id`, every `$ref` resolves out of the in-memory registry by ordinary RFC
+   3986 rules, with no resolver and no network.
+5. Walk every `$ref`. Fragments resolve inside their own document. Every other
+   ref MUST be an absolute schema URL of this portal (`E_DM_REF_TARGET`), stay
+   inside the `/schemas/` namespace (`E_DM_REF_ESCAPE`), stay inside the
+   referring solution (`E_SRN_CROSS_SOLUTION`), and name a registered datamodel
+   (`E_SRN_DANGLING`).
+6. Map each URL to the owning entity's SRN and record the edge
    `from-srn → to-srn`. This is the only place SRNs enter the schema layer: they
-   are computed from paths, never read out of the documents.
-6. Compile. Validating an instance is a lookup by file URI — or by SRN through
-   the map built in step 5 — and nothing framework-specific happens at
+   are computed from URL paths, never read out of the documents.
+7. Compile. Validating an instance is a lookup by schema URL — or by SRN through
+   the map built in step 6 — and nothing framework-specific happens at
    validation time.
 
 ```javascript
 // illustrative, ajv 2020-12
-for (const { path, doc } of schemas) {
-  // e.g. "file:///repo/solutions/acme/datamodel/money/schema.json"
-  ajv.addSchema(doc, pathToFileURL(path).href);
+for (const { srn, doc } of schemas) {
+  // The key is computed from the entity, and step 2 has already asserted that
+  // doc.$id equals it — so this is the document's own identity, verified rather
+  // than taken on trust.
+  ajv.addSchema(doc, srnToSchemaUrl(srn));
 }
+
 const order =
-  "solutions/acme/product/shop/component/checkout/component/payment" +
-  "/datamodel/order/schema.json";
-const validate = ajv.getSchema(pathToFileURL(order).href);
+  "srn://acme/product/shop/component/checkout/component/payment/datamodel/order";
+const validate = ajv.getSchema(srnToSchemaUrl(order));
+// → "http://localhost:3000/schemas/acme/product/shop/component/checkout/…"
 ```
 
 There is no version-keyed registration and no unversioned alias: a `$ref` carries
-no version, so there is exactly one key per file and nothing to alias.
+no version, so there is exactly one key per document and nothing to alias.
 
 Historical snapshots are read from git for the version history view
 ([evolution.md](../evolution.md)) and for the additive diff below. A snapshot is
-loaded into a registry scoped to **that commit's tree**: the relative `$ref`s
-inside it resolve against the paths as they were at that commit, which is the
-correct answer and needs no aliasing to express. Working-tree schemas and
-historical schemas are never mixed in one registry.
+loaded into a registry scoped to **that commit's tree**, and the URLs inside it
+are resolved against the documents of that same commit — never against the
+working tree, and never over the network. Working-tree schemas and historical
+schemas are never mixed in one registry.
 
 Resolution failures:
 
-| Situation                                                                          | Error                  |
-| ---------------------------------------------------------------------------------- | ---------------------- |
-| `$ref` is not a relative path naming a `schema.json` (SRN, URL, absolute, folder). | `E_DM_REF_TARGET`      |
-| `$ref` normalizes to a path outside `solutions/`.                                  | `E_DM_REF_ESCAPE`      |
+| Situation                                                                        | Error                  |
+| --------------------------------------------------------------------------------- | ---------------------- |
+| `$ref` is not an absolute schema URL of this portal (relative, SRN, foreign host). | `E_DM_REF_TARGET`      |
+| `$ref` is on this origin but outside the `/schemas/` namespace.                    | `E_DM_REF_ESCAPE`      |
+| `$ref` path is not a legal entity address, or carries a version pin.               | `E_DM_REF_TARGET`      |
 | `$ref` lands inside another solution.                                              | `E_SRN_CROSS_SOLUTION` |
-| Target `schema.json` does not exist.                                               | `E_SRN_DANGLING`       |
-| Target path maps to an SRN whose entity `kind` is not `datamodel`.                 | `E_DM_REF_KIND`        |
+| Target names no registered datamodel (absent, or not a datamodel).                 | `E_SRN_DANGLING`       |
 | `$ref` points into another document's `$defs`.                                     | `E_DM_FOREIGN_DEFS`    |
-| `x-srn` disagrees with the file's own path.                                        | `E_DM_SRN_MISMATCH`    |
+| Root `$id` missing, or ≠ the entity's schema URL.                                  | `E_DM_ID_MISSING`, `E_DM_ID_MISMATCH` |
 
 Every one of these is fatal to the build: an unresolvable registry means no
 schema in the solution can be trusted. In dev the portal still serves the
@@ -723,8 +720,8 @@ frontmatter, and the catalog graph.
 | Version history         | The git version→commit index ([evolution.md](../evolution.md)).                        |
 
 Every `$ref` edge is stored and displayed as an **SRN pair**, mapped from the
-resolved paths (`schema_path_to_srn`, above). Authors write paths because tools
-read them; readers see SRNs because that is the catalog's vocabulary.
+URLs (`schema_url_to_srn`, above). Authors write URLs because tools dereference
+them; readers see SRNs because that is the catalog's vocabulary.
 
 ### Flattening algorithm
 
@@ -788,12 +785,12 @@ any version number and requires a swap (a new entity that `supersedes` this one)
 
 | Legal in place — bump `version` to N+1                                                   | Forbidden in place — requires a swap                                    |
 | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Add an optional property: `"discount": { "$ref": "../money/schema.json" }`               | Add a name to `required`: `required: ["id"] → ["id", "discount"]`       |
+| Add an optional property: `"discount": { "$ref": "…/schemas/acme/datamodel/money" }`     | Add a name to `required`: `required: ["id"] → ["id", "discount"]`       |
 | Widen a type: `"type": "string"` → `"type": ["string", "null"]`                          | Narrow a type: `["string", "null"]` → `"string"`                        |
 | Add an enum value: `["placed","paid"]` → `["placed","paid","refunded"]`                  | Remove an enum value: `["placed","paid"]` → `["paid"]`                  |
 | Relax a bound: `"maxLength": 64` → `256`; `"minimum": 1` → `0`                           | Tighten a bound: `"maxLength": 256` → `64`; `"minItems": 0` → `1`       |
 | Remove a name from `required` (loosens; rarely wise, still additive)                     | Remove or rename a property: drop `status`; `total` → `amount`          |
-| Add a `oneOf` branch with a new `const` tag: `{ "$ref": "../sepa-payment/schema.json" }` | Remove a `oneOf` branch, or reuse an existing tag value for a new shape |
+| Add a `oneOf` branch with a new `const` tag: `{ "$ref": "…/datamodel/sepa-payment" }`    | Remove a `oneOf` branch, or reuse an existing tag value for a new shape |
 | Add an `allOf` branch introducing only optional properties                               | Add an `allOf` `$ref` to a base that declares `required`                |
 | A `$ref` target evolving additively — no edit here at all                                | Repoint a `$ref` at a different entity, or at a narrower one            |
 | Add annotations: `description`, `examples`, `format`, `deprecated: true`                 | Set `"additionalProperties": false` where it was absent or `true`       |
@@ -840,9 +837,10 @@ numeric / length / items bound tightened      → E_DM_NOT_ADDITIVE
 "$ref" retargeted to another entity           → E_DM_NOT_ADDITIVE
 ```
 
-The retargeting check compares **normalized target paths**, not the literal
-strings: moving the referring entity changes every `..` count in its refs without
-changing a single edge, and that is not a contract change.
+The retargeting check compares **target URLs**, which is now a literal string
+comparison: a URL does not encode the referrer's position, so moving the
+referring entity changes no reference it makes and there is nothing to
+normalize.
 
 The check is deliberately conservative: it flags only changes that are
 unambiguously tightening. Full schema subsumption is undecidable in general, and
@@ -908,7 +906,7 @@ branches are evaluated independently.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/datamodel/base-record",
+  "$id": "http://localhost:3000/schemas/acme/datamodel/base-record",
   "title": "Base record",
   "type": "object",
   "properties": {
@@ -945,7 +943,7 @@ relations:
     - ../cart-order         # sibling in the same bucket: the base of a relative
                             # ref is this entity's own directory
   uses:
-    - /datamodel/money@1    # the version pin the schema's path $ref cannot carry
+    - /datamodel/money@1    # the version pin the schema's URL $ref cannot carry
 tags:
   - commerce
   - aggregate
@@ -979,19 +977,19 @@ Prose links stay `srn://` and MAY pin (`@1`) — the interoperability rule binds
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "type": "object",
   "allOf": [
-    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" }
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record" }
   ],
   "properties": {
     "total": {
-      "$ref": "../../../../../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Gross amount payable."
     },
     "discount": {
-      "$ref": "../../../../../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Applied discount; added in version 2."
     },
     "status": {
@@ -1025,22 +1023,22 @@ Prose links stay `srn://` and MAY pin (`@1`) — the interoperability rule binds
 
 Checks this example demonstrates:
 
-- The schema carries no `$id`; its identity is
-  `srn://acme/product/shop/component/checkout/component/payment/datamodel/order`,
-  read off the path and asserted redundantly by `x-srn`.
-- `../../../../../../../../datamodel/base-record/schema.json` climbs eight levels
-  from the entity directory — `datamodel/`, `payment/`, `component/`,
-  `checkout/`, `component/`, `shop/`, `product/`, `acme/` — and lands on
-  `solutions/acme/datamodel/base-record/schema.json`. Four of those eight are
-  kind buckets, which is the whole cost of bucketing paid in one line. Run
-  `json-schema-to-typescript` on this file from a clone and it resolves; that is
-  the whole point of the form.
+- The schema's identity is its `$id`, which is the URL the portal serves it at;
+  the SRN
+  `srn://acme/product/shop/component/checkout/component/payment/datamodel/order`
+  is the same string with a different prefix.
+- The base reference names *what* the base is, not how far away it sits. It is
+  the same nine-segment URL whether the referring entity is one level below the
+  solution or four — moving `order` would not touch it. Point
+  `json-schema-to-typescript` at the `$id` of this file, from anywhere with
+  network access to the portal, and it resolves; that is the whole point of the
+  form.
 - `positive-int` stays in `$defs` because it is trivial and single-entity;
   `money` was promoted to an entity because three models need it.
 - The instance satisfies the flattened `required` union `["id", "created-at",
   "total"]`.
-- The `money@1` pin lives in the frontmatter, not in the schema, because a path
-  cannot carry a version.
+- The `money@1` pin lives in the frontmatter, not in the schema, because a URL
+  addresses the current schema and a pin in one is rejected.
 
 ## DataModel error classes
 
@@ -1051,13 +1049,14 @@ New, kind-specific:
 | `E_DM_SCHEMA_MISSING`  | Datamodel entity directory has no `schema.json`.                                                                     |
 | `E_DM_SCHEMA_INVALID`  | `schema.json` is not valid against the 2020-12 meta-schema (or is not valid JSON).                                   |
 | `E_DM_DIALECT`         | `$schema` missing or not exactly the 2020-12 dialect URI.                                                            |
-| `E_DM_ID_FORBIDDEN`    | `$id` present anywhere in the document.                                                                              |
-| `E_DM_SRN_MISMATCH`    | `x-srn` is versioned, malformed, or ≠ the SRN derived from the file's own path.                                      |
+| `E_DM_ID_MISSING`      | Root `$id` absent — every document must state its identity.                                                          |
+| `E_DM_ID_MISMATCH`     | Root `$id` ≠ the entity's schema URL (wrong entity, wrong origin, or a version pin).                                 |
+| `E_DM_ID_FORBIDDEN`    | `$id` present *below* the root, where it would re-base every `$ref` beneath it.                                      |
+| `E_DM_SRN_RETIRED`     | `x-srn` still present — `$id` carries identity now, and two identity fields can disagree.                            |
 | `E_DM_KEYWORD`         | Forbidden keyword used (`$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`).                                  |
-| `E_DM_REF_TARGET`      | A `$ref` is not a relative path naming a `schema.json` (SRN, URL, absolute path, directory, `index.md`, an example). |
-| `E_DM_REF_ESCAPE`      | A `$ref` normalizes to a path outside the `solutions/` catalog root.                                                 |
+| `E_DM_REF_TARGET`      | A `$ref` is not an absolute schema URL of this portal (relative path, SRN, foreign host, bucket, version pin).       |
+| `E_DM_REF_ESCAPE`      | A `$ref` is on this origin but outside the `/schemas/` namespace.                                                    |
 | `E_DM_FOREIGN_DEFS`    | `$ref` points into another entity's `$defs`.                                                                         |
-| `E_DM_REF_KIND`        | A cross-entity `$ref` resolves to an entity whose `kind` is not `datamodel`.                                         |
 | `E_DM_INHERIT_CYCLE`   | Cycle in the root-`allOf` inheritance graph.                                                                         |
 | `E_DM_CLOSED_BASE`     | `"additionalProperties": false` on a schema used as an `allOf` base.                                                 |
 | `E_DM_EXAMPLE_INVALID` | A file in `examples/` fails validation against the entity's own schema.                                              |
@@ -1067,25 +1066,31 @@ New, kind-specific:
 | `W_DM_CONTRADICTION`   | Derived model contradicts (rather than restricts) an inherited constraint.                                           |
 | `W_DM_USAGE_MISMATCH`  | Model named as a protocol payload while declaring `usage: storage`.                                                  |
 
-Retired with the move to path references — these codes have no subject any more
-and MUST NOT be emitted:
+Retired, in two waves. These codes have no subject any more and MUST NOT be
+emitted:
 
-- `E_DM_ID_INVALID` — there is no `$id` left to be invalid. A present `$id` is
-  now `E_DM_ID_FORBIDDEN`.
-- `W_DM_UNPINNED_REF` — a path `$ref` cannot be pinned, so it cannot be
-  unpinned. Pins live in `relations` and are checked as ordinary SRNs.
+- `E_DM_SRN_MISMATCH` — retired with `x-srn` itself (2026-08-19-c). A leftover
+  annotation is `E_DM_SRN_RETIRED`; there is nothing left for it to disagree
+  with.
+- `E_DM_REF_KIND` — the registry holds only datamodels, so a URL naming any
+  other kind simply has no entry and is `E_SRN_DANGLING`. There is no separate
+  kind check to fail.
+- `E_DM_ID_INVALID` — superseded by `E_DM_ID_MISSING` / `E_DM_ID_MISMATCH`,
+  which say *how* the identity is wrong.
+- `W_DM_UNPINNED_REF` — a `$ref` cannot be pinned, so it cannot be unpinned.
+  Pins live in `relations` and are checked as ordinary SRNs (2026-08-19-b).
 - `E_VER_ID_MISMATCH` — formerly "schema `$id` version ≠ frontmatter `version`".
-  A `schema.json` now carries neither an `$id` nor a version, so the comparison
-  has no operands. [evolution.md](../evolution.md) retires the code outright; it
-  is listed here because a datamodel was its only subject.
+  A `$id` carries no version, so the comparison still has no operands.
+  [evolution.md](../evolution.md) retires the code outright; it is listed here
+  because a datamodel was its only subject.
 
 Reused from the core spec, unchanged: `E_SRN_SYNTAX`, `E_SRN_RESERVED`,
 `E_SRN_CROSS_SOLUTION`, `E_SRN_DANGLING`, `E_SRN_VERSION` ([srn.md](../srn.md)) —
 these govern the datamodel's SRN surfaces (`relations`, prose) and the
-solution-boundary check on a resolved `$ref` path; `E_FM_EDGE_TARGET` for the
-datamodel's own `relations` edges (a schema `$ref` is not a relation edge and
-uses `E_DM_REF_KIND` instead); `E_FM_SCHEMA`, `E_FM_UNKNOWN_FIELD`,
-`E_FM_NAME_MISMATCH`, `E_FM_KIND_LOCATION` ([frontmatter.md](../frontmatter.md));
-`E_VER_REGRESSION`, `W_REF_DEPRECATED` ([evolution.md](../evolution.md));
-`E_STRUCT_*` ([structure.md](../structure.md)).
+solution-boundary and existence checks on a `$ref` URL; `E_FM_EDGE_TARGET` for
+the datamodel's own `relations` edges (a schema `$ref` is not a relation edge);
+`E_FM_SCHEMA`, `E_FM_UNKNOWN_FIELD`, `E_FM_NAME_MISMATCH`, `E_FM_KIND_LOCATION`
+([frontmatter.md](../frontmatter.md)); `E_VER_REGRESSION`, `W_REF_DEPRECATED`
+([evolution.md](../evolution.md)); `E_STRUCT_*`
+([structure.md](../structure.md)).
 All are enforced at portal build/load — there is no CLI in v1.

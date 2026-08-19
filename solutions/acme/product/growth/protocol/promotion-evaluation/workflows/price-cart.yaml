@@ -1,0 +1,100 @@
+name: price-cart
+title: Price a cart
+summary: Checkout asks the engine what a cart is worth; the engine loops candidate promotions and answers with a quote.
+participants: [checkout, promotion-engine, audience, coupon-service]
+steps:
+  - message: evaluate-cart
+    from: checkout
+    to: promotion-engine
+    kind: call
+    payload: /product/shop/component/checkout/datamodel/cart@1
+    note: >-
+      Carries the cart with its currency and subtotal, plus an opaque account
+      identifier owned by /product/identity. A guest cart omits it and is
+      evaluated against storewide promos only.
+
+  - loop:
+      while: candidate promotions remain for this storefront and currency
+      max: 64
+      steps:
+        - opt:
+            when: the candidate is restricted to an audience segment
+            steps:
+              - message: is-member
+                from: promotion-engine
+                to: audience
+                kind: call
+                note: Boolean membership test only — audience never returns the accounts in a segment.
+              - message: membership-result
+                from: audience
+                to: promotion-engine
+                kind: return
+                condition: answered inside 8 ms, otherwise read as "not a member"
+
+        - alt:
+            - when: eligible — inside the window, in segment, minimum spend met, campaign budget not exhausted
+              steps:
+                - message: apply-discount
+                  from: promotion-engine
+                  to: promotion-engine
+                  kind: call
+                  note: >-
+                    Appended to the quote's applied list in the stacking order
+                    fixed by requirement/stackable-promotions. A winning
+                    non-stackable discount ends the loop early.
+          otherwise:
+            - message: record-rejection
+              from: promotion-engine
+              to: promotion-engine
+              kind: call
+              note: >-
+                Appended to the quote's rejected list with one of the seven
+                closed reasons. The basket turns each reason into one line of
+                customer-facing copy.
+
+  - opt:
+      when: the customer has entered a coupon code
+      steps:
+        - message: validate-coupon
+          from: promotion-engine
+          to: coupon-service
+          kind: call
+          payload: /product/growth/datamodel/coupon@1
+          note: Validation only. The code is not burnt until the order is placed.
+        - alt:
+            - when: the code exists, is unexpired, and has uses remaining
+              steps:
+                - message: coupon-valid
+                  from: coupon-service
+                  to: promotion-engine
+                  kind: return
+                  payload: /product/growth/datamodel/coupon@1
+          otherwise:
+            - message: coupon-refused
+              from: coupon-service
+              to: promotion-engine
+              kind: error
+              payload: /datamodel/problem@1
+              note: >-
+                Translated into a rejected entry, never propagated to checkout —
+                a bad code is a basket message, not a failed request.
+
+  - alt:
+      - when: the evaluation finished inside the latency budget
+        steps:
+          - message: quote
+            from: promotion-engine
+            to: checkout
+            kind: return
+            payload: /product/growth/datamodel/promotion-quote@1
+            condition: expires-at is 120 seconds from issue
+    otherwise:
+      - message: fallback-quote
+        from: promotion-engine
+        to: checkout
+        kind: return
+        payload: /product/growth/datamodel/promotion-quote@1
+        note: >-
+          fallback true, applied empty. Checkout prices the cart undiscounted
+          and the customer sees no offer — the deliberate failure mode of
+          adr/0002-fail-open-pricing.

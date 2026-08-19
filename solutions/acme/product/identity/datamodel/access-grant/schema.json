@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/identity/datamodel/access-grant",
+  "title": "Access grant",
+  "description": "Abstract base of everything that confers access: a named, scoped, time-bounded subject of an authorization decision.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+    },
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable"
+    }
+  ],
+  "properties": {
+    "label": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "What an administrator sees in a list. Never parsed, never matched on."
+    },
+    "scope": {
+      "enum": [
+        "global",
+        "tenant"
+      ],
+      "description": "Whether the grant applies across the solution or inside one tenant."
+    },
+    "tenant-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The tenant a scoped grant is confined to. Required when scope is tenant."
+    },
+    "effective-from": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the grant starts to confer access. Absent means since creation."
+    },
+    "effective-to": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it stops. Revocation sets this rather than deleting the record."
+    }
+  },
+  "required": [
+    "label",
+    "scope"
+  ],
+  "if": {
+    "properties": {
+      "scope": {
+        "const": "tenant"
+      }
+    },
+    "required": [
+      "scope"
+    ]
+  },
+  "then": {
+    "required": [
+      "tenant-id"
+    ]
+  }
+}

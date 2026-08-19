@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/datamodel/cart",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/datamodel/cart",
   "title": "Cart",
   "description": "Mutable basket owned by checkout. Never leaves the component.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "../../../../../../datamodel/base-record/schema.json"
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
     }
   ],
   "properties": {
@@ -26,12 +26,12 @@
     "lines": {
       "type": "array",
       "items": {
-        "$ref": "../../../../datamodel/order-line/schema.json"
+        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
       },
       "description": "Lines as the customer has built them so far."
     },
     "subtotal": {
-      "$ref": "../../../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Sum of the line totals, before tax and shipping."
     },
     "expires-at": {

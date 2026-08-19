@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/promotion-quote",
+  "title": "Promotion quote",
+  "description": "What the promotion engine answers when checkout asks it to price a cart. Advisory, and short-lived.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+    }
+  ],
+  "properties": {
+    "cart-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Cart this quote prices, as checkout addressed it."
+    },
+    "account-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Account the eligibility was evaluated for. Absent for a guest cart."
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "EUR",
+        "GBP",
+        "USD"
+      ],
+      "description": "Copied from the cart. Every amount in this quote is denominated in it."
+    },
+    "subtotal": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "Cart subtotal the engine was given, echoed so a stale quote is detectable."
+    },
+    "discount-total": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "Sum of what the applied discounts are worth. Never exceeds the subtotal."
+    },
+    "applied": {
+      "type": "array",
+      "description": "Discounts that survived eligibility and stacking, in the order they were applied.",
+      "items": {
+        "description": "Tagged union over the two concrete discount subtypes; switch on source.",
+        "oneOf": [
+          {
+            "$ref": "http://localhost:3000/schemas/acme/product/growth/datamodel/promo"
+          },
+          {
+            "$ref": "http://localhost:3000/schemas/acme/product/growth/datamodel/coupon"
+          }
+        ]
+      }
+    },
+    "rejected": {
+      "type": "array",
+      "description": "Candidates the engine considered and declined, with the reason. Drives the basket UI copy.",
+      "items": {
+        "$ref": "#/$defs/rejection"
+      }
+    },
+    "fallback": {
+      "type": "boolean",
+      "description": "True when the engine answered without a full evaluation, so checkout prices undiscounted."
+    },
+    "expires-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "After this instant checkout must re-quote. Short by design; see ADR 0002."
+    }
+  },
+  "required": [
+    "cart-id",
+    "currency",
+    "subtotal",
+    "discount-total",
+    "applied",
+    "expires-at"
+  ],
+  "$defs": {
+    "rejection": {
+      "type": "object",
+      "description": "One candidate discount that was not applied, and why.",
+      "properties": {
+        "discount-id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The promo or coupon that was declined."
+        },
+        "source": {
+          "enum": [
+            "promo",
+            "coupon"
+          ],
+          "description": "Which subtype discount-id addresses."
+        },
+        "reason": {
+          "enum": [
+            "not-in-segment",
+            "outside-window",
+            "minimum-spend-not-met",
+            "budget-exhausted",
+            "not-stackable",
+            "already-redeemed",
+            "currency-mismatch"
+          ],
+          "description": "Closed set, because each value maps to one line of customer-facing copy."
+        }
+      },
+      "required": [
+        "discount-id",
+        "source",
+        "reason"
+      ]
+    }
+  }
+}

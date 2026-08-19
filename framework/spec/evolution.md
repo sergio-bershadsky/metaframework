@@ -26,11 +26,11 @@ git.
 - **The frontmatter is the only place a version lives.** Sibling artifacts carry
   no version of their own — a `version:` key at the top level of
   `transport.yaml`, `topology.yaml`, or a workflow file is a shape violation for
-  that kind. A datamodel's `schema.json` likewise carries **no `$id`** and no
-  version (decision-record amendment 2026-08-19-b,
-  [kinds/datamodel.md](kinds/datamodel.md)): its `$ref`s are relative file paths,
-  which cannot express `@N`, and its identity is the SRN of the directory holding
-  it. An entity version is a snapshot of the whole directory at one commit, so
+  that kind. A datamodel's `schema.json` carries an `$id`, but **no version**
+  (decision-record amendment 2026-08-19-c,
+  [kinds/datamodel.md](kinds/datamodel.md)): the `$id` and every `$ref` are
+  served URLs addressing the *current* schema, and a `@N` in one is rejected
+  rather than honoured. An entity version is a snapshot of the whole directory at one commit, so
   there is exactly one number to bump and nothing that can drift out of step with
   it.
 
@@ -57,23 +57,23 @@ accepted. Loosening is legal; tightening or reshaping is not.
 
 Both listings below are
 `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`
-at two successive commits. Neither carries an `$id` or a version: the version
-number lives in the sibling `index.md` and nowhere else, which is why the two
-files below are labelled "version 1" and "version 2" by their commit rather than
-by anything inside them. The `$ref` climbs the eight levels from the entity
-directory to `solutions/acme/`, where the solution-wide `money` vocabulary lives.
+at two successive commits. Both carry the same `$id` and neither carries a
+version: identity does not move when content does, and the version number lives
+in the sibling `index.md` and nowhere else — which is why the two files below
+are labelled "version 1" and "version 2" by their commit rather than by anything
+inside them.
 
 Version 1:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "required": ["id", "total"],
   "properties": {
     "id":     { "type": "string" },
-    "total":  { "$ref": "../../../../../../../../datamodel/money/schema.json" },
+    "total":  { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" },
     "status": { "enum": ["placed", "paid"] }
   }
 }
@@ -84,14 +84,14 @@ Legal version 2 (every v1 instance still validates):
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "required": ["id", "total"],
   "properties": {
     "id":       { "type": "string" },
-    "total":    { "$ref": "../../../../../../../../datamodel/money/schema.json" },
+    "total":    { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" },
     "status":   { "enum": ["placed", "paid", "refunded"] },
-    "discount": { "$ref": "../../../../../../../../datamodel/money/schema.json" }
+    "discount": { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }
   }
 }
 ```
@@ -208,11 +208,11 @@ Index: `{1: c2, 2: c3, 3: c4}`. A referrer pinned to
 `/product/shop/component/checkout/component/payment/datamodel/order@1` gets the
 `c2` snapshot — including its approved status. `order@5` → `E_SRN_VERSION`.
 
-A snapshot is loaded against **that commit's tree**, which is what makes the
-relative `$ref`s inside a historical `schema.json` resolve: at `c2` the entity
-sat at whatever path it sat at, and the `..` counts in the file match it. This
-is also why a move is forbidden — the path is the identity, and no rewrite of
-history could keep both.
+A snapshot is loaded against **that commit's tree**, so the URLs inside a
+historical `schema.json` resolve to the documents of that same commit — never to
+the working tree, and never over the network. This is also why a move is
+forbidden: the path is the identity, and the `$id` derived from it would have to
+be rewritten in every historical commit to stay true.
 
 ## Status lifecycle
 
@@ -258,9 +258,10 @@ and the portal build's validation.
 checks it while building the version→commit index.)
 
 **Retired: `E_VER_ID_MISMATCH`.** It meant "schema `$id` version ≠ frontmatter
-`version`". A `schema.json` now carries neither an `$id` nor a version
-(decision-record amendment 2026-08-19-b), so the comparison has no operands and
-the code MUST NOT be emitted. The rule it enforced is gone rather than moved:
-with one copy of the version there is nothing to compare it against. An `$id`
-appearing in a schema at all is `E_DM_ID_FORBIDDEN`
+`version`". A `schema.json` carries an `$id` again (decision-record amendment
+2026-08-19-c) but it carries **no version** — the URL addresses the current
+schema and a `@N` in one is rejected — so the comparison still has no second
+operand and the code MUST NOT be emitted. The rule it enforced is gone rather
+than moved: with one copy of the version there is nothing to compare it against.
+An `$id` that disagrees with the entity's schema URL is `E_DM_ID_MISMATCH`
 ([kinds/datamodel.md](kinds/datamodel.md)).

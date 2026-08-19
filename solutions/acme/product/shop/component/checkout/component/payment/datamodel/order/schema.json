@@ -1,24 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "description": "Order aggregate owned by the payment component.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "../../../../../../../../datamodel/base-record/schema.json"
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
     },
     {
-      "$ref": "../../../../../../../../datamodel/auditable/schema.json"
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable"
     }
   ],
   "properties": {
     "total": {
-      "$ref": "../../../../../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Gross amount payable."
     },
     "discount": {
-      "$ref": "../../../../../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Applied discount; added in version 2. Never exceeds total."
     },
     "status": {
@@ -30,13 +30,13 @@
       "description": "\"refunded\" added in version 3. Moves forward only."
     },
     "payment": {
-      "$ref": "../../../../../../datamodel/payment-method/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method",
       "description": "The instrument that was actually charged."
     },
     "lines": {
       "type": "array",
       "items": {
-        "$ref": "../../../../../../datamodel/order-line/schema.json"
+        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
       },
       "description": "Lines as authorized."
     },

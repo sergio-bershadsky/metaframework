@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/datamodel/order-line",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line",
   "title": "Order line",
   "description": "One sellable item at the price and quantity the customer agreed to.",
   "type": "object",
@@ -20,11 +20,11 @@
       "description": "Number of units on this line."
     },
     "unit-price": {
-      "$ref": "../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Price of one unit, captured when the line was created."
     },
     "line-total": {
-      "$ref": "../../../../datamodel/money/schema.json",
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
       "description": "Quantity times unit price under the rounding policy in force."
     }
   },

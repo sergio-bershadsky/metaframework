@@ -1,20 +1,29 @@
 /**
  * The datamodel schema registry — framework/spec/kinds/datamodel.md.
  *
- * A `schema.json` is identified by its catalog-relative **file path**, and every
- * cross-entity `$ref` is a relative file path to another entity's `schema.json`.
- * That is not a stylistic choice: `json-schema-to-typescript`, `ajv-cli` and
- * `quicktype` resolve relative file references off the filesystem and fail
- * outright on a private URI scheme, so an `srn://` `$ref` makes the artifact
- * unusable outside this portal (decision-record 2026-08-19-b). The documents
- * carry no `$id` for the same reason — JSON Schema resolves a relative `$ref`
- * against `$id` when it is present, which would re-break the same tooling.
+ * A `schema.json` is identified by the **HTTP URL the portal serves it at**, and
+ * every cross-entity `$ref` is the absolute schema URL of its target:
  *
- * The portal's graph is still a graph of SRNs, so a resolved path is mapped back
- * to its owning entity through SRN ≡ path — via lib/srn, never by hand.
+ *     "$id":  "http://localhost:3000/schemas/acme/datamodel/money"
+ *     "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
  *
- * ajv is registered under the same paths beneath a synthetic `file:///` base, so
- * validation resolves `$ref` with stock RFC 3986 rules and no custom resolver.
+ * That is not decoration. The previous form — no `$id`, relative-path `$ref` —
+ * was *well-formed* for stock tooling but only ever resolvable by a tool sitting
+ * in a clone of this repository. A served URL is **dereferenceable**: any
+ * validator or generator, on any machine, can follow it
+ * (decision-record 2026-08-19-c). `src/app/schemas/[...path]/route.ts` is what
+ * makes that true, and `lib/schema/url.ts` is the single source of the origin —
+ * the host is never hand-typed here.
+ *
+ * The portal's graph is still a graph of SRNs. A URL is mapped back to its
+ * owning entity through SRN ≡ path ≡ URL path — via lib/schema/url, never by
+ * hand.
+ *
+ * ajv holds every document under its own `$id`, so validation resolves each
+ * `$ref` out of the in-memory registry with stock RFC 3986 rules, no custom
+ * resolver, and — importantly — **no network access at build or render time**.
+ * The URLs are dereferenceable for outsiders; the portal never dereferences
+ * them, because it already has the files.
  *
  * The module is server-side: it is built from a loaded Catalog and hands
  * client components a plain serialisable {@link SchemaBundle}. Client code must
@@ -24,27 +33,19 @@
 import { Ajv2020 } from 'ajv/dist/2020'
 import type { ValidateFunction } from 'ajv'
 import type { Catalog, Diagnostic, Entity } from '../catalog/types'
-import { dirToSrn, formatSrn } from '../srn/srn'
+import { schemaBaseUrl, schemaUrlToPath, schemaUrlToSrn, srnToSchemaUrl } from './url'
 
 export const DIALECT_2020_12 = 'https://json-schema.org/draft/2020-12/schema'
 
 /** The bare filename is fixed by the kind spec; never prefixed with the entity name. */
 export const SCHEMA_ARTIFACT = 'schema.json'
 
-/** Optional provenance annotation: the owning entity's unversioned SRN. */
-export const SRN_ANNOTATION = 'x-srn'
-
 /**
- * ajv needs an absolute base URI to apply RFC 3986 resolution; a catalog-relative
- * path is not one. Mirroring the catalog under `file:///` makes ajv's arithmetic
- * identical to {@link resolveRefPath}'s, so validation and the portal graph can
- * never disagree about where a `$ref` lands.
+ * The provenance annotation that `$id` replaced. It is still named here so a
+ * leftover one is *reported* rather than silently ignored: two identity fields
+ * in one document is exactly the drift `$id` was adopted to end.
  */
-const AJV_BASE = 'file:///'
-
-function ajvKey(id: string): string {
-  return `${AJV_BASE}${id}`
-}
+export const RETIRED_SRN_ANNOTATION = 'x-srn'
 
 /** Late-bound or second-addressing keywords, forbidden so the graph stays static. */
 const FORBIDDEN_KEYWORDS = ['$dynamicRef', '$dynamicAnchor', '$anchor', '$vocabulary'] as const
@@ -56,7 +57,7 @@ const FORBIDDEN_KEYWORDS = ['$dynamicRef', '$dynamicAnchor', '$anchor', '$vocabu
  */
 export interface SchemaNode {
   $schema?: string
-  /** Never legal in this framework; typed only so a stray one can be reported. */
+  /** The document's identity — its served schema URL. Required at the root only. */
   $id?: string
   $ref?: string
   $comment?: string
@@ -108,13 +109,20 @@ export interface RefSite {
 
 export interface SchemaMeta {
   /**
-   * Canonical registry key: the schema's catalog-relative file path, e.g.
-   * `acme/datamodel/money/schema.json`. It is both the document's identity and
-   * the base its own `$ref`s resolve against — and, being a path, it doubles as
-   * the `path` of every diagnostic raised against the document.
+   * Canonical registry key: the schema's served URL, e.g.
+   * `http://localhost:3000/schemas/acme/datamodel/money`. It is the document's
+   * `$id`, the key ajv holds it under, and the base its own `$ref`s resolve
+   * against — one identity for the portal and for every outside consumer.
    */
   id: string
-  /** Unversioned SRN of the owning entity, derived from the path (SRN ≡ path). */
+  /**
+   * Catalog-relative file path, e.g. `acme/datamodel/money/schema.json`. Not an
+   * identity any more, but still where the bytes are — so it is what a
+   * diagnostic points an author at. A URL is not something you can open in an
+   * editor.
+   */
+  file: string
+  /** Unversioned SRN of the owning entity, derived from the URL (SRN ≡ path). */
   srn: string
   version: number | null
   title: string
@@ -136,13 +144,14 @@ export interface RefResolution {
   /** The `$ref` exactly as authored. */
   ref: string
   kind: RefKind
-  /** Path of the document the ref lands in; null when unresolvable. */
+  /** Schema URL of the document the ref lands in; null when unresolvable. */
   targetId: string | null
   /** Unversioned SRN of the target entity — the navigation target. */
   targetSrn: string | null
   /**
-   * Version the ref currently resolves to. A `$ref` carries no pin any more
-   * (decision-record 2026-08-19-b): pinning lives in frontmatter `relations`.
+   * Version the ref currently resolves to. A `$ref` carries no pin — the URL
+   * addresses the current schema (decision-record 2026-08-19-c): pinning lives
+   * in frontmatter `relations`.
    */
   version: number | null
   /** JSON Pointer inside the target document, `''` for the whole document. */
@@ -155,7 +164,7 @@ export interface RefResolution {
 }
 
 export interface InheritanceEdge {
-  /** Derived model, by canonical id. */
+  /** Derived model, by canonical id (schema URL). */
   child: string
   /** Base model, by canonical id; null when the ref could not be resolved. */
   base: string | null
@@ -175,9 +184,9 @@ export interface InheritanceGraph {
 export interface SchemaRegistry {
   /** The ajv instance every schema is registered in; validation is stock. */
   ajv: Ajv2020
-  /** Canonical id → entry. */
+  /** Canonical id (schema URL) → entry. */
   entries: Map<string, SchemaEntry>
-  /** Every lookup key — file path, entity SRN, versioned SRN — → canonical id. */
+  /** Every lookup key — schema URL, entity SRN, versioned SRN, file path — → canonical id. */
   index: Map<string, string>
   /** doc id → (`$ref` as authored → resolution). */
   resolutions: Map<string, Map<string, RefResolution>>
@@ -214,15 +223,22 @@ export function buildSchemaRegistry(catalog: Catalog): SchemaRegistry {
     // may carry a pin, so both SRN forms must find the current document.
     index.set(entry.srn, entry.id)
     if (entry.version !== null) index.set(`${entry.srn}@${entry.version}`, entry.id)
+    // The file path is not an identity any more, but it is what a reviewer has
+    // in hand when reading a diff, so it stays a lookup key.
+    index.set(entry.file, entry.id)
 
     try {
-      ajv.addSchema(entry.document, ajvKey(entry.id), false, false)
+      // The key is the URL we derived, which the document's own `$id` must
+      // equal (E_DM_ID_MISMATCH above). Passing it explicitly means a document
+      // whose `$id` is wrong is still reachable under the right key, so one
+      // mistake produces one diagnostic instead of cascading dangling refs.
+      ajv.addSchema(entry.document, entry.id, false, false)
     } catch (error) {
       diagnostics.push({
         code: 'E_DM_SCHEMA_INVALID',
         severity: 'error',
         message: `ajv rejected the document: ${message(error)}`,
-        path: entry.id,
+        path: entry.file,
         srn: entry.srn,
       })
     }
@@ -236,7 +252,10 @@ export function buildSchemaRegistry(catalog: Catalog): SchemaRegistry {
 
 function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): SchemaEntry | null {
   const artifact = entity.artifacts.find((candidate) => candidate.file === SCHEMA_ARTIFACT)
-  const id = `${entity.relDir}/${SCHEMA_ARTIFACT}`
+  const file = `${entity.relDir}/${SCHEMA_ARTIFACT}`
+  // Identity is computed from the entity, never read out of the document: that
+  // is what lets the loader tell an author their `$id` is wrong.
+  const id = srnToSchemaUrl(entity.srn)
 
   if (!artifact) {
     diagnostics.push({
@@ -254,7 +273,7 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
       code: 'E_DM_SCHEMA_INVALID',
       severity: 'error',
       message: 'schema.json is not a JSON object',
-      path: id,
+      path: file,
       srn: entity.srn,
     })
     return null
@@ -270,7 +289,7 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
       message: dialect
         ? `$schema is "${dialect}", not the 2020-12 dialect`
         : '$schema is missing — the dialect must be declared',
-      path: id,
+      path: file,
       srn: entity.srn,
     })
   }
@@ -285,7 +304,7 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
             code: 'E_DM_SCHEMA_INVALID',
             severity: 'error',
             message: `${error.instancePath || '(root)'}: ${error.message ?? 'invalid'}`,
-            path: id,
+            path: file,
             srn: entity.srn,
           })
         }
@@ -295,7 +314,7 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
         code: 'E_DM_SCHEMA_INVALID',
         severity: 'error',
         message: message(error),
-        path: id,
+        path: file,
         srn: entity.srn,
       })
     }
@@ -306,38 +325,71 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
       code: 'E_DM_KEYWORD',
       severity: 'error',
       message: `forbidden keyword "${keyword}" — inheritance is allOf + $ref, and local shapes are addressed by #/$defs pointers`,
-      path: id,
+      path: file,
       srn: entity.srn,
     })
   }
 
-  // A nested `$id` re-bases every relative `$ref` under it, so the rule is the
-  // same at any depth as it is at the root.
+  // --- identity ---------------------------------------------------------
+  //
+  // The root `$id` is the document's identity and the base URI its own refs
+  // resolve against, so it must be exactly the URL this portal serves it at.
+  // `id` was computed from the entity's SRN and the configured SCHEMA_BASE_URL,
+  // which is what makes this check catch both a stale path and a stale origin —
+  // the two ways the artifacts and the deployment can drift apart.
+  const declared = document.$id
+  if (declared === undefined) {
+    diagnostics.push({
+      code: 'E_DM_ID_MISSING',
+      severity: 'error',
+      message: `$id is missing — it must be ${id}, the URL the portal serves this schema at`,
+      path: file,
+      srn: entity.srn,
+    })
+  } else if (typeof declared !== 'string' || declared !== id) {
+    diagnostics.push({
+      code: 'E_DM_ID_MISMATCH',
+      severity: 'error',
+      message:
+        `$id is ${JSON.stringify(declared)} but this entity's schema URL is ${id}` +
+        (typeof declared === 'string' && !declared.startsWith(schemaBaseUrl())
+          ? ` — the origin comes from SCHEMA_BASE_URL (currently ${schemaBaseUrl()}), never from the file`
+          : ''),
+      path: file,
+      srn: entity.srn,
+    })
+  }
+
+  // A *nested* `$id` re-bases every reference under it onto a second identity,
+  // which is how one document quietly becomes two. Still forbidden at any depth
+  // below the root.
   for (const pointer of idSitesIn(document)) {
+    if (pointer === '') continue
     diagnostics.push({
       code: 'E_DM_ID_FORBIDDEN',
       severity: 'error',
-      message: `${pointer || '(root)'}: $id must be omitted — a relative $ref resolves against it, which is exactly what stops stock tooling from finding "../money/schema.json"`,
-      path: id,
+      message: `${pointer}: a nested $id re-bases every $ref beneath it onto a second identity — address local shapes with #/$defs pointers`,
+      path: file,
       srn: entity.srn,
     })
   }
 
-  // entity.srn is the entity directory turned into an SRN, so comparing against
-  // it *is* comparing the annotation against the file's actual path.
-  const provenance = document[SRN_ANNOTATION]
-  if (provenance !== undefined && provenance !== entity.srn) {
+  // `x-srn` said in an annotation what `$id` now says in a keyword validators
+  // act on. Two identity fields is one too many, so a leftover is an error, not
+  // a tolerated `x-` extension.
+  if (document[RETIRED_SRN_ANNOTATION] !== undefined) {
     diagnostics.push({
-      code: 'E_DM_SRN_MISMATCH',
+      code: 'E_DM_SRN_RETIRED',
       severity: 'error',
-      message: `${SRN_ANNOTATION} is ${JSON.stringify(provenance)} but the file's path is ${entity.srn}`,
-      path: id,
+      message: `${RETIRED_SRN_ANNOTATION} is retired — $id carries identity now; remove the annotation`,
+      path: file,
       srn: entity.srn,
     })
   }
 
   return {
     id,
+    file,
     srn: entity.srn,
     version: entity.frontmatter.version,
     title: entity.frontmatter.title,
@@ -355,60 +407,73 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
 /* -------------------------------------------------------------------------- */
 
 /**
- * Resolve a `$ref` exactly as a stock validator does: relative-path arithmetic
- * from the directory of the referring file. Returns the target's
- * catalog-relative path, or the diagnostic that stops it.
+ * Resolve a cross-entity `$ref`, which is always an absolute schema URL.
+ *
+ * There is no arithmetic left to do — that is the point of the URL form. The
+ * work is entirely rejection: naming *what kind* of wrong address this is, so
+ * the author gets a code they can act on rather than a bare "unresolved".
+ *
+ * Returns the target's schema URL, or the diagnostic that stops it.
  */
-function resolveRefPath(fromId: string, ref: string): { path: string } | { code: string; message: string } {
-  if (ref.includes('://') || ref.startsWith('/')) {
+function resolveRefUrl(fromId: string, ref: string): { url: string } | { code: string; message: string } {
+  const base = schemaBaseUrl()
+
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(ref)) {
+    // A relative ref would resolve against `$id` and could even be legal JSON
+    // Schema — but two spellings of one edge is one too many, so the catalog
+    // keeps a single form. Resolving it anyway costs one line and turns the
+    // rejection into a fix-it.
+    let suggestion = ''
+    try {
+      const resolved = new URL(ref, fromId).href
+      if (schemaUrlToSrn(resolved)) suggestion = ` — did you mean "${resolved}"?`
+    } catch {
+      // Not resolvable against the base either; the generic message stands.
+    }
     return {
       code: 'E_DM_REF_TARGET',
-      message: `"${ref}" is not a relative file path — a cross-entity $ref is a path to another entity's ${SCHEMA_ARTIFACT}, e.g. "../money/${SCHEMA_ARTIFACT}"`,
+      message: `"${ref}" is not an absolute schema URL — a cross-entity $ref is its target's served URL, e.g. "${base}/schemas/acme/datamodel/money"${suggestion}`,
     }
   }
 
-  const from = fromId.split('/')
-  const segments = from.slice(0, -1)
-
-  for (const segment of ref.split('/')) {
-    if (segment === '' || segment === '.') continue
-    if (segment === '..') {
-      if (segments.length === 0) {
-        return { code: 'E_DM_REF_ESCAPE', message: `"${ref}" climbs above the catalog root` }
+  if (schemaUrlToPath(ref) === null) {
+    if (ref.startsWith(`${base}/`)) {
+      // Right origin, wrong namespace: this addresses something the portal may
+      // well serve, but it is not a schema.
+      return {
+        code: 'E_DM_REF_ESCAPE',
+        message: `"${ref}" leaves the /schemas/ namespace — only served schema URLs are addressable from a $ref`,
       }
-      segments.pop()
-      continue
     }
-    segments.push(segment)
-  }
-
-  if (segments.length < 2 || segments[segments.length - 1] !== SCHEMA_ARTIFACT) {
     return {
       code: 'E_DM_REF_TARGET',
-      message: `"${ref}" does not name a ${SCHEMA_ARTIFACT} — schemas are addressed by file, not by directory`,
+      message: `"${ref}" is not a schema URL of this portal (${base}/schemas/…) — a solution's schemas are served by the portal that owns them`,
     }
   }
 
-  if (segments[0] !== from[0]) {
+  const targetSrn = schemaUrlToSrn(ref)
+  if (targetSrn === null) {
+    return {
+      code: 'E_DM_REF_TARGET',
+      message: `"${ref}" has a path after /schemas/ that is not a legal entity address — it must be an SRN path, {solution}/({kind}/{name})+`,
+    }
+  }
+
+  const fromSolution = solutionOf(fromId)
+  const toSolution = solutionOf(ref)
+  if (fromSolution && toSolution && fromSolution !== toSolution) {
     return {
       code: 'E_SRN_CROSS_SOLUTION',
-      message: `"${ref}" leaves solution "${from[0]}" for "${segments[0]}" — solutions are sealed universes`,
+      message: `"${ref}" leaves solution "${fromSolution}" for "${toSolution}" — solutions are sealed universes`,
     }
   }
 
-  return { path: segments.join('/') }
+  return { url: ref }
 }
 
-/** Owning entity of a schema file. SRN ≡ path, so the directory is the SRN. */
-function srnOfSchemaPath(schemaPath: string): string | null {
-  try {
-    const dir = schemaPath.split('/').slice(0, -1).join('/')
-    return formatSrn({ ...dirToSrn(dir), version: null })
-  } catch {
-    // The path is inside the catalog but is not a legal entity address; the
-    // dangling-ref diagnostic still names the path, which is what an author needs.
-    return null
-  }
+/** First path segment of a schema URL — the solution that owns the document. */
+function solutionOf(url: string): string | null {
+  return schemaUrlToPath(url)?.split('/')[0] ?? null
 }
 
 function resolveAllRefs(
@@ -431,7 +496,7 @@ function resolveAllRefs(
         code: resolution.error.code,
         severity: 'error',
         message: `${site.pointer || '(root)'}: ${resolution.error.message}`,
-        path: entry.id,
+        path: entry.file,
         srn: entry.srn,
       })
     }
@@ -488,18 +553,20 @@ function resolveOne(entry: SchemaEntry, ref: string, entries: Map<string, Schema
     }
   }
 
-  const resolved = resolveRefPath(entry.id, body)
+  const resolved = resolveRefUrl(entry.id, body)
   if ('code' in resolved) return { ...base, error: resolved }
 
-  const target = entries.get(resolved.path)
+  const target = entries.get(resolved.url)
   if (!target) {
-    const targetSrn = srnOfSchemaPath(resolved.path)
+    // The URL is well-formed and names a possible entity, so the author is told
+    // *which* entity is missing rather than being handed the URL back.
+    const targetSrn = schemaUrlToSrn(resolved.url)
     return {
       ...base,
       targetSrn,
       error: {
         code: 'E_SRN_DANGLING',
-        message: `"${ref}" resolves to ${resolved.path}, which is not a datamodel schema in the catalog`,
+        message: `"${ref}" addresses ${targetSrn ?? resolved.url}, which is not a datamodel schema in the catalog`,
       },
     }
   }
@@ -549,7 +616,7 @@ function buildInheritanceGraph(
       code: 'E_DM_INHERIT_CYCLE',
       severity: 'error',
       message: 'root-allOf inheritance cycle — the conjunction cannot be flattened or drawn as a tree',
-      path: entry.id,
+      path: entry.file,
       srn: entry.srn,
     })
   }
@@ -564,7 +631,7 @@ function buildInheritanceGraph(
         code: 'E_DM_CLOSED_BASE',
         severity: 'error',
         message: `"additionalProperties": false on a schema used as an allOf base by ${children.length} model(s)`,
-        path: entry.id,
+        path: entry.file,
         srn: entry.srn,
       })
     }
@@ -603,36 +670,30 @@ function findCycles(bases: Map<string, string[]>): Set<string> {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Resolve a schema by file path or by entity SRN (versioned or not); a relative
- * file path resolves against `base`, which may itself be either form. Returns
- * null rather than throwing: a dangling reference is a diagnostic, not a crash,
- * and the portal still has to render the page.
+ * Resolve a schema by any of its keys: its schema URL, the owning entity's SRN
+ * (with or without a version pin), or its catalog-relative file path.
+ *
+ * There is no `base` parameter any more — a `$ref` is absolute, so nothing is
+ * resolved *relative to* anything. Returns null rather than throwing: a dangling
+ * reference is a diagnostic, not a crash, and the portal still has to render the
+ * page.
  */
-export function resolveSchema(registry: SchemaRegistry, ref: string, base?: string): SchemaEntry | null {
-  const direct = registry.index.get(ref)
-  if (direct) return registry.entries.get(direct) ?? null
-
-  if (!base) return null
-  const from = registry.index.get(base)
-  if (!from) return null
-
-  const resolved = resolveRefPath(from, ref)
-  if ('code' in resolved) return null
-  const canonical = registry.index.get(resolved.path)
+export function resolveSchema(registry: SchemaRegistry, ref: string): SchemaEntry | null {
+  const canonical = registry.index.get(ref)
   return canonical ? (registry.entries.get(canonical) ?? null) : null
 }
 
 /**
  * The compiled validator, straight from ajv. Nothing framework-specific happens
- * at validation time — that is the payoff of keying the registry the same way
- * the filesystem does. Returns null when the schema cannot be compiled (an
- * unresolvable `$ref`).
+ * at validation time — that is the payoff of registering every document under
+ * the same `$id` a stock validator would read out of it. Returns null when the
+ * schema cannot be compiled (an unresolvable `$ref`).
  */
 export function schemaValidator(registry: SchemaRegistry, ref: string): ValidateFunction | null {
   const entry = resolveSchema(registry, ref)
   if (!entry) return null
   try {
-    return (registry.ajv.getSchema(ajvKey(entry.id)) as ValidateFunction | undefined) ?? null
+    return (registry.ajv.getSchema(entry.id) as ValidateFunction | undefined) ?? null
   } catch {
     return null
   }
@@ -791,7 +852,7 @@ export function effectiveModel(registry: SchemaRegistry, ref: string): Effective
         code: error.code,
         severity: 'error',
         message: `inherited base "${refString}" is unresolvable: ${error.message}`,
-        path: from.id,
+        path: from.file,
         srn: from.srn,
       })
       return
@@ -894,7 +955,7 @@ export function effectiveModel(registry: SchemaRegistry, ref: string): Effective
         code: 'W_DM_CONTRADICTION',
         severity: 'warning',
         message: `"${name}" is constrained to disjoint types by ${list.length} schemas — no instance can satisfy the conjunction`,
-        path: root.id,
+        path: root.file,
         srn: root.srn,
       })
     }
@@ -1037,6 +1098,7 @@ export function buildSchemaBundle(registry: SchemaRegistry, ref: string): Schema
     documents[id] = entry.document
     meta[id] = {
       id: entry.id,
+      file: entry.file,
       srn: entry.srn,
       version: entry.version,
       title: entry.title,
@@ -1085,7 +1147,7 @@ export function buildSchemaBundle(registry: SchemaRegistry, ref: string): Schema
       code: 'W_DM_UNION_TAG',
       severity: 'warning',
       message: `oneOf at ${key} has no shared const tag — rendered as an opaque union`,
-      path: root.id,
+      path: root.file,
       srn: root.srn,
     })
   }
@@ -1115,6 +1177,7 @@ function metaOf(registry: SchemaRegistry, id: string): SchemaMeta | null {
   if (!entry) return null
   return {
     id: entry.id,
+    file: entry.file,
     srn: entry.srn,
     version: entry.version,
     title: entry.title,

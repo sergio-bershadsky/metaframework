@@ -1,0 +1,36 @@
+kind: http
+summary: JSON over mutually-authenticated HTTPS, on the internal service network only.
+encoding: json
+auth:
+  - mtls
+http:
+  base-path: /api/v1/authz
+  tls: true
+  operations:
+    - name: check-access
+      method: POST
+      path: /checks
+      request: /product/identity/datamodel/permission@2
+      response: /datamodel/problem@1
+      summary: >-
+        Assert a permission for the session named in the Session-Reference header.
+        204 on allow; 403 with a problem document on deny; 401 when the session
+        cannot be resolved at all.
+
+    - name: explain-access
+      method: POST
+      path: /checks/explain
+      request: /product/identity/datamodel/permission@2
+      response: /product/identity/datamodel/role@1
+      summary: >-
+        Same evaluation, but returns the roles whose grants matched. Itself
+        authorized — an identity-account read permission — because the answer
+        enumerates the model.
+
+    - name: resolve-session
+      method: GET
+      path: /sessions/{session-reference}
+      response: /product/identity/datamodel/session@1
+      summary: >-
+        Served by session-store on the same binding. Called by acl during every
+        check; 404 for an unknown, expired, or evicted reference.

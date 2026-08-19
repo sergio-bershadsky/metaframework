@@ -1,0 +1,106 @@
+{
+  "id": "promotion-evaluation",
+  "initial": "requested",
+  "description": "State of one quote, as the promotion engine sees it. Not the internal state of any participant.",
+  "states": {
+    "requested": {
+      "description": "A cart has arrived; the latency budget starts counting here.",
+      "entry": ["assign-quote-id", "start-budget-timer"],
+      "on": {
+        "CART_ACCEPTED": {
+          "target": "evaluating",
+          "description": "Currency and subtotal are readable, so candidates can be selected."
+        },
+        "CART_MALFORMED": {
+          "target": "refused",
+          "actions": ["emit-problem"]
+        }
+      }
+    },
+    "evaluating": {
+      "description": "Candidates are being filtered and priced inside the budget.",
+      "initial": "scanning-promotions",
+      "exit": ["stop-budget-timer"],
+      "on": {
+        "BUDGET_EXCEEDED": {
+          "target": "degraded",
+          "actions": ["abandon-partial-result"],
+          "description": "Whatever was computed is discarded — a half-priced cart is worse than none."
+        }
+      },
+      "states": {
+        "scanning-promotions": {
+          "description": "Looping automatic promos: window, segment, minimum spend, campaign budget.",
+          "on": {
+            "CANDIDATES_EXHAUSTED": [
+              {
+                "target": "validating-coupon",
+                "guard": "the customer presented a code"
+              },
+              {
+                "target": "#promotion-evaluation.quoted"
+              }
+            ]
+          }
+        },
+        "validating-coupon": {
+          "description": "Asking coupon-service whether the presented code may still be used.",
+          "on": {
+            "COUPON_VALID": {
+              "target": "#promotion-evaluation.quoted",
+              "actions": ["append-applied"]
+            },
+            "COUPON_REFUSED": {
+              "target": "#promotion-evaluation.quoted",
+              "actions": ["append-rejection"],
+              "description": "A refused code is a rejection line, never a failed request."
+            }
+          }
+        }
+      }
+    },
+    "quoted": {
+      "description": "A complete quote exists and is readable until it expires.",
+      "on": {
+        "COUPON_PRESENTED": {
+          "target": "evaluating",
+          "description": "A later code re-opens the evaluation against the same cart."
+        },
+        "ORDER_PLACED": {
+          "target": "committed",
+          "actions": ["burn-coupon", "publish-redemption"]
+        },
+        "QUOTE_EXPIRED": {
+          "target": "expired"
+        }
+      }
+    },
+    "degraded": {
+      "description": "Answered without a full evaluation; fallback is set and applied is empty.",
+      "on": {
+        "ORDER_PLACED": {
+          "target": "committed",
+          "description": "The order is placed undiscounted. No redemption is published."
+        },
+        "QUOTE_EXPIRED": {
+          "target": "expired"
+        }
+      }
+    },
+    "committed": {
+      "type": "final",
+      "tags": ["success"],
+      "description": "The cart became an order at the quoted price; any coupon is now burnt."
+    },
+    "expired": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "Nobody converted the cart in time. Nothing was spent and nothing is owed."
+    },
+    "refused": {
+      "type": "final",
+      "tags": ["failure"],
+      "description": "The request itself was wrong — the only outcome that is a problem document."
+    }
+  }
+}

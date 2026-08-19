@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/campaign",
+  "title": "Campaign",
+  "description": "A funded, time-boxed marketing effort. The budget holder every promo and coupon charges against.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+    },
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable"
+    }
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Internal name the marketer recognises. Never shown to a customer."
+    },
+    "objective": {
+      "enum": [
+        "acquisition",
+        "retention",
+        "clearance",
+        "basket-size"
+      ],
+      "description": "What the campaign is trying to move. Drives which report it appears in."
+    },
+    "state": {
+      "enum": [
+        "drafting",
+        "funded",
+        "serving",
+        "exhausted",
+        "ended"
+      ],
+      "description": "Lifecycle position. Mirrors the redemption-events state machine."
+    },
+    "budget": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "Total the campaign may give away. Reaching it stops every promo it funds."
+    },
+    "spent": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "Sum of redemptions charged so far. Eventually consistent with the redemption log."
+    },
+    "segment-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Default audience for promos in this campaign; each promo may narrow it further."
+    },
+    "starts-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "First instant any promo in this campaign may serve."
+    },
+    "ends-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Exclusive end of the campaign, whatever budget is left."
+    }
+  },
+  "required": [
+    "name",
+    "objective",
+    "state",
+    "budget",
+    "spent",
+    "starts-at",
+    "ends-at"
+  ]
+}

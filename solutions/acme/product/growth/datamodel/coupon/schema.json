@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/coupon",
+  "title": "Coupon",
+  "description": "A discount a customer has to present by code. Third level of the lineage base-record → discount → coupon.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/product/growth/datamodel/discount"
+    }
+  ],
+  "properties": {
+    "source": {
+      "const": "coupon",
+      "description": "Union tag distinguishing a presented coupon from an automatic promo."
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z2-9]{4}-[A-Z2-9]{4}$",
+      "description": "The code as printed. Unambiguous alphabet: no 0, O, 1 or I."
+    },
+    "campaign-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Campaign that funds this coupon, so a redemption can be charged to a budget."
+    },
+    "issued-to": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Account the code was issued to, opaque here. Absent for a bearer code anyone may use."
+    },
+    "expires-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "First instant the code is refused. Exclusive, matching a promo window."
+    },
+    "redemption-limit": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many times this code may be burnt in total. 1 for a single-use code."
+    },
+    "redeemed-count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Times already burnt. Advanced only by coupon-service, under a row lock."
+    }
+  },
+  "required": [
+    "source",
+    "code",
+    "campaign-id",
+    "expires-at",
+    "redemption-limit",
+    "redeemed-count"
+  ]
+}

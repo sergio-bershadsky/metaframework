@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { schemaBaseUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
 import { loadCatalog } from './load'
 import type { Catalog, Diagnostic } from './types'
 
@@ -88,21 +89,23 @@ describe('shipped catalog', () => {
     ])
   })
 
-  it('keeps every datamodel schema generically resolvable — no $id, x-srn matches its path', () => {
+  it('identifies every datamodel schema by the URL the portal serves it at', () => {
     const datamodels = [...catalog.entities.values()].filter((entity) => entity.kind === 'datamodel')
     expect(datamodels.length).toBeGreaterThanOrEqual(6)
 
     for (const entity of datamodels) {
       const schema = entity.artifacts.find((artifact) => artifact.file === 'schema.json')
       const data = schema?.data as { $id?: string; 'x-srn'?: string } | undefined
-      // $id would re-anchor relative $ref resolution into srn:// space and break
-      // stock validators and generators (decision record amendment 2026-08-19-b).
-      expect(data?.$id, `${entity.srn} schema.json must not carry $id`).toBeUndefined()
-      expect(data?.['x-srn'], `${entity.srn} schema.json x-srn`).toBe(entity.srn)
+      // $id is the identity now, and it must be dereferenceable: the URL below is
+      // one this portal answers (decision record amendment 2026-08-19-c).
+      expect(data?.$id, `${entity.srn} schema.json $id`).toBe(srnToSchemaUrl(entity.srn))
+      // x-srn said the same thing in a keyword no validator acts on. Two identity
+      // fields is one too many, so the annotation is retired.
+      expect(data?.['x-srn'], `${entity.srn} schema.json must not carry x-srn`).toBeUndefined()
     }
   })
 
-  it('uses only relative file-path $refs, each pointing at an existing schema.json', async () => {
+  it('uses only absolute schema URLs as $refs, each naming an entity that exists', async () => {
     const { readFile } = await import('node:fs/promises')
     const nodePath = await import('node:path')
     const { existsSync } = await import('node:fs')
@@ -115,16 +118,60 @@ describe('shipped catalog', () => {
       if (!existsSync(file)) continue
       const raw = await readFile(file, 'utf8')
       for (const [, ref] of raw.matchAll(/"\$ref"\s*:\s*"([^"]+)"/g)) {
+        // Local JSON Pointers are untouched by the reference form — they resolve
+        // inside the document and always did.
         if (ref.startsWith('#')) continue
-        expect(ref, `${entity.srn}: $ref must be a relative path`).not.toMatch(/^srn:\/\/|^\//)
-        expect(ref, `${entity.srn}: $ref must name a schema.json`).toMatch(/schema\.json$/)
+
+        expect(ref, `${entity.srn}: $ref must be an absolute schema URL`).toMatch(
+          new RegExp(`^${schemaBaseUrl()}/schemas/`),
+        )
+        // Not merely well-formed: the URL must name a real datamodel entity, and
+        // the file behind it must be on disk — otherwise "dereferenceable" is a
+        // claim rather than a fact.
+        const target = schemaUrlToSrn(ref)
+        expect(target, `${entity.srn}: $ref "${ref}" must be a legal entity address`).not.toBeNull()
+
+        const targetEntity = catalog.entities.get(target as string)
+        expect(targetEntity?.kind, `${entity.srn}: $ref "${ref}" must name a datamodel`).toBe('datamodel')
         expect(
-          existsSync(nodePath.resolve(entity.dir, ref)),
-          `${entity.srn}: $ref "${ref}" must resolve to an existing file`,
+          existsSync(nodePath.join(targetEntity?.dir ?? '', 'schema.json')),
+          `${entity.srn}: $ref "${ref}" must have a schema.json behind it`,
         ).toBe(true)
         checked++
       }
     }
     expect(checked).toBeGreaterThan(10)
+  })
+
+  it('serves each of those URLs from the route that backs them', async () => {
+    const { GET } = await import('../../app/schemas/[...path]/route')
+    const money = catalog.entities.get('srn://acme/datamodel/money')
+    const url = srnToSchemaUrl(money?.srn as string)
+
+    const response = await GET(new Request(url), {
+      params: Promise.resolve({ path: ['acme', 'datamodel', 'money'] }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('application/schema+json')
+    // The document the route serves is the document whose $id is that URL —
+    // which is what closes the loop between identity and retrieval.
+    expect(((await response.json()) as { $id: string }).$id).toBe(url)
+  })
+
+  it('refuses a schema URL that climbs out of the catalog', async () => {
+    const { GET } = await import('../../app/schemas/[...path]/route')
+    for (const segments of [
+      ['acme', '..', '..', 'framework', 'spec'],
+      ['..', 'framework'],
+      ['.git', 'config'],
+      // A real entity, but not one that owns a schema.
+      ['acme', 'actor', 'customer'],
+    ]) {
+      const response = await GET(new Request('http://localhost:3000/schemas/x'), {
+        params: Promise.resolve({ path: segments }),
+      })
+      expect(response.status, segments.join('/')).toBeGreaterThanOrEqual(400)
+    }
   })
 })

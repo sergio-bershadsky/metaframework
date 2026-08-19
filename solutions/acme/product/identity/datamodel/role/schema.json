@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/identity/datamodel/role",
+  "title": "Role",
+  "description": "A named bundle of permissions, resolved for the caller. Composed onto the same access-grant base as permission.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/product/identity/datamodel/access-grant"
+    }
+  ],
+  "properties": {
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64,
+      "description": "Stable machine name, unique within the scope. Never renamed; a rename is a new role."
+    },
+    "grants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "http://localhost:3000/schemas/acme/product/identity/datamodel/permission"
+      },
+      "description": "The permissions this role confers, resolved by value rather than referenced by id."
+    },
+    "inherits": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "Roles whose grants are added to this one. Ids, not documents — the graph must not be inlined."
+    },
+    "assignable-by": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "Roles permitted to assign this one. Empty means only a global identity-account grant may."
+    }
+  },
+  "required": [
+    "code",
+    "grants"
+  ]
+}

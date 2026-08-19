@@ -111,7 +111,7 @@ beforeAll(async () => {
   await repo.write(DOCUMENT, document(2, 'review', 'Added the optional discount.'))
   await repo.write(
     `${ORDER}/schema.json`,
-    '{\n  "x-srn": "srn://acme/product/shop/datamodel/order"\n}\n',
+    '{\n  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/order"\n}\n',
   )
   c3 = repo.commit('order: optional discount')
 

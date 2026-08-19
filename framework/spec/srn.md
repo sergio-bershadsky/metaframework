@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: srn
-version: 2
+version: 3
 status: review
 title: SRN — Solution Resource Name
-summary: The complete SRN grammar — bucketed syntax, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts, and validation rules.
+summary: The complete SRN grammar — bucketed syntax, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection, and validation rules.
 ---
 
 # SRN — Solution Resource Name
@@ -14,10 +14,12 @@ entity has exactly one SRN; the SRN maps 1:1 to the entity's directory under
 `solutions/`; and the same syntax is used in frontmatter, workflow YAML, and
 prose. There is no second addressing scheme for catalog references.
 
-One artifact is deliberately outside this rule: `schema.json` uses relative file
-paths so that standard JSON Schema tooling can consume it unaided
-([below](#json-schema-is-the-one-exception)). Its identity is still its
-entity's SRN — derived from its path rather than written into the file.
+One artifact is deliberately outside this rule: `schema.json` addresses other
+schemas by the HTTP URL the portal serves them at, so that standard JSON Schema
+tooling can *dereference* them unaided
+([below](#json-schema-is-the-one-exception)). That URL is not a second identity
+scheme — it is the SRN with a different prefix, and the entity's SRN remains the
+identity the catalog reasons in.
 
 Every entity below the solution lives in a **kind bucket**, so an SRN path is a
 strict alternation of bucket and name:
@@ -398,10 +400,11 @@ semantics of relative file paths on disk:
 | ----------------------------------------- | ----------------------------------------------------------- |
 | `index.md`, sibling YAML artifacts, prose | the document's own URI: `{entity-srn}/{path-within-entity}` |
 
-JSON Schema `$ref` is **not** in this table: `schema.json` uses relative file
-paths rather than SRNs, so that stock validators and code generators can resolve
-it (see [kinds/datamodel.md](kinds/datamodel.md) and the "JSON Schema" note
-below).
+JSON Schema `$ref` is **not** in this table: `schema.json` uses absolute schema
+URLs rather than SRNs, so that stock validators and code generators can
+dereference them (see [kinds/datamodel.md](kinds/datamodel.md) and the "JSON
+Schema" note below). Nothing there is resolved relative to anything, so no base
+URI applies.
 
 **Document URIs are base URIs, not references.** A base like
 `srn://acme/product/shop/component/checkout/index.md` or
@@ -505,46 +508,43 @@ Rules:
 
 ### JSON Schema is the one exception
 
-`schema.json` artifacts do **not** use SRN references. They carry no `$id`, and
-every `$ref` is an ordinary relative file path to another `schema.json` — here
-as written in
+`schema.json` artifacts do **not** use SRN references. Their `$id` and every
+cross-entity `$ref` are absolute HTTP URLs that the portal serves — here as
+written in
 `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`:
 
 ```json
-{ "$ref": "../../../../../../datamodel/order-line/schema.json" }
+{ "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line" }
 { "$ref": "#/$defs/positive-int" }
 ```
 
-The reason is interoperability, and it was measured rather than assumed: stock
-tooling (`json-schema-to-typescript`, `ajv-cli`, `quicktype`,
-`datamodel-code-generator`) resolves relative file references off the
-filesystem and fails outright on a private URI scheme. Because JSON Schema
-resolves a relative `$ref` against `$id` when `$id` is present, an `srn://`
-`$id` would defeat this even with path-style refs — hence no `$id` at all.
+The reason is interoperability, and it was measured rather than assumed. The
+first attempt at this (relative file paths, no `$id`) produced references that
+were *well-formed* for stock tooling but resolvable only by a tool sitting in a
+clone of this repository. A served URL is **dereferenceable**: a stock
+`json-schema-ref-parser`, given nothing but the URL and no filesystem access,
+walked the full transitive closure of the schema above — eight documents. See
+[docs/decision-record.md](../../docs/decision-record.md) amendments
+2026-08-19-b and 2026-08-19-c for the measurements and the reversal.
 
-Nothing is lost: a schema's identity is its owning entity's SRN, which is
-derivable from its path (SRN ≡ path), and the entity's `index.md` already
-carries the authoritative `name`/`version`. See
-[kinds/datamodel.md](kinds/datamodel.md) for the full rules, including the
-optional `x-srn` provenance annotation.
-
-The same "one `..` pops one segment" arithmetic applies, on the same directory
-tree — so bucketing lengthened these paths too. Counting up out of
-`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/`:
+**The URL is the SRN with a different prefix.** Nothing is lost and no second
+identity scheme is introduced, because the path after `/schemas/` is the SRN
+path verbatim:
 
 ```text
-1 ..  → …/component/payment/datamodel/       6 ..  → …/product/shop/
-2 ..  → …/component/payment/                 7 ..  → …/product/
-3 ..  → …/component/checkout/component/      8 ..  → solutions/acme/
-4 ..  → …/component/checkout/
-5 ..  → …/product/shop/component/
+srn://acme/datamodel/money
+http://localhost:3000/schemas/acme/datamodel/money
 ```
 
-Six `..` reach the `shop` product; eight reach the solution root. Unlike SRN
-references there is no path-absolute escape — a leading `/` in a `$ref` is a
-filesystem-absolute path, which no tool can resolve portably — so these chains
-are counted, not avoided, and MUST be verified against the tree rather than
-estimated.
+The origin comes from `SCHEMA_BASE_URL` and is never hand-typed; see
+[kinds/datamodel.md](kinds/datamodel.md) for the full rules and the portability
+constraint that follows from baking it into the artifacts.
+
+The `..` arithmetic in this section therefore does **not** apply to `$ref`. A
+schema URL is absolute and complete: it encodes what the target *is*, never how
+far it sits from the referrer, so moving an entity rewrites the references
+*inside* it and none of the references *out* of it. Fragments (`#/$defs/...`)
+remain ordinary JSON Pointers into the same document.
 
 ## Usage contexts
 
@@ -563,28 +563,29 @@ relations:
     - /product/shop/protocol/order-placement
 ```
 
-**2. JSON Schema** — SRNs are **not** used. `schema.json` carries no `$id`, and
-`$ref` is a relative file path, so the artifact stays consumable by any standard
-validator or generator. The real fixture artifact at
+**2. JSON Schema** — SRNs are **not** used. `schema.json` states its `$id` and
+every cross-entity `$ref` as an absolute schema URL, so the artifact is not just
+parseable but *fetchable* by any standard validator or generator. The real
+fixture artifact at
 `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`,
 abridged:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "type": "object",
   "allOf": [
-    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" },
-    { "$ref": "../../../../../../../../datamodel/auditable/schema.json" }
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record" },
+    { "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable" }
   ],
   "properties": {
-    "total": { "$ref": "../../../../../../../../datamodel/money/schema.json" },
-    "payment": { "$ref": "../../../../../../datamodel/payment-method/schema.json" },
+    "total": { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" },
+    "payment": { "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method" },
     "lines": {
       "type": "array",
-      "items": { "$ref": "../../../../../../datamodel/order-line/schema.json" }
+      "items": { "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line" }
     },
     "line-count": { "$ref": "#/$defs/positive-int" }
   },
@@ -593,14 +594,13 @@ abridged:
 }
 ```
 
-Eight `..` climb from the entity directory to `solutions/acme/`, so a
-solution-level datamodel is
-`../×8 + datamodel/base-record/schema.json` → `solutions/acme/datamodel/base-record/schema.json`;
-six climb to `solutions/acme/product/shop/`, so a product-level one is
-`../×6 + datamodel/order-line/schema.json` → `solutions/acme/product/shop/datamodel/order-line/schema.json`.
-`x-srn` is an optional provenance annotation (unversioned, ignored by
-validators), checked against the file's own path at load so it cannot drift.
-Fragments (`#/$defs/...`) remain ordinary JSON Pointers into the same document.
+Read each `$ref` by deleting the origin and `/schemas/`: what remains is the
+target's SRN path, so `http://localhost:3000/schemas/acme/datamodel/money` *is*
+`srn://acme/datamodel/money`. Nothing here is relative and nothing counts
+levels — a solution-level base and a product-level one are written the same way,
+and the depth of the referring entity does not appear at all. The origin comes
+from `SCHEMA_BASE_URL` and is never typed into a file by hand. Fragments
+(`#/$defs/...`) remain ordinary JSON Pointers into the same document.
 
 **3. Protocol frontmatter and workflow YAML** — participant refs and payload
 references. [kinds/protocol.md](kinds/protocol.md) owns both formats: SRNs

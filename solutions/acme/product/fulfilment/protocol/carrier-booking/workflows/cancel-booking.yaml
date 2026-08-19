@@ -1,0 +1,44 @@
+name: cancel-booking
+title: Cancel a booking before collection
+summary: The orchestrator withdraws a parcel; the gateway can only honour it while the carrier has not taken custody.
+participants: [orchestrator, gateway, carrier]
+steps:
+  - message: cancel-booking
+    from: orchestrator
+    to: gateway
+    kind: call
+    note: Triggered by an order cancellation, or by a re-split that replaces this parcel with two others.
+
+  - alt:
+      - when: no scan has been recorded against the tracking number
+        steps:
+          - message: withdraw-booking
+            from: gateway
+            to: carrier
+            kind: call
+          - message: withdrawal-accepted
+            from: carrier
+            to: gateway
+            kind: return
+            condition: collection slot released
+          - message: booking-cancelled
+            from: gateway
+            to: orchestrator
+            kind: return
+            payload: /product/fulfilment/datamodel/shipment@1
+      - when: the carrier has already scanned the parcel
+        steps:
+          - message: cancel-refused
+            from: gateway
+            to: orchestrator
+            kind: error
+            payload: /datamodel/problem@1
+            note: Custody has passed. Cancellation is no longer available — only a return, which costs money.
+          - opt:
+              when: the customer still wants the parcel stopped
+              steps:
+                - message: request-return-leg
+                  from: orchestrator
+                  to: gateway
+                  kind: call
+                  note: A new booking in the opposite direction, priced and tracked as its own shipment.

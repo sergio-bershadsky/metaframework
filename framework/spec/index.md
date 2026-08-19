@@ -70,10 +70,11 @@ example. A rule without an example is an incomplete rule and a spec defect.
    solution-absolute (`/product/shop/datamodel/order-placed@1`) rather than a
    chain of `..`. See [srn.md](srn.md).
 
-   The single exception is `schema.json`, which carries no `$id` and whose
-   `$ref`s are relative file paths, so that stock JSON Schema validators and
-   code generators consume it unaided. Its identity is still its entity's SRN,
-   derived from its path. See [kinds/datamodel.md](kinds/datamodel.md).
+   The single exception is `schema.json`, whose `$id` and `$ref`s are HTTP URLs
+   the portal serves, so that stock JSON Schema validators and code generators
+   can dereference them unaided. That URL is the entity's SRN with a different
+   prefix, so identity is unchanged. See
+   [kinds/datamodel.md](kinds/datamodel.md).
 
 3. **Additive-only evolution.** An entity's contract surface is never reduced —
    only extended (with a version bump), or replaced by a new entity that is
@@ -116,7 +117,7 @@ never overriding them:
 | [kinds/solution.md](kinds/solution.md)       | review | Sealed universe and catalog root; `vision`/`scope`/`contacts`; container rules C1–C7.  |
 | [kinds/product.md](kinds/product.md)         | review | The `product/` bucket at solution level; `lifecycle`, `primary-actors`.                |
 | [kinds/component.md](kinds/component.md)     | review | The `component/` bucket under a product or component; `component-type`; reuse.         |
-| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), no `$id`, relative-path `$ref`, schema registry.  |
+| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), `$id`/`$ref` as served schema URLs, registry.     |
 | [kinds/protocol.md](kinds/protocol.md)       | review | `participants`/`style`, `transport.yaml`, `workflows/*.yaml`, `states.json`.           |
 | [kinds/actor.md](kinds/actor.md)             | review | Solution-level counterparts; `actor-type`, `goals`, protocol participation.            |
 | [kinds/environment.md](kinds/environment.md) | review | Solution-level deployment targets; `environment-type`, `topology.yaml`, `config.yaml`. |

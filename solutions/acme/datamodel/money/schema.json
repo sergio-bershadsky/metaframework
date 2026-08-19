@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/datamodel/money",
+  "$id": "http://localhost:3000/schemas/acme/datamodel/money",
   "title": "Money",
   "description": "An exact monetary amount and the currency it is denominated in.",
   "type": "object",

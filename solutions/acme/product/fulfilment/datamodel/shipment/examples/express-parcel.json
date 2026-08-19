@@ -1,0 +1,32 @@
+{
+  "id": "b1c9d0a2-4e77-4c31-9f0a-2c7e5d3b8a41",
+  "created-at": "2026-08-18T07:12:04Z",
+  "shipment-id": "b1c9d0a2-4e77-4c31-9f0a-2c7e5d3b8a41",
+  "order-id": "0f6f0f2a-1a6b-4a0e-9c3a-6a2f4a0c1d55",
+  "lines": [
+    {
+      "sku": "ACM-KTL-1700",
+      "title": "Stovetop kettle, 1.7 l",
+      "quantity": 1,
+      "unit-price": { "amount": "49.90", "currency": "EUR" },
+      "line-total": { "amount": "49.90", "currency": "EUR" }
+    }
+  ],
+  "destination": {
+    "recipient-name": "Anneke de Vries",
+    "lines": ["Prinsengracht 263", "2 hoog achter"],
+    "postal-code": "1016 GV",
+    "city": "Amsterdam",
+    "country": "NL",
+    "contact-phone": "+31612345678",
+    "access-note": "Bell is unmarked, second from the left."
+  },
+  "status": "in-transit",
+  "carrier": "postnl",
+  "service-level": "express",
+  "tracking-number": "3SABCD1234567",
+  "shipping-cost": { "amount": "7.45", "currency": "EUR" },
+  "weight-grams": 1240,
+  "promised-delivery-at": "2026-08-19T18:00:00Z",
+  "booked-at": "2026-08-18T07:12:31Z"
+}

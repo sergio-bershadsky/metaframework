@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/discount",
+  "title": "Discount",
+  "description": "Abstract base of every price reduction acme can express. Extended through allOf; never instantiated alone.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+    }
+  ],
+  "properties": {
+    "label": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "What the customer is shown on the basket line, e.g. \"Spring sale\"."
+    },
+    "applies-to": {
+      "enum": [
+        "order",
+        "line",
+        "shipping"
+      ],
+      "description": "Scope of the reduction. Decides which total the arithmetic is applied to."
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "EUR",
+        "GBP",
+        "USD"
+      ],
+      "description": "Currency this discount may be applied in. One per discount, per ADR 0001."
+    },
+    "stackable": {
+      "type": "boolean",
+      "description": "Whether this discount may combine with others on the same cart."
+    }
+  },
+  "required": [
+    "label",
+    "applies-to",
+    "currency",
+    "stackable"
+  ],
+  "oneOf": [
+    {
+      "title": "Percentage",
+      "description": "A proportional reduction, expressed in basis points to keep the arithmetic exact.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "percentage",
+          "description": "Union tag."
+        },
+        "basis-points": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "description": "Hundredths of a percent. 1500 is 15%; 10000 makes the scoped total free."
+        },
+        "cap": {
+          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "description": "Optional ceiling on the reduction, so a percentage cannot uncap the spend."
+        }
+      },
+      "required": [
+        "kind",
+        "basis-points"
+      ]
+    },
+    {
+      "title": "Fixed amount",
+      "description": "A flat reduction of a stated amount, never below zero on the resulting total.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "fixed-amount",
+          "description": "Union tag."
+        },
+        "amount": {
+          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "description": "Amount taken off the scoped total. Clamped at the total, never negative."
+        },
+        "minimum-spend": {
+          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "description": "Threshold the scoped total must reach before this discount is eligible."
+        }
+      },
+      "required": [
+        "kind",
+        "amount"
+      ]
+    },
+    {
+      "title": "Free shipping",
+      "description": "Removes the shipping charge. Carries no arithmetic of its own beyond an optional ceiling.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "free-shipping",
+          "description": "Union tag."
+        },
+        "max-refund": {
+          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "description": "Ceiling on the shipping charge absorbed, for expedited options acme will not fund."
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    }
+  ]
+}

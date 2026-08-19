@@ -1,0 +1,87 @@
+openapi: 3.1.0
+info:
+  title: Carrier booking
+  version: "2"
+  description: >-
+    Acme's own booking surface, offered by the carrier gateway to the delivery
+    orchestrator. Generated from the service and checked in beside the entity
+    document; the catalog links it rather than restating it.
+
+    This document describes the acme side of the conversation only. The carrier's
+    own API is versioned by the carrier and is deliberately absent from the
+    catalog — the gateway exists so that exactly one implementation has to track
+    it.
+servers:
+  - url: https://fulfilment.internal.acme.example/internal/v1/bookings
+paths:
+  /quotes:
+    post:
+      operationId: requestQuotes
+      summary: Rate one parcel across every carrier eligible for its destination.
+      description: >-
+        Returns zero or more carrier quotes, ordered by the gateway's current
+        preference policy. An empty list is a 200, not a 404 — "no carrier serves
+        this postcode today" is an answer, not a missing resource.
+      responses:
+        "200":
+          description: Quotes, possibly empty, each with its own expiry.
+        "422":
+          description: The parcel cannot be rated — no weight, or an address no carrier parses.
+  /:
+    post:
+      operationId: bookShipment
+      summary: Book one parcel with the first carrier that accepts it.
+      description: >-
+        Idempotent on the shipment id, which MUST be sent in the Idempotency-Key
+        header. A replay returns the original booking; it never produces a second
+        parcel, because a second parcel physically exists and someone pays to move it.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: The shipment id. Retention of the idempotency record is 30 days.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: A carrier accepted; the response carries the label reference and tracking number.
+        "409":
+          description: A different parcel was already booked under this idempotency key.
+        "502":
+          description: Every eligible carrier refused or timed out within the retry budget.
+  /{shipment-id}:
+    get:
+      operationId: getBooking
+      summary: Read the current booking state of one shipment.
+      parameters:
+        - name: shipment-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current booking, including the carrier and tracking number where one exists.
+        "404":
+          description: No booking has ever been attempted for this shipment.
+    delete:
+      operationId: cancelBooking
+      summary: Cancel a booking before the parcel has been collected.
+      description: >-
+        Succeeds only while the carrier has not scanned the parcel. After the
+        first scan the parcel is in the carrier's custody and cancellation is a
+        return, which is a different operation with a different cost.
+      parameters:
+        - name: shipment-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Cancelled; the collection slot is released.
+        "409":
+          description: Already collected — cancel is no longer available, only a return.

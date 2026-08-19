@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/identity/datamodel/session",
+  "title": "Session",
+  "description": "One authentication episode, as the session store holds it. The state values are the states in states.json.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+    }
+  ],
+  "properties": {
+    "state": {
+      "enum": [
+        "anonymous",
+        "authenticated",
+        "expired",
+        "revoked"
+      ],
+      "description": "Lifecycle position. The same four names appear in the protocol's states.json."
+    },
+    "account-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The principal this session speaks for. Absent while anonymous, required once authenticated."
+    },
+    "tenant-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Tenant the session is acting inside. A tenant-scoped grant is evaluated against this, never against the account's own tenant."
+    },
+    "authentication-strength": {
+      "enum": [
+        "none",
+        "single-factor",
+        "multi-factor"
+      ],
+      "description": "How much was proved. A permission with requires-multi-factor is denied below \"multi-factor\"."
+    },
+    "issued-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the session began. Equal to created-at for an anonymous session, later for one that was elevated."
+    },
+    "expires-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Absolute deadline. Never extended in place; a refresh issues a new session."
+    },
+    "revoked-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When revocation took effect at the store. Present exactly when state is \"revoked\"."
+    },
+    "revocation-reason": {
+      "type": "string",
+      "maxLength": 280,
+      "description": "Why, in the revoker's own words. Shown to the principal on their next attempt."
+    },
+    "client-fingerprint": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Opaque digest of the client the session was issued to. Compared, never decoded."
+    }
+  },
+  "required": [
+    "state",
+    "authentication-strength",
+    "expires-at"
+  ],
+  "if": {
+    "properties": {
+      "state": {
+        "const": "authenticated"
+      }
+    },
+    "required": [
+      "state"
+    ]
+  },
+  "then": {
+    "required": [
+      "account-id"
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/carrier-quote",
+  "title": "Carrier quote",
+  "description": "A carrier's normalized offer for one parcel: price, promised date, and expiry.",
+  "type": "object",
+  "properties": {
+    "carrier": {
+      "type": "string",
+      "maxLength": 32,
+      "description": "Carrier making the offer, as the gateway names it."
+    },
+    "service-level": {
+      "type": "string",
+      "enum": [
+        "economy",
+        "standard",
+        "express",
+        "signature-required"
+      ],
+      "description": "Normalized service class the quote is for, comparable across carriers."
+    },
+    "quote-reference": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Carrier's own quote id, quoted back on booking. Also records a gateway-supplied expiry."
+    },
+    "price": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "All-in price in the carrier's billing currency. Equals base-rate plus every surcharge."
+    },
+    "base-rate": {
+      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "description": "Rate-card price before surcharges, in the same currency as price."
+    },
+    "surcharges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/surcharge"
+      },
+      "description": "Itemized additions. Base rate plus their sum equals price — a rule the gateway enforces."
+    },
+    "collection-cutoff": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest handover time for which this promised date still holds."
+    },
+    "promised-delivery-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date the carrier commits to, and the only date a customer is ever told."
+    },
+    "quote-expires-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the offer lapses. Required: a quote without a lifetime is a number acme invented."
+    }
+  },
+  "required": [
+    "carrier",
+    "service-level",
+    "price",
+    "promised-delivery-at",
+    "quote-expires-at"
+  ],
+  "$defs": {
+    "surcharge": {
+      "type": "object",
+      "description": "One named addition to the base rate — fuel, remote area, oversize, residential.",
+      "properties": {
+        "code": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Acme's normalized surcharge code, not the carrier's label."
+        },
+        "amount": {
+          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "description": "Amount added, in the same currency as the price."
+        }
+      },
+      "required": [
+        "code",
+        "amount"
+      ]
+    }
+  }
+}

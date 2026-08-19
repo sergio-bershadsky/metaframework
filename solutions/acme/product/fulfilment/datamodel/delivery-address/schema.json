@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/delivery-address",
+  "title": "Delivery address",
+  "description": "Destination of a parcel: an opaque street block plus the fields carriers route on.",
+  "type": "object",
+  "properties": {
+    "recipient-name": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Name the courier asks for at the door. Personal data."
+    },
+    "company": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Business name, when the destination is a workplace or a pickup point."
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "Street block as written locally. Deliberately unparsed — see the entity document."
+    },
+    "postal-code": {
+      "type": "string",
+      "maxLength": 16,
+      "description": "Routing code as the destination country writes it, uppercased, spacing preserved."
+    },
+    "city": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "Locality the carrier sorts on."
+    },
+    "region": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "State, province, or county. Required by some carriers in US and CA, ignored elsewhere."
+    },
+    "country": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "description": "ISO 3166-1 alpha-2 code. A pattern, not an enum, so a new market is not a schema change."
+    },
+    "contact-phone": {
+      "type": "string",
+      "pattern": "^\\+[1-9][0-9]{6,14}$",
+      "description": "E.164 number the courier may call on the day. Passed to the carrier, never used by acme."
+    },
+    "access-note": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Free text from the customer: gate codes, floor, safe place. Passed through verbatim."
+    }
+  },
+  "required": [
+    "recipient-name",
+    "lines",
+    "postal-code",
+    "city",
+    "country"
+  ]
+}

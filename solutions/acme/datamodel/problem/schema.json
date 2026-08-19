@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/datamodel/problem",
+  "$id": "http://localhost:3000/schemas/acme/datamodel/problem",
   "title": "Problem details",
   "description": "RFC 9457 problem detail document. Extension members are allowed by the RFC.",
   "type": "object",
