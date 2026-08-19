@@ -25,11 +25,14 @@ handful that are not are the expensive ones.
 wins over the bundled copies** — read `framework/spec/kinds/datamodel.md` first
 in that case. The bundle exists because an installed plugin cannot see the repo.
 
-**One version trap in the sources themselves.** An earlier convention had
-`schema.json` carry no `$id` and use relative file-path `$ref`s. It was retired
-because those references are not dereferenceable. Some core spec documents, and
-the prose of `solutions/acme/.../datamodel/order/index.md`, still describe that
-retired form in passing. Never author it, and never copy prose that explains it.
+**One stale source to distrust.** An earlier convention had `schema.json` carry
+no `$id` and use relative file-path `$ref`s. It was retired because those
+references are not dereferenceable. The spec and every shipped `schema.json` are
+current, but the **prose** of
+`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/index.md`
+still tells the reader the schema has no `$id` and reaches `order-line` by
+relative file path — while the sibling `schema.json` next to it does neither.
+Never author the retired form, and never copy prose that explains it.
 
 ## Procedure
 
@@ -61,10 +64,18 @@ change to it**:
 | Two products, or the solution's vocabulary, depend on it      | the solution's `datamodel/`        |
 
 Solution level is not the safe default. It makes every change a solution-wide
-review. In the acme fixture `money`, `base-record`, `auditable` and `problem`
-are solution-level because five, four, two and three entities respectively
-depend on them; `payment-method` sits in the shop product because exactly two
-shop entities use it.
+review. In the acme fixture `base-record`, `money` and `auditable` are
+solution-level because fifteen, twelve and six datamodels spread across every
+product `$ref` them, and `problem` is there because six protocols in five
+products name it as their failure payload — a model can earn the root through
+the protocol graph without a single schema `$ref` pointing at it. In contrast
+`payment-method` sits in the shop product
+because exactly two shop datamodels use it. Recount before promoting; do not
+trust these numbers, which drift as the fixture grows:
+
+```bash
+grep -rho 'schemas/acme/[a-z0-9/-]*' --include='schema.json' solutions/ | sort | uniq -c | sort -rn
+```
 
 An entity is never moved once it exists (`evolution.md`) — getting the bucket
 wrong costs a swap. Decide before creating the directory.

@@ -61,15 +61,28 @@ fixture — the register to aim for:
 > **Mechanism:** promotion is a SWAP (1 successor + 3 referrers). The prose fix is
 > in place, one version bump.
 >
-> ### 2. Three products carry no ADR — Hygiene
-> **Entity:** `srn://acme/product/fulfilment`, `.../growth`, `.../identity`
-> **Symptom:** each has 3–4 components and no `adr/` bucket anywhere in its subtree.
-> **Why it matters:** the decomposition of each product into exactly these
-> components was decided by someone; nothing records why, so the next team to
-> question it has to re-derive the argument.
-> **Fix:** one retrospective ADR per product, dated when the split was made.
-> **Mechanism:** new entities; nothing existing changes.
+> ### 2. `promotion-evaluation` sits below the NCA of its participants — Structural
+> **Entity:** `srn://acme/product/growth/protocol/promotion-evaluation`
+> **Symptom:** its `participants` list names
+> `/product/shop/component/checkout` alongside three `product/growth`
+> components. The pair-wise common prefix of those four is empty — the two
+> products diverge at the first pair — so the NCA is the solution root, while
+> the directory sits under `product/growth`.
+> **Why it matters:** placement states who owns the contract. As filed, the
+> catalog says growth owns a conversation that shop is a first-class party to,
+> and a shop engineer looking for the pricing contract will not find it in
+> shop's subtree.
+> **Fix:** decide which side is wrong. If checkout really is a participant, the
+> protocol belongs at `srn://acme/protocol/promotion-evaluation` next to
+> `settlement`. If the intended surface is narrower — growth exposes an HTTP
+> API and checkout is merely a client — drop checkout from `participants` and
+> let its `uses` edge carry the relationship.
+> **Mechanism:** relocating is a SWAP (1 successor protocol + its 4 participant
+> back-edges). Correcting the participant list is in place, one version bump.
+> Recommend the second: the transport is a plain request-response HTTP surface
+> growth owns.
 >
+
 > ### 3. `actor/release-bot` is named by no protocol — Graph
 > **Entity:** `srn://acme/actor/release-bot`
 > **Symptom:** appears in no `participants` list and no `primary-actors`; its

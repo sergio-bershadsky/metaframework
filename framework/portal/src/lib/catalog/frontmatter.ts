@@ -7,7 +7,10 @@ import { RESERVED_KINDS } from '../srn/srn'
  * only what every entity shares.
  */
 
-export const ENTITY_KINDS = ['solution', 'product', 'component', ...RESERVED_KINDS] as const
+// RESERVED_KINDS already carries product and component — they became bucket
+// keywords when paths were bucketed. Listing them here as well duplicated both
+// the kind filter and the per-kind counts on solution cards.
+export const ENTITY_KINDS = ['solution', ...RESERVED_KINDS] as const
 export type EntityKind = (typeof ENTITY_KINDS)[number]
 
 export const CONTAINER_KINDS = ['solution', 'product', 'component'] as const satisfies readonly EntityKind[]

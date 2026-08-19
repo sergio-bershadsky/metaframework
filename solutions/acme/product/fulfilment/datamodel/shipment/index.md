@@ -1,7 +1,7 @@
 ---
 name: shipment
 kind: datamodel
-version: 2
+version: 3
 title: Shipment
 summary: One parcel's whole life — what is in it, where it is going, who is carrying it, and how far it has got.
 status: approved
@@ -79,6 +79,28 @@ machine describes one *conversation* and is the normative source of what may
 follow what; the enum is the projection of that conversation a consumer reads
 off a stored record without replaying anything. They are checked against each
 other by review, not by a tool, and the state machine wins.
+
+## Proof of handover, and its expiry
+
+`signed-for-by` holds the name written on the
+[courier](srn://acme/actor/courier)'s device at handover, and exists for one
+narrow purpose: a `signature-required` service level that cannot say who signed
+is a service level acme is paying for and cannot evidence. It is populated only
+for that service class, and absent everywhere else rather than defaulted to the
+recipient's name — a name acme assumed is not a name anybody wrote.
+
+It is personal data acme did not ask for, arriving from a third party, about a
+person who may not be the customer: a neighbour, a concierge, whoever was in.
+That makes it the second field on this model, after `destination`, that
+[gdpr-erasure](srn://acme/requirement/gdpr-erasure) blanks in place, and the
+reason it carries a short retention of its own rather than the shipment's. The
+delivery happened; who signed for it stops being anybody's business long before
+the shipment record does.
+
+Nothing derives from it. It is never matched against an account, never used to
+decide a dispute automatically, and never indexed — it is shown to a support
+agent handling a "it never arrived" conversation and to nobody else, which is the
+narrowest use that still justifies keeping it at all.
 
 ## Evolution
 

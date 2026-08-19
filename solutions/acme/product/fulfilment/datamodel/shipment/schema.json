@@ -93,6 +93,11 @@
       "format": "date-time",
       "description": "When a carrier accepted this parcel. Absent while status is requested or failed."
     },
+    "signed-for-by": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Name written on the courier's device at handover. Present only for signature-required service, blanked in place on erasure, never matched against an account."
+    },
     "delivered-at": {
       "type": "string",
       "format": "date-time",
