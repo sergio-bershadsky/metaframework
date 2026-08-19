@@ -47,9 +47,10 @@ solutions/acme/datamodel/money/schema.json
 
 The origin comes from **`SCHEMA_BASE_URL`** (default `http://localhost:3000`)
 and is never hand-typed. It is baked into the artifacts, which makes it a
-deployment-wide constant: changing it requires rewriting every `$id` and `$ref`
-(`scripts/migrate_schema_ids.py` does it, idempotently). The loader enforces
-agreement, so the variable and the files cannot drift.
+deployment-wide constant: changing it requires rewriting every `$id` and `$ref`,
+which the metaframework repository's root-level `scripts/migrate_schema_ids.py`
+does idempotently (it ships with the repo, not with this plugin). The loader
+enforces agreement, so the variable and the files cannot drift.
 
 | Requirement                                                                  | Violation             |
 |------------------------------------------------------------------------------|-----------------------|

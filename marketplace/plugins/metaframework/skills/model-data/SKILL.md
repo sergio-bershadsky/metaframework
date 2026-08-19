@@ -148,8 +148,9 @@ SRN = "srn://"          +              acme/product/shop/datamodel/order-line
 
 `SCHEMA_BASE_URL` defaults to `http://localhost:3000` and is a deployment-wide
 constant baked into the files; changing it means rewriting every `$id` and
-`$ref` with `scripts/migrate_schema_ids.py`. Verify what was written rather than
-eyeballing it:
+`$ref`, which the metaframework repository's own `scripts/migrate_schema_ids.py`
+(at the repo root, not in this plugin) does idempotently. Verify what was written
+rather than eyeballing it:
 
 ```bash
 python3 - <<'PY'

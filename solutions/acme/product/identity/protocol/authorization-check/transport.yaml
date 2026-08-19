@@ -30,7 +30,7 @@ http:
     - name: resolve-session
       method: GET
       path: /sessions/{session-reference}
-      response: /product/identity/datamodel/session@1
+      response: /product/identity/datamodel/session@4
       summary: >-
         Served by session-store on the same binding. Called by acl during every
         check; 404 for an unknown, expired, or evicted reference.

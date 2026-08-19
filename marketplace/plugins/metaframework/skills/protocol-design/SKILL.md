@@ -45,17 +45,22 @@ is absent.
 
 ## Procedure
 
-1. **List the participants** — the entities, then an alias for each.
+1. **List the participants** — the entities, then an alias for each. (§1 & 3)
 2. **Compute the NCA** from the component/product participants; that is the
-   directory. Actors are excluded.
-3. **Check the back-edges** on each component/product participant.
-4. **Pick `style`** with the decision rule below.
-5. **Write `index.md`.**
+   directory. Actors are excluded. (§2)
+3. **Check the back-edges** on each component/product participant. (§1 & 3)
+4. **Pick `style`** with the decision rule below. (§4)
+5. **Write `index.md`** — common frontmatter plus `participants` and `style`,
+   then prose saying why this conversation is a versioned contract at all.
 6. **Write `transport.yaml`** — one transport; external spec link **XOR**
-   surface list.
-7. **Write `workflows/*.yaml`** — one file per named exchange.
+   surface list. (`references/artifacts.md`)
+7. **Write `workflows/*.yaml`** — one file per named exchange. (same)
 8. **Write `states.json`** only if the conversation has states worth naming.
-9. **Run the catalog check** and report the result.
+   (same)
+9. **Run the catalog check** and report the result. (§Finish)
+
+Steps 1–4 are decisions and step 2 is irreversible: a protocol at the wrong NCA
+costs a swap, because entities are never moved. Steps 5–8 are mechanical.
 
 ## 1 & 3. Participants, aliases, and who owns which fact
 

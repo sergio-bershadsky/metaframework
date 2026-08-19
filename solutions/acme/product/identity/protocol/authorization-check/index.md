@@ -1,7 +1,7 @@
 ---
 name: authorization-check
 kind: protocol
-version: 1
+version: 2
 title: Authorization check
 summary: Synchronous "may this session do this" between a relying component, the ACL, and the session store.
 status: approved
@@ -96,7 +96,34 @@ deny.
 catalog a `states.json` is the state of one conversation; a single check has no
 state worth naming, because it is one request and one response. What does have a
 lifecycle, and what every check is evaluated against, is the
-[session](srn://acme/product/identity/datamodel/session@1) — so the state machine
+[session](srn://acme/product/identity/datamodel/session@4) — so the state machine
 recorded here is the subject's, from `anonymous` through `authenticated` to
 `expired` or `revoked`. Writing it once here beats every relying service
 inventing its own reading of what a session reference means.
+
+### The machine caught up with the model
+
+Three things the [session](srn://acme/product/identity/datamodel/session@4) model
+grew — a `recovery` strength, an idle deadline, and impersonation — are not
+symmetric here, and the asymmetry is the useful part.
+
+`recovery` became a nested state under `authenticated`, because it is a rung on
+the elevation ladder and the ladder is what this machine describes. Its two
+outward transitions both climb: `CREDENTIAL_VERIFIED` to `single-factor`,
+`SECOND_FACTOR_VERIFIED` straight to `multi-factor`. Nothing descends into it,
+which is the machine stating the rule
+[authentication](srn://acme/product/identity/component/authentication) enforces —
+strength never falls in place, because an attacker holding the inbox would
+otherwise walk a strong session down to a rung they can satisfy.
+
+`IDLE_ELAPSED` became a second edge into `expired` rather than a state of its
+own. Two clocks, one outcome: a reader of a session cannot tell which deadline
+fired and has no reason to care, so inventing an `idle-expired` state would have
+split a terminal that nothing distinguishes. The guard says when the edge is live
+at all, since a service-account session has no idle policy and never takes it.
+
+Impersonation appears nowhere in this machine, deliberately. It is a property of
+who is driving a session, not of where the session has got to, and every
+transition above is identical whether or not a support agent is behind it. That
+is the same argument that kept strength a property of the session on the model
+side, applied in the other direction.

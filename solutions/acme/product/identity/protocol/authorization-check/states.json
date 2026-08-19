@@ -12,9 +12,19 @@
           "actions": ["bind-account", "record-issued-at"],
           "description": "The same reference is bound to an account; id and created-at survive."
         },
+        "RECOVERY_VERIFIED": {
+          "target": "#session.authenticated.recovery",
+          "actions": ["bind-account", "record-issued-at"],
+          "description": "A mailbox was reached and nothing else. Bound to the account, but at the weakest strength there is."
+        },
         "EXPIRY_ELAPSED": {
           "target": "expired",
           "description": "An abandoned anonymous session evicts by TTL like any other."
+        },
+        "IDLE_ELAPSED": {
+          "target": "expired",
+          "guard": "an idle policy applies to this session",
+          "description": "The sliding deadline ran out before the absolute one. Same terminal state, earlier."
         },
         "REVOKE_SESSION": {
           "target": "revoked",
@@ -32,6 +42,11 @@
           "target": "expired",
           "description": "Absolute deadline reached. Never extended in place — a refresh issues a new session."
         },
+        "IDLE_ELAPSED": {
+          "target": "expired",
+          "guard": "an idle policy applies to this session",
+          "description": "The effective end of a session is the earlier of the two clocks; this is the earlier one firing."
+        },
         "REVOKE_SESSION": {
           "target": "revoked",
           "actions": ["record-revocation-reason", "push-invalidation"]
@@ -43,6 +58,21 @@
         }
       },
       "states": {
+        "recovery": {
+          "description": "Reached only through account recovery. Credential repair is permitted; nothing that spends money or reads another principal's data is.",
+          "on": {
+            "CREDENTIAL_VERIFIED": {
+              "target": "single-factor",
+              "actions": ["record-issued-at"],
+              "description": "A real factor was presented. Strength only ever increases in place."
+            },
+            "SECOND_FACTOR_VERIFIED": {
+              "target": "multi-factor",
+              "actions": ["record-issued-at"],
+              "description": "Password plus factor proved together during repair; the session skips a rung rather than stepping through one."
+            }
+          }
+        },
         "single-factor": {
           "description": "One proof presented. A permission with requires-multi-factor is denied here.",
           "on": {
