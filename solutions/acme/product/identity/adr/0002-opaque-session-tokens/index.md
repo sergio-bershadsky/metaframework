@@ -1,7 +1,7 @@
 ---
 name: 0002-opaque-session-tokens
 kind: adr
-version: 1
+version: 2
 title: Opaque session references, resolved on every check
 summary: A session is an opaque reference looked up per check, not a self-contained token relying services can read.
 status: approved
@@ -14,7 +14,7 @@ deciders:
   - security-review
 relations:
   uses:
-    - /product/identity/datamodel/session@1
+    - /product/identity/datamodel/session@4
     - /product/identity/component/session-store
 tags:
   - identity
@@ -48,7 +48,7 @@ push channel each relying service must consume correctly.
 
 A session is an opaque reference: 128 bits from a CSPRNG, with no structure to
 parse and nothing to read out of it. The
-[session](srn://acme/product/identity/datamodel/session@1) document lives in
+[session](srn://acme/product/identity/datamodel/session@4) document lives in
 [session-store](srn://acme/product/identity/component/session-store) and is resolved by
 [acl](srn://acme/product/identity/component/acl) on every check, uncached.
 
@@ -77,6 +77,13 @@ able to change in five seconds is read fresh.
   identity asks for it and is authorized for it.
 - Sessions become unforgeable rather than merely tamper-evident. There is no
   signing key to leak, and no algorithm-confusion class of bug to be exposed to.
+- The session document can grow without a migration, and it has: impersonation,
+  a weaker `recovery` strength, and an idle deadline all arrived after this
+  decision and reached every relying service the moment the store returned them.
+  Under a self-contained token each of those would have been a format change
+  negotiated with every verifier in the solution, which is the cost this decision
+  bought out — worth recording, because it is the consequence that keeps paying
+  and the one nobody predicted at the time.
 
 ## Alternatives considered
 

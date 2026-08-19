@@ -1,7 +1,7 @@
 ---
 name: authentication
 kind: component
-version: 2
+version: 3
 title: Authentication
 summary: Verifies credentials and issues, elevates, and revokes sessions — the only writer of session state.
 status: approved
@@ -14,7 +14,7 @@ relations:
     - /product/identity/protocol/authorization-check
     - /datamodel/problem@1
   exposes:
-    - /product/identity/datamodel/session@1
+    - /product/identity/datamodel/session@4
   depends-on:
     - /product/identity/component/session-store
     - /product/identity/component/acl
@@ -28,7 +28,7 @@ x-runtime: kotlin-jvm
 
 # Authentication
 
-Turns a proof into a [session](srn://acme/product/identity/datamodel/session@1). It reads
+Turns a proof into a [session](srn://acme/product/identity/datamodel/session@4). It reads
 [credential](srn://acme/product/identity/datamodel/credential@1) records, checks the
 presented proof against the verifier behind each one's locator, and writes the
 resulting session to
@@ -58,10 +58,17 @@ nested state pair in the protocol's `states.json`, and it is the reason strength
 is a property of the session rather than a state of it — the alternative is a
 transition table that has to say what `expired` expired *from*.
 
+Elevation runs in one direction only. A session that reached `recovery` — a
+mailbox was proved, nothing else — is elevated by presenting a real factor, and
+this component will never write a strength weaker than the one already recorded.
+Weakening in place would let an attacker who controls the inbox drag a
+multi-factor session down to a level whose permission set they can satisfy, which
+is the whole attack the separate `recovery` value exists to make visible.
+
 Expiry, by contrast, is never extended. A refresh issues a new session and lets
 the old one lapse, so a stolen reference has a hard ceiling regardless of how
 active the thief is. Both facts are stated on
-[session](srn://acme/product/identity/datamodel/session@1) itself.
+[session](srn://acme/product/identity/datamodel/session@4) itself.
 
 ## It is a caller, not a responder
 

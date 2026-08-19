@@ -1,7 +1,7 @@
 ---
 name: identity
 kind: product
-version: 1
+version: 2
 title: Identity
 summary: Registration, authentication, and access control for every human and machine principal in the solution.
 status: approved
@@ -13,7 +13,7 @@ primary-actors:
   - /actor/support-agent
 relations:
   exposes:
-    - /product/identity/datamodel/session@1
+    - /product/identity/datamodel/session@4
   implements:
     - /product/identity/requirement/authz-check-latency
   uses:
@@ -78,7 +78,7 @@ down.
 
 ## Public surface
 
-One datamodel, [session](srn://acme/product/identity/datamodel/session@1) — the thing a
+One datamodel, [session](srn://acme/product/identity/datamodel/session@4) — the thing a
 relying service holds and presents. The authorization surface itself is the
 [authorization-check](srn://acme/product/identity/protocol/authorization-check) protocol,
 exposed by the components that serve it rather than restated here, so the
@@ -91,6 +91,14 @@ owning components for administration.
 [credential](srn://acme/product/identity/datamodel/credential@1) is exposed by nobody and
 never will be.
 
+The pin on that edge is `@4` rather than latest, and it is re-pinned deliberately
+rather than left to float. A product's `exposes` list is the statement other
+teams read before they build against it, so it should name the revision this
+product has actually reviewed and is prepared to defend — three additive
+revisions later, that is version 4. Consumers still pinned at `@1` keep working,
+because every step between was additive; what they do not get is any claim from
+this page that `@1` is what identity supports today.
+
 ## Stability of the addresses
 
 Other products are about to reference these SRNs from their own frontmatter, and
@@ -98,7 +106,7 @@ a reference is a promise about a name, not about a version. The four components
 sit directly under this product with the names they will keep; the datamodels sit
 in the product's own bucket rather than under whichever component happens to
 write them today, so moving the writer does not move the contract. That is why
-[session](srn://acme/product/identity/datamodel/session@1) is at
+[session](srn://acme/product/identity/datamodel/session@4) is at
 `/product/identity/datamodel/session` and not under
 [session-store](srn://acme/product/identity/component/session-store), even though the store
 is the obvious owner.
