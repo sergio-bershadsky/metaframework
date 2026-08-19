@@ -27,19 +27,21 @@ solutions/acme/protocol/settlement/
 
 **Read `framework/spec/kinds/protocol.md` in full when the repository has it —
 it is authoritative and it is the largest kind document in the spec.** The
-bundled reference set carries protocol placement and artifact rules
-(`structure.md`) and the `participants` / `style` / `conforms-to` frontmatter
-(`frontmatter.md`), but it carries **no distillation of the three mini-languages**
-— `transport.yaml`, the workflow YAML, and the `states.json` subset. Those are
-carried below, and this skill is the fallback when the repo spec is absent.
+shared bundle carries protocol placement and artifact rules (`structure.md`) and
+the `participants` / `style` / `conforms-to` frontmatter (`frontmatter.md`), but
+deliberately **no** distillation of the three mini-languages. Those live in this
+skill's own `references/artifacts.md`, which is the fallback when the repo spec
+is absent.
 
-| Need                                             | Read                                                              |
-|--------------------------------------------------|-------------------------------------------------------------------|
-| NCA placement, artifact filenames, `x-` escape   | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`    |
-| `participants`, `style`, `conforms-to`, relations| `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`  |
-| Payload reference syntax, the `..` arithmetic    | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`          |
-| Version bumps, the swap procedure                | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`    |
-| Payload datamodels                               | the `model-data` skill                                            |
+| Need                                                     | Read                                                              |
+|----------------------------------------------------------|-------------------------------------------------------------------|
+| `transport.yaml`, workflow YAML, `states.json` in detail | `references/artifacts.md`                                          |
+| A complete protocol, verbatim, with an audit checklist   | `references/worked-protocol.md`                                    |
+| NCA placement, artifact filenames, `x-` escape           | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`    |
+| `participants`, `style`, `conforms-to`, relations        | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`  |
+| Payload reference syntax, the `..` arithmetic            | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`          |
+| Version bumps, the swap procedure                        | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`    |
+| Payload datamodels                                       | the `model-data` skill                                            |
 
 ## Procedure
 

@@ -1,7 +1,7 @@
 ---
 name: promotion-engine
 kind: component
-version: 1
+version: 2
 title: Promotion engine
 summary: Stateless evaluator on the checkout hot path — decides what a cart is worth and answers within a budget.
 status: review
@@ -17,6 +17,7 @@ relations:
     - /product/growth/protocol/promotion-evaluation
     - /product/growth/datamodel/promotion-quote@1
   depends-on:
+    - /product/growth/component/campaign-manager
     - /product/growth/component/coupon-service
     - /product/growth/component/audience
   implements:
@@ -56,6 +57,27 @@ until the cache turns over. That window is bounded and stated in
 [stackable-promotions](srn://acme/product/growth/requirement/stackable-promotions),
 and it was preferred to a read-through cache because a cache miss on the
 checkout path is exactly the failure mode the latency budget cannot absorb.
+
+## The dependency the cache hid
+
+[campaign-manager](srn://acme/product/growth/component/campaign-manager) is now a
+`depends-on`, and its absence from the first version of this page was a mistake
+worth explaining rather than quietly fixing. The argument for leaving it out was
+that no request touches it: the definitions are already in memory, the cache
+refreshes on its own schedule, and a dependency nothing on the hot path exercises
+did not feel like one.
+
+That reasoning confuses the request path with the lifecycle. A process that
+starts with an empty cache cannot answer at all until campaign-manager responds,
+so the dependency is real and simply moved to the least visible moment — startup,
+where it is also least tested. Scaling to zero and back, which this component
+does routinely, turns "least visible" into "several times an hour".
+
+The edge being stated changes what a reader concludes from an incident. With it,
+"promotion-engine returned fallback for four minutes after a deploy" has an
+obvious first suspect; without it, the page positively argued against looking
+there. A dependency that is only exercised at startup is still a dependency, and
+the graph should say so.
 
 ## Why it reads shop's cart model
 
