@@ -138,154 +138,26 @@ Two lints, both warnings: `style: bus` with any `kind: call` step, and
 `style: request-response` with no `call`/`return` pair anywhere, are each
 `W_PROTO_STYLE_MISMATCH`.
 
-## 6. `transport.yaml`
+## 6-8. The three artifacts
 
-One protocol, **one transport**. A protocol offered over two wire technologies
-is two protocol entities. A second binding block is
-`E_PROTO_TRANSPORT_BINDING`, not a shortcut.
+`transport.yaml` (one transport, `spec` XOR a surface list), `workflows/*.yaml`
+(one file per named exchange, fragments capped at depth 3), and `states.json`
+(an XState v5 subset describing the conversation, not a participant). The forms,
+the required fields per transport kind, the two `message` traps and the XState
+subset boundary are all in **`references/artifacts.md`** — read it before
+writing any of the three.
 
-Top level: `kind` (required, from the closed set below), a mapping keyed by
-**exactly** the `kind` value (required), plus optional `summary`, `encoding`
-(`json|avro|protobuf|msgpack|xml|text|binary`), `auth` (display-only labels),
-and `spec`. Anything else non-`x-` is `E_PROTO_TRANSPORT_SCHEMA`.
+Three things worth knowing before you get there:
 
-| `kind`       | Required binding fields          | Surface list key |
-|--------------|----------------------------------|------------------|
-| `http`       | `base-path`                      | `operations`     |
-| `grpc`       | `package`, `service`             | `methods`        |
-| `amqp`       | `exchange`, `exchange-type`      | `bindings`       |
-| `kafka`      | — (`topics` required unless `spec`) | `topics`      |
-| `websocket`  | `path`                           | `channels`       |
-| `in-process` | `language`, `module`             | `functions`      |
-
-**`spec` and the surface list are mutually exclusive**
-(`E_PROTO_TRANSPORT_SPEC_CONFLICT`). Either point at a real OpenAPI / AsyncAPI /
-`.proto` file and let it be the single source of operation truth, or — when no
-such file exists — write the lightweight list here. Maintaining both guarantees
-divergence. `spec` is `{ format, file, version? }`; `file` is relative to the
-entity directory and may not be absolute or contain `..` (`E_PROTO_SPEC_FILE`).
-In v1 the portal renders the linked file as an opaque card and does not parse it.
-
-The shipped HTTP protocols show both halves of that choice:
-`order-placement/transport.yaml` and `authorization-check/transport.yaml` write
-an `operations` list because there is no OpenAPI document;
-`refund-request/transport.yaml` and `carrier-booking/transport.yaml` link an
-`openapi.yaml` and carry no list.
-
-`conforms-to` in the frontmatter is for **standards** (RFC 9457, CloudEvents),
-never for files. A file in the directory is bound here under `spec`, in one place.
-
-Two shape rules that also apply to `workflows/*.yaml`: **no top-level `version:`
-key** — artifacts carry no version of their own, the entity's frontmatter governs
-the whole directory — and unknown keys at any level are rejected unless `x-`
-prefixed.
-
-## 7. The workflow mini-language
-
-`workflows/<name>.yaml`, `<name>` kebab-case, `name` equal to the filename stem
-(`E_PROTO_WF_NAME`). Top level: `name`, `title`, `steps` (required, non-empty),
-`summary` and `participants` (optional; a layout hint, a subset of the protocol's
-aliases, never a restriction).
-
-A step node carries **exactly one discriminator key** from `message`, `alt`,
-`opt`, `loop` (`E_PROTO_WF_STEP_SHAPE`). `otherwise` is the one permitted
-companion, only alongside `alt`.
-
-Message step: `message` (kebab-case name — the arrow label), `from`, `to`,
-optional `kind` (`call|return|event|error`, default `call`), `payload`,
-`channel`, `condition`, `note`. `from` and `to` may be the same alias — a
-self-call. `to` may be a **list only on `kind: event`** (`E_PROTO_WF_FANOUT`).
-
-### The two traps
-
-**`condition` annotates one arrow; `alt` and `opt` change the sequence.**
-`condition` renders as `[guard] message` and the next step still follows
-unconditionally. If two futures diverge, use `alt`. If steps may be skipped, use
-`opt`. An `alt` needs at least **two compartments**, counting `otherwise` as one
-— a single branch with no `otherwise` is an `opt`, and the two mean different
-things (`opt`: may be skipped; `alt`: exactly one compartment runs).
-
-**`message` means two different things in two files.** In a workflow step it is a
-kebab-case logical name and the SRN lives in the separate `payload` key. In a
-`transport.yaml` surface entry it *is* the SRN of the datamodel the topic or
-queue carries — the same role `request`/`response` play for call-shaped
-transports. A step `message` that looks like an SRN is `E_PROTO_WF_SCHEMA`; a
-topic `message` that is a bare name is `E_PROTO_TRANSPORT_SCHEMA`.
-
-```yaml
-# workflows/settle-order.yaml — "message" is the arrow label
-- message: order-paid
-  payload: /product/shop/component/checkout/component/payment/datamodel/order@3
-```
-
-```yaml
-# transport.yaml — "message" is the payload SRN
-topics:
-  - name: acme.settlement.order-paid.v1
-    message: /product/shop/component/checkout/component/payment/datamodel/order@3
-```
-
-### Fragments and the depth limit
-
-`alt` is a list of `{ when, steps }` plus optional `otherwise`; `opt` is
-`{ when, steps }`; `loop` is `{ while, max?, steps }`. Every `steps` list must be
-non-empty (`E_PROTO_WF_EMPTY_BRANCH`).
-
-**Maximum nesting depth is 3** (`E_PROTO_WF_DEPTH`). A fragment directly under
-the root `steps` is depth 1. Audit it by counting fragment keys down the deepest
-path — in `order-placement/workflows/place-order.yaml`: `loop` = 1, `opt` = 1,
-outer `alt` = 1, inner `alt` = 2, innermost `opt` = 3, exactly at the ceiling.
-Beyond that a sequence diagram stops being readable: split into a second
-workflow, or move the ordering constraint into `states.json`.
-
-Deliberately unsupported: `par`, gateways, pools/swimlanes, timers, compensation,
-sub-workflow invocation, data objects. Each of them turns a sequence description
-into BPMN.
-
-Steps have no ids — the portal's stable key is the positional path
-(`steps[4].alt[0].steps[2]`), so repeated message names in retries and polling
-are unambiguous with no authoring overhead.
-
-Two more checks worth knowing: `channel` must match a `name` / `queue` /
-`routing-key` / `path` in the transport surface list
-(`W_PROTO_WF_CHANNEL_UNKNOWN`; skipped entirely when there is no surface list),
-and a `return`/`error` should be preceded by a `call` in the opposite direction
-in the same or an enclosing fragment (`W_PROTO_WF_ORPHAN_RETURN`).
-
-## 8. `states.json` — the XState subset
-
-An XState v5 machine configuration, directly loadable by `createMachine()` —
-that is the point of pinning a subset instead of inventing a format. It describes
-the state of **one conversation as the protocol sees it**, never the internal
-state of a participant. Exactly one machine per protocol.
-
-Root: `id` (must equal the protocol entity `name` — `E_PROTO_STATES_ID`),
-`initial`, `states`, optional `description`. A state node may carry `states`
-(making it compound, and then `initial` is required), `type: "final"` (the only
-legal `type`, and a final state must have no `on`), `on`, `entry`, `exit`,
-`tags`, `description`. A transition is a target string, a transition object
-(`target?`, `guard?`, `actions?`, `description?`), or an **array** evaluated top
-to bottom with an unguarded entry as the fallback.
-
-Target resolution supports exactly two forms (`E_PROTO_STATES_TARGET`): a
-**sibling state key** (`"reserved"`) and an **absolute id path**
-(`"#settlement.disputed"`). Relative descent (`"posting.entry-posted"`) is not
-supported — it is the form that most often silently resolves to the wrong node.
-
-Event names must match `^[A-Z][A-Z0-9_]*$` (`E_PROTO_STATES_EVENT_NAME`) and map
-to workflow message names by lowercasing and turning `_` into `-`:
-`LEDGER_ENTRY_POSTED` ⇔ `ledger-entry-posted`. An event with no matching message
-is `W_PROTO_STATES_EVENT_UNKNOWN`; the reverse is not checked, because plenty of
-messages carry no state change. An unreachable state is
-`W_PROTO_STATES_UNREACHABLE`.
-
-Outside the subset, all `E_PROTO_STATES_SUBSET`: `context`, `assign`, `always`,
-`after`, `invoke`, `input`, `output`, `meta`, `type: "parallel"`,
-`type: "history"`, wildcard events, and object-form actions or guards. The
-catalog documents contracts, not runtime behaviour — anything carrying data or
-executing is out. Data shapes belong to datamodels; timers and invocations belong
-to the implementing component. `states.json` is the one artifact exempt from the
-`x-` escape hatch: unknown keys there are errors, not extensions.
+- **One protocol, one transport.** A protocol offered over two wire technologies
+  is two protocol entities (`E_PROTO_TRANSPORT_BINDING`).
+- **`spec` and the surface list are mutually exclusive**
+  (`E_PROTO_TRANSPORT_SPEC_CONFLICT`). Point at a real OpenAPI/AsyncAPI/`.proto`
+  file, or write the lightweight list — never both, because both drift.
+- **Artifacts carry no version of their own.** A top-level `version:` key in
+  `transport.yaml` or a workflow file is a shape violation; the entity's
+  frontmatter `version` covers the whole directory. Unknown keys anywhere need
+  the `x-` prefix, except in `states.json`, where they are errors.
 
 ## 9. Payload binding
 
@@ -310,191 +182,13 @@ if something is. Path-absolute removes the only case the grammar cannot catch.
 
 `states.json` carries no SRN references at all — it names events and states only.
 
-## Complete worked protocol — `srn://acme/protocol/settlement`
+## Worked example
 
-Verbatim from `solutions/acme/protocol/settlement/`. A `bus` protocol at the
-solution root, Kafka transport with an authoritative surface list, one workflow
-with fan-out, and a compound state machine.
-
-`index.md` frontmatter:
-
-```yaml
----
-name: settlement
-kind: protocol
-version: 2
-title: Settlement
-summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
-status: approved
-owner: team-billing
-style: bus
-participants:
-  - alias: payment
-    ref: /product/shop/component/checkout/component/payment
-    role: publisher
-  - alias: ledger
-    ref: /product/billing/component/ledger
-    role: consumer
-  - alias: reconciliation
-    ref: /product/billing/component/reconciliation
-    role: consumer
-conforms-to:
-  - standard: CloudEvents
-    version: "1.0.2"
-    url: https://cloudevents.io/
-relations:
-  uses:
-    - /environment/production
-tags:
-  - settlement
-  - asynchronous
----
-```
-
-The counterpart edges live on the participants, not here:
-`payment` carries `exposes: [/protocol/settlement]`, `ledger` and
-`reconciliation` each carry `uses: [/protocol/settlement]`. `relations` on the
-protocol holds only the **non-payload** dependency — the payload datamodels are
-deliberately absent, because the message × datamodel matrix is derived.
-
-`transport.yaml`:
-
-```yaml
-kind: kafka
-summary: Settlement facts published by shop and consumed by billing.
-encoding: avro
-auth:
-  - sasl-scram
-  - mtls
-kafka:
-  cluster: acme-settlement
-  topics:
-    - name: acme.settlement.order-paid.v1
-      key: order-id
-      message: /product/shop/component/checkout/component/payment/datamodel/order@3
-      partitions: 12
-      retention: 30d
-      summary: Emitted once an order reaches the paid state and funds are captured.
-    - name: acme.settlement.ledger-entry-posted.v1
-      key: order-id
-      message: /product/billing/datamodel/ledger-entry@1
-      partitions: 12
-      retention: 30d
-      summary: One event per posted double-entry leg, published by the ledger.
-    - name: acme.settlement.reconciliation-report.v1
-      key: batch-id
-      partitions: 1
-      retention: 90d
-      summary: Nightly reconciliation outcome; its payload model is still under design.
-```
-
-`workflows/settle-order.yaml`:
-
-```yaml
-name: settle-order
-title: Settle a paid order
-summary: Payment publishes a paid order; the ledger posts it and reconciliation proves the batch balances.
-participants: [payment, ledger, reconciliation]
-steps:
-  - message: order-paid
-    from: payment
-    to: [ledger, reconciliation]
-    kind: event
-    payload: /product/shop/component/checkout/component/payment/datamodel/order@3
-    channel: acme.settlement.order-paid.v1
-    note: Published after funds are captured, never before — a reversal is a new fact.
-
-  - message: ledger-entry-posted
-    from: ledger
-    to: [reconciliation]
-    kind: event
-    payload: /product/billing/datamodel/ledger-entry@1
-    channel: acme.settlement.ledger-entry-posted.v1
-    condition: one event per leg, debit and credit
-
-  - opt:
-      when: the nightly reconciliation window is open
-      steps:
-        - message: reconciliation-report
-          from: reconciliation
-          to: [payment, ledger]
-          kind: event
-          channel: acme.settlement.reconciliation-report.v1
-          note: Carries no payload model yet; consumers read the topic headers only.
-```
-
-`states.json`, with the per-state `description` strings elided for width — note
-the compound `posting` node carrying its own `initial`, and the absolute
-`#settlement.<state>` targets used to leave it:
-
-```json
-{
-  "id": "settlement",
-  "initial": "awaiting-payment",
-  "description": "State of the settlement of one order, as the billing side sees it.",
-  "states": {
-    "awaiting-payment": {
-      "on": {
-        "ORDER_PAID": {
-          "target": "posting",
-          "actions": ["open-settlement-window"],
-          "description": "First fact for this order id; the window opens here."
-        }
-      }
-    },
-    "posting": {
-      "initial": "entry-pending",
-      "entry": ["reserve-batch-slot"],
-      "states": {
-        "entry-pending": {
-          "on": {
-            "LEDGER_ENTRY_POSTED": [
-              { "target": "entry-posted", "guard": "debit and credit both accepted" },
-              { "target": "#settlement.disputed", "actions": ["raise-imbalance"] }
-            ]
-          }
-        },
-        "entry-posted": {
-          "on": {
-            "RECONCILIATION_REPORT": [
-              { "target": "#settlement.settled", "guard": "batch balances to zero" },
-              { "target": "#settlement.disputed", "actions": ["raise-imbalance"] }
-            ]
-          }
-        }
-      }
-    },
-    "settled":  { "type": "final", "tags": ["success"] },
-    "disputed": { "type": "final", "tags": ["failure"] }
-  }
-}
-```
-
-**Audit — run this checklist on any protocol you write.**
-
-- Placement: participant pair prefixes are `product/shop + component/checkout +
-  component/payment`, `product/billing + component/ledger`, and
-  `product/billing + component/reconciliation`. The common prefix is empty, so
-  the NCA is the solution root — which is where the directory sits.
-- Back-edges: all three component participants declare `exposes` or `uses` for
-  this protocol, so no `W_PROTO_PARTICIPANT_UNLINKED`.
-- Style: `bus`, and every step is `kind: event` with no `call` anywhere — no
-  `W_PROTO_STYLE_MISMATCH`. The list-valued `to` is legal precisely because the
-  steps are events.
-- Transport: `topics` is present and `spec` is absent, so no
-  `E_PROTO_TRANSPORT_SPEC_CONFLICT`. The third topic declares no `message`,
-  which is legal — a surface entry's payload is optional.
-- Channels: all three `channel` values match topic `name`s, so W9 passes.
-- States: `id` equals `name`; every event matches the name regex and maps to a
-  message in the workflow (`ORDER_PAID` ⇔ `order-paid`, `LEDGER_ENTRY_POSTED` ⇔
-  `ledger-entry-posted`, `RECONCILIATION_REPORT` ⇔ `reconciliation-report`);
-  every state is reachable; both finals carry no `on`.
-- Payloads: path-absolute and pinned; both target `datamodel` entities.
-
-For the fragment forms this workflow does not exercise — nested `alt` with
-`otherwise`, `loop` with `max`, and a self-call — read
-`solutions/acme/product/shop/protocol/order-placement/workflows/place-order.yaml`,
-which sits exactly at the depth-3 ceiling.
+`references/worked-protocol.md` reproduces `srn://acme/protocol/settlement`
+verbatim — frontmatter, Kafka `transport.yaml`, a fan-out workflow, a compound
+state machine — followed by the six-point audit checklist to run against any
+protocol you write, and pointers to the shipped protocols that exercise the
+forms settlement does not.
 
 ## Evolving a protocol
 
@@ -523,6 +217,11 @@ cd framework/portal && npx vitest run src/lib/catalog
 Zero **error** diagnostics is the pass condition; there is no CLI. Report
 pass/fail and every diagnostic with its code and file. `E_PROTO_*` and
 `W_PROTO_*` codes are documented at the end of
-`framework/spec/kinds/protocol.md`. If a diagnostic demands removing, renaming,
+`framework/spec/kinds/protocol.md`, and — for an installed plugin that cannot see
+it — in `references/artifacts.md` beside the rule each one guards. Note that the
+catalog check does **not** run the protocol validators over the shipped tree;
+`E_PROTO_*` appears only when the portal renders the protocol page, so open it
+after touching `states.json` or a workflow (`validate-catalog` skill). If a
+diagnostic demands removing, renaming,
 narrowing or moving an entity, that is not a fix — stop and say it requires a
 swap.

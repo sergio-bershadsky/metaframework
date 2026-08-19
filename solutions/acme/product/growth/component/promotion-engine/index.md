@@ -1,7 +1,7 @@
 ---
 name: promotion-engine
 kind: component
-version: 2
+version: 3
 title: Promotion engine
 summary: Stateless evaluator on the checkout hot path — decides what a cart is worth and answers within a budget.
 status: review
@@ -12,6 +12,8 @@ relations:
     - /environment/production
     - /environment/staging
     - /datamodel/money@1
+    - /product/growth/datamodel/campaign@1
+    - /product/growth/datamodel/promo@1
     - /product/shop/component/checkout/datamodel/cart@1
   exposes:
     - /product/growth/protocol/promotion-evaluation
@@ -78,6 +80,26 @@ The edge being stated changes what a reader concludes from an incident. With it,
 obvious first suspect; without it, the page positively argued against looking
 there. A dependency that is only exercised at startup is still a dependency, and
 the graph should say so.
+
+## Two dependencies, two edge kinds
+
+The component edge toward campaign-manager and the datamodel edges toward
+[campaign](srn://acme/product/growth/datamodel/campaign@1) and
+[promo](srn://acme/product/growth/datamodel/promo@1) are not a duplication. The
+first says "this process cannot start without that process"; the second says
+"this process is written against those shapes". They come apart in both
+directions, and the pair is what makes each one falsifiable.
+
+They came apart here on purpose once already. The cache was loaded from a
+snapshot file during an incident in which campaign-manager was unreachable, and
+the engine served correct prices from it for an hour — the component dependency
+was gone, the datamodel dependency was exactly as binding as ever. Recording only
+the component edge would have made that hour unexplainable.
+
+The pins are `@1` because that is what the parser was written against, and they
+will move when someone reads the newer revision rather than when it appears. A
+pin that tracks latest by default records nothing; the whole value of the number
+is that a human put it there.
 
 ## Why it reads shop's cart model
 
