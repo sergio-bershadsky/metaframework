@@ -1,7 +1,7 @@
 ---
 name: authorization-check
 kind: protocol
-version: 2
+version: 3
 title: Authorization check
 summary: Synchronous "may this session do this" between a relying component, the ACL, and the session store.
 status: approved
@@ -76,6 +76,37 @@ explanation useful enough to debug with is an enumeration oracle for anyone
 probing the model, so the useful explanation lives behind `explain-access`, which
 is itself an authorized operation.
 
+## The batch inverts what the body carries, on purpose
+
+`check-access-batch` exists because a page that renders twelve authorized widgets
+was making twelve round trips, and
+[authz-check-latency](srn://acme/product/identity/requirement/authz-check-latency)
+is measured at the caller, where twelve serial checks are one slow page rather
+than twelve fast checks.
+
+Batching collides head-on with the section above. There is one HTTP status for
+the whole request, so the status can no longer carry the answer, and a body that
+carries answers is precisely the `{"allowed": true}` envelope this protocol
+refuses. The resolution is to keep the *failure direction* rather than the
+mechanism: the response enumerates the assertions that were **allowed**, and
+anything a caller asked about and does not find in the reply is denied.
+
+That inversion is what makes it safe. A truncated response denies. An empty
+response denies everything. A response that never arrives denies, because there
+is nothing to find anything in. Enumerating the denials instead would have made
+every one of those failures read as blanket permission — the same trap as a
+boolean in a `200`, wearing a list.
+
+It also bounds the blast radius of getting it wrong. The single check's `204`
+means allow, and that is not a contradiction: there, absence of a body carries
+nothing, because the status carries the answer. The rule is one level up — in
+this protocol, the *absence of evidence is never permission*, whichever field
+happens to be missing.
+
+Sixty-four is a cap, not a target. Past that the batch stops being a latency fix
+and starts being a way to ask the decision point to enumerate the model for you,
+which is what `explain-access` is authorized separately for.
+
 ## What authenticates the check
 
 `mtls` — the calling service's own certificate. The session reference in the
@@ -86,7 +117,7 @@ deny; one that presents no certificate gets no answer at all.
 
 ## Artifacts
 
-`transport.yaml` binds the conversation to HTTPS and enumerates the three
+`transport.yaml` binds the conversation to HTTPS and enumerates the four
 operations. `workflows/check-access.yaml` is the exchange, with the `alt` that
 splits allow from deny — and a nested one for the case where the session cannot
 be resolved at all, which is a third outcome and deliberately not folded into

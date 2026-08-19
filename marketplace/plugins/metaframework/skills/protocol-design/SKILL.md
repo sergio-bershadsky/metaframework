@@ -10,7 +10,7 @@ conversation states. It is the richest kind in the ontology and feeds the most
 derived views: the participant graph, one sequence diagram per workflow, a state
 chart, and the message × datamodel matrix.
 
-Four files, all optional except `index.md`. A protocol with only `index.md` is
+Everything except `index.md` is optional. A protocol with only `index.md` is
 legal — an intent-level protocol under design that derives no diagrams.
 
 ```text
