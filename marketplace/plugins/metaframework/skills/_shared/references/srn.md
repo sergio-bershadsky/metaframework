@@ -9,9 +9,42 @@ The SRN is the one identity and reference syntax. Every entity has exactly one
 SRN; the SRN maps 1:1 to a directory under `solutions/`. There is no second
 addressing scheme for catalog references.
 
-One artifact is outside this rule: `schema.json` addresses other schemas by the
-HTTP URL the portal serves them at, so that stock JSON Schema tooling can
-dereference them. See `schemas.md` in this directory.
+One artifact *writes* it differently: `schema.json` addresses schemas by their
+canonical HTTP URL, so that stock JSON Schema tooling can dereference them
+unaided. That is a change of spelling, not of scheme.
+
+## The consolidating principle
+
+> **The SRN is the identity. The schema URL is its dereferenceable projection.
+> The disk path is its storage. All three are mechanically inter-convertible,
+> and none of them is a second addressing scheme.**
+
+Three views of one string. The catalog reasons in the SRN, the filesystem stores
+it, and JSON Schema tooling dereferences it. Converting between the views is
+surgery on a prefix — never a lookup, never a table:
+
+```text
+srn://acme/datamodel/money                              # identity   — what the catalog says
+solutions/acme/datamodel/money/                         # storage    — strip "srn://", prefix "solutions/"
+https://schemas.metaframework.dev/acme/datamodel/money  # projection — strip "srn://", prefix the canonical host
+```
+
+Every rule below follows from that. Placement is a directory rule *and* a grammar
+rule because the path and the SRN are one string. The solution boundary is
+checkable on a bare URL because the first path segment after the host is the
+solution. A `$ref` maps back to an SRN by deleting a prefix, which is why the
+portal can render URL edges as SRN pairs without resolving anything.
+
+The host is a **stable canonical constant**, not an environment variable —
+identity must not differ between a laptop and production. `SCHEMA_BASE_URL`
+controls only where the portal *serves* schemas (its `/schemas` route); it never
+appears in `$id` or `$ref`. See `schemas.md` in this directory.
+
+The one asymmetry, stated so it is not mistaken for drift: **the projection drops
+the `@version` pin.** A schema URL addresses the *current* schema of an entity,
+and a `@N` inside one is rejected rather than ignored. Pins live where git-backed
+history can resolve them — frontmatter `relations` and prose — so the identity
+view carries a version and the projection does not.
 
 ## Shape
 
@@ -143,6 +176,12 @@ A relative reference MUST NOT contain more `..` than the base has depth (RFC 398
 would silently clamp; the framework rejects it). A network-path reference
 (`//other-solution/...`) is `E_SRN_CROSS_SOLUTION`.
 
+**None of this arithmetic applies to `schema.json`.** A `$ref` is a canonical
+schema URL: absolute and complete, encoding what the target *is* and never how
+far it sits from the referrer. No `$ref` in a catalog contains a `..` at all, and
+moving an entity would rewrite the references *inside* it and none of the
+references *out* of it. A relative `$ref` is `E_DM_REF_TARGET` (`schemas.md`).
+
 ## Version suffix
 
 - `@N` pins the reference to integer version `N`.
@@ -160,7 +199,8 @@ would silently clamp; the framework rejects it). A network-path reference
 | Frontmatter `relations`, kind fields          | absolute / solution-absolute / relative — prefer absolute-from-root |
 | Protocol `participants[].ref`, step `payload` | same; solution-absolute recommended                                 |
 | Prose markdown links                          | **MUST** be the full `srn://…` form                                 |
-| `schema.json` `$id` / `$ref`                  | **not an SRN** — an HTTP schema URL (`schemas.md`)                  |
+| `schema.json` `$id` / `$ref`                  | the canonical schema URL — the SRN's projection (`schemas.md`)      |
+| `schema.json` `x-srn`                         | **required**: the entity's own SRN, unversioned, no relative form   |
 
 In workflow YAML, `from`/`to` are participant **aliases** and `message` is a
 logical message name — never SRNs. A bare relative path in a markdown link is

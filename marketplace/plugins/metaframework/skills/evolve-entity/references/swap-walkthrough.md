@@ -104,14 +104,15 @@ grep -rn "shop-admin" solutions/ --include='*.md' --include='*.json' --include='
 
 Classify every hit:
 
-| Hit                                                | Live referrer? | Action                          |
-|----------------------------------------------------|----------------|---------------------------------|
-| `relations:` edge in some entity's frontmatter      | yes            | migrate (step 3)                |
-| `participants[].ref` in a protocol                  | yes            | migrate                         |
-| `$ref` URL in a `schema.json`                       | yes            | migrate                         |
-| `primary-actors` on a product                       | yes            | migrate                         |
-| `srn://` link in prose                              | no             | leave, or reword to name the successor |
-| The predecessor's own directory                     | no             | ignore                          |
+| Hit                                            | Live referrer? | Action                                        |
+|------------------------------------------------|----------------|-----------------------------------------------|
+| `relations:` edge in some entity's frontmatter | yes            | migrate (step 3)                              |
+| `participants[].ref` in a protocol             | yes            | migrate                                       |
+| `$ref` URL in a `schema.json`                  | yes            | migrate                                       |
+| `primary-actors` on a product                  | yes            | migrate                                       |
+| `srn://` link in prose                         | no             | leave, or reword to name the successor        |
+| `x-srn` in the predecessor's own `schema.json` | no             | ignore — self-identification, not a reference |
+| The predecessor's own directory                | no             | ignore                                        |
 
 Only the first four are blocking. Prose that points at a retired concept is
 often exactly right — the deprecated entity is the address of the history.
@@ -221,15 +222,34 @@ The forbidden change is anything that breaks the instance-superset rule:
 renaming `total` to `amount`, making `status` required, retyping `id` from
 string to integer, removing an enum value.
 
-1. Successor datamodel entity, own name, own `schema.json` whose `$id` is its
-   own served URL (`.../schemas/acme/<its SRN path>`), `version: 1`.
+1. Successor datamodel entity, own name, `version: 1`, and a `schema.json` whose
+   identity keywords are derived from **its own** directory — never copied from
+   the predecessor and edited:
+
+   ```json
+   {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/payment-intent",
+     "x-srn": "srn://acme/product/shop/datamodel/payment-intent"
+   }
+   ```
+
+   A copied-and-half-edited pair is the characteristic failure here: `$id`
+   updated, `x-srn` still naming `charge`. Both are checked against the path
+   (`E_DM_ID_MISMATCH`, `E_DM_SRN_MISMATCH`), so it fails loudly rather than
+   shipping a schema that lies about its own identity.
 2. `relations.supersedes: [../charge]` on the successor — one `..` for a sibling
    in the same `datamodel/` bucket.
 3. Referrers repoint their **`$ref` URLs** (in `schema.json`) and any
    `relations.uses` pins, one entity at a time, each bumping its own version.
    Remember that a `$ref` names an entity and carries no `@N`; a pin, if one is
    wanted, lives in `relations.uses`.
-4. Deprecate the predecessor when the census is empty.
+4. Deprecate the predecessor when the census is empty: `status: deprecated` in
+   the frontmatter **and** `"deprecated": true` at the root of its `schema.json`,
+   one commit, one version bump. The keyword is stock JSON Schema 2020-12
+   meta-data — an annotation, so always additive — and it is the half of the
+   signal that travels with a schema copied out of the catalog, where no
+   frontmatter follows it.
 
 Do not confuse this with **promotion**, which is not a swap: lifting a shape out
 of one entity's `$defs` into its own datamodel and replacing the local pointer

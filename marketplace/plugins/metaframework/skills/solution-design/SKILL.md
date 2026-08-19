@@ -27,10 +27,13 @@ This skill carries procedure and judgement. Legality lives in the specification.
   `index.md`, `srn.md`, `structure.md`, `frontmatter.md`, and the relevant
   `kinds/*.md`.
 - Otherwise read the distilled copy bundled with this plugin:
-  `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` — `srn.md` (placement
-  grammar, the relative-reference trap), `structure.md` (buckets, artifacts, the
-  protocol NCA rule), `frontmatter.md` (per-kind required fields, the closed
-  relation-edge set), `schemas.md`, `evolution.md` (names are permanent).
+  `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` — `srn.md` (the
+  consolidating principle, placement grammar, the relative-reference trap),
+  `structure.md` (buckets, artifacts, the protocol NCA rule), `frontmatter.md`
+  (per-kind required fields, the closed relation-edge set), `schemas.md`
+  (`$id`, `x-srn`, canonical schema URLs), `protocols.md` (the protocol artifacts),
+  `environments.md` (environment, actor, ADR, requirement), `evolution.md`
+  (names are permanent).
 
 ## Procedure
 

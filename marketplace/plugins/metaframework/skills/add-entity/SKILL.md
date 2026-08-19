@@ -20,9 +20,10 @@ skills.
 `structure.md` and `frontmatter.md`. Otherwise read the distilled reference
 bundled with this plugin, which is the only copy an installed plugin can see:
 
-- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md` — identity, placement, relative-reference traps
+- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md` — the consolidating principle (SRN / schema URL / disk path), identity, placement, relative-reference traps
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md` — layout, artifacts, enforced body sections
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md` — common contract, per-kind fields, edge legality
+- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/environments.md` — `environment`, `actor`, `adr` and `requirement` in detail: `topology.yaml`, `config.yaml`, the enum rationales, the acceptance-criteria and ADR-section rules
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md` — versioning, the swap
 
 Do not restate those rules back at the user. This skill is the procedure; those
@@ -250,5 +251,5 @@ what this check does not cover.
   each of the seven kinds, taken from `solutions/acme/`, each annotated with the
   decision it demonstrates. Read it when writing a kind for the first time.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the distilled
-  specification: `srn.md`, `structure.md`, `frontmatter.md`, `evolution.md`,
-  `schemas.md`.
+  specification: `srn.md`, `structure.md`, `frontmatter.md`, `environments.md`,
+  `evolution.md`, `schemas.md`, `protocols.md`.

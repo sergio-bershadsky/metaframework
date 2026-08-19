@@ -1,12 +1,14 @@
 # The three protocol mini-languages
 
 > `transport.yaml`, `workflows/*.yaml` and `states.json` are the only formats the
-> framework invents for itself, and the shared reference bundle at
-> `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` deliberately carries **no**
-> distillation of them — it stops at placement and frontmatter. This file is that
-> distillation. **When `framework/spec/kinds/protocol.md` is present in the
-> repository it is authoritative and wins over this file**; it is the largest kind
-> document in the spec and worth reading in full before authoring a protocol.
+> framework invents for itself. The rule copy of all three lives in the shared
+> bundle at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/protocols.md`, with
+> the full field tables and the `E_PROTO_*` codes; **this file is the authoring
+> companion** — the same contracts stated as traps, anchored to the protocols
+> shipped in `solutions/acme/`. **When `framework/spec/kinds/protocol.md` is
+> present in the repository it is authoritative and wins over both**; it is the
+> largest kind document in the spec and worth reading in full before authoring a
+> protocol.
 
 All three artifacts are optional. A protocol with only `index.md` is legal — an
 intent-level protocol under design, which simply derives no diagrams.

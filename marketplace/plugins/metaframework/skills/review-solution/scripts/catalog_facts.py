@@ -258,9 +258,21 @@ def build_graph(solution: str, entities: dict[str, Entity]):
     return out, inc
 
 
+# The canonical schema host. A constant, deliberately not an environment
+# variable: `$id` is identity and must not vary by deployment. SCHEMA_BASE_URL
+# governs only where the portal *serves* schemas, and never appears in a file.
+SCHEMA_HOST = "https://schemas.metaframework.dev"
+
+
 def schema_edges(solution: str, entities: dict[str, Entity], inc):
-    """Add `$ref` edges read out of every schema.json."""
-    marker = "/schemas/" + solution + "/"
+    """Add `$ref` edges read out of every schema.json.
+
+    A canonical schema URL is the host plus the target's SRN path, so the marker
+    is host + "/" + solution + "/". The retired serving-address form
+    (".../schemas/<solution>/") is still recognised so that a half-migrated
+    catalog reports real edges instead of silently reporting orphans.
+    """
+    markers = (SCHEMA_HOST + "/" + solution + "/", "/schemas/" + solution + "/")
     for src, ent in entities.items():
         sfile = os.path.join(ent.path, "schema.json")
         if not os.path.exists(sfile):
@@ -272,7 +284,8 @@ def schema_edges(solution: str, entities: dict[str, Entity], inc):
             continue
         for m in re.finditer(r'"\$ref"\s*:\s*"([^"]+)"', text):
             url = m.group(1)
-            if marker not in url:
+            marker = next((mk for mk in markers if mk in url), None)
+            if marker is None:
                 continue
             target = solution + "/" + url.split(marker, 1)[1].split("#")[0].rstrip("/")
             if target != src:

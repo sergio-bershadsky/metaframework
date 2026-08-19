@@ -49,11 +49,18 @@ of the history.
 **False positives.** A `supersedes` edge from the successor — that is the swap
 working as designed, not a live dependency. An ADR with `decision-status:
 superseded` is **not** deprecated, and referencing it is normal; only
-`status: deprecated` counts.
+`status: deprecated` counts. A deprecated datamodel's own `x-srn`, which names
+itself, is self-identification and not a referrer.
 
 **Fix.** Finish the swap: migrate each referrer to the successor one at a time
 (`evolve-entity`), then confirm the census is empty. If there is no successor,
 the deprecation was premature — say so.
+
+**Also check the schema said it.** A `status: deprecated` datamodel whose
+`schema.json` lacks `"deprecated": true` at the root announces its retirement to
+the portal and to nobody else — every consumer generating types from the schema
+alone sees a live model. `deprecated` is stock JSON Schema 2020-12 meta-data, so
+adding it is additive; report the omission as part of the same finding.
 
 **Cost.** One version bump per referrer. No swap: the successor already exists.
 

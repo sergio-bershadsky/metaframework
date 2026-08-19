@@ -14,7 +14,8 @@ Before writing anything:
 1. If `framework/spec/` exists in this repository, read it — it is
    authoritative. Otherwise read the distilled reference bundled with this
    plugin at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` (`srn.md`,
-   `structure.md`, `frontmatter.md`, `schemas.md`, `evolution.md`).
+   `structure.md`, `frontmatter.md`, `schemas.md`, `protocols.md`,
+   `environments.md`, `evolution.md`).
 2. Confirm the target: which repository, and does `solutions/<name>/` already
    exist? A solution is a sealed universe — never nest one inside another, and
    never let a reference cross from one solution into another.

@@ -123,19 +123,30 @@ Treating a green run as "the catalog is correct" is the most expensive mistake
 available here. The catalog suite proves the tree *loads*. It does not prove
 the tree is *right*, and several specified rules are not machine-checked at all.
 
-- **Not exercised against the shipped catalog** — the datamodel schema registry
-  (`E_DM_*`), the protocol `states.json` and workflow validators (`E_PROTO_*`),
-  and the git version-history check (`E_VER_REGRESSION`) live in separate modules
-  whose test suites use their own hermetic fixtures. Running the whole suite
-  (`npx vitest run`) proves those validators work; it does **not** run them over
-  `solutions/`. They only meet real content when the portal *renders* the page —
-  `E_DM_*` in the schema explorer on a datamodel page, `E_PROTO_*` on a protocol
-  page — and neither appears on `/diagnostics`, which shows loader diagnostics
-  only. After touching a `schema.json`, a `states.json` or a workflow, open that
-  entity's page. The one exception is real and useful: `fixture-check.test.ts`
-  does assert over the real tree that every datamodel's `$id` equals the URL the
-  portal serves it at and that every non-local `$ref` is an absolute schema URL
-  naming a real datamodel with a `schema.json` behind it.
+- **Not exercised by this suite** — the protocol `states.json` and workflow
+  validators (`E_PROTO_*`) and the git version-history check
+  (`E_VER_REGRESSION`) live in separate modules whose test suites use their own
+  hermetic fixtures. Running the whole suite (`npx vitest run`) proves those
+  validators work; it does **not** run them over `solutions/`. `E_PROTO_*` meets
+  real content only when the portal *renders* a protocol page, and it does not
+  reach `/diagnostics`. After touching a `states.json` or a workflow, open that
+  entity's page.
+
+  Two things that used to sit in this list no longer do:
+
+  - **The datamodel schema registry (`E_DM_*`) now runs over the shipped
+    catalog.** `getCatalog()` composes `loadCatalog` with `buildSchemaRegistry`
+    (`src/lib/catalog/index.ts`, `withSchemaRegistry`) and folds the registry's
+    diagnostics into `catalog.diagnostics`, so `/diagnostics` shows loader and
+    schema problems in one list. A missing or mismatched `$id`, an absent or
+    disagreeing `x-srn`, a `$ref` naming no entity, an inheritance cycle and a
+    closed base all surface there.
+  - `fixture-check.test.ts` asserts over the real tree that every datamodel's
+    `$id` and `x-srn` agree with its own directory path — `$id` is the canonical
+    host `https://schemas.metaframework.dev` plus the SRN path, `x-srn` is
+    `srn://` plus the same path, neither carrying a version — and that every
+    non-local `$ref` is a canonical schema URL naming a real datamodel with a
+    `schema.json` behind it.
 - **Specified but not implemented anywhere** — among others: the ADR's four
   required headings (`E_ADR_SECTIONS`), the requirement's `## Acceptance criteria`
   section (`E_REQ_CRITERIA`), `primary-actors` resolving to real actors
@@ -148,17 +159,19 @@ the tree is *right*, and several specified rules are not machine-checked at all.
 - **Not a modelling review.** Whether the decomposition, placement and relation
   graph make sense is the `catalog-reviewer` agent's job, not this check's.
 
-## Three failures that are not spec violations
+## Two failures that are not spec violations
 
 `fixture-check.test.ts` is also a regression guard on the acme fixture
 specifically, with hard-coded expectations. Legitimate catalog work can fail it:
 
-- adding a second solution under `solutions/` — one assertion expects exactly
-  `['srn://acme']`;
 - adding a relation edge toward `srn://acme/product/billing/component/ledger` —
   one assertion pins that entity's exact inbound edge list;
 - adding or renaming a protocol artifact — two assertions pin the exact file
   lists of `order-placement` and `settlement`.
+
+(Adding a second solution under `solutions/` is **not** one of these: the
+solutions-list assertion derives its expectation from the directories on disk,
+so a new solution passes as long as it loads.)
 
 When the change is correct, update the assertion in the same commit and say so.
 Do not "fix" the catalog to satisfy a stale test.
@@ -179,6 +192,8 @@ after every edit and report the new result, including the count that changed.
   that nothing implements, and the retired codes.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the contracts behind
   the codes: `srn.md` (`E_SRN_*`), `frontmatter.md` (`E_FM_*`), `structure.md`
-  (`E_STRUCT_*`), `schemas.md` (`E_DM_*`), `evolution.md` (`E_VER_*`, the swap).
+  (`E_STRUCT_*`), `schemas.md` (`E_DM_*`), `protocols.md` (`E_PROTO_*`),
+  `environments.md` (`E_ENV_*`, `E_ADR_*`, `E_REQ_*`, `W_ACTOR_*`, `E_COMP_*`),
+  `evolution.md` (`E_VER_*`, the swap).
   When `framework/spec/` is present in the repository it is authoritative and
   wins over all of these.

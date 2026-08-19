@@ -18,7 +18,8 @@ swaps — entities are never moved or renamed.
 
 **Rules:** `framework/spec/` when the repository has it (authoritative),
 otherwise `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` (`srn.md`,
-`structure.md`, `frontmatter.md`, `schemas.md`, `evolution.md`).
+`structure.md`, `frontmatter.md`, `schemas.md`, `protocols.md`,
+`environments.md`, `evolution.md`).
 
 ## Step 1 — check legality first
 

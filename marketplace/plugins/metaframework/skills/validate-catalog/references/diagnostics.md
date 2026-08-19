@@ -60,29 +60,37 @@ Loader behaviours worth knowing:
 
 ### `lib/schema/registry.ts` — datamodel schemas
 
-Exercised when the portal renders a datamodel page and by hermetic tests — **not
-by the catalog suite** over the shipped tree. The catalog suite's
-`fixture-check.test.ts` independently asserts, over the real tree, that every
-datamodel's `$id` equals its served URL and that every non-local `$ref` is an
-absolute schema URL naming a real datamodel with a `schema.json` behind it.
+Built on every catalog load: `getCatalog()` composes `loadCatalog` with
+`buildSchemaRegistry` (`withSchemaRegistry` in `src/lib/catalog/index.ts`) and
+folds the registry's diagnostics into `catalog.diagnostics`, so these codes
+reach `/diagnostics` beside the loader's. The catalog suite runs the same
+composition over the shipped tree, and its `fixture-check.test.ts` additionally
+asserts that every datamodel's `$id` and `x-srn` agree with its own path and
+that every non-local `$ref` is a canonical schema URL naming a real datamodel
+with a `schema.json` behind it.
 
-| Code                  | Severity | Raised when                                                                                       |
-|-----------------------|----------|-----------------------------------------------------------------------------------------------------|
-| `E_DM_SCHEMA_MISSING` | error    | A `datamodel` entity with no `schema.json` — "a datamodel with no schema is prose".                 |
-| `E_DM_SCHEMA_INVALID` | error    | Not a JSON object, or ajv rejected the document.                                                    |
-| `E_DM_DIALECT`        | error    | `$schema` is not JSON Schema 2020-12.                                                               |
-| `E_DM_KEYWORD`        | error    | A forbidden keyword — `$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`.                     |
-| `E_DM_ID_MISSING`     | error    | No root `$id`. It must be the URL the portal serves the schema at.                                  |
-| `E_DM_ID_MISMATCH`    | error    | Root `$id` ≠ `SCHEMA_BASE_URL` + `/schemas/` + the entity's SRN path.                                |
-| `E_DM_ID_FORBIDDEN`   | error    | A nested `$id`, which would re-base every `$ref` beneath it onto a second identity.                 |
-| `E_DM_SRN_RETIRED`    | error    | The retired `x-srn` annotation is still present — `$id` carries identity now.                        |
-| `E_DM_REF_TARGET`     | error    | A `$ref` that is not an absolute schema URL of this portal, or whose path after `/schemas/` is not a legal entity address. |
-| `E_DM_REF_ESCAPE`     | error    | A `$ref` leaving the `/schemas/` namespace.                                                          |
-| `E_DM_FOREIGN_DEFS`   | error    | A `$ref` pointing into another entity's `$defs`. Promote the shared shape to its own datamodel.       |
-| `E_DM_INHERIT_CYCLE`  | error    | A root-`allOf` inheritance cycle.                                                                    |
-| `E_DM_CLOSED_BASE`    | error    | `"additionalProperties": false` on a schema used as an `allOf` base.                                 |
-| `W_DM_CONTRADICTION`  | warning  | A property constrained to disjoint types by the conjunction — no instance can satisfy it.            |
-| `W_DM_UNION_TAG`      | warning  | A `oneOf` with no shared `const` tag, rendered as an opaque union.                                   |
+Identity is derived from the directory and *checked*, never trusted from the
+file. The host in `$id` is the canonical constant
+`https://schemas.metaframework.dev` — **not** `SCHEMA_BASE_URL`, which governs
+only the portal's `/schemas` serving route.
+
+| Code                  | Severity | Raised when                                                                                                                                                                                    |
+|-----------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_DM_SCHEMA_MISSING` | error    | A `datamodel` entity with no `schema.json` — "a datamodel with no schema is prose".                                                                                                            |
+| `E_DM_SCHEMA_INVALID` | error    | Not a JSON object, or ajv rejected the document.                                                                                                                                               |
+| `E_DM_DIALECT`        | error    | `$schema` is not JSON Schema 2020-12.                                                                                                                                                          |
+| `E_DM_KEYWORD`        | error    | A forbidden keyword — `$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`.                                                                                                               |
+| `E_DM_ID_MISSING`     | error    | No root `$id`. It must be the entity's canonical schema URL.                                                                                                                                   |
+| `E_DM_ID_MISMATCH`    | error    | Root `$id` ≠ `https://schemas.metaframework.dev/` + the entity's SRN path — wrong entity, wrong host (a serving address such as `http://localhost:3000/schemas/…` included), or a version pin. |
+| `E_DM_ID_FORBIDDEN`   | error    | A nested `$id`, which would re-base every `$ref` beneath it onto a second identity.                                                                                                            |
+| `E_DM_SRN_MISSING`    | error    | No `x-srn`. It is required and carries the entity's unversioned SRN.                                                                                                                           |
+| `E_DM_SRN_MISMATCH`   | error    | `x-srn` ≠ the unversioned SRN of the directory the file sits in (a `@N` pin included).                                                                                                         |
+| `E_DM_REF_TARGET`     | error    | A `$ref` that is not a canonical schema URL, or whose path after the host is not a legal entity address.                                                                                       |
+| `E_DM_FOREIGN_DEFS`   | error    | A `$ref` pointing into another entity's `$defs`. Promote the shared shape to its own datamodel.                                                                                                |
+| `E_DM_INHERIT_CYCLE`  | error    | A root-`allOf` inheritance cycle.                                                                                                                                                              |
+| `E_DM_CLOSED_BASE`    | error    | `"additionalProperties": false` on a schema used as an `allOf` base.                                                                                                                           |
+| `W_DM_CONTRADICTION`  | warning  | A property constrained to disjoint types by the conjunction — no instance can satisfy it.                                                                                                      |
+| `W_DM_UNION_TAG`      | warning  | A `oneOf` with no shared `const` tag, rendered as an opaque union.                                                                                                                             |
 
 ### `lib/protocol/states.ts` and `lib/protocol/workflow.ts`
 
@@ -163,8 +171,8 @@ a component that has not declared this environment), `W_ENV_CONFIG_ORPHAN`.
 
 `E_DM_EXAMPLE_INVALID` (every file in `examples/` validates against
 `schema.json`), `E_DM_NOT_ADDITIVE` (the change tightens the schema — needs a
-swap, not a version bump), `W_DM_ABSTRACT_USE`, `W_DM_UNPINNED_REF`,
-`W_DM_USAGE_MISMATCH`.
+swap, not a version bump), `W_DM_ABSTRACT_USE`, `W_DM_USAGE_MISMATCH`.
+(`W_DM_UNPINNED_REF` is retired, not merely unimplemented — see section 3.)
 
 **Graph-level warnings**
 
@@ -183,11 +191,18 @@ running — invoke it when the check is green but confidence is not.
 
 Never emit or cite these; a mention in older prose is stale.
 
-| Code                      | Superseded by                                                    |
-|---------------------------|--------------------------------------------------------------------|
-| `E_STRUCT_KIND_PLACEMENT` | `E_SRN_PLACEMENT` — placement is grammar, checked while parsing.  |
-| `E_VER_ID_MISMATCH`       | Nothing. The rule it guarded no longer exists.                    |
-| `E_DM_SRN_MISMATCH`, `E_DM_ID_INVALID`, `E_DM_REF_KIND` | `E_DM_ID_MISMATCH`, `E_DM_REF_TARGET` under the served-URL convention. |
+| Code                      | Superseded by                                                                                                                                                                           |
+|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_STRUCT_KIND_PLACEMENT` | `E_SRN_PLACEMENT` — placement is grammar, checked while parsing.                                                                                                                        |
+| `E_DM_ID_INVALID`         | Split into `E_DM_ID_MISSING` and `E_DM_ID_MISMATCH`.                                                                                                                                    |
+| `E_DM_REF_KIND`           | `E_SRN_DANGLING` — the registry holds only datamodels, so a URL naming any other kind has no entry at all.                                                                              |
+| `E_DM_SRN_RETIRED`        | Nothing — it flagged a *present* `x-srn` during the window when the annotation was retired. `x-srn` is required again; absence is `E_DM_SRN_MISSING`, disagreement `E_DM_SRN_MISMATCH`. |
+| `E_DM_REF_ESCAPE`         | `E_DM_REF_TARGET` — it meant "on this origin but outside `/schemas/`", and the canonical URL has no `/schemas/` prefix: the whole host is the entity namespace.                         |
+| `W_DM_UNPINNED_REF`       | Nothing — a `$ref` never carries a pin, so there is no unpinned case to warn about. Pins live in `relations` and are checked as ordinary SRNs.                                          |
+| `E_VER_ID_MISMATCH`       | Nothing — it compared a version in `$id` against the frontmatter, and a `$id` carries no version, so the comparison has no operands.                                                    |
+
+`E_DM_SRN_MISMATCH` was itself briefly retired and is **live again**: a
+`schema.json` whose `x-srn` disagrees with its path raises it.
 
 ## 4. Spec discrepancies to be aware of
 
@@ -201,7 +216,14 @@ Never emit or cite these; a mention in older prose is stale.
   gray-matter, so an unquoted `2026-02-03` arrives as a JS `Date` and the zod
   schema — which wants a string matching `^\d{4}-\d{2}-\d{2}$` — rejects it as
   `E_FM_SCHEMA`. Quote the date. Every ADR in `solutions/` does.
-- **Stale prose in the fixture.** `solutions/acme/.../datamodel/order/index.md`
-  still describes the retired schema convention (relative `$ref` file paths, "no
-  `$id`") in its prose, while its own `schema.json` uses the current served-URL
-  form. The prose is the stale half; do not copy it.
+- **Stale prose about the schema convention.** Nothing checks entity *prose*
+  against the schema artifact beside it, so a paragraph describing the retired
+  convention ("`schema.json` carries no `$id`", a `$ref` written as
+  `../../../../datamodel/order-line/schema.json`) survives a green catalog check
+  indefinitely. `solutions/acme/.../datamodel/order/index.md` has carried exactly
+  that. Grep for it explicitly, and trust the `schema.json` over the prose:
+
+  ```bash
+  grep -rnE 'no [`"]?\$id|\.\./[^ ]*schema\.json|SCHEMA_BASE_URL|localhost:3000' \
+    --include='index.md' solutions/
+  ```

@@ -64,8 +64,10 @@ Bump rules that catch people out:
   bump, and `date` moves with it.
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml`, `topology.yaml`, `config.yaml` or a workflow file is a shape
-  violation, and `schema.json` carries an `$id` but never a version. One number,
-  in the frontmatter, covering the whole directory.
+  violation. `schema.json` carries two identity keywords and neither takes a
+  version: `$id` is the canonical URL of the *current* schema and `x-srn` is the
+  **unversioned** SRN. One number, in the frontmatter, covering the whole
+  directory.
 - **A child does not bump its container.** Adding, bumping or deprecating
   `component/wishlist` leaves `product/shop` at the version it had.
 - **A referrer does not bump when its target evolves additively.** A `$ref`
@@ -103,6 +105,31 @@ breaks: both entities are live and referrers move one at a time.
    `status: deprecated`. Status alone, so no bump — but rewriting its
    title and summary to say where it went (recommended) is content, and that
    bumps. From then on any new reference to it is `W_REF_DEPRECATED`.
+
+   **For a datamodel, mark the schema too** — `"deprecated": true` at the root of
+   `schema.json`, in the same commit:
+
+   ```json
+   {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/charge",
+     "x-srn": "srn://acme/product/shop/datamodel/charge",
+     "title": "Charge",
+     "deprecated": true,
+     "description": "Superseded by srn://acme/product/shop/datamodel/payment-intent."
+   }
+   ```
+
+   `deprecated` is a **standard JSON Schema 2020-12 meta-data keyword** — the
+   same vocabulary as `title`, `description` and `examples`
+   (`https://json-schema.org/draft/2020-12/meta/meta-data`). It is an annotation:
+   it asserts nothing and rejects no instance, so setting it is always additive,
+   never a swap in its own right. Use the standard keyword rather than an `x-`
+   extension precisely because stock generators already understand it and emit
+   `@deprecated` into the code your consumers build against — the frontmatter
+   `status` reaches the portal, this reaches everyone who only ever sees
+   `schema.json`. Touching the schema makes the commit a content change, so bump
+   `version` once, covering both edits.
 6. **Never delete.** The deprecated directory stays forever; the portal renders
    it greyed with a derived pointer to the successor.
 
@@ -116,11 +143,14 @@ grep -rn "shop-admin" solutions/ --include='*.md' --include='*.json' --include='
 ```
 
 That catches solution-absolute refs (`/actor/shop-admin`), relative refs
-(`../shop-admin`), full `srn://` prose links, schema URLs
-(`http://localhost:3000/schemas/acme/...`) and protocol `participants[].ref`
-alike. Then classify each hit: a `relations` edge or a schema `$ref` is a live
-referrer and must be migrated; a prose mention is navigational and may stay
-(pointing at history is the correct use of a deprecated entity).
+(`../shop-admin`), full `srn://` prose links, canonical schema URLs
+(`https://schemas.metaframework.dev/acme/...`), the `x-srn` a `schema.json`
+declares about itself, and protocol `participants[].ref` alike — grepping the
+bare name is what makes one pass cover all of them. Then classify each hit: a
+`relations` edge or a schema `$ref` is a live referrer and must be migrated; a
+schema's own `x-srn` is self-identification, not a referrer; a prose mention is
+navigational and may stay (pointing at history is the correct use of a deprecated
+entity).
 
 After deprecating, confirm nothing structural is left:
 
@@ -168,14 +198,14 @@ states, and make sure `.git` is present and **unshallow** where the portal runs
 
 ## Kind-specific variants
 
-| Kind                | What the swap looks like                                                                                  |
-|---------------------|------------------------------------------------------------------------------------------------------------|
-| `adr`               | Successor gets its own ordinal (never reused); predecessor gets `decision-status: superseded` + same `date` + a version bump. **Not `status: deprecated`** — referencing old decisions is the point of an ADR archive, and deprecating them would flag every such reference. |
-| `datamodel`         | Successor is a new entity with its own `schema.json` and `$id`; referrers repoint `$ref`s one at a time. Promotion out of `$defs` is *not* a swap. |
-| `actor`             | Splitting one role into several is one successor per role, each carrying `supersedes` toward the old actor.  |
-| `environment`       | Successor environment, then repoint each component's `uses` edge, then deprecate.                            |
-| `requirement`       | A narrowed or reversed statement is a new requirement; migrate the `implements` edges that pointed at the old one. |
-| `component` / `product` | Swapping a container implies swapping everything under it — see the cost above; prefer keeping the name.  |
+| Kind                    | What the swap looks like                                                                                                                                                                                                                                                                                           |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `adr`                   | Successor gets its own ordinal (never reused); predecessor gets `decision-status: superseded` + same `date` + a version bump. **Not `status: deprecated`** — referencing old decisions is the point of an ADR archive, and deprecating them would flag every such reference.                                       |
+| `datamodel`             | Successor is a new entity with its own `schema.json`, its own `$id` and its own `x-srn` — both derived from the new directory, never copied from the predecessor. Referrers repoint `$ref`s one at a time; the predecessor's schema gets `"deprecated": true` at step 5. Promotion out of `$defs` is *not* a swap. |
+| `actor`                 | Splitting one role into several is one successor per role, each carrying `supersedes` toward the old actor.                                                                                                                                                                                                        |
+| `environment`           | Successor environment, then repoint each component's `uses` edge, then deprecate.                                                                                                                                                                                                                                  |
+| `requirement`           | A narrowed or reversed statement is a new requirement; migrate the `implements` edges that pointed at the old one.                                                                                                                                                                                                 |
+| `component` / `product` | Swapping a container implies swapping everything under it — see the cost above; prefer keeping the name.                                                                                                                                                                                                           |
 
 ## Finish
 
