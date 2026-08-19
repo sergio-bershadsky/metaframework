@@ -1,7 +1,7 @@
 ---
 name: promotion-evaluation
 kind: protocol
-version: 2
+version: 3
 title: Promotion evaluation
 summary: Synchronous pricing conversation — checkout asks the engine what a cart is worth and gets a short-lived quote.
 status: review
@@ -109,14 +109,36 @@ disappear at the payment step because a budget ran out in between. That was
 accepted as the honest failure mode, and the `rejected` list exists so the
 basket can say which one and why.
 
+`workflows/re-quote.yaml` is that moment written down. It was described in this
+paragraph for two versions and modelled nowhere, which is exactly the kind of gap
+a prose-only protocol accumulates: the sentence "checkout re-quotes before it
+converts" reads like a detail, and the exchange it stands for contains the only
+rule in this protocol that constrains what a customer can be charged.
+
+The rule is that the price may fall without asking and may not rise without
+asking. A re-quote that comes back lower is applied silently; one that comes back
+higher stops and shows the difference. Splitting it out of `price-cart` makes
+that asymmetry a step in a diagram rather than a paragraph somebody has to
+remember, and it puts the coupon burn where it belongs — after the confirmation,
+so an abandoned basket never spends a single-use code.
+
+It also gives the expiry case somewhere to live. A quote that lapsed between
+basket and payment is a problem document and a fresh `price-cart`, not a
+degraded answer: nothing failed, the customer simply took longer than 120
+seconds, and conflating that with the fallback path would have hidden a slow
+checkout behind a metric meant to track engine health.
+
 ## Artifacts
 
 `transport.yaml` binds the conversation to HTTP inside the cluster and
 enumerates the four operations; there is no OpenAPI document, so that list is
 authoritative rather than a copy of one. `workflows/price-cart.yaml` is the main
 exchange — it is where the `loop` over candidate promotions and the
-eligible/ineligible `alt` live. `states.json` describes one quote's lifecycle as
-the engine sees it, not the internal state of any participant.
+eligible/ineligible `alt` live. `workflows/re-quote.yaml` is the short second
+exchange at conversion time, and the two together are the whole conversation:
+everything else a caller does is one of these two with a different trigger.
+`states.json` describes one quote's lifecycle as the engine sees it, not the
+internal state of any participant.
 
 The message-to-datamodel matrix on this page is derived from those files; the
 payload models are deliberately absent from `relations`, which carries only the

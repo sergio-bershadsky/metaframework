@@ -30,13 +30,39 @@ marketplace/
         │   ├── entity-new.md
         │   └── solution-new.md
         └── skills/
-            └── _shared/
-                └── references/       # the distilled spec, read by every skill
-                    ├── evolution.md
-                    ├── frontmatter.md
-                    ├── schemas.md
-                    ├── srn.md
-                    └── structure.md
+            ├── _shared/
+            │   └── references/          # the distilled spec, read by every skill
+            │       ├── evolution.md
+            │       ├── frontmatter.md
+            │       ├── schemas.md
+            │       ├── srn.md
+            │       └── structure.md
+            ├── add-entity/
+            │   ├── SKILL.md
+            │   └── references/worked-examples.md
+            ├── evolve-entity/
+            │   ├── SKILL.md
+            │   └── references/swap-walkthrough.md
+            ├── model-data/
+            │   ├── SKILL.md
+            │   └── references/worked-pair.md
+            ├── protocol-design/
+            │   ├── SKILL.md
+            │   └── references/
+            │       ├── artifacts.md          # the three mini-languages
+            │       └── worked-protocol.md
+            ├── review-solution/
+            │   ├── SKILL.md
+            │   ├── references/
+            │   │   ├── review-checklist.md
+            │   │   └── writing-the-review.md
+            │   └── scripts/catalog_facts.py
+            ├── solution-design/
+            │   ├── SKILL.md
+            │   └── references/worked-example.md
+            └── validate-catalog/
+                ├── SKILL.md
+                └── references/diagnostics.md
 ```
 
 Skills, commands and agents are auto-discovered from their directories;
@@ -76,17 +102,25 @@ does not validate syntax; the catalog check already does that.
 ## Skills
 
 The skills live in `plugins/metaframework/skills/`. Each one points into
-`framework/spec/` for the rules and carries what the spec deliberately does not:
-the procedure, the ordering, the judgement calls, and the traps.
+`framework/spec/` for the rules when the repository is present, falls back to
+`skills/_shared/references/` when it is not, and carries what the spec
+deliberately does not: the procedure, the ordering, the judgement calls, and the
+traps.
 
-| Skill             | One line                                                                                                                                           |
-|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `solution-design` | Start a solution: name it, write the vision and scope, and decide the first product/actor/environment decomposition before any directory exists.   |
-| `add-entity`      | Add a product, component, actor, environment, ADR or requirement — placement first, then the kind's required frontmatter and body sections.        |
-| `model-data`      | Author a datamodel: `schema.json` in JSON Schema 2020-12 with HTTP `$id`/`$ref`, `allOf` inheritance, `$defs` privacy, and the promotion decision. |
-| `protocol-design` | Author a protocol: participants and style, the nearest-common-ancestor placement, `transport.yaml`, `workflows/*.yaml`, `states.json`.             |
-| `evolve-entity`   | Change something that already exists: additive edit with a version bump, or the swap procedure when the change is forbidden in place.              |
-| `catalog-check`   | Run the validation, read the diagnostics, and fix what is safely fixable.                                                                          |
+| Skill              | Owns                                                                                                                                               |
+|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `solution-design`  | Many entities at once, before any file exists: the interview, the decomposition heuristics, the proposed SRN tree, the sign-off gate.               |
+| `add-entity`       | One entity of a mechanical kind — product, component, actor, environment, ADR, requirement, or the solution root.                                   |
+| `model-data`       | One `datamodel`: `schema.json` in JSON Schema 2020-12 with HTTP `$id`/`$ref`, `allOf` inheritance, `$defs` privacy, the promotion decision.         |
+| `protocol-design`  | One `protocol`: participants and style, the nearest-common-ancestor placement, `transport.yaml`, `workflows/*.yaml`, `states.json`.                 |
+| `evolve-entity`    | Anything that already exists: additive edit with a version bump, or the swap procedure when the change is forbidden in place.                       |
+| `validate-catalog` | Legality — running the check, reading the diagnostics, the cascade order, and what the check deliberately does not cover.                           |
+| `review-solution`  | Judgement — a ranked architectural review of an existing catalog, backed by `scripts/catalog_facts.py`. Read-only; proposes no edits.               |
+
+The three creation skills are disjoint by kind: `datamodel` → `model-data`,
+`protocol` → `protocol-design`, everything else → `add-entity`. The two audit
+skills are disjoint by question: `validate-catalog` asks "is it legal?",
+`review-solution` asks "is it any good?".
 
 ## Validating a catalog
 

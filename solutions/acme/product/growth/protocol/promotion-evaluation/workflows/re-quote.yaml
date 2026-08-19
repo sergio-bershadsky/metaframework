@@ -1,0 +1,81 @@
+name: re-quote
+title: Re-quote before conversion
+summary: Checkout re-reads the quote immediately before turning the cart into an order, and reconciles a price that moved underneath it.
+participants: [checkout, promotion-engine, coupon-service]
+steps:
+  - message: get-quote
+    from: checkout
+    to: promotion-engine
+    kind: call
+    note: >-
+      Called with the quote-id the basket has been showing, at the last moment
+      before the cart becomes an order. This is not an optimisation — it is the
+      only point at which the price the customer is charged is decided.
+
+  - alt:
+      - when: the quote is still live and its total is unchanged
+        steps:
+          - message: quote
+            from: promotion-engine
+            to: checkout
+            kind: return
+            payload: /product/growth/datamodel/promotion-quote@1
+            condition: expires-at is still in the future
+            note: The common case. Checkout proceeds to payment with the total it has been displaying.
+
+      - when: the quote expired between basket and payment
+        steps:
+          - message: quote-expired
+            from: promotion-engine
+            to: checkout
+            kind: error
+            payload: /datamodel/problem@1
+            note: >-
+              A problem document, not a fallback quote — nothing degraded, the
+              customer simply took longer than the window. Checkout re-enters
+              price-cart rather than treating this as a failure.
+
+    otherwise:
+      - message: quote
+        from: promotion-engine
+        to: checkout
+        kind: return
+        payload: /product/growth/datamodel/promotion-quote@1
+        note: >-
+          Live, but the total moved: a campaign budget ran out, or a promo was
+          paused and the cache has since turned over. The engine answers with
+          what is true now and never with what was true when the basket rendered.
+
+      - opt:
+          when: the new total is worse for the customer than the one displayed
+          steps:
+            - message: confirm-new-total
+              from: checkout
+              to: checkout
+              kind: call
+              note: >-
+                Checkout stops and shows the difference with the reason from the
+                quote's rejected list. It never charges more than was displayed
+                without an explicit second confirmation, which is the whole
+                reason this exchange exists as a separate workflow.
+
+  - opt:
+      when: the customer confirms and the quote carries a coupon
+      steps:
+        - message: burn-coupon
+          from: promotion-engine
+          to: coupon-service
+          kind: call
+          payload: /product/growth/datamodel/coupon@1
+          note: >-
+            The code is spent here and nowhere else. Validation during
+            price-cart deliberately did not spend it, so an abandoned basket
+            never consumes a single-use code.
+        - message: redemption-recorded
+          from: coupon-service
+          to: promotion-engine
+          kind: return
+          payload: /product/growth/datamodel/redemption@1
+          condition: >-
+            the uses remaining were still positive at burn time, otherwise the
+            coupon is dropped and the order is placed at the undiscounted total
