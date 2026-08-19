@@ -1,7 +1,7 @@
 ---
 name: delivery-promise-accuracy
 kind: requirement
-version: 1
+version: 2
 title: The date the customer is told is the date that holds
 summary: A promised delivery date is taken from the accepted carrier quote, never recomputed, and met often enough to be believed.
 status: review
@@ -40,6 +40,10 @@ recalculated afterwards, however much better the estimate would look tomorrow.
   replace it.
 - Where a carrier publishes no date, the shipment carries none and the customer
   is shown a range rather than a fabricated day.
+- An order split across several parcels carries one promised date per parcel, each
+  from that parcel's own accepted quote. The order-level date shown to the
+  customer is the latest of them, and each parcel's own date is shown against that
+  parcel.
 
 ## Rationale
 
@@ -48,6 +52,20 @@ worse than a pessimistic one: the customer plans around Tuesday, the page says
 Thursday on Tuesday morning, and acme has spent trust it cannot buy back with an
 accurate estimate. Keeping the original visible costs a support conversation and
 keeps the relationship.
+
+The split criterion arrived with `parcel-index` on
+[shipment](srn://acme/product/fulfilment/datamodel/shipment@3) and settles an
+argument that had been running informally. Showing the *earliest* parcel date at
+order level tests better and is a lie by omission: the customer's order is not
+complete until the last parcel lands, and a customer who planned around Tuesday
+because one of two parcels arrives then has been misled by a true number.
+
+Showing both — a latest date for the order, a real date per parcel — costs a line
+of interface and is the only version of this that survives contact with a
+customer who counts their boxes. It also keeps the per-parcel promise
+individually measurable under the 95% criterion, which an order-level-only
+promise would have destroyed: two parcels, one late, is one missed promise, not
+half of one.
 
 The second criterion is deliberately not 99%. Carriers miss dates for reasons —
 weather, capacity, an address nobody can find — that no acme system influences,
