@@ -18,7 +18,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const warnings = catalog.diagnostics.filter((d) => d.severity === 'warning').length
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
         <Link href="/" className="focusable flex items-center gap-2 rounded">
           <Hexagon className="size-4 text-primary" strokeWidth={2.5} aria-hidden />
@@ -34,7 +34,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* The tree owns its own scrolling so the filter bar stays pinned. */}
         <aside className="w-72 shrink-0 overflow-hidden border-r border-border bg-surface/40">
           <CatalogTree roots={tree} />

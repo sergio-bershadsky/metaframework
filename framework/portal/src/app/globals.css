@@ -262,6 +262,19 @@
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/*
+ * The console shell is exactly one viewport tall and scrolls internally (the
+ * catalog rail and the content column each own their own scrollbar). The
+ * document itself must therefore never scroll: without this, tall descendants
+ * inside those scroll containers still extend the root scroll height, and the
+ * page scrolls past the shell into empty background.
+ */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--background);
