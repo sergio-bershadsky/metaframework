@@ -41,8 +41,8 @@ export function EntityLink({
       <span
         title={`Unresolved reference: ${rawRef ?? 'unknown'}`}
         className={cn(
-          'inline-flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-1 py-0 align-baseline',
-          'font-mono text-[0.85em] leading-none text-destructive',
+          'inline-flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-[5px] py-[1px] align-baseline',
+          'font-mono text-[0.78em] leading-none text-destructive',
           className,
         )}
       >
@@ -60,11 +60,11 @@ export function EntityLink({
       href={entityHref(target.srn)}
       title={`${style.label} · ${target.title}`}
       className={cn(
-        // No vertical padding and leading-none: a badge must sit inside the
-        // line box it appears in, or a paragraph full of references ends up
+        // leading-none plus minimal vertical padding: a badge must stay inside
+        // the line box it appears in, or a paragraph full of references ends up
         // double-spaced compared with one without them.
-        'focusable group/link inline-flex items-center gap-1 rounded border px-1 py-0 align-baseline',
-        'font-mono text-[0.85em] leading-none no-underline transition',
+        'focusable group/link inline-flex items-center gap-1 rounded border px-[5px] py-[1px] align-baseline',
+        'font-mono text-[0.78em] leading-none no-underline transition',
         style.bg,
         style.border,
         'hover:border-border-strong',
