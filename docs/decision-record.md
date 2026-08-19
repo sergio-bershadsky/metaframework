@@ -96,3 +96,21 @@ machines (XState-compatible JSON). All formats chosen to be diagram-derivable.
   `/framework/spec/`, reviewed before portal code.
 - Review is git-native: files are the review surface; the portal is read-only
   presentation. Frontmatter may carry `status: draft|review|approved|deprecated`.
+
+---
+
+## Amendment 2026-08-19-a — actual portal stack version
+
+The stack section above named "Next.js 15". The scaffolded portal is **Next.js
+16.3.1** (current release at scaffold time), React 19.2. Consequences that bind
+all portal code:
+
+- Request APIs are async-only: `params` and `searchParams` in `page`/`layout`/
+  `route` are Promises and MUST be awaited. Synchronous access was removed in 16.
+- Turbopack is the default bundler for both `dev` and `build`.
+- Route prop types come from generated helpers (`PageProps<'/route'>`,
+  `LayoutProps`), produced by `next typegen`.
+- `middleware` is renamed to `proxy`; Partial Prerendering flags are removed.
+
+Rationale for recording rather than rewriting: this file follows the framework's
+own additive-only principle — history is extended, never edited.
