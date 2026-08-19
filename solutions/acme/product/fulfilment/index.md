@@ -1,7 +1,7 @@
 ---
 name: fulfilment
 kind: product
-version: 1
+version: 2
 title: Fulfilment
 summary: Turns a paid order into a parcel in a customer's hands — carrier selection, booking, and tracking.
 status: approved
@@ -13,7 +13,7 @@ primary-actors:
   - /actor/support-agent
 relations:
   exposes:
-    - /product/fulfilment/datamodel/shipment@1
+    - /product/fulfilment/datamodel/shipment@3
   depends-on:
     - /product/shop
   implements:
@@ -44,7 +44,7 @@ thing left to write down is the conversation.
 
 - [delivery-orchestrator](srn://acme/product/fulfilment/component/delivery-orchestrator) —
   decides *what* to ship, in how many parcels, by which carrier and service
-  level, and owns the [shipment](srn://acme/product/fulfilment/datamodel/shipment@1)
+  level, and owns the [shipment](srn://acme/product/fulfilment/datamodel/shipment@3)
   aggregate. It is the only component here that makes a decision.
 - [carrier-gateway](srn://acme/product/fulfilment/component/carrier-gateway) — one
   normalized surface in front of every carrier API. It makes a decision only
@@ -73,8 +73,8 @@ at once, which the style axis correctly refuses to express.
 
 One inbound edge and no outbound one. Fulfilment consumes
 [order-placed](srn://acme/product/shop/datamodel/order-placed@1) and reuses
-[order-line](srn://acme/product/shop/datamodel/order-line@1) inside its own
-[shipment](srn://acme/product/fulfilment/datamodel/shipment@1) model — a
+[order-line](srn://acme/product/shop/datamodel/order-line@3) inside its own
+[shipment](srn://acme/product/fulfilment/datamodel/shipment@3) model — a
 cross-product reference by SRN, never a copy. Shop does not know this product
 exists, and nothing in the checkout path waits for it: an order is placed
 whether or not a carrier can be found, and a booking failure is a fulfilment
@@ -83,6 +83,14 @@ problem, not a customer-facing checkout error.
 The `depends-on` edge toward [shop](srn://acme/product/shop) states the
 structural half of that: fulfilment requires shop to exist and to publish. The
 reverse edge is deliberately absent, and that asymmetry is the point.
+
+The pin on the reused line model moved to `@3` without anything in this product
+changing, which is what the additive rule is for. Shop added an allocated
+discount and a captured tax to its line; a shipment carries both through
+untouched, because fulfilment has never read a line's money fields and has no
+opinion about them. Repinning is an acknowledgement that this product has looked
+at the newer shape and found nothing to do — a smaller statement than it appears,
+and the only honest alternative to a pin that silently ages.
 
 ## What is deliberately not here
 

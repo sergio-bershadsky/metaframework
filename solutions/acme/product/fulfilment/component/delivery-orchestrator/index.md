@@ -1,7 +1,7 @@
 ---
 name: delivery-orchestrator
 kind: component
-version: 3
+version: 4
 title: Delivery orchestrator
 summary: Decides what ships in which parcel, by which carrier, and owns the shipment aggregate end to end.
 status: approved
@@ -17,7 +17,7 @@ relations:
     - /product/fulfilment/protocol/tracking-events
   exposes:
     - /product/fulfilment/protocol/carrier-booking
-    - /product/fulfilment/datamodel/shipment@1
+    - /product/fulfilment/datamodel/shipment@3
   depends-on:
     - /product/fulfilment/component/carrier-gateway
     - /product/fulfilment/component/tracking
@@ -37,7 +37,7 @@ The only component in this product that decides anything. It consumes
 [order-placed](srn://acme/product/shop/datamodel/order-placed@1), splits the order
 into one or more parcels, chooses a carrier and a service level for each, and
 owns the resulting
-[shipment](srn://acme/product/fulfilment/datamodel/shipment@1) records for the
+[shipment](srn://acme/product/fulfilment/datamodel/shipment@3) records for the
 rest of their lives.
 
 Everything else here is mechanism: the gateway translates, tracking aggregates.
@@ -87,6 +87,24 @@ customer promise and the customer promise is acme's to make. The warehouse
 knows where stock is; only this component knows that telling a customer "two
 deliveries, Tuesday and Thursday" is better than "one delivery, Thursday", and
 that judgement changes with the season and never with the stock location.
+
+Because the judgement is made here, the record of it is written here: this
+component stamps `parcel-index` and `parcel-count` at the moment it splits, when
+the count is known and final, and never rewrites either afterwards. No other
+component is in a position to — by the time a parcel reaches
+[carrier-gateway](srn://acme/product/fulfilment/component/carrier-gateway) the
+sibling parcels are separate bookings with no remaining relationship, and
+tracking sees scans, not intent. The pin on
+[shipment](srn://acme/product/fulfilment/datamodel/shipment@3) moves to `@3` for
+that reason: the fields this component is the sole writer of arrived in that
+revision, and a page that claims to own the aggregate should name the revision it
+actually writes.
+
+`signed-for-by` is the exception that proves the ownership rule. It is written
+here too, from a carrier callback rather than from any decision, and it is the
+one field on the aggregate this component copies without understanding — an
+opaque name from a third party, blanked on erasure alongside the address, and
+never read back by anything this component does.
 
 ## Choosing between quotes
 
