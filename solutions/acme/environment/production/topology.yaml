@@ -1,0 +1,27 @@
+regions:
+  - name: eu-west-1
+    zones: [a, b, c]
+    notes: Primary; the write side of the order store and the settlement bus live here.
+  - name: us-east-1
+    zones: [a, b]
+    notes: Read-only catalogue traffic. No payment instrument is replicated here.
+
+hosts:
+  - component: /shop/checkout
+    regions: [eu-west-1, us-east-1]
+    replicas: { min: 3, max: 24 }
+    scaling: horizontal on p95 request latency above 200ms
+    notes: stateless; sticky sessions disabled
+  - component: /shop/checkout/payment
+    regions: [eu-west-1]
+    replicas: { min: 2, max: 6 }
+    scaling: manual — the acquirer rate-limits per merchant, not per replica
+  - component: /shop/inventory
+    regions: [eu-west-1]
+    replicas: { min: 2, max: 8 }
+    scaling: horizontal on reservation queue depth
+  - component: /billing/ledger
+    regions: [eu-west-1]
+    replicas: { min: 2, max: 4 }
+    scaling: manual
+    notes: single writer per account partition; scaling out is a correctness change

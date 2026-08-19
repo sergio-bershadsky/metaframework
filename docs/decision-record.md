@@ -114,3 +114,62 @@ all portal code:
 
 Rationale for recording rather than rewriting: this file follows the framework's
 own additive-only principle — history is extended, never edited.
+
+---
+
+## Amendment 2026-08-19-b — JSON Schema references become standards-generic
+
+The identity section above makes the SRN "the one reference syntax everywhere,
+including JSON Schema `$id` and `$ref`". **That part is superseded for
+`schema.json` artifacts only.** Everything else about the SRN is unchanged.
+
+### The requirement
+
+References must be *compliant and generic*: resolvable by any standard tool,
+not only by this portal.
+
+### The evidence
+
+Two things were measured rather than assumed.
+
+1. **Editor navigation is unobtainable through reference syntax.** VS Code
+   embeds `vscode-json-languageservice`; it produces navigable links only for
+   same-document JSON Pointers (`#/$defs/money` — verified working). Every
+   external form produced nothing: SRN refs, plain relative file paths, and
+   relative paths with pointers alike. No choice of ref syntax buys
+   go-to-definition; only an editor extension or LSP would, for any syntax.
+2. **Generic consumption is real, and SRN refs break it.** Off-the-shelf
+   `json-schema-to-typescript` against the same schema pair:
+
+   ```text
+   "$ref": "/datamodel/money@1"      → FAILED: Error opening file "/datamodel/money@1"
+   "$ref": "../money/schema.json"    → OK: interface Order { total?: Money } + interface Money
+   ```
+
+   The same applies to `ajv-cli`, `quicktype`, and `datamodel-code-generator`:
+   they resolve relative file references off the filesystem and have no way to
+   resolve a private URI scheme.
+
+### The decision
+
+Inside `schema.json` only:
+
+- **`$ref` is a relative file path** to the target's `schema.json`
+  (e.g. `../money/schema.json`, `../../../datamodel/order-line/schema.json`).
+- **`$id` is omitted.** JSON Schema resolves a relative `$ref` against the base
+  URI, which is `$id` when present — so an `srn://` `$id` would re-break generic
+  resolution even with path-style refs. Dropping it costs nothing: the entity's
+  identity and version already live in its `index.md` frontmatter, and the
+  schema's SRN is derivable from its path, since SRN ≡ path.
+- **`x-srn`** MAY carry the entity's SRN as a JSON Schema annotation, so a
+  schema copied out of the catalog keeps its provenance. It is validated
+  against the file's actual path at load, so it cannot drift.
+- **Version pinning leaves `$ref`.** `money@1/schema.json` is not a path, and
+  with git-backed history (only current versions on disk) a pinned historical
+  ref never resolved to a file anyway. Pinning remains available in frontmatter
+  `relations`, which no external tool consumes.
+
+Unchanged, because no interoperability standard governs them: frontmatter
+`relations`, protocol/workflow YAML payload references, and prose links all
+keep SRN form. Editor navigation for those is a known gap; an LSP is the only
+remedy and is explicitly not in v1.

@@ -1,0 +1,60 @@
+{
+  "id": "order-placement",
+  "initial": "submitted",
+  "description": "State of one order-placement conversation, as checkout sees it.",
+  "states": {
+    "submitted": {
+      "description": "Request accepted; stock reservation in flight.",
+      "entry": ["assign-order-id"],
+      "on": {
+        "STOCK_RESERVATION_RESULT": [
+          { "target": "reserved", "guard": "reservation granted in full" },
+          { "target": "rejected", "actions": ["emit-problem"] }
+        ],
+        "OUT_OF_STOCK": {
+          "target": "rejected",
+          "actions": ["emit-problem"],
+          "description": "Inventory exhausted after the retry budget."
+        }
+      }
+    },
+    "reserved": {
+      "description": "Stock is held for 120 seconds; payment authorization in flight.",
+      "exit": ["stop-reservation-timer"],
+      "on": {
+        "PAYMENT_AUTHORIZED": {
+          "target": "confirmed",
+          "actions": ["capture-funds", "publish-order-placed"]
+        },
+        "PAYMENT_DECLINED": {
+          "target": "rejected",
+          "actions": ["release-stock", "emit-problem"]
+        },
+        "CANCEL_ORDER": {
+          "target": "cancelled",
+          "actions": ["release-stock"]
+        }
+      }
+    },
+    "confirmed": {
+      "description": "Order accepted and published; cancellation is still possible until dispatch.",
+      "on": {
+        "CANCEL_ORDER": {
+          "target": "cancelled",
+          "guard": "not yet dispatched",
+          "actions": ["release-stock", "issue-refund"]
+        }
+      }
+    },
+    "cancelled": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "Reservation released and any capture refunded."
+    },
+    "rejected": {
+      "type": "final",
+      "tags": ["failure"],
+      "description": "The customer received a problem document explaining why."
+    }
+  }
+}

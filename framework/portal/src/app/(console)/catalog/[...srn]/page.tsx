@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
 import { EntityChildren } from '@/components/entity/entity-children'
 import { EntityRelations } from '@/components/entity/entity-relations'
+import { EntitySchema } from '@/components/entity/entity-schema'
 import { KindBadge, StatusBadge, VersionBadge } from '@/components/kind-badge'
 import { Markdown } from '@/components/markdown'
 import { SrnAddress } from '@/components/srn-address'
@@ -107,6 +108,7 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
 
       {entity.body && <Markdown>{entity.body}</Markdown>}
 
+      <EntitySchema entity={entity} />
       <EntityArtifacts entity={entity} />
       <EntityRelations entity={entity} catalog={catalog} inbound={inbound} />
       <EntityChildren entities={children} />

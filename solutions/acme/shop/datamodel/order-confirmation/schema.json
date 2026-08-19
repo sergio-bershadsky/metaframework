@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/shop/datamodel/order-confirmation",
+  "title": "Order confirmation",
+  "description": "Reply to a successful submit-order; a projection of the order at one instant.",
+  "type": "object",
+  "properties": {
+    "order-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of the order that was created."
+    },
+    "status": {
+      "enum": [
+        "placed",
+        "paid"
+      ],
+      "description": "Where the order stood when this reply was written."
+    },
+    "total": {
+      "$ref": "../../../datamodel/money/schema.json",
+      "description": "Gross amount the customer authorized."
+    },
+    "confirmed-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When checkout accepted the order."
+    },
+    "estimated-dispatch": {
+      "type": "string",
+      "format": "date",
+      "description": "Best-effort dispatch date; advisory, never a commitment."
+    }
+  },
+  "required": [
+    "order-id",
+    "status",
+    "total"
+  ]
+}

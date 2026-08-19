@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/datamodel/auditable",
+  "title": "Auditable",
+  "description": "Optional audit annotations composed into models under an audit obligation.",
+  "type": "object",
+  "properties": {
+    "changed-by": {
+      "type": "string",
+      "description": "Handle of the actor responsible for the last change, e.g. support-agent."
+    },
+    "change-reason": {
+      "type": "string",
+      "maxLength": 280,
+      "description": "Why the change was made, in the operator's own words."
+    }
+  }
+}

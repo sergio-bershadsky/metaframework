@@ -1,0 +1,26 @@
+kind: kafka
+summary: Settlement facts published by shop and consumed by billing.
+encoding: avro
+auth:
+  - sasl-scram
+  - mtls
+kafka:
+  cluster: acme-settlement
+  topics:
+    - name: acme.settlement.order-paid.v1
+      key: order-id
+      message: /shop/checkout/payment/datamodel/order@3
+      partitions: 12
+      retention: 30d
+      summary: Emitted once an order reaches the paid state and funds are captured.
+    - name: acme.settlement.ledger-entry-posted.v1
+      key: order-id
+      message: /billing/datamodel/ledger-entry@1
+      partitions: 12
+      retention: 30d
+      summary: One event per posted double-entry leg, published by the ledger.
+    - name: acme.settlement.reconciliation-report.v1
+      key: batch-id
+      partitions: 1
+      retention: 90d
+      summary: Nightly reconciliation outcome; its payload model is still under design.

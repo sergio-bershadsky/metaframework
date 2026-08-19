@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/datamodel/base-record",
+  "title": "Base record",
+  "description": "Identity and creation time. Extended through allOf; never instantiated alone.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Stable identity, assigned by the writer before first persistence."
+    },
+    "created-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp of first persistence, in UTC."
+    }
+  },
+  "required": [
+    "id",
+    "created-at"
+  ]
+}

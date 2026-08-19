@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/*
+ * Stoplight's Mosaic stylesheet (used by the JSON Schema viewer) is NOT scoped:
+ * it redefines --font-mono and sets Inter globally. Imported from a component it
+ * loads *after* this file and silently replaces the whole type system, so it is
+ * pulled in here instead — ahead of the tokens below, which must win.
+ */
+@import "@stoplight/mosaic/styles.css";
 
 /*
  * metaframework portal — "architect's console".
@@ -233,4 +240,23 @@
       animation: none;
     }
   }
+}
+
+/*
+ * Deliberately UNLAYERED and last.
+ *
+ * Cascade layers rank below unlayered declarations, so Mosaic's unlayered
+ * globals would outrank anything written in @layer base or @theme no matter the
+ * import order. These few declarations carry the portal's typographic identity
+ * and must be the final word.
+ */
+:root {
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
 }

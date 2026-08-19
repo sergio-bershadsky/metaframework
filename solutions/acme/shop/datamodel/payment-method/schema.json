@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/shop/datamodel/payment-method",
+  "title": "Payment method",
+  "description": "Tagged union of payment instruments. The tag property is \"method\".",
+  "oneOf": [
+    {
+      "$ref": "../card-payment/schema.json"
+    },
+    {
+      "$ref": "../sepa-payment/schema.json"
+    }
+  ]
+}

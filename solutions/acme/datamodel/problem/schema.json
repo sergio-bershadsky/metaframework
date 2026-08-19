@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/datamodel/problem",
+  "title": "Problem details",
+  "description": "RFC 9457 problem detail document. Extension members are allowed by the RFC.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "description": "URI identifying the problem class, e.g. https://acme.example/problems/payment-declined."
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Stable, human-readable summary of the problem class."
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599,
+      "description": "HTTP status code of this occurrence, where the transport has one."
+    },
+    "detail": {
+      "type": "string",
+      "description": "Explanation specific to this occurrence."
+    },
+    "instance": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Identifier of this occurrence, usually the request or order id."
+    }
+  },
+  "required": [
+    "type",
+    "title"
+  ]
+}

@@ -1,0 +1,14 @@
+kind: http
+summary: Internal JSON API reached from the support console, behind the corporate proxy.
+encoding: json
+auth:
+  - oauth2-bearer
+  - mtls
+spec:
+  format: openapi
+  version: "3.1.0"
+  file: openapi.yaml
+http:
+  base-path: /internal/v1/refunds
+  tls: true
+# no `operations:` — openapi.yaml is the single source of operation truth

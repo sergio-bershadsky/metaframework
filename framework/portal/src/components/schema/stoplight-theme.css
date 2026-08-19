@@ -1,0 +1,93 @@
+/*
+ * Stoplight Mosaic ships its own (light-first) design tokens. Rather than let a
+ * second theme leak into the console, we re-point Mosaic's CSS variables at the
+ * portal palette so the schema viewer reads as native UI.
+ *
+ * Scoped to .sl-metaframework-schema so nothing else in the app is affected.
+ */
+
+.sl-metaframework-schema {
+  --color-canvas: transparent;
+  --color-canvas-pure: var(--background);
+  --color-canvas-50: var(--surface);
+  --color-canvas-100: var(--surface);
+  --color-canvas-200: var(--surface-raised);
+  --color-canvas-300: var(--surface-raised);
+  --color-canvas-dialog: var(--popover);
+
+  --color-text: var(--foreground);
+  --color-text-muted: var(--muted-foreground);
+  --color-text-light: var(--muted-foreground);
+  --color-text-heading: var(--foreground);
+  --color-text-paragraph: color-mix(in oklab, var(--foreground) 85%, transparent);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border);
+  --color-border-input: var(--border-strong);
+  --color-border-button: var(--border-strong);
+  --color-border-dark: var(--border-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary);
+  --color-primary-tint: color-mix(in oklab, var(--primary) 16%, transparent);
+
+  --color-success: var(--kind-environment);
+  --color-warning: var(--warning);
+  --color-danger: var(--destructive);
+  --color-code: var(--kind-protocol);
+
+  font-family: var(--font-sans);
+  color: var(--foreground);
+}
+
+/* Mosaic sets explicit light backgrounds on a few primitives. */
+.sl-metaframework-schema .sl-bg-canvas-100,
+.sl-metaframework-schema .sl-bg-canvas-200,
+.sl-metaframework-schema .sl-bg-canvas-pure {
+  background-color: var(--surface) !important;
+}
+
+.sl-metaframework-schema .sl-text-muted {
+  color: var(--muted-foreground) !important;
+}
+
+/*
+ * Property names and types are identifiers — they belong in the mono face.
+ * Mosaic ships its own font stack on .sl-font-mono and wins on load order, so
+ * this has to be forced rather than merely more specific.
+ */
+.sl-metaframework-schema .sl-font-mono,
+.sl-metaframework-schema code {
+  font-family: var(--font-mono) !important;
+  font-size: 12.5px;
+}
+
+/*
+ * The combiner (oneOf/anyOf) variant switcher is a native <select>; its popup
+ * options are painted by the platform, so they need explicit dark colours or
+ * they render as a light-grey list against the dark panel.
+ */
+.sl-metaframework-schema select {
+  background-color: var(--surface-raised);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.sl-metaframework-schema select option {
+  background-color: var(--surface-raised);
+  color: var(--foreground);
+}
+
+/* Tighten the default row rhythm; the console is dense by design. */
+.sl-metaframework-schema .sl-py-2 {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.sl-metaframework-schema a {
+  color: var(--primary);
+}

@@ -11,8 +11,13 @@ summary: The complete SRN grammar — syntax, parsing algorithm, disk resolution
 
 The SRN is the single identity and reference syntax of the framework. Every
 entity has exactly one SRN; the SRN maps 1:1 to the entity's directory under
-`solutions/`; and the same syntax is used in frontmatter, JSON Schema, workflow
-YAML, and prose. There is no second addressing scheme.
+`solutions/`; and the same syntax is used in frontmatter, workflow YAML, and
+prose. There is no second addressing scheme for catalog references.
+
+One artifact is deliberately outside this rule: `schema.json` uses relative file
+paths so that standard JSON Schema tooling can consume it unaided
+([below](#json-schema-is-the-one-exception)). Its identity is still its
+entity's SRN — derived from its path rather than written into the file.
 
 ```text
 srn://{solution}/{product}/{components...}/{kind}/{name}[@{version}]
@@ -194,7 +199,26 @@ semantics of relative file paths on disk:
 | Referring context                                | Base URI                                                      |
 | ------------------------------------------------ | ------------------------------------------------------------- |
 | `index.md`, sibling YAML artifacts, prose        | the document's own URI: `{entity-srn}/{path-within-entity}`   |
-| JSON Schema `$ref`                               | the schema's `$id` — the **versioned** SRN                    |
+
+JSON Schema `$ref` is **not** in this table: `schema.json` uses relative file
+paths rather than SRNs, so that stock validators and code generators can resolve
+it (see [kinds/datamodel.md](kinds/datamodel.md) and the "JSON Schema" note
+below).
+
+**Document URIs are base URIs, not references.** A base like
+`srn://acme/shop/checkout/index.md` or
+`srn://acme/shop/protocol/order-events/workflows/place-order.yaml` carries a
+filename, which the segment grammar above rejects (a dot is not a legal segment
+character). That is deliberate and not a contradiction: such a URI exists only
+to be *resolved against*, is never written as a reference, and is therefore
+never validated as one. Only the **result** of resolution — which always
+addresses an entity — must satisfy the ABNF and rules V1–V7.
+
+```text
+base   srn://acme/shop/checkout/index.md        # a document URI: never a reference
+ref    ../protocol/order-events                 # written by the author
+result srn://acme/shop/protocol/order-events    # validated as an SRN
+```
 
 Consequences, with the base entity `srn://acme/shop/checkout` (document
 `solutions/acme/shop/checkout/index.md`):
@@ -210,15 +234,28 @@ payment/datamodel/order@2    → srn://acme/shop/checkout/payment/datamodel/orde
 Relative references behave exactly like `cd` from the entity's directory —
 because the SRN *is* the disk path.
 
-Inside JSON Schema, the base is the `$id` itself (stock RFC 3986 / JSON Schema
-behavior — no custom resolver). With
-`"$id": "srn://acme/shop/checkout/payment/datamodel/order@1"`:
+### JSON Schema is the one exception
 
-```text
-refund@1                     → srn://acme/shop/checkout/payment/datamodel/refund@1
-../../../datamodel/base@1    → srn://acme/shop/datamodel/base@1
-/datamodel/money@1           → srn://acme/datamodel/money@1
+`schema.json` artifacts do **not** use SRN references. They carry no `$id`, and
+every `$ref` is an ordinary relative file path to another `schema.json`:
+
+```json
+{ "$ref": "../money/schema.json" }
+{ "$ref": "../../../datamodel/order-line/schema.json" }
 ```
+
+The reason is interoperability, and it was measured rather than assumed: stock
+tooling (`json-schema-to-typescript`, `ajv-cli`, `quicktype`,
+`datamodel-code-generator`) resolves relative file references off the
+filesystem and fails outright on a private URI scheme. Because JSON Schema
+resolves a relative `$ref` against `$id` when `$id` is present, an `srn://`
+`$id` would defeat this even with path-style refs — hence no `$id` at all.
+
+Nothing is lost: a schema's identity is its owning entity's SRN, which is
+derivable from its path (SRN ≡ path), and the entity's `index.md` already
+carries the authoritative `name`/`version`. See
+[kinds/datamodel.md](kinds/datamodel.md) for the full rules, including the
+optional `x-srn` provenance annotation.
 
 (The last segment of a `$id` is the versioned name, so a bare `refund@1` lands
 on the sibling datamodel — standard "replace the last segment" resolution.)
@@ -261,43 +298,76 @@ relations:
     - ../protocol/order-events        # relative to this entity's document
 ```
 
-**2. JSON Schema `$id` and `$ref`** — `$id` MUST be the entity's versioned SRN;
-`$ref` SHOULD pin a version so validation is reproducible (an unpinned `$ref`
-resolves to latest at build time):
+**2. JSON Schema** — SRNs are **not** used. `schema.json` carries no `$id`, and
+`$ref` is a relative file path, so the artifact stays consumable by any standard
+validator or generator:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "srn://acme/shop/checkout/payment/datamodel/order@1",
+  "x-srn": "srn://acme/shop/checkout/payment/datamodel/order",
+  "title": "Order",
   "type": "object",
-  "allOf": [{ "$ref": "/datamodel/base-record@1" }],
+  "allOf": [{ "$ref": "../../../../datamodel/base-record/schema.json" }],
   "properties": {
-    "total": { "$ref": "/datamodel/money@1" },
-    "lines": { "type": "array", "items": { "$ref": "order-line@1" } }
+    "total": { "$ref": "../../../../datamodel/money/schema.json" },
+    "lines": { "type": "array", "items": { "$ref": "../order-line/schema.json" } }
   },
   "required": ["total"]
 }
 ```
 
-The build preloads every schema into the validator registry keyed by `$id`;
-fragments (`#/$defs/...`) are ordinary JSON Pointers applied after SRN
-resolution and are not part of the SRN grammar.
+`x-srn` is an optional provenance annotation (unversioned, ignored by
+validators), checked against the file's own path at load so it cannot drift.
+Fragments (`#/$defs/...`) remain ordinary JSON Pointers into the same document.
 
-**3. Workflow / protocol YAML** — participant and message references:
+**3. Protocol frontmatter and workflow YAML** — participant refs and payload
+references. [kinds/protocol.md](kinds/protocol.md) owns both formats: SRNs
+appear in the protocol's `participants` list and in a step's `payload`, never
+in a step's `from`/`to` (those are participant **aliases**) and never in
+`message` (a logical message name):
+
+```yaml
+# solutions/acme/shop/protocol/order-events/index.md
+participants:
+  - alias: customer
+    ref: srn://acme/actor/customer                # fully absolute
+  - alias: checkout
+    ref: /shop/checkout                           # path-absolute: solution root
+```
 
 ```yaml
 # solutions/acme/shop/protocol/order-events/workflows/place-order.yaml
 steps:
-  - from: srn://acme/actor/customer
-    to:   /shop/checkout                          # path-absolute: solution root
-    message: ../../../datamodel/order-placed@1    # 3 up → shop/datamodel/order-placed
+  - message: order-placed                         # message name, not an SRN
+    from: customer                                # alias, not an SRN
+    to: checkout
+    payload: /shop/datamodel/order-placed@1       # path-absolute — recommended
+  - message: order-confirmed
+    from: checkout
+    to: customer
+    kind: return
+    payload: ../../../datamodel/order-confirmation@1   # 3 up from the workflow
+                                                       # file → shop/datamodel/…
 ```
 
+The base URI of a file under `workflows/` is that file's own URI, one level
+deeper than `index.md`, so the same relative text climbs one level less far —
+which is why payload refs there SHOULD be path-absolute
+([kinds/protocol.md](kinds/protocol.md)).
+
 **4. Prose markdown links** — an `srn://` URI is a legal link target; the
-portal rewrites it to the entity page, and `grep` still finds it:
+portal rewrites it to the entity page, and `grep` still finds it. Prose links
+MUST use the **absolute** `srn://` form: a bare relative path in a markdown
+link is indistinguishable from an ordinary file link, so the portal leaves it
+as a plain file link and no entity page is resolved. Relative references belong
+in the structured surfaces 1–3, where the field's meaning is fixed.
 
 ```markdown
 Checkout persists an [Order](srn://acme/shop/checkout/payment/datamodel/order@1)
+per the [order-events](srn://acme/shop/protocol/order-events) protocol.
+
+<!-- NOT an SRN reference: reads as a relative file link -->
 per the [order-events](../protocol/order-events) protocol.
 ```
 
@@ -314,7 +384,17 @@ V5–V7 require the resolved catalog.
 | V4 | Reference does not name a foreign solution (authority ≠ own solution).| `E_SRN_CROSS_SOLUTION` |
 | V5 | Resolved directory exists and contains `index.md`.                    | `E_SRN_DANGLING`       |
 | V6 | Pinned `@N` exists on the filesystem or in the version→commit index.  | `E_SRN_VERSION`        |
-| V7 | Target entity's `kind` is legal for the referring field's edge type.  | `E_FM_EDGE_TARGET`     |
+| V7 | Target entity's `kind` is legal for the referring **relation edge**.  | `E_FM_EDGE_TARGET`     |
+
+V7 covers the `relations` map of [frontmatter.md](frontmatter.md) only. Every
+other typed reference surface — a kind-specific frontmatter field, or an SRN
+inside a sibling artifact — carries its own kind-specific class, so an error
+message names the surface it came from: `E_PROD_ACTOR_TARGET`
+([kinds/product.md](kinds/product.md)), `E_PROTO_PARTICIPANT_KIND` /
+`E_PROTO_PAYLOAD_KIND` ([kinds/protocol.md](kinds/protocol.md)),
+`E_ENV_TARGET_KIND` ([kinds/environment.md](kinds/environment.md)),
+`E_DM_REF_KIND` ([kinds/datamodel.md](kinds/datamodel.md)). V1–V6 apply to all
+of them unchanged.
 
 Examples of each failure:
 

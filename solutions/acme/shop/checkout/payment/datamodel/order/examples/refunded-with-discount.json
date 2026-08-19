@@ -1,0 +1,25 @@
+{
+  "id": "8c1d2a44-9f70-4d3b-b1a2-77c0f2d9e001",
+  "created-at": "2026-08-01T14:02:11Z",
+  "changed-by": "support-agent",
+  "change-reason": "Customer returned both items within the cooling-off period.",
+  "total": { "amount": "129.00", "currency": "EUR" },
+  "discount": { "amount": "10.00", "currency": "EUR" },
+  "status": "refunded",
+  "payment": {
+    "method": "card",
+    "token": "tok_2f9a1c7e4b",
+    "scheme": "visa",
+    "pan-last4": "4242"
+  },
+  "lines": [
+    {
+      "sku": "acme-desk-lamp-black",
+      "title": "Desk lamp, black",
+      "quantity": 2,
+      "unit-price": { "amount": "64.50", "currency": "EUR" },
+      "line-total": { "amount": "129.00", "currency": "EUR" }
+    }
+  ],
+  "line-count": 1
+}

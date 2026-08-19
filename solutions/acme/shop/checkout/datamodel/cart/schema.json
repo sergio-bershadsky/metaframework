@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/shop/checkout/datamodel/cart",
+  "title": "Cart",
+  "description": "Mutable basket owned by checkout. Never leaves the component.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../../../../datamodel/base-record/schema.json"
+    }
+  ],
+  "properties": {
+    "customer-id": {
+      "type": "string",
+      "description": "Account or guest-session reference; pseudonymous after erasure."
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "EUR",
+        "GBP",
+        "USD"
+      ],
+      "description": "Fixed at creation. One currency per cart, per ADR 0001."
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "$ref": "../../../datamodel/order-line/schema.json"
+      },
+      "description": "Lines as the customer has built them so far."
+    },
+    "subtotal": {
+      "$ref": "../../../../datamodel/money/schema.json",
+      "description": "Sum of the line totals, before tax and shipping."
+    },
+    "expires-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "After this instant checkout refuses to convert the cart."
+    }
+  },
+  "required": [
+    "customer-id",
+    "currency",
+    "lines"
+  ]
+}

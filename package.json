@@ -1,0 +1,15 @@
+{
+  "name": "metaframework",
+  "private": true,
+  "description": "Reviewable, file-based solution descriptions with a catalog portal",
+  "scripts": {
+    "dev": "npm --prefix framework/portal run dev",
+    "build": "npm --prefix framework/portal run build",
+    "start": "npm --prefix framework/portal run start",
+    "test": "npm --prefix framework/portal exec -- vitest run",
+    "test:watch": "npm --prefix framework/portal exec -- vitest",
+    "typecheck": "npm --prefix framework/portal exec -- tsc --noEmit",
+    "lint": "npm --prefix framework/portal run lint",
+    "install:portal": "npm --prefix framework/portal install"
+  }
+}

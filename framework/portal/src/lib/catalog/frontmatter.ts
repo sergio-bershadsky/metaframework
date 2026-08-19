@@ -69,17 +69,108 @@ export const commonFrontmatterSchema = z
 
 export type CommonFrontmatter = z.infer<typeof commonFrontmatterSchema>
 
-export function unknownFields(raw: Record<string, unknown>): string[] {
-  const known = new Set([
-    'name',
-    'kind',
-    'version',
-    'title',
-    'summary',
-    'status',
-    'owner',
-    'relations',
-    'tags',
-  ])
+const COMMON_FIELDS = [
+  'name',
+  'kind',
+  'version',
+  'title',
+  'summary',
+  'status',
+  'owner',
+  'relations',
+  'tags',
+] as const
+
+/**
+ * Kind-specific frontmatter, per framework/spec/kinds/*.md. The common contract
+ * explicitly delegates these fields to the kind documents, so the loader is only
+ * a faithful validator once it knows them — without this, every normative kind
+ * field reads as an unknown field.
+ *
+ * Each schema layers ON TOP of the common contract; none may redefine a common
+ * field (frontmatter.md forbids it).
+ */
+const oneLine = (max: number) =>
+  z.string().min(1).max(max).refine((value) => !value.includes('\n'), 'must be a single line')
+
+export const KIND_FRONTMATTER = {
+  solution: z.object({
+    vision: z.string().min(1).max(1000),
+    scope: z.object({ in: z.array(oneLine(200)), out: z.array(oneLine(200)).optional() }).optional(),
+    contacts: z
+      .array(z.object({ role: kebab, handle: z.string().min(1), channel: z.string().optional() }))
+      .optional(),
+  }),
+
+  product: z.object({
+    lifecycle: z.enum(['concept', 'incubating', 'active', 'maintenance', 'sunset', 'retired']),
+    'primary-actors': z.array(z.string().min(1)).optional(),
+  }),
+
+  component: z.object({
+    'component-type': z.enum(['service', 'library', 'ui', 'job', 'datastore', 'gateway', 'external']),
+  }),
+
+  datamodel: z.object({
+    usage: z.enum(['storage', 'exchange', 'both']),
+    abstract: z.boolean().optional(),
+  }),
+
+  protocol: z.object({
+    participants: z
+      .array(
+        z.object({
+          alias: kebab.max(32),
+          ref: z.string().min(1),
+          role: kebab.max(32).optional(),
+        }),
+      )
+      .min(2, 'a protocol needs at least two participants'),
+    style: z.enum(['point-to-point', 'bus', 'request-response']),
+    'conforms-to': z
+      .array(z.object({ standard: z.string().min(1), version: z.string().optional(), url: z.string().optional() }))
+      .optional(),
+  }),
+
+  actor: z.object({
+    'actor-type': z.enum(['human', 'system', 'external-system', 'service-account']),
+    goals: z.array(oneLine(200)).min(1),
+  }),
+
+  environment: z.object({
+    'environment-type': z.enum(['dev', 'staging', 'production', 'edge', 'local']),
+  }),
+
+  adr: z
+    .object({
+      'decision-status': z.enum(['proposed', 'accepted', 'rejected', 'superseded']),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be an ISO-8601 date, YYYY-MM-DD'),
+      deciders: z.array(z.string().min(1)).optional(),
+    })
+    // Who decided is only meaningful once a decision has actually been taken.
+    .refine(
+      (value) =>
+        !['accepted', 'rejected', 'superseded'].includes(value['decision-status']) ||
+        (value.deciders?.length ?? 0) > 0,
+      { error: 'deciders is required and non-empty once a decision is accepted, rejected or superseded' },
+    ),
+
+  requirement: z.object({
+    'requirement-type': z.enum(['functional', 'non-functional']),
+    priority: z.enum(['must', 'should', 'could', 'wont']),
+  }),
+} as const satisfies Record<EntityKind, z.ZodType>
+
+/** Field names a given kind legitimately adds on top of the common contract. */
+export function kindFieldNames(kind: EntityKind): string[] {
+  const schema = KIND_FRONTMATTER[kind]
+  const shape = (schema as { shape?: Record<string, unknown> }).shape
+  // `.refine()` wraps the object, so unwrap when the shape is not directly present.
+  const inner = shape ?? (schema as unknown as { def?: { innerType?: { shape?: Record<string, unknown> } } }).def?.innerType?.shape
+  return Object.keys(inner ?? {})
+}
+
+export function unknownFields(raw: Record<string, unknown>, kind?: EntityKind): string[] {
+  const known = new Set<string>([...COMMON_FIELDS, ...(kind ? kindFieldNames(kind) : [])])
   return Object.keys(raw).filter((key) => !known.has(key) && !key.startsWith('x-'))
 }

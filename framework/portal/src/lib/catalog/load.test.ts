@@ -31,6 +31,25 @@ async function entity(relDir: string, frontmatter: Record<string, unknown>, body
   return dir
 }
 
+/** Required kind-specific fields, per framework/spec/kinds/*.md. */
+const KIND_DEFAULTS: Record<string, Record<string, unknown>> = {
+  solution: { vision: 'Sell things reliably.' },
+  product: { lifecycle: 'active' },
+  component: { 'component-type': 'service' },
+  datamodel: { usage: 'both' },
+  protocol: {
+    style: 'point-to-point',
+    participants: [
+      { alias: 'checkout', ref: '/shop/checkout' },
+      { alias: 'customer', ref: '/actor/customer' },
+    ],
+  },
+  actor: { 'actor-type': 'human', goals: ['Buy things.'] },
+  environment: { 'environment-type': 'production' },
+  adr: { 'decision-status': 'proposed', date: '2026-01-01' },
+  requirement: { 'requirement-type': 'functional', priority: 'must' },
+}
+
 const base = (name: string, kind: string, extra: Record<string, unknown> = {}) => ({
   name,
   kind,
@@ -38,6 +57,7 @@ const base = (name: string, kind: string, extra: Record<string, unknown> = {}) =
   title: name,
   summary: `The ${name} ${kind}.`,
   status: 'approved',
+  ...(KIND_DEFAULTS[kind] ?? {}),
   ...extra,
 })
 

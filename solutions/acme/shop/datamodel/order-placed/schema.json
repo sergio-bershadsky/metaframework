@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/shop/datamodel/order-placed",
+  "title": "Order placed",
+  "description": "Public fact published when an order is accepted by checkout.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../../../datamodel/base-record/schema.json"
+    }
+  ],
+  "properties": {
+    "order-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of the order, stable across every later fact about it."
+    },
+    "customer-id": {
+      "type": "string",
+      "description": "Pseudonymous customer reference, replaced on erasure."
+    },
+    "total": {
+      "$ref": "../../../datamodel/money/schema.json",
+      "description": "Gross amount of the order."
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "$ref": "../order-line/schema.json"
+      },
+      "description": "The lines as placed."
+    },
+    "placed-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the customer's submission was accepted."
+    }
+  },
+  "required": [
+    "order-id",
+    "total"
+  ]
+}

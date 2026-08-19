@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: Refund request
+  version: "1"
+  description: >-
+    Support-facing refund API of the acme ledger. Generated from the service and
+    checked in beside the entity document; the catalog links it rather than
+    restating it.
+servers:
+  - url: https://billing.internal.acme.example/internal/v1/refunds
+paths:
+  /:
+    post:
+      operationId: requestRefund
+      summary: Request a refund against a settled order.
+      responses:
+        "202":
+          description: Accepted; the legs will be posted asynchronously.
+        "409":
+          description: Order already fully refunded.
+  /{refund-id}:
+    get:
+      operationId: getRefund
+      summary: Read the state of one refund request.
+      parameters:
+        - name: refund-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current state of the refund request.
+        "404":
+          description: No such refund request.

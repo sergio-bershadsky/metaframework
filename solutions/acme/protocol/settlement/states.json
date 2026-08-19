@@ -1,0 +1,52 @@
+{
+  "id": "settlement",
+  "initial": "awaiting-payment",
+  "description": "State of the settlement of one order, as the billing side sees it.",
+  "states": {
+    "awaiting-payment": {
+      "description": "The order exists in shop but no payment fact has arrived.",
+      "on": {
+        "ORDER_PAID": {
+          "target": "posting",
+          "actions": ["open-settlement-window"],
+          "description": "First fact for this order id; the window opens here."
+        }
+      }
+    },
+    "posting": {
+      "description": "The ledger is turning the payment fact into double-entry legs.",
+      "initial": "entry-pending",
+      "entry": ["reserve-batch-slot"],
+      "states": {
+        "entry-pending": {
+          "description": "Legs computed, not yet acknowledged by the ledger store.",
+          "on": {
+            "LEDGER_ENTRY_POSTED": [
+              { "target": "entry-posted", "guard": "debit and credit both accepted" },
+              { "target": "#settlement.disputed", "actions": ["raise-imbalance"] }
+            ]
+          }
+        },
+        "entry-posted": {
+          "description": "Both legs are durable; the batch awaits reconciliation.",
+          "on": {
+            "RECONCILIATION_REPORT": [
+              { "target": "#settlement.settled", "guard": "batch balances to zero" },
+              { "target": "#settlement.disputed", "actions": ["raise-imbalance"] }
+            ]
+          }
+        }
+      }
+    },
+    "settled": {
+      "type": "final",
+      "tags": ["success"],
+      "description": "Order and ledger agree; the settlement window is closed."
+    },
+    "disputed": {
+      "type": "final",
+      "tags": ["failure"],
+      "description": "A human owns it now — see the audit-trail requirement."
+    }
+  }
+}

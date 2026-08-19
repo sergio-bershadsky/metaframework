@@ -1,0 +1,32 @@
+name: cancel-order
+title: Cancel an order before dispatch
+summary: Customer cancels; checkout releases the reservation and refunds any capture already taken.
+participants: [customer, checkout, inventory, payment]
+steps:
+  - message: cancel-order
+    from: customer
+    to: checkout
+    kind: call
+
+  - message: release-stock
+    from: checkout
+    to: inventory
+    kind: event
+
+  - opt:
+      when: funds were already captured
+      steps:
+        - message: refund-issued
+          from: checkout
+          to: payment
+          kind: call
+        - message: refund-accepted
+          from: payment
+          to: checkout
+          kind: return
+
+  - message: cancellation-confirmed
+    from: checkout
+    to: customer
+    kind: return
+    note: Carries no order projection — a cancelled order has no confirmation shape.

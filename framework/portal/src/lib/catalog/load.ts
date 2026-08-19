@@ -7,6 +7,7 @@ import {
   EDGE_TARGET_KINDS,
   type EdgeType,
   type EntityKind,
+  KIND_FRONTMATTER,
   commonFrontmatterSchema,
   unknownFields,
 } from './frontmatter'
@@ -142,8 +143,25 @@ async function readEntity(
     return null
   }
   const frontmatter = result.data
+  const expectedKind = kindFromPosition(parsed)
 
-  for (const field of unknownFields(data as Record<string, unknown>)) {
+  // Kind-specific fields are layered on top of the common contract; validating
+  // against the kind implied by disk position (not the declared one) keeps a
+  // mislabelled entity from silently skipping its own rules.
+  const kindResult = KIND_FRONTMATTER[expectedKind].safeParse(data)
+  if (!kindResult.success) {
+    for (const issue of kindResult.error.issues) {
+      diagnostics.push({
+        code: 'E_FM_SCHEMA',
+        severity: 'error',
+        message: `${issue.path.join('.') || `(${expectedKind})`}: ${issue.message}`,
+        path: docPath,
+        srn,
+      })
+    }
+  }
+
+  for (const field of unknownFields(data as Record<string, unknown>, expectedKind)) {
     diagnostics.push({
       code: 'E_FM_UNKNOWN_FIELD',
       severity: 'error',
@@ -164,7 +182,6 @@ async function readEntity(
     })
   }
 
-  const expectedKind = kindFromPosition(parsed)
   if (frontmatter.kind !== expectedKind) {
     diagnostics.push({
       code: 'E_FM_KIND_LOCATION',
