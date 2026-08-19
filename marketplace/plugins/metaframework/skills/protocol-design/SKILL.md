@@ -1,6 +1,6 @@
 ---
 name: protocol-design
-description: This skill should be used when the user asks to "add a protocol", "describe how these components talk", "write transport.yaml", "add a workflow to a protocol", "draw a sequence diagram from the catalog", "add states.json", "write the XState machine for a conversation", "bind an OpenAPI or AsyncAPI file", "declare participants and aliases", "pick point-to-point vs bus vs request-response", or asks where a protocol directory belongs — in a metaframework solution catalog under `solutions/`.
+description: This skill should be used when the user asks to "add a protocol", "describe how these components talk", "document this API in the catalog", "add an event bus between these services", "write transport.yaml", "add a workflow to a protocol", "draw a sequence diagram from the catalog", "add states.json", "write the XState machine for a conversation", "bind an OpenAPI or AsyncAPI file", "declare participants and aliases", "pick point-to-point vs bus vs request-response", or asks where a protocol directory belongs / what its nearest common ancestor is — in a metaframework solution catalog under `solutions/`. It owns the `protocol` kind only: use `add-entity` for a product, component, actor, environment, ADR or requirement, and `model-data` for the payload datamodels a protocol references. For changing an EXISTING published protocol, decide the mechanism with `evolve-entity` first.
 ---
 
 # Authoring a protocol

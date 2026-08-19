@@ -1,6 +1,6 @@
 ---
 name: model-data
-description: This skill should be used when the user asks to "add a datamodel", "create a schema.json", "model this data in the catalog", "add a JSON Schema entity", "write an abstract base model", "add a mixin", "build a discriminated union", "promote a $defs shape to its own datamodel", "extract a shared type", "pick usage storage or exchange", or asks whether a schema edit is additive or needs a swap — in a metaframework solution catalog under `solutions/`.
+description: This skill should be used when the user asks to "add a datamodel", "model this order/cart/invoice in the catalog", "create a schema.json", "add a JSON Schema entity", "write an abstract base model", "add a mixin", "build a discriminated union", "promote a $defs shape to its own datamodel", "extract a shared type", "where should this shared model live", "pick usage storage or exchange", "what should the $id be", or asks whether a schema edit is additive or needs a swap — in a metaframework solution catalog under `solutions/`. It owns the `datamodel` kind only: use `add-entity` for a product, component, actor, environment, ADR or requirement, and `protocol-design` for a protocol (a payload datamodel comes back here). For rewriting an EXISTING published schema, decide the mechanism with `evolve-entity` first.
 ---
 
 # Authoring a datamodel
@@ -270,3 +270,11 @@ pass/fail and every diagnostic with its code and file. Codes are documented in
 `schemas.md` and in `framework/spec/kinds/datamodel.md`. If a diagnostic demands
 removing, renaming, narrowing or moving an entity, that is not a fix — stop and
 say it requires a swap.
+
+**The catalog check does not run the schema registry over the shipped tree.**
+`E_DM_*` is raised when the portal renders a datamodel page, not by this suite —
+which asserts only that every `$id` equals the URL the portal serves it at and
+that every non-local `$ref` names a real datamodel with a `schema.json` behind
+it. After writing or editing a `schema.json`, open that entity's page
+(`npm run dev`, then the datamodel's URL) or use the `validate-catalog` skill,
+which carries the full coverage map.

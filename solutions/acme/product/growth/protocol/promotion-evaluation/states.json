@@ -66,6 +66,11 @@
           "target": "evaluating",
           "description": "A later code re-opens the evaluation against the same cart."
         },
+        "COUPON_WITHDRAWN": {
+          "target": "evaluating",
+          "actions": ["drop-applied-coupon"],
+          "description": "The customer removed a code. Re-evaluated from scratch, because an automatic promo may have lost to it."
+        },
         "ORDER_PLACED": {
           "target": "committed",
           "actions": ["burn-coupon", "publish-redemption"]

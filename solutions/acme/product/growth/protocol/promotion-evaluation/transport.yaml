@@ -19,6 +19,12 @@ http:
       request: /product/growth/datamodel/coupon@1
       response: /product/growth/datamodel/promotion-quote@1
       summary: Add a customer-entered code to an existing quote. Validates only; the code is not burnt here.
+    - name: remove-coupon
+      method: DELETE
+      path: /{quote-id}/coupons/{code}
+      response: /product/growth/datamodel/promotion-quote@1
+      summary: Withdraw a code the customer entered and re-evaluate without it. Idempotent — removing a code that was never applied returns the quote unchanged.
+
     - name: get-quote
       method: GET
       path: /{quote-id}

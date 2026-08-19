@@ -1,6 +1,6 @@
 ---
 name: solution-design
-description: This skill should be used when the user asks to "design a solution", "start a new metaframework catalog", "model our system as a catalog", "how should I split this into products and components", "where does this component belong", "propose an SRN tree", "is this decomposition right", "should this be two products or one", or describes a system in prose that has to become a catalog. It owns the interview, the decomposition heuristics, the proposed SRN tree, and the review gate — everything that happens BEFORE any file is written. Use it also for re-shaping questions inside an existing solution.
+description: This skill should be used when the user asks to "design a solution", "start a new metaframework catalog", "model our system as a catalog", "how should I split this into products and components", "propose an SRN tree", "is this decomposition right", "should this be two products or one", "is this a product or a component", "should this datamodel be promoted", or describes a whole system in prose that has to become a catalog. It owns the interview, the decomposition heuristics, the proposed SRN tree, and the review gate — everything that happens BEFORE any file is written, and it covers the shape of MANY entities at once. For creating ONE entity whose placement is already settled, use `add-entity`, `model-data` or `protocol-design` instead; for judging a catalog that already exists, use `review-solution`.
 ---
 
 # Solution design — from a system in someone's head to an SRN tree

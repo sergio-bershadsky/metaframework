@@ -1,7 +1,7 @@
 ---
 name: promotion-evaluation
 kind: protocol
-version: 1
+version: 2
 title: Promotion evaluation
 summary: Synchronous pricing conversation — checkout asks the engine what a cart is worth and gets a short-lived quote.
 status: review
@@ -74,6 +74,26 @@ malformed or a coupon genuinely refused — never to signal degradation. Those u
 [problem](srn://acme/datamodel/problem@1), like every other failure that crosses
 a boundary in this solution.
 
+## Withdrawing a code is a re-evaluation, not an undo
+
+`remove-coupon` is the fourth operation, and the surprising part is that it
+cannot be implemented by subtracting what the code contributed. A coupon that
+wins competes with the automatic promotions it beat: `SUMMER20` may have
+suppressed a stackable 10% that becomes eligible again the moment it goes. Undoing
+the coupon's own line would leave the customer worse off than if they had never
+typed it, which is the one outcome guaranteed to produce a support ticket.
+
+So the transition is `quoted` → `evaluating` and the whole cart is priced again,
+exactly as `COUPON_PRESENTED` does in the other direction. The state machine gains
+one edge and no new state, which is the shape of the argument: removal is not a
+new kind of thing that happens to a quote, it is the same thing with a different
+trigger.
+
+It is idempotent by construction. Removing a code that was never applied returns
+the quote unchanged rather than refusing, because the caller that retries after a
+timeout cannot tell which of the two happened, and a `404` would make the basket
+show an error for an action that succeeded.
+
 ## Quotes expire deliberately fast
 
 A quote binds nothing. Checkout re-quotes when the cart changes and again
@@ -92,7 +112,7 @@ basket can say which one and why.
 ## Artifacts
 
 `transport.yaml` binds the conversation to HTTP inside the cluster and
-enumerates the three operations; there is no OpenAPI document, so that list is
+enumerates the four operations; there is no OpenAPI document, so that list is
 authoritative rather than a copy of one. `workflows/price-cart.yaml` is the main
 exchange — it is where the `loop` over candidate promotions and the
 eligible/ineligible `alt` live. `states.json` describes one quote's lifecycle as
