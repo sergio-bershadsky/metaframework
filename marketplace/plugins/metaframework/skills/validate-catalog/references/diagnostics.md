@@ -196,7 +196,12 @@ Never emit or cite these; a mention in older prose is stale.
   current version is not fatal, because historic versions resolve from git);
   `lib/history/git.ts` emits it as an error when the commit genuinely does not
   exist. A green catalog check therefore does not mean every pin is current.
-- **`framework/spec/evolution.md` version 2** still illustrates schema examples
-  with the retired form (no `$id`, relative `$ref`s). Its *versioning* rules are
-  current; its schema snippets are not. `_shared/references/schemas.md` has the
-  current conventions.
+- **ADR `date`.** `framework/spec/kinds/adr.md` says both the quoted string and
+  the native YAML timestamp are accepted. The loader parses frontmatter with
+  gray-matter, so an unquoted `2026-02-03` arrives as a JS `Date` and the zod
+  schema — which wants a string matching `^\d{4}-\d{2}-\d{2}$` — rejects it as
+  `E_FM_SCHEMA`. Quote the date. Every ADR in `solutions/` does.
+- **Stale prose in the fixture.** `solutions/acme/.../datamodel/order/index.md`
+  still describes the retired schema convention (relative `$ref` file paths, "no
+  `$id`") in its prose, while its own `schema.json` uses the current served-URL
+  form. The prose is the stale half; do not copy it.

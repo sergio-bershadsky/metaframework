@@ -219,19 +219,14 @@
   }
 
   /*
-   * A diagram taken fullscreen. The canvas carries an inline height computed to
-   * fit its content, which would otherwise pin it to a few hundred pixels in the
-   * middle of a black screen — so the inline value is overridden here, which
-   * needs !important precisely because it is inline.
+   * A diagram expanded to fill the browser viewport. It is a fixed overlay
+   * rather than a real fullscreen element: taking over the display and hiding
+   * the browser's own chrome is the wrong scale for reading one diagram.
+   * `position: fixed` escapes the shell's scroll containers because `overflow`
+   * does not clip fixed descendants.
    */
-  .diagram-surface:fullscreen {
-    background-color: var(--background);
-    border-radius: 0;
-    border: none;
-  }
-
-  .diagram-surface:fullscreen > * {
-    height: 100% !important;
+  .diagram-surface[data-expanded] {
+    box-shadow: 0 0 0 100vmax var(--background);
   }
 
   /* Focus ring consistent across custom controls. */

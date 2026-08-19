@@ -20,6 +20,16 @@
       "format": "uuid",
       "description": "Order being fulfilled. Not unique here — one order may split into several shipments."
     },
+    "parcel-index": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Position of this parcel within its order's split, stamped once and never renumbered. Gaps are legal — a rebooked parcel keeps the number the customer was told."
+    },
+    "parcel-count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many parcels the order was split into at the moment of splitting. Absent means the split was not recorded, not that there is one parcel."
+    },
     "lines": {
       "type": "array",
       "items": {

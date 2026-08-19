@@ -83,7 +83,8 @@ visibility — any entity in the solution may reference any of them.
 A protocol lives at the nearest common ancestor of its **component and product**
 participants, computed over whole `{kind}/{name}` **pairs**, never raw segments.
 Actors are excluded — they are solution-level, so counting them would collapse
-every protocol to the root. All four fixture protocols:
+every protocol to the root. Four fixture protocols, one per placement outcome
+(the catalog ships more):
 
 ```text
 checkout + inventory + payment                       → product/shop

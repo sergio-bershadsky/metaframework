@@ -89,7 +89,8 @@ an actor*: `ref: /actor/psp-acquirer`. There is no external-system kind in v1.
 A protocol lives at the nearest common ancestor of its **component and product**
 participants, computed over whole `{kind}/{name}` **pairs**, never over raw
 segments. Taking a prefix at a bare segment lands on a bucket, and a bucket has
-no SRN and cannot hold an `index.md`. All four shipped protocols:
+no SRN and cannot hold an `index.md`. Four of the shipped protocols, one per
+placement outcome:
 
 ```text
 checkout + inventory + payment                    → product/shop
@@ -163,10 +164,11 @@ divergence. `spec` is `{ format, file, version? }`; `file` is relative to the
 entity directory and may not be absolute or contain `..` (`E_PROTO_SPEC_FILE`).
 In v1 the portal renders the linked file as an opaque card and does not parse it.
 
-The two shipped HTTP protocols show both halves of that choice:
-`order-placement/transport.yaml` writes an `operations` list because there is no
-OpenAPI document; `refund-request/transport.yaml` links `openapi.yaml` and
-carries no list.
+The shipped HTTP protocols show both halves of that choice:
+`order-placement/transport.yaml` and `authorization-check/transport.yaml` write
+an `operations` list because there is no OpenAPI document;
+`refund-request/transport.yaml` and `carrier-booking/transport.yaml` link an
+`openapi.yaml` and carry no list.
 
 `conforms-to` in the frontmatter is for **standards** (RFC 9457, CloudEvents),
 never for files. A file in the directory is bound here under `spec`, in one place.

@@ -5,10 +5,9 @@
 > repository, it is authoritative and wins over this file.** This bundled copy
 > exists because an installed plugin cannot see the repo spec.
 >
-> **Version caveat:** `framework/spec/evolution.md` (version 2) still illustrates
-> its examples with the retired schema form (no `$id`, relative `$ref`s). The
-> versioning rules it states are current; the schema snippets are not. See
-> `schemas.md` in this directory for the current `schema.json` conventions.
+> The `schema.json` snippets here follow the current served-URL convention
+> (`$id` and every cross-entity `$ref` are HTTP URLs the portal serves). See
+> `schemas.md` in this directory for the full conventions.
 
 Two mechanisms carry all change: the **integer `version` field** (additive,
 in-place extension of one entity) and the **swap** (a successor entity replaces

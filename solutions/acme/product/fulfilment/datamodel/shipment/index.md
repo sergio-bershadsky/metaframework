@@ -1,7 +1,7 @@
 ---
 name: shipment
 kind: datamodel
-version: 1
+version: 2
 title: Shipment
 summary: One parcel's whole life — what is in it, where it is going, who is carrying it, and how far it has got.
 status: approved
@@ -19,7 +19,7 @@ The aggregate this product exists to maintain. It extends
 [base-record](srn://acme/datamodel/base-record@1) for identity and creation time,
 carries a [delivery-address](srn://acme/product/fulfilment/datamodel/delivery-address@1)
 and a [money](srn://acme/datamodel/money@1) cost, and holds the lines it is
-carrying as [order-line](srn://acme/product/shop/datamodel/order-line@1) — shop's
+carrying as [order-line](srn://acme/product/shop/datamodel/order-line@3) — shop's
 model, referenced across the product boundary rather than restated here.
 
 ## Why an order's line model, unchanged
@@ -45,6 +45,25 @@ delivery lifecycles, and a customer will be told about both. A model with one
 shipment per order would have forced the split to be represented as a mutation
 of one record, and the second parcel's history would have overwritten the
 first's.
+
+`parcel-index` and `parcel-count` were added because the customer-facing half of
+that sentence had nowhere to live. "Your order is arriving in two parcels; this
+is the first" is a sentence the notification has to be able to write, and
+reconstructing it means querying every shipment sharing an `order-id` and
+imposing an order on the result — a query the notification path should not be
+making and a sort key it would have to invent.
+
+Both are stamped by
+[delivery-orchestrator](srn://acme/product/fulfilment/component/delivery-orchestrator)
+at split time, when the count is known and final, and neither is ever rewritten.
+A parcel that later fails and is rebooked keeps its index: the customer was told
+"1 of 2", and renumbering to keep a contiguous sequence would change a sentence
+they have already read. The consequence is that indexes can have gaps, which is
+the correct trade — the sequence describes what was promised, not what survives.
+
+They are optional, so the shipments written before this version validate
+unchanged; absent means "not split, or split before we recorded it", and a
+consumer must render that as a bare parcel rather than as "1 of 1".
 
 The reverse — one shipment covering several orders — is deliberately not
 representable. Consolidation is a warehouse optimization; if it ever reaches

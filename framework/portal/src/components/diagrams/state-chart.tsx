@@ -20,7 +20,8 @@ import {
   type NodeTypes,
 } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FullscreenButton } from '@/components/diagrams/fullscreen-button'
+import { ExpandButton } from '@/components/diagrams/expand-button'
+import { useExpandable } from '@/lib/diagrams/use-expandable'
 import {
   DIAGRAM_BACKGROUND,
   DIAGRAM_CANVAS_VARS,
@@ -435,17 +436,27 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
     return fitCanvasHeight(bottom - top, height)
   }, [flow, height])
 
-  const surfaceRef = useRef<HTMLElement>(null)
+  const { expanded, toggle: toggleExpanded } = useExpandable()
 
   return (
-    <figure ref={surfaceRef} className={cn('panel diagram-surface overflow-hidden', className)}>
+    <figure
+      data-expanded={expanded || undefined}
+      className={cn(
+        'panel diagram-surface overflow-hidden',
+        expanded && 'fixed inset-0 z-50 rounded-none border-0 bg-background',
+        className,
+      )}
+    >
       {/* A <figure> may carry exactly one <figcaption>, and the a11y text
           equivalent below is it — the machine's own description is plain prose. */}
       {chart.description && (
         <p className="border-b border-border px-4 py-2.5 text-[12.5px] text-muted-foreground">{chart.description}</p>
       )}
 
-      <div className="relative" style={{ height: canvasHeight, ...DIAGRAM_CANVAS_VARS }}>
+      <div
+        className="relative"
+        style={{ height: expanded ? '100%' : canvasHeight, ...DIAGRAM_CANVAS_VARS }}
+      >
         {failed ? (
           <TextFallback summary={summary} />
         ) : flow === null ? (
@@ -482,8 +493,9 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
             <Controls showInteractive={false} style={{ margin: 10 }} />
             <Panel position="top-right" style={{ margin: 10 }}>
               <div className="mb-1 flex justify-end">
-                <FullscreenButton
-                  target={surfaceRef}
+                <ExpandButton
+                  expanded={expanded}
+                  onToggle={toggleExpanded}
                   className="rounded-md border border-border bg-surface/90 backdrop-blur-sm hover:bg-surface-raised"
                 />
               </div>

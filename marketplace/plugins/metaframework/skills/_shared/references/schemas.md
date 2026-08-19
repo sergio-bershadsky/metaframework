@@ -5,13 +5,15 @@
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec.
 >
-> **Version caveat:** an earlier convention had `schema.json` carry no `$id` and
-> use relative file-path `$ref`s. It was superseded because those references are
-> resolvable only inside a clone of the repo, from the right directory — they
-> are not *dereferenceable*. Some core spec documents (`index.md`, `srn.md`,
-> `frontmatter.md`, `evolution.md`) still show that retired form in passing;
-> `kinds/datamodel.md` and the actual catalog under `solutions/` are current.
-> Write the HTTP-URL form below. Never author the retired form.
+> **Retired convention:** an earlier revision had `schema.json` carry no `$id`
+> and use relative file-path `$ref`s. It was superseded because those references
+> resolve only inside a clone of the repo, from the right directory — they are
+> not *dereferenceable*. The spec and every `schema.json` under `solutions/` now
+> use the HTTP-URL form below; the old form survives only as a labelled
+> counter-example (`framework/spec/kinds/datamodel.md`) and in the stale prose of
+> `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/index.md`,
+> which still tells the reader the schema has no `$id`. Never author the retired
+> form, and never copy prose that explains it.
 
 ## Dialect, filename, identity
 

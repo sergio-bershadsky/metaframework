@@ -17,7 +17,8 @@ import {
 } from '@xyflow/react'
 import { Crosshair, Scan } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FullscreenButton } from '@/components/diagrams/fullscreen-button'
+import { ExpandButton } from '@/components/diagrams/expand-button'
+import { useExpandable } from '@/lib/diagrams/use-expandable'
 import type { EdgeType, EntityKind } from '@/lib/catalog/frontmatter'
 import {
   DIAGRAM_BACKGROUND,
@@ -339,11 +340,22 @@ export function RelationGraph({
     return fitCanvasHeight(bottom - top, height)
   }, [placed, height])
 
-  const surfaceRef = useRef<HTMLElement>(null)
+  const { expanded, toggle: toggleExpanded } = useExpandable()
 
   return (
-    <figure ref={surfaceRef} className={cn('panel diagram-surface overflow-hidden', className)} aria-label={label}>
-      <div className="relative" style={{ height: canvasHeight, ...DIAGRAM_CANVAS_VARS }}>
+    <figure
+      data-expanded={expanded || undefined}
+      className={cn(
+        'panel diagram-surface overflow-hidden',
+        expanded && 'fixed inset-0 z-50 rounded-none border-0 bg-background',
+        className,
+      )}
+      aria-label={label}
+    >
+      <div
+        className="relative"
+        style={{ height: expanded ? '100%' : canvasHeight, ...DIAGRAM_CANVAS_VARS }}
+      >
         {failed ? (
           <TextFallback lines={text} />
         ) : placed === null ? (
@@ -391,7 +403,8 @@ export function RelationGraph({
                   })
                 }
                 focus={focus}
-                surfaceRef={surfaceRef}
+                expanded={expanded}
+                onToggleExpanded={toggleExpanded}
               />
             </Panel>
           </ReactFlow>
@@ -415,13 +428,15 @@ function GraphToolbar({
   hiddenTypes,
   onToggle,
   focus,
-  surfaceRef,
+  expanded,
+  onToggleExpanded,
 }: {
   counts: Map<EdgeType, number>
   hiddenTypes: ReadonlySet<EdgeType>
   onToggle: (type: EdgeType) => void
   focus?: string
-  surfaceRef: React.RefObject<HTMLElement | null>
+  expanded: boolean
+  onToggleExpanded: () => void
 }) {
   const { fitView } = useReactFlow()
   const present = EDGE_ORDER.filter((type) => counts.has(type))
@@ -442,7 +457,16 @@ function GraphToolbar({
         >
           <Scan className="size-3" aria-hidden />
         </button>
-        <FullscreenButton target={surfaceRef} className="p-1 hover:bg-surface-raised" />
+        <ExpandButton
+          expanded={expanded}
+          onToggle={() => {
+            onToggleExpanded()
+            // The canvas changes size, so the old viewport no longer frames the
+            // graph; re-fit once the new box has been laid out.
+            requestAnimationFrame(() => void fitView({ padding: FIT_PADDING, maxZoom: 1, duration: duration() }))
+          }}
+          className="p-1 hover:bg-surface-raised"
+        />
         {focus && (
           <button
             type="button"
