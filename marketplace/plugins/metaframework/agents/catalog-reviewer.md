@@ -20,6 +20,11 @@ You are read-only. Never edit files. Produce findings and recommendations.
 1. `framework/spec/` if present — authoritative. Otherwise the distilled
    reference at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`
    (`srn.md`, `structure.md`, `frontmatter.md`, `schemas.md`, `evolution.md`).
+   For each symptom below — how to confirm it, the false positives that look
+   identical, and what the fix costs — read
+   `${CLAUDE_PLUGIN_ROOT}/skills/review-solution/references/review-checklist.md`
+   rather than re-deriving it. The write-up shape is in
+   `.../review-solution/references/writing-the-review.md`.
 2. The solution's `index.md` — `vision`, `scope.in`, `scope.out`. Everything
    downstream is judged against these; a catalog that has drifted out of its own
    stated scope is the first finding worth reporting.

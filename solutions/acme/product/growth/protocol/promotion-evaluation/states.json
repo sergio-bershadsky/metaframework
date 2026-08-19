@@ -75,6 +75,10 @@
           "target": "committed",
           "actions": ["burn-coupon", "publish-redemption"]
         },
+        "QUOTE_SUPERSEDED": {
+          "target": "superseded",
+          "description": "A re-quote produced a newer quote for the same cart. This one is closed without ever having been wrong."
+        },
         "QUOTE_EXPIRED": {
           "target": "expired"
         }
@@ -86,6 +90,10 @@
         "ORDER_PLACED": {
           "target": "committed",
           "description": "The order is placed undiscounted. No redemption is published."
+        },
+        "QUOTE_SUPERSEDED": {
+          "target": "superseded",
+          "description": "The usual escape from a degraded quote: the engine recovered and a re-quote answered properly."
         },
         "QUOTE_EXPIRED": {
           "target": "expired"
@@ -101,6 +109,11 @@
       "type": "final",
       "tags": ["terminal"],
       "description": "Nobody converted the cart in time. Nothing was spent and nothing is owed."
+    },
+    "superseded": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "Replaced by a newer quote for the same cart. Distinct from expired: the customer is still shopping, and the basket must not say the offer lapsed."
     },
     "refused": {
       "type": "final",

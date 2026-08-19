@@ -1,7 +1,7 @@
 ---
 name: promotion-evaluation
 kind: protocol
-version: 3
+version: 4
 title: Promotion evaluation
 summary: Synchronous pricing conversation — checkout asks the engine what a cart is worth and gets a short-lived quote.
 status: review
@@ -127,6 +127,32 @@ basket and payment is a problem document and a fresh `price-cart`, not a
 degraded answer: nothing failed, the customer simply took longer than 120
 seconds, and conflating that with the fallback path would have hidden a slow
 checkout behind a metric meant to track engine health.
+
+## Four ways to end, not three
+
+`superseded` is the state this machine was missing, and the re-quote workflow is
+what made its absence obvious. Before it, a quote replaced by a newer one for the
+same cart had nowhere to go but `expired`, and that reading is wrong in the only
+place it is read: the basket. "Your offer expired" is what a customer sees when
+they dawdled; a customer who added an item and got a fresh quote did nothing of
+the sort, and telling them otherwise invents a failure out of normal shopping.
+
+The distinction also matters to anyone measuring this protocol. Expiry rate is a
+signal about how long checkout takes; supersession rate is a signal about how
+much customers edit their baskets. Folded together they are one number that moves
+for two unrelated reasons and can therefore be used to argue for nothing.
+
+Both `quoted` and `degraded` gain the transition, and the degraded case is the
+more interesting one: it is the ordinary way a fallback quote ends, when the
+engine recovers and the re-quote answers properly. A degraded quote that reaches
+`superseded` is the system working, which is not a sentence that could be written
+while the only exit was named after failure.
+
+Adding a state and two edges is additive under the evolution rules — no existing
+transition changed, and a consumer written against version 3 sees an unfamiliar
+terminal state where it previously saw `expired`. That consumer must treat an
+unknown terminal state as terminal, which is the reading the `tags` array exists
+to make possible without enumerating names.
 
 ## Artifacts
 

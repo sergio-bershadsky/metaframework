@@ -5,7 +5,9 @@ argument-hint: [kind] [name] [where it belongs]
 
 Add an entity to the catalog: `$ARGUMENTS`
 
-Route by kind, then follow that skill's procedure:
+Route by kind, then follow that skill's procedure — it owns the placement rules,
+the per-kind frontmatter contract, the artifact formats and the traps. Do not
+improvise frontmatter from this file.
 
 | Kind requested                                                       | Skill to invoke   |
 |----------------------------------------------------------------------|-------------------|
@@ -13,31 +15,29 @@ Route by kind, then follow that skill's procedure:
 | `protocol`                                                           | `protocol-design` |
 | `product`, `component`, `actor`, `environment`, `adr`, `requirement` | `add-entity`      |
 
-If the kind was not stated, work it out from the description and say which one
-you picked and why before creating anything. If the right answer is "this
-belongs in an existing entity, not a new one", say that instead.
+Three checks before invoking anything:
 
-Before writing anything:
+1. **Is a new entity even the right answer?** Not every fact deserves a
+   directory. If it belongs in an existing entity's prose or as one added
+   relation edge, say so and stop.
+2. **Which kind?** If the kind was not stated, work it out from the description
+   and say which one you picked and why. If several entities are wanted at once,
+   or the decomposition itself is in question, invoke `solution-design` instead
+   and come back per entity after sign-off.
+3. **Does it already exist?** Changing something published is `evolve-entity`,
+   not this command — the framework forbids removing, renaming, narrowing and
+   moving, and the instinctive fix is usually one of those.
 
-1. If `framework/spec/` exists in this repository, read the relevant
-   `kinds/*.md` — it is authoritative. Otherwise read the distilled reference at
-   `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`.
-2. Fix the **placement** first, because placement is grammar and a misplaced
-   directory has no SRN at all: `product` only directly under the solution;
-   `component` only inside a product or component; `actor` and `environment`
-   only at solution level; `datamodel`, `adr` and `requirement` in the bucket of
-   the container responsible for them; `protocol` at the nearest common
-   ancestor of its component and product participants, actors excluded.
-3. State the resulting SRN and the resulting disk path, and check the name is
-   kebab-case and is not one of the eight reserved kinds.
+Then state the resulting **SRN and disk path out loud** and get agreement if the
+placement is not obvious. Placement is grammar: a misplaced directory has no SRN
+at all, and it is effectively permanent, because entities are never moved.
 
-Then create the entity directory with `index.md` (common frontmatter **plus the
-required fields for that kind**) and whatever siblings the kind defines. Write
-relations as **forward edges only** — never author `used-by`, `implemented-by`
-or any other inverse; the portal derives them. Prefer solution-absolute
-references (`/product/shop/datamodel/money@1`) for anything outside the entity.
+```text
+srn://acme/product/shop/component/checkout/requirement/idem-cap
+solutions/acme/product/shop/component/checkout/requirement/idem-cap/index.md
+```
 
-Finish by running the catalog check and reporting the result:
+The invoked skill takes it from there and finishes with the catalog check:
 
 ```bash
 cd framework/portal && npx vitest run src/lib/catalog
