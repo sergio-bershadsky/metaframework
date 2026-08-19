@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: solution
-version: 1
+version: 2
 status: review
 title: Kind — solution
 summary: The solution kind — the sealed universe and catalog root, its frontmatter additions, the shared container rules C1–C7, and the no-cross-solution boundary.
@@ -20,24 +20,35 @@ reference them rather than repeating them.
 ## Role in the hierarchy
 
 ```text
-solutions/{solution}/               ← this kind
-  └── {product}/                    ← product.md
-        └── {component}/…           ← component.md (nestable)
+solutions/{solution}/                     ← this kind
+  └── product/{product}/                  ← product.md
+        └── component/{component}/…       ← component.md (nestable)
 ```
 
 - Exactly one solution per directory directly under `solutions/`. Its `index.md`
   is the catalog root document.
-- Solutions never nest. A directory under a solution is a product
-  ([structure.md](../structure.md)).
-- **Actors and environments live only here.** `actor/` and `environment/`
-  buckets below solution level are `E_STRUCT_KIND_PLACEMENT`. Products and
-  components *reference* them; they never own them, because both describe the
-  universe the whole solution shares.
+- Solutions never nest. Every child of a solution directory is a **kind
+  bucket**, never an entity directory — a solution has no unbucketed children,
+  so `ls solutions/acme/` lists nothing but bucket names.
+- The only container bucket a solution may hold is `product/`. A `component/`
+  bucket at solution level is `E_SRN_PLACEMENT`: a component must live inside a
+  product ([srn.md](../srn.md)).
 
   ```text
-  solutions/acme/actor/customer/            # legal
-  solutions/acme/environment/production/    # legal
-  solutions/acme/shop/actor/customer/       # E_STRUCT_KIND_PLACEMENT
+  solutions/acme/product/shop/       # legal — the one container bucket here
+  solutions/acme/component/shop/     # E_SRN_PLACEMENT — no product owns it
+  ```
+
+- **Actors and environments live only here.** `actor/` and `environment/`
+  buckets below solution level are `E_SRN_PLACEMENT` — the grammar admits those
+  two pairs only as the first pair after the authority. Products and components
+  *reference* them; they never own them, because both describe the universe the
+  whole solution shares.
+
+  ```text
+  solutions/acme/actor/customer/                    # legal
+  solutions/acme/environment/production/            # legal
+  solutions/acme/product/shop/actor/customer/       # E_SRN_PLACEMENT
   ```
 
 - A solution MAY also own `datamodel/`, `protocol/`, `adr/`, and `requirement/`
@@ -51,29 +62,43 @@ A solution's SRN is the authority alone — no path segments:
 ```text
 srn://acme                 # the solution entity
 srn://acme@2               # version 2 of the solution document (pinning works)
-srn://acme/shop            # every other SRN has at least one path segment
+srn://acme/product/shop    # every other SRN has at least one {kind}/{name} pair
 ```
 
 Three consequences fall out of [srn.md](../srn.md):
 
 1. The solution is the base of every **path-absolute** reference. From anywhere
    in the catalog, `/actor/customer` → `srn://acme/actor/customer`.
-2. `..` can never climb out: from `srn://acme/shop` (depth 1), `../..` is
-   `E_SRN_SYNTAX` — the framework rejects it instead of clamping at the root.
-3. A network-path reference (`//globex/shop`) changes the authority and is
-   `E_SRN_CROSS_SOLUTION`.
+2. `..` can never climb out. From `srn://acme/product/shop` the path is two
+   segments, so `../..` lands exactly on `srn://acme` — the solution itself —
+   and `../../..` is `E_SRN_SYNTAX`: the framework rejects the climb instead of
+   clamping it at the root.
+3. A network-path reference (`//globex/product/shop`) changes the authority and
+   is `E_SRN_CROSS_SOLUTION`.
 
 ## The solution boundary
 
 **No reference of any kind may cross a solution boundary**, on any surface:
 
-| Surface                       | Crossing example                                | Verdict                |
-| ----------------------------- | ------------------------------------------------ | ---------------------- |
-| frontmatter `relations`       | `depends-on: [srn://globex/shop/ledger]`         | `E_SRN_CROSS_SOLUTION` |
-| JSON Schema `$ref`            | `{"$ref": "srn://globex/datamodel/money@1"}`     | `E_SRN_CROSS_SOLUTION` |
-| workflow / protocol YAML      | `to: srn://globex/shop/checkout`                 | `E_SRN_CROSS_SOLUTION` |
-| prose markdown link           | `[Ledger](srn://globex/billing/ledger)`          | `E_SRN_CROSS_SOLUTION` |
-| kind-specific fields          | `primary-actors: [srn://globex/actor/customer]`  | `E_SRN_CROSS_SOLUTION` |
+| Surface                       | Crossing example                                                 | Verdict                |
+| ----------------------------- | ----------------------------------------------------------------- | ---------------------- |
+| frontmatter `relations`       | `depends-on: [srn://globex/product/shop/component/ledger]`        | `E_SRN_CROSS_SOLUTION` |
+| JSON Schema `$ref`            | `{"$ref": "../../../../../globex/datamodel/money/schema.json"}`   | `E_SRN_CROSS_SOLUTION` |
+| protocol / workflow YAML      | `payload: srn://globex/product/shop/datamodel/order@1`            | `E_SRN_CROSS_SOLUTION` |
+| prose markdown link           | `[Ledger](srn://globex/product/billing/component/ledger)`         | `E_SRN_CROSS_SOLUTION` |
+| kind-specific fields          | `primary-actors: [srn://globex/actor/customer]`                   | `E_SRN_CROSS_SOLUTION` |
+
+The `$ref` row is the only one that is not an SRN, and its shape matters. A
+`schema.json` references other schemas by **relative file path** and never by
+SRN (decision-record amendment 2026-08-19-b), so an `srn://` in a `$ref` is
+`E_DM_REF_TARGET` — a malformed reference, caught before any boundary question
+is asked. The way a schema actually crosses the boundary is by counting `..`
+until it leaves its own solution: from
+`solutions/acme/product/shop/datamodel/order-line/schema.json`, five levels up
+is `solutions/`, and the sixth segment names a foreign solution. That is what
+the example above does, and it is `E_SRN_CROSS_SOLUTION`. One `..` fewer stays
+inside `acme` and is legal; one more leaves `solutions/` entirely and is
+`E_DM_REF_ESCAPE` ([datamodel.md](datamodel.md)).
 
 Rationale: the boundary is what makes a solution reviewable and movable as a
 unit — no build may depend on a catalog that is not in the tree. Cross-solution
@@ -93,22 +118,28 @@ These bind **solution, product, and component** alike.
   `children:` key in frontmatter is `E_FM_UNKNOWN_FIELD`.
 
   ```yaml
-  # solutions/acme/shop/index.md
+  # solutions/acme/product/shop/index.md
   children: [checkout, inventory]     # E_FM_UNKNOWN_FIELD — derived from disk
   ```
 
-- **C2 — Only containers may hold child entities.** Container directories may
-  contain child container directories and kind buckets; owned entities
-  (datamodel, protocol, actor, environment, adr, requirement) may not
-  (`E_STRUCT_NESTED_ENTITY`, [structure.md](../structure.md)).
+- **C2 — Only containers may hold child entities.** A container's children are
+  **kind buckets and nothing else**; each bucket holds entity directories of
+  that kind. The six non-container kinds (datamodel, protocol, actor,
+  environment, adr, requirement) hold no entities at all: they may carry sibling
+  artifacts and asset subdirectories, but an `index.md` anywhere below one is
+  `E_STRUCT_NESTED_ENTITY` ([structure.md](../structure.md)). The grammar states
+  the same rule from the other side — only a `product` or `component` pair may
+  be followed by another pair, so
+  `srn://acme/datamodel/money/datamodel/currency` is `E_SRN_PLACEMENT`
+  ([srn.md](../srn.md)).
 
 - **C3 — A child's version is not the container's version.** `version` covers a
   container's own `index.md` and its own sibling artifacts only. Adding,
   bumping, or deprecating a child entity does **not** bump the container.
 
   ```text
-  add solutions/acme/shop/wishlist/index.md   → shop's version unchanged
-  edit solutions/acme/shop/index.md prose     → shop's version 4 → 5
+  add solutions/acme/product/shop/component/wishlist/index.md   → shop unchanged
+  edit solutions/acme/product/shop/index.md prose               → shop 4 → 5
   ```
 
   (This is [evolution.md](../evolution.md)'s bump rule applied literally: a child
@@ -123,10 +154,11 @@ These bind **solution, product, and component** alike.
   semantics to them.
 
   ```text
-  solutions/acme/shop/
+  solutions/acme/product/shop/
   ├── index.md            # the entity document
   ├── roadmap.md          # legal attachment — portal previews it, nothing more
-  └── checkout/           # child entity
+  └── component/          # kind bucket
+      └── checkout/       # child entity
   ```
 
 - **C5 — Single ownership, single path.** Every container sits at exactly one
@@ -177,13 +209,14 @@ On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 
 ## What may nest inside
 
-| Child                                       | Allowed | Note                                            |
-| ------------------------------------------- | ------- | ----------------------------------------------- |
-| product directories                         | yes     | Any number; the only container child kind.      |
-| `actor/`, `environment/` buckets            | yes     | **Only** here (`E_STRUCT_KIND_PLACEMENT`).      |
-| `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets | yes | For solution-owned entities.         |
-| another solution                            | no      | Solutions never nest.                           |
-| a component directly                        | no      | A directory under a solution is a product; `kind: component` there is `E_FM_KIND_LOCATION`. |
+| Child                                       | Allowed | Note                                                  |
+| ------------------------------------------- | ------- | ------------------------------------------------------ |
+| `product/` bucket                           | yes     | Any number of products; the only container bucket here.|
+| `actor/`, `environment/` buckets            | yes     | **Only** here (`E_SRN_PLACEMENT` elsewhere).           |
+| `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets | yes | For solution-owned entities.               |
+| another solution                            | no      | Solutions never nest.                                  |
+| a `component/` bucket                       | no      | A component needs a product ancestor — `E_SRN_PLACEMENT`. |
+| an entity directory not inside a bucket     | no      | Every child of a solution is a bucket; the path would not parse (`E_SRN_SYNTAX`). |
 
 ## Validation rules
 
@@ -193,11 +226,14 @@ On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 | S2 | That `index.md` declares `kind: solution` and `name` = directory name.     | `E_FM_KIND_LOCATION` / `E_FM_NAME_MISMATCH` |
 | S3 | `vision` present; `scope`/`contacts` well-shaped if present.               | `E_FM_SCHEMA`          |
 | S4 | No reference on any surface names a foreign solution.                      | `E_SRN_CROSS_SOLUTION` |
-| S5 | No `actor`/`environment` bucket below solution level.                      | `E_STRUCT_KIND_PLACEMENT` |
+| S5 | No `actor`/`environment`/`component` bucket below solution level, and no `product` bucket above it. | `E_SRN_PLACEMENT` |
 
 ```text
-S1  solutions/legacy-import/shop/index.md   # "legacy-import" has no index.md → E_SOL_NO_ROOT
+S1  solutions/legacy-import/product/shop/index.md   # "legacy-import" has no
+                                                    # index.md → E_SOL_NO_ROOT
 S4  relations: { uses: [srn://globex/datamodel/money@1] }   # from acme
+S5  solutions/acme/product/shop/environment/staging/        # a product owning
+                                                            # an environment
 ```
 
 ## Worked example
@@ -250,9 +286,9 @@ an order from a customer's cart to a settled payment and a shipped parcel.
 
 ## Reading order
 
-Start at the [shop](srn://acme/shop) product and its
-[checkout](srn://acme/shop/checkout) component; the money model shared across
-products is [money](srn://acme/datamodel/money@1).
+Start at the [shop](srn://acme/product/shop) product and its
+[checkout](srn://acme/product/shop/component/checkout) component; the money model
+shared across products is [money](srn://acme/datamodel/money@1).
 
 ## Boundary
 
@@ -284,4 +320,5 @@ reference in this catalog leaves `srn://acme`.
 | Code                   | New here | Meaning                                                                |
 | ---------------------- | -------- | ---------------------------------------------------------------------- |
 | `E_SOL_NO_ROOT`        | yes      | Directory directly under `solutions/` has no `index.md`.               |
-| `E_SRN_CROSS_SOLUTION` | no       | Defined by [srn.md](../srn.md) (rule V4); listed here because the solution boundary is this kind's central rule. |
+| `E_SRN_CROSS_SOLUTION` | no       | Defined by [srn.md](../srn.md); listed here because the solution boundary is this kind's central rule. |
+| `E_SRN_PLACEMENT`      | no       | Defined by [srn.md](../srn.md); a bucket that may not sit where it does. Replaces the former `E_STRUCT_KIND_PLACEMENT`, which had no subject left once placement became grammar. |

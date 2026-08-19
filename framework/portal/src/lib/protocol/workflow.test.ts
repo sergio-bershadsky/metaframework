@@ -28,7 +28,7 @@ steps:
   - message: submit-order
     from: customer
     to: checkout
-    payload: /shop/datamodel/order-request@1
+    payload: /product/shop/datamodel/order-request@1
   - loop:
       while: inventory answers RETRY
       max: 3
@@ -412,17 +412,25 @@ steps:
 /* ---------------------------------------------------------------- payload */
 
 describe('payload references', () => {
-  const PROTOCOL = 'srn://acme/shop/protocol/order-placement'
+  const PROTOCOL = 'srn://acme/product/shop/protocol/order-placement'
 
   it('resolves the recommended path-absolute form', () => {
-    expect(resolveWorkflowRef(PROTOCOL, '/shop/datamodel/order@1')).toBe('srn://acme/shop/datamodel/order@1')
+    expect(resolveWorkflowRef(PROTOCOL, '/product/shop/datamodel/order@1')).toBe(
+      'srn://acme/product/shop/datamodel/order@1',
+    )
   })
 
   it('resolves a dot-relative form from inside workflows/, one level deeper', () => {
-    expect(resolveWorkflowRef(PROTOCOL, '../../../datamodel/order@1')).toBe('srn://acme/shop/datamodel/order@1')
+    // Three pops leave `product/shop`: `workflows/`, the protocol name, and its
+    // `protocol/` bucket — a bucket is a path segment like any other.
+    expect(resolveWorkflowRef(PROTOCOL, '../../../datamodel/order@1')).toBe(
+      'srn://acme/product/shop/datamodel/order@1',
+    )
   })
 
   it('rejects the miscounted form the spec calls a trap', () => {
+    // One `..` short lands on `product/shop/protocol/datamodel/order` — an odd
+    // tail, i.e. a bucket where a name belongs.
     expect(() => resolveWorkflowRef(PROTOCOL, '../../datamodel/order@1')).toThrow(/E_SRN_SYNTAX/)
   })
 
@@ -435,13 +443,13 @@ steps:
   - message: submit-order
     from: customer
     to: checkout
-    payload: /shop/datamodel/order-request@1
+    payload: /product/shop/datamodel/order-request@1
 `,
       { protocolSrn: PROTOCOL },
     )
     expect(flattenMessages(workflow.steps)[0]).toMatchObject({
-      payload: '/shop/datamodel/order-request@1',
-      payloadSrn: 'srn://acme/shop/datamodel/order-request@1',
+      payload: '/product/shop/datamodel/order-request@1',
+      payloadSrn: 'srn://acme/product/shop/datamodel/order-request@1',
       payloadLabel: 'order-request@1',
     })
   })
@@ -455,7 +463,7 @@ steps:
   - message: a
     from: p
     to: q
-    payload: srn://other/shop/datamodel/order@1
+    payload: srn://other/product/shop/datamodel/order@1
 `,
       { protocolSrn: PROTOCOL },
     )
@@ -527,10 +535,10 @@ describe('layoutWorkflow — grid invariants', () => {
   })
 
   it('anchors the payload chip under the label and carries the SRN through', () => {
-    const wf = ok(PLACE_ORDER, { aliases: ALIASES, protocolSrn: 'srn://acme/shop/protocol/order-placement' })
+    const wf = ok(PLACE_ORDER, { aliases: ALIASES, protocolSrn: 'srn://acme/product/shop/protocol/order-placement' })
     const withPayload = layoutWorkflow(wf).messages[0]
     expect(withPayload.chip).toBeDefined()
-    expect(withPayload.chip!.srn).toBe('srn://acme/shop/datamodel/order-request@1')
+    expect(withPayload.chip!.srn).toBe('srn://acme/product/shop/datamodel/order-request@1')
     expect(withPayload.chip!.y).toBeGreaterThan(withPayload.labelY)
     expect(withPayload.chip!.y + withPayload.chip!.height).toBeLessThan(withPayload.y)
   })
@@ -671,7 +679,7 @@ describe('narrateWorkflow', () => {
   it('describes every step in words, numbered in document order', () => {
     const workflow = ok(PLACE_ORDER, {
       aliases: ALIASES,
-      protocolSrn: 'srn://acme/shop/protocol/order-placement',
+      protocolSrn: 'srn://acme/product/shop/protocol/order-placement',
     })
     const lines = narrateWorkflow(workflow)
 

@@ -20,7 +20,7 @@ import {
  * wording, exit codes, shallow clones — and a mock would assert the mock.
  */
 
-const ORDER = 'acme/shop/datamodel/order'
+const ORDER = 'acme/product/shop/datamodel/order'
 const DOCUMENT = `${ORDER}/index.md`
 
 const scratch: string[] = []
@@ -109,7 +109,10 @@ beforeAll(async () => {
   c2 = repo.commit('approve order')
 
   await repo.write(DOCUMENT, document(2, 'review', 'Added the optional discount.'))
-  await repo.write(`${ORDER}/schema.json`, '{\n  "$id": "srn://acme/shop/datamodel/order@2"\n}\n')
+  await repo.write(
+    `${ORDER}/schema.json`,
+    '{\n  "x-srn": "srn://acme/product/shop/datamodel/order"\n}\n',
+  )
   c3 = repo.commit('order: optional discount')
 
   await repo.write(DOCUMENT, document(3, 'approved', 'Added the refunded state.'))
@@ -205,18 +208,20 @@ describe('listEntityFiles', () => {
 
   it('excludes a nested entity: its files belong to its own history', async () => {
     const nested = await makeRepo()
-    await nested.write('acme/shop/index.md', document(1, 'draft'))
-    await nested.write('acme/shop/transport.yaml', 'kind: kafka\n')
-    await nested.write('acme/shop/checkout/index.md', document(1, 'draft'))
-    await nested.write('acme/shop/checkout/workflows/place-order.yaml', 'steps: []\n')
+    await nested.write('acme/product/shop/index.md', document(1, 'draft'))
+    await nested.write('acme/product/shop/transport.yaml', 'kind: kafka\n')
+    await nested.write('acme/product/shop/component/checkout/index.md', document(1, 'draft'))
+    await nested.write('acme/product/shop/component/checkout/workflows/place-order.yaml', 'steps: []\n')
     const head = nested.commit('product with a child component')
     clearHistoryCache()
 
-    expect(await listEntityFiles('acme/shop', head, { catalogDir: nested.catalogDir })).toEqual([
+    expect(await listEntityFiles('acme/product/shop', head, { catalogDir: nested.catalogDir })).toEqual([
       'index.md',
       'transport.yaml',
     ])
-    expect(await listEntityFiles('acme/shop/checkout', head, { catalogDir: nested.catalogDir })).toEqual([
+    expect(
+      await listEntityFiles('acme/product/shop/component/checkout', head, { catalogDir: nested.catalogDir }),
+    ).toEqual([
       'index.md',
       'workflows/place-order.yaml',
     ])
@@ -338,7 +343,7 @@ describe('graceful degradation', () => {
 
   it('reports an entity inside a real repository that was never committed', async () => {
     const fresh = await makeRepo()
-    await fresh.write('acme/shop/datamodel/other/index.md', document(1, 'draft'))
+    await fresh.write('acme/product/shop/datamodel/other/index.md', document(1, 'draft'))
     fresh.commit('commit an unrelated entity')
     // Written, then deliberately left out of the index.
     await fresh.write(DOCUMENT, document(1, 'draft'))
@@ -376,11 +381,11 @@ describe('safeCatalogPath', () => {
   const options = { catalogDir: '/catalog' }
 
   it('accepts an ordinary catalog path', () => {
-    expect(safeCatalogPath('acme/shop/datamodel/order/index.md', options)).toBe(
-      'acme/shop/datamodel/order/index.md',
+    expect(safeCatalogPath('acme/product/shop/datamodel/order/index.md', options)).toBe(
+      'acme/product/shop/datamodel/order/index.md',
     )
-    expect(safeCatalogPath('acme/shop/protocol/x/workflows/place-order.yaml', options)).toBe(
-      'acme/shop/protocol/x/workflows/place-order.yaml',
+    expect(safeCatalogPath('acme/product/shop/protocol/x/workflows/place-order.yaml', options)).toBe(
+      'acme/product/shop/protocol/x/workflows/place-order.yaml',
     )
   })
 

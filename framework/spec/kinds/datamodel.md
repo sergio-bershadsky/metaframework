@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: datamodel
-version: 2
+version: 3
 status: review
 title: DataModel kind
 summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, no $id, relative-path $refs consumable by stock tooling, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
@@ -31,7 +31,7 @@ datamodel writes — frontmatter `relations`, prose links — is ordinary SRN.
 A datamodel entity is a directory inside a `datamodel/` kind bucket:
 
 ```text
-solutions/acme/shop/checkout/payment/datamodel/order/
+solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/
 ├── index.md          # REQUIRED — common frontmatter + kind fields + prose
 ├── schema.json       # REQUIRED — JSON Schema 2020-12, no $id, path-relative $refs
 └── examples/         # OPTIONAL asset subdirectory — sample instances
@@ -68,9 +68,10 @@ for it. Scope is responsibility, not visibility — any entity in the solution m
 reference any datamodel of that solution.
 
 ```text
-solutions/acme/datamodel/money/                          # solution-wide vocabulary
-solutions/acme/shop/datamodel/order-line/                # product-owned
-solutions/acme/shop/checkout/payment/datamodel/order/    # component-owned
+solutions/acme/datamodel/money/                    # solution-wide vocabulary
+solutions/acme/product/shop/datamodel/order-line/  # product-owned
+solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/
+                                                   # component-owned
 ```
 
 ## Dialect and identity
@@ -83,14 +84,14 @@ and that SRN is derived from the file's path, because SRN ≡ path
 ([srn.md](../srn.md)):
 
 ```text
-solutions/acme/shop/checkout/payment/datamodel/order/schema.json
-→          srn://acme/shop/checkout/payment/datamodel/order
+solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json
+→          srn://acme/product/shop/component/checkout/component/payment/datamodel/order
 ```
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/checkout/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "type": "object"
 }
@@ -106,10 +107,10 @@ solutions/acme/shop/checkout/payment/datamodel/order/schema.json
 Any `$id` is `E_DM_ID_FORBIDDEN`, whatever its form:
 
 ```json
-{ "$id": "srn://acme/shop/datamodel/order-line@2" }     /* E_DM_ID_FORBIDDEN */
-{ "$id": "srn://acme/shop/datamodel/order-line" }       /* E_DM_ID_FORBIDDEN */
-{ "$id": "https://acme.example/schemas/order.json" }    /* E_DM_ID_FORBIDDEN */
-{ "$id": "order.json" }                                 /* E_DM_ID_FORBIDDEN */
+{ "$id": "srn://acme/product/shop/datamodel/order-line@2" }  /* E_DM_ID_FORBIDDEN */
+{ "$id": "srn://acme/product/shop/datamodel/order-line" }    /* E_DM_ID_FORBIDDEN */
+{ "$id": "https://acme.example/schemas/order.json" }         /* E_DM_ID_FORBIDDEN */
+{ "$id": "order.json" }                                      /* E_DM_ID_FORBIDDEN */
 ```
 
 The reason is mechanical, not stylistic: JSON Schema resolves a relative `$ref`
@@ -131,13 +132,15 @@ keywords, so it changes nothing about how the schema validates; it exists so
 that a `schema.json` copied out of the catalog into a code generator, a ticket,
 or another repository still says where it came from.
 
-For `solutions/acme/shop/datamodel/order-line/schema.json`:
+For `solutions/acme/product/shop/datamodel/order-line/schema.json`:
 
 ```json
-{ "x-srn": "srn://acme/shop/datamodel/order-line" }     /* correct */
-{ "x-srn": "srn://acme/shop/datamodel/order-line@2" }   /* E_DM_SRN_MISMATCH — versioned */
-{ "x-srn": "srn://acme/shop/datamodel/orderline" }      /* E_DM_SRN_MISMATCH — directory is order-line */
-{ "x-srn": "srn://acme/datamodel/order-line" }          /* E_DM_SRN_MISMATCH — wrong owner */
+{ "x-srn": "srn://acme/product/shop/datamodel/order-line" }    /* correct     */
+
+/* the three below are each E_DM_SRN_MISMATCH: */
+{ "x-srn": "srn://acme/product/shop/datamodel/order-line@2" }  /* versioned   */
+{ "x-srn": "srn://acme/product/shop/datamodel/orderline" }     /* wrong name  */
+{ "x-srn": "srn://acme/datamodel/order-line" }                 /* wrong owner */
 ```
 
 It is unversioned deliberately: a versioned annotation would have to be edited
@@ -179,14 +182,14 @@ is the entire inheritance layer.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/checkout/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "allOf": [
-    { "$ref": "../../../../../datamodel/base-record/schema.json" },
-    { "$ref": "../../../../../datamodel/auditable/schema.json" }
+    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" },
+    { "$ref": "../../../../../../../../datamodel/auditable/schema.json" }
   ],
   "properties": {
-    "total": { "$ref": "../../../../../datamodel/money/schema.json" }
+    "total": { "$ref": "../../../../../../../../datamodel/money/schema.json" }
   }
 }
 ```
@@ -232,19 +235,41 @@ The base for resolution is the referring **file's own location** — the retriev
 URI, which is what a base URI defaults to when no `$id` overrides it. This is
 stock RFC 3986 behaviour and it means the paths read exactly like `cd` from the
 entity's directory. From
-`solutions/acme/shop/checkout/payment/datamodel/order/schema.json`:
+`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`:
 
 ```text
-../refund/schema.json                          → solutions/acme/shop/checkout/payment/datamodel/refund/schema.json
-../../../../datamodel/order-line/schema.json   → solutions/acme/shop/datamodel/order-line/schema.json
-../../../../../datamodel/money/schema.json     → solutions/acme/datamodel/money/schema.json
-#/$defs/quantity                               → local JSON Pointer inside this document
+../refund/schema.json
+  → solutions/acme/product/shop/component/checkout/component/payment/datamodel/refund/schema.json
+../../../../../../datamodel/order-line/schema.json
+  → solutions/acme/product/shop/datamodel/order-line/schema.json
+../../../../../../../../datamodel/money/schema.json
+  → solutions/acme/datamodel/money/schema.json
+#/$defs/quantity
+  → local JSON Pointer inside this document
 ```
 
-Count the `..` from the entity **directory**, not from the repository root: one
-`..` leaves `order/` and lands in the `datamodel/` bucket, so a sibling entity is
-always `../{name}/schema.json`, and every further level of the owning container
-costs one more.
+Count the `..` from the entity **directory**, not from the repository root, and
+count in **pairs**: one `..` leaves `order/` and lands in the `datamodel/`
+bucket, so a sibling entity is always `../{name}/schema.json` — but every level
+of owning container above that costs **two**, one for the container's name and
+one for its kind bucket. From `order/` the tally runs:
+
+| `..` | Lands in                | Reaching                                    |
+| ---- | ----------------------- | ------------------------------------------- |
+| 1    | `datamodel/`            | siblings: `../refund/schema.json`           |
+| 2    | `payment/`              | —                                           |
+| 4    | `checkout/`             | —                                           |
+| 6    | `shop/`                 | `../../../../../../datamodel/order-line/schema.json` |
+| 8    | `acme/`                 | `../../../../../../../../datamodel/money/schema.json` |
+| 9    | `solutions/`            | another solution — `E_SRN_CROSS_SOLUTION`   |
+| 10   | the repository root     | outside the catalog — `E_DM_REF_ESCAPE`     |
+
+The even numbers are the useful ones: an odd count lands *on a kind bucket*,
+from which the only sensible next segment is a name, and that is almost never
+what a `$ref` wants to say. This is the same pairing that makes an off-by-one
+SRN unparseable ([srn.md](../srn.md)); a `$ref` gets no such protection, because
+it is a file path and every file path is grammatical — which is precisely why
+the count is written out here.
 
 Forms that are not a relative path to a `schema.json` are `E_DM_REF_TARGET`:
 
@@ -266,9 +291,12 @@ A `$ref` MUST also stay **inside the catalog**. The catalog root is the
 ([kinds/solution.md](solution.md)). From the same `order/schema.json`:
 
 ```text
-../../../../../../globex/datamodel/money/schema.json      # 6 up → solutions/ ; E_SRN_CROSS_SOLUTION
-../../../../../../../framework/spec/schema.json           # 7 up → repo root  ; E_DM_REF_ESCAPE
-../../../../../../../../elsewhere/schema.json             # climbs past the repo; E_DM_REF_ESCAPE
+../../../../../../../../../globex/datamodel/money/schema.json
+  # 9 up → solutions/ ; E_SRN_CROSS_SOLUTION
+../../../../../../../../../../framework/spec/schema.json
+  # 10 up → repo root ; E_DM_REF_ESCAPE
+../../../../../../../../../../../elsewhere/schema.json
+  # 11 up, past the repo ; E_DM_REF_ESCAPE
 ```
 
 The decision is made on the **normalized** path, not on the `..` count, so a
@@ -366,7 +394,7 @@ document's root:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/datamodel/category",
+  "x-srn": "srn://acme/product/shop/datamodel/category",
   "type": "object",
   "properties": {
     "children": { "type": "array", "items": { "$ref": "#" } }
@@ -382,8 +410,8 @@ edges — is `E_DM_INHERIT_CYCLE`. It cannot be flattened and cannot be drawn as
 tree:
 
 ```text
-order     allOf → invoice        # ../../../../datamodel/invoice/schema.json
-invoice   allOf → order          # E_DM_INHERIT_CYCLE
+order     allOf → invoice        # ../invoice/schema.json — sibling in the bucket
+invoice   allOf → order          # ../order/schema.json   — E_DM_INHERIT_CYCLE
 ```
 
 ## Composition patterns
@@ -430,18 +458,18 @@ compose; order is irrelevant (conjunction is commutative).
 
 ```json
 {
-  "x-srn": "srn://acme/shop/checkout/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "allOf": [
-    { "$ref": "../../../../../datamodel/base-record/schema.json" },
-    { "$ref": "../../../../../datamodel/auditable/schema.json" }
+    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" },
+    { "$ref": "../../../../../../../../datamodel/auditable/schema.json" }
   ]
 }
 ```
 
 The first branch contributes identity and timestamps; the second is the mixin
-(`changed-by`, `change-reason`). Both climb five levels from
-`.../payment/datamodel/order/` to `solutions/acme/`, because both bases are
-solution-level vocabulary.
+(`changed-by`, `change-reason`). Both climb eight levels from
+`.../payment/datamodel/order/` to `solutions/acme/` — four owning containers,
+two segments each — because both bases are solution-level vocabulary.
 
 Mixins are datamodel entities like any other, `abstract: true`. The portal draws
 them in the inheritance tree with a dashed edge only as a rendering hint — there
@@ -455,7 +483,7 @@ the same name in every branch:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/datamodel/payment-method",
+  "x-srn": "srn://acme/product/shop/datamodel/payment-method",
   "oneOf": [
     { "$ref": "../card-payment/schema.json" },
     { "$ref": "../sepa-payment/schema.json" }
@@ -466,7 +494,7 @@ the same name in every branch:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/datamodel/card-payment",
+  "x-srn": "srn://acme/product/shop/datamodel/card-payment",
   "type": "object",
   "properties": {
     "method": { "const": "card" },
@@ -500,7 +528,7 @@ convention everywhere else.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/datamodel/order-line",
+  "x-srn": "srn://acme/product/shop/datamodel/order-line",
   "type": "object",
   "properties": {
     "quantity": { "$ref": "#/$defs/positive-int" },
@@ -638,11 +666,13 @@ Load sequence:
 ```javascript
 // illustrative, ajv 2020-12
 for (const { path, doc } of schemas) {
-  ajv.addSchema(doc, pathToFileURL(path).href);  // "file:///repo/solutions/acme/datamodel/money/schema.json"
+  // e.g. "file:///repo/solutions/acme/datamodel/money/schema.json"
+  ajv.addSchema(doc, pathToFileURL(path).href);
 }
-const validate = ajv.getSchema(
-  pathToFileURL("solutions/acme/shop/checkout/payment/datamodel/order/schema.json").href,
-);
+const order =
+  "solutions/acme/product/shop/component/checkout/component/payment" +
+  "/datamodel/order/schema.json";
+const validate = ajv.getSchema(pathToFileURL(order).href);
 ```
 
 There is no version-keyed registration and no unversioned alias: a `$ref` carries
@@ -836,7 +866,7 @@ solutions/acme/
 │   └── money/
 │       ├── index.md
 │       └── schema.json
-└── shop/checkout/payment/
+└── product/shop/component/checkout/component/payment/
     └── datamodel/
         └── order/
             ├── index.md
@@ -897,7 +927,7 @@ branches are evaluated independently.
 }
 ```
 
-### `solutions/acme/shop/checkout/payment/datamodel/order/index.md`
+### `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/index.md`
 
 ```markdown
 ---
@@ -944,24 +974,24 @@ derives those edges from `schema.json`.
 Prose links stay `srn://` and MAY pin (`@1`) — the interoperability rule binds
 `schema.json` only.
 
-### `solutions/acme/shop/checkout/payment/datamodel/order/schema.json`
+### `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-srn": "srn://acme/shop/checkout/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "type": "object",
   "allOf": [
-    { "$ref": "../../../../../datamodel/base-record/schema.json" }
+    { "$ref": "../../../../../../../../datamodel/base-record/schema.json" }
   ],
   "properties": {
     "total": {
-      "$ref": "../../../../../datamodel/money/schema.json",
+      "$ref": "../../../../../../../../datamodel/money/schema.json",
       "description": "Gross amount payable."
     },
     "discount": {
-      "$ref": "../../../../../datamodel/money/schema.json",
+      "$ref": "../../../../../../../../datamodel/money/schema.json",
       "description": "Applied discount; added in version 2."
     },
     "status": {
@@ -982,7 +1012,7 @@ Prose links stay `srn://` and MAY pin (`@1`) — the interoperability rule binds
 }
 ```
 
-### `solutions/acme/shop/checkout/payment/datamodel/order/examples/minimal.json`
+### `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/examples/minimal.json`
 
 ```json
 {
@@ -996,11 +1026,13 @@ Prose links stay `srn://` and MAY pin (`@1`) — the interoperability rule binds
 Checks this example demonstrates:
 
 - The schema carries no `$id`; its identity is
-  `srn://acme/shop/checkout/payment/datamodel/order`, read off the path and
-  asserted redundantly by `x-srn`.
-- `../../../../../datamodel/base-record/schema.json` climbs five levels from the
-  entity directory — `datamodel/`, `payment/`, `checkout/`, `shop/`, `acme/` —
-  and lands on `solutions/acme/datamodel/base-record/schema.json`. Run
+  `srn://acme/product/shop/component/checkout/component/payment/datamodel/order`,
+  read off the path and asserted redundantly by `x-srn`.
+- `../../../../../../../../datamodel/base-record/schema.json` climbs eight levels
+  from the entity directory — `datamodel/`, `payment/`, `component/`,
+  `checkout/`, `component/`, `shop/`, `product/`, `acme/` — and lands on
+  `solutions/acme/datamodel/base-record/schema.json`. Four of those eight are
+  kind buckets, which is the whole cost of bucketing paid in one line. Run
   `json-schema-to-typescript` on this file from a clone and it resolves; that is
   the whole point of the form.
 - `positive-int` stays in `$defs` because it is trivial and single-entity;
@@ -1042,17 +1074,17 @@ and MUST NOT be emitted:
   now `E_DM_ID_FORBIDDEN`.
 - `W_DM_UNPINNED_REF` — a path `$ref` cannot be pinned, so it cannot be
   unpinned. Pins live in `relations` and are checked as ordinary SRNs.
-- `E_VER_ID_MISMATCH` — defined in [evolution.md](../evolution.md) as "schema
-  `$id` version ≠ frontmatter `version`". A `schema.json` now carries neither an
-  `$id` nor a version, so the comparison has no operands; the code no longer
-  applies to datamodels.
+- `E_VER_ID_MISMATCH` — formerly "schema `$id` version ≠ frontmatter `version`".
+  A `schema.json` now carries neither an `$id` nor a version, so the comparison
+  has no operands. [evolution.md](../evolution.md) retires the code outright; it
+  is listed here because a datamodel was its only subject.
 
 Reused from the core spec, unchanged: `E_SRN_SYNTAX`, `E_SRN_RESERVED`,
 `E_SRN_CROSS_SOLUTION`, `E_SRN_DANGLING`, `E_SRN_VERSION` ([srn.md](../srn.md)) —
 these govern the datamodel's SRN surfaces (`relations`, prose) and the
 solution-boundary check on a resolved `$ref` path; `E_FM_EDGE_TARGET` for the
-datamodel's own `relations` edges (rule V7 — a schema `$ref` is not a relation
-edge and uses `E_DM_REF_KIND` instead); `E_FM_SCHEMA`, `E_FM_UNKNOWN_FIELD`,
+datamodel's own `relations` edges (a schema `$ref` is not a relation edge and
+uses `E_DM_REF_KIND` instead); `E_FM_SCHEMA`, `E_FM_UNKNOWN_FIELD`,
 `E_FM_NAME_MISMATCH`, `E_FM_KIND_LOCATION` ([frontmatter.md](../frontmatter.md));
 `E_VER_REGRESSION`, `W_REF_DEPRECATED` ([evolution.md](../evolution.md));
 `E_STRUCT_*` ([structure.md](../structure.md)).

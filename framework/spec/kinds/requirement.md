@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: requirement
-version: 1
+version: 2
 status: review
 title: Kind — Requirement
 summary: Contract for requirement entities — placement, requirement-type and MoSCoW priority, the acceptance-criteria section, satisfaction via the implements edge, and derived coverage.
@@ -36,10 +36,16 @@ Requirements are **owner-scoped**: the bucket `requirement/` may sit under any
 container — solution, product, or component ([structure.md](../structure.md)):
 
 ```text
-solutions/acme/requirement/gdpr-erasure/                 # binds the whole solution
-solutions/acme/shop/requirement/guest-checkout/          # binds the shop product
-solutions/acme/shop/checkout/requirement/idem-cap/       # binds one component
+solutions/acme/requirement/gdpr-erasure/                    # binds the solution
+solutions/acme/product/shop/requirement/guest-checkout/     # binds the product
+solutions/acme/product/shop/component/checkout/requirement/idem-cap/
+                                                            # binds one component
 ```
+
+Those three positions are exactly what the grammar allows: a `requirement` pair
+may be the first pair after the solution, or follow a `product` or `component`
+pair, and nothing else may own one. A `requirement/` bucket inside a `protocol/`
+entity is `E_SRN_PLACEMENT` ([srn.md](../srn.md)).
 
 Place a requirement in the bucket of the container that **owns the obligation**
 — the one accountable for it holding. That is usually, but not always, the
@@ -217,10 +223,10 @@ Satisfaction is authored **on the component side only**, using the common edge
 ([frontmatter.md](../frontmatter.md)):
 
 ```yaml
-# solutions/acme/shop/checkout/index.md
+# solutions/acme/product/shop/component/checkout/index.md
 relations:
   implements:
-    - requirement/idem-cap                  # this component's own requirement
+    - requirement/idem-cap                  # this component's own bucket
     - /requirement/gdpr-erasure             # a solution-level obligation
 ```
 
@@ -229,9 +235,10 @@ the portal, exactly like every other inverse edge; authoring both directions is
 double bookkeeping that drifts.
 
 ```yaml
-# solutions/acme/shop/checkout/requirement/idem-cap/index.md
+# solutions/acme/product/shop/component/checkout/requirement/idem-cap/index.md
 relations:
-  implemented-by: [/shop/checkout]          # E_FM_SCHEMA — inverse edges are derived
+  implemented-by:                           # E_FM_SCHEMA — inverse edges are
+    - /product/shop/component/checkout      # derived, never authored
 ```
 
 Two catalog-level consistency checks fall out of the graph:
@@ -325,7 +332,8 @@ non-reduction rule ([evolution.md](../evolution.md)).
   [evolution.md](../evolution.md), and it is handled by the swap:
 
   ```yaml
-  # solutions/acme/shop/checkout/requirement/exactly-once-capture/index.md
+  # solutions/acme/product/shop/component/checkout/requirement/
+  #   exactly-once-capture/index.md
   version: 1
   status: draft
   relations:
@@ -340,7 +348,7 @@ non-reduction rule ([evolution.md](../evolution.md)).
 
 ## Worked example
 
-`solutions/acme/shop/checkout/requirement/idem-cap/index.md`:
+`solutions/acme/product/shop/component/checkout/requirement/idem-cap/index.md`:
 
 ```markdown
 ---
@@ -355,8 +363,8 @@ requirement-type: functional
 priority: must
 relations:
   uses:
-    - srn://acme/shop/protocol/order-events
-    - ../../payment/datamodel/capture-request@1
+    - srn://acme/product/shop/protocol/order-events
+    - /product/shop/component/checkout/component/payment/datamodel/capture-request@1
 tags:
   - payments
   - reliability
@@ -395,10 +403,11 @@ and the next deploy re-opened the hole.
 ## Out of scope
 
 Idempotency of refunds — see
-[refund-idem](srn://acme/shop/checkout/requirement/refund-idem).
+[refund-idem](srn://acme/product/shop/component/checkout/requirement/refund-idem).
 ```
 
-A non-functional requirement, `solutions/acme/shop/checkout/requirement/p99-checkout-latency/index.md`:
+A non-functional requirement,
+`solutions/acme/product/shop/component/checkout/requirement/p99-checkout-latency/index.md`:
 
 ```markdown
 ---

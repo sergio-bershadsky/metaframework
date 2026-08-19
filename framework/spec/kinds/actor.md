@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: actor
-version: 1
+version: 2
 status: review
 title: Kind — Actor
 summary: Contract for actor entities — solution-level placement, the actor-type enum, goals, protocol and workflow participation, validation, and derived views.
@@ -74,7 +74,7 @@ an SRN into that solution stays illegal ([srn.md](../srn.md)):
 solutions/acme/actor/globex-payments/     # legal — the partner's API described
                                           # locally as an external-system actor
 relations:
-  uses: [srn://globex/gateway/protocol/authorize]   # ILLEGAL — E_SRN_CROSS_SOLUTION
+  uses: [srn://globex/product/gateway/protocol/authorize]  # E_SRN_CROSS_SOLUTION
 ```
 
 ## Placement
@@ -83,11 +83,14 @@ Actors are **solution-level only**. The bucket is `actor/`, a direct child of
 the solution directory:
 
 ```text
-solutions/acme/actor/customer/index.md          # legal   srn://acme/actor/customer
-solutions/acme/shop/actor/customer/index.md     # ILLEGAL — E_STRUCT_KIND_PLACEMENT
+solutions/acme/actor/customer/index.md                # legal
+                                                      #   srn://acme/actor/customer
+solutions/acme/product/shop/actor/customer/index.md   # ILLEGAL — E_SRN_PLACEMENT
 ```
 
-The rule and its error class are owned by [structure.md](../structure.md); the
+The rule is **grammar**, not a loader check: an `actor` pair may only be the
+first pair after the authority, so the second path above fails while it is
+parsed and never reaches frontmatter validation ([srn.md](../srn.md)). The
 rationale is kind-specific:
 
 - An actor is a fact about the solution's universe. A customer does not belong
@@ -221,7 +224,7 @@ Actors use the common `relations` map with no additions. In practice:
 ```yaml
 relations:
   uses:
-    - /shop/checkout            # the component this actor interacts with
+    - /product/shop/component/checkout   # the component this actor touches
 ```
 
 **Do not author `uses` toward a protocol from an actor.** Protocol
@@ -235,8 +238,9 @@ active discouragement rather than a mere exemption. The portal flags it as
 ```yaml
 relations:
   uses:
-    - /shop/protocol/order-events   # W_ACTOR_PARTICIPATION_EDGE — say it in the
-                                    # protocol's participant list instead
+    - /product/shop/protocol/order-events   # W_ACTOR_PARTICIPATION_EDGE — say it
+                                            # in the protocol's participant
+                                            # list instead
 ```
 
 ## Sibling artifacts
@@ -267,29 +271,30 @@ the contract is three rules:
    by an SRN. The SRN appears once, in `participants`:
 
    ```yaml
-   # solutions/acme/shop/protocol/order-events/index.md
+   # solutions/acme/product/shop/protocol/order-events/index.md
    participants:
      - alias: customer
        ref: /actor/customer            # the SRN lives here, once
        role: initiator
      - alias: checkout
-       ref: /shop/checkout
+       ref: /product/shop/component/checkout
    ```
 
    ```yaml
-   # solutions/acme/shop/protocol/order-events/workflows/place-order.yaml
+   # solutions/acme/product/shop/protocol/order-events/workflows/place-order.yaml
    steps:
      - message: order-placed
        from: customer                  # alias, not an SRN (E_PROTO_WF_ALIAS)
        to: checkout
-       payload: /shop/datamodel/order-placed@1
+       payload: /product/shop/datamodel/order-placed@1
    ```
 
 3. Actors **never** affect protocol placement. The nearest-common-ancestor rule
    in [structure.md](../structure.md) counts component and product participants
    only, so a
-   protocol between `acme/shop/checkout` and `srn://acme/actor/customer` still
-   belongs at `solutions/acme/shop/protocol/...`, not at the solution root.
+   protocol between `srn://acme/product/shop/component/checkout` and
+   `srn://acme/actor/customer` still belongs at
+   `solutions/acme/product/shop/protocol/...`, not at the solution root.
 
 An actor named in no protocol's `participants` list and no workflow step is
 `W_ACTOR_ORPHAN` — legal (a newly described actor precedes its protocols), but
@@ -315,7 +320,7 @@ goals:
   - Get money back for a returned item within one working day.
 relations:
   uses:
-    - /shop/checkout
+    - /product/shop/component/checkout
 tags:
   - commerce
   - external-facing
@@ -330,7 +335,7 @@ concern of the analytics product, not of this description.
 ## Boundaries
 
 - The customer is never a component: we describe the surfaces they touch
-  (`/shop/checkout`), never their behaviour.
+  (`/product/shop/component/checkout`), never their behaviour.
 - A person may hold several roles at once. The same human acting on behalf of
   the merchant is the `merchant-operator` actor, and the two roles must not be
   merged just because one body performs both.
@@ -338,7 +343,7 @@ concern of the analytics product, not of this description.
 ## Participation
 
 The customer appears as a participant of
-[order-events](srn://acme/shop/protocol/order-events) and as the initiating
+[order-events](srn://acme/product/shop/protocol/order-events) and as the initiating
 sender of the `place-order` workflow. Participation is declared there, not here.
 ```
 
@@ -403,7 +408,7 @@ served" note, never silently deleted.
 
 | #    | Rule                                                                    | Class                        |
 | ---- | ----------------------------------------------------------------------- | ---------------------------- |
-| ACT1 | `actor/` bucket is a direct child of a solution directory.              | `E_STRUCT_KIND_PLACEMENT`    |
+| ACT1 | `actor/` bucket is a direct child of a solution directory.              | `E_SRN_PLACEMENT`            |
 | ACT2 | `actor-type` present and a member of the closed enum.                   | `E_FM_SCHEMA`                |
 | ACT3 | `goals` present, a list, ≥ 1 item, each a single line ≤ 200 chars.      | `E_FM_SCHEMA`                |
 | ACT4 | `actor-type` / `goals` appear only on `kind: actor` entities.           | `E_FM_UNKNOWN_FIELD`         |
@@ -437,6 +442,6 @@ sealing) apply unchanged and are not restated here.
 | `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no workflow step.                           |
 
 Placement, frontmatter shape, and reference errors reuse the existing classes:
-`E_STRUCT_KIND_PLACEMENT` ([structure.md](../structure.md)), `E_FM_SCHEMA` and
+`E_SRN_PLACEMENT` ([srn.md](../srn.md)), `E_FM_SCHEMA` and
 `E_FM_UNKNOWN_FIELD` ([frontmatter.md](../frontmatter.md)),
 `E_SRN_CROSS_SOLUTION` ([srn.md](../srn.md)).

@@ -93,10 +93,12 @@ const order: SchemaNode = {
   $schema: DIALECT,
   title: 'Order',
   type: 'object',
-  allOf: [{ $ref: '../../../../../datamodel/base-record/schema.json' }],
+  // Eight `..` — the order sits eight directories below its solution root, and
+  // a kind bucket is a directory like any other.
+  allOf: [{ $ref: '../../../../../../../../datamodel/base-record/schema.json' }],
   properties: {
-    total: { $ref: '../../../../../datamodel/money/schema.json', description: 'Gross amount payable.' },
-    discount: { $ref: '../../../../../datamodel/money/schema.json' },
+    total: { $ref: '../../../../../../../../datamodel/money/schema.json', description: 'Gross amount payable.' },
+    discount: { $ref: '../../../../../../../../datamodel/money/schema.json' },
     status: { enum: ['placed', 'paid', 'refunded'] },
     'line-count': { $ref: '#/$defs/positive-int' },
     refund: { $ref: '../refund/schema.json' },
@@ -149,7 +151,7 @@ const broken: SchemaNode = {
   title: 'Broken',
   type: 'object',
   allOf: [{ $ref: '../nope/schema.json' }],
-  properties: { loose: { $ref: '../../../datamodel/money/schema.json' } },
+  properties: { loose: { $ref: '../../../../datamodel/money/schema.json' } },
 }
 
 const loopA: SchemaNode = {
@@ -173,43 +175,45 @@ function fixture(): SchemaRegistry {
     catalogOf([
       datamodel('acme/datamodel/base-record', baseRecord, { abstract: true }),
       datamodel('acme/datamodel/money', money),
-      datamodel('acme/shop/checkout/payment/datamodel/order', order, { version: 3 }),
-      datamodel('acme/shop/checkout/payment/datamodel/refund', refund),
-      datamodel('acme/shop/datamodel/payment-method', paymentMethod),
-      datamodel('acme/shop/datamodel/card-payment', cardPayment),
-      datamodel('acme/shop/datamodel/sepa-payment', sepaPayment),
-      datamodel('acme/shop/datamodel/sepa-tag', sepaTag),
-      datamodel('acme/shop/datamodel/broken', broken),
-      datamodel('acme/shop/datamodel/loop-a', loopA),
-      datamodel('acme/shop/datamodel/loop-b', loopB),
-      datamodel('acme/shop/datamodel/prose-only', null),
+      datamodel('acme/product/shop/component/checkout/component/payment/datamodel/order', order, { version: 3 }),
+      datamodel('acme/product/shop/component/checkout/component/payment/datamodel/refund', refund),
+      datamodel('acme/product/shop/datamodel/payment-method', paymentMethod),
+      datamodel('acme/product/shop/datamodel/card-payment', cardPayment),
+      datamodel('acme/product/shop/datamodel/sepa-payment', sepaPayment),
+      datamodel('acme/product/shop/datamodel/sepa-tag', sepaTag),
+      datamodel('acme/product/shop/datamodel/broken', broken),
+      datamodel('acme/product/shop/datamodel/loop-a', loopA),
+      datamodel('acme/product/shop/datamodel/loop-b', loopB),
+      datamodel('acme/product/shop/datamodel/prose-only', null),
     ]),
   )
 }
 
-const ORDER = 'acme/shop/checkout/payment/datamodel/order/schema.json'
+const ORDER = 'acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json'
 const BASE = 'acme/datamodel/base-record/schema.json'
 const MONEY = 'acme/datamodel/money/schema.json'
-const LOOP_A = 'acme/shop/datamodel/loop-a/schema.json'
-const LOOP_B = 'acme/shop/datamodel/loop-b/schema.json'
+const LOOP_A = 'acme/product/shop/datamodel/loop-a/schema.json'
+const LOOP_B = 'acme/product/shop/datamodel/loop-b/schema.json'
 
-const MONEY_FROM_ORDER = '../../../../../datamodel/money/schema.json'
+const MONEY_FROM_ORDER = '../../../../../../../../datamodel/money/schema.json'
 
 function codes(registry: SchemaRegistry, srn: string): string[] {
   return registry.diagnostics.filter((diagnostic) => diagnostic.srn === srn).map((diagnostic) => diagnostic.code)
 }
 
+const ORDER_SRN = 'srn://acme/product/shop/component/checkout/component/payment/datamodel/order'
+
 describe('buildSchemaRegistry — keying', () => {
   it('keys each document by its catalog-relative path and aliases both SRN forms', () => {
     const registry = fixture()
     expect(resolveSchema(registry, ORDER)?.id).toBe(ORDER)
-    expect(resolveSchema(registry, 'srn://acme/shop/checkout/payment/datamodel/order')?.id).toBe(ORDER)
-    expect(resolveSchema(registry, 'srn://acme/shop/checkout/payment/datamodel/order@3')?.id).toBe(ORDER)
+    expect(resolveSchema(registry, ORDER_SRN)?.id).toBe(ORDER)
+    expect(resolveSchema(registry, `${ORDER_SRN}@3`)?.id).toBe(ORDER)
   })
 
   it('derives the owning entity SRN from the path', () => {
     const registry = fixture()
-    expect(resolveSchema(registry, ORDER)?.srn).toBe('srn://acme/shop/checkout/payment/datamodel/order')
+    expect(resolveSchema(registry, ORDER)?.srn).toBe(ORDER_SRN)
     expect(resolveSchema(registry, BASE)?.srn).toBe('srn://acme/datamodel/base-record')
   })
 
@@ -217,13 +221,13 @@ describe('buildSchemaRegistry — keying', () => {
     const registry = fixture()
     expect(resolveSchema(registry, MONEY_FROM_ORDER, ORDER)?.id).toBe(MONEY)
     expect(resolveSchema(registry, '../refund/schema.json', ORDER)?.srn).toBe(
-      'srn://acme/shop/checkout/payment/datamodel/refund',
+      'srn://acme/product/shop/component/checkout/component/payment/datamodel/refund',
     )
   })
 
   it('reports a datamodel entity with no schema.json', () => {
     const registry = fixture()
-    expect(codes(registry, 'srn://acme/shop/datamodel/prose-only')).toContain('E_DM_SCHEMA_MISSING')
+    expect(codes(registry, 'srn://acme/product/shop/datamodel/prose-only')).toContain('E_DM_SCHEMA_MISSING')
   })
 })
 
@@ -242,7 +246,7 @@ describe('stock JSON Schema resolution', () => {
     expect(validate?.(instance)).toBe(true)
     // The inherited `required` comes from base-record via allOf + $ref.
     expect(validate?.({ total: { amount: '49.90', currency: 'EUR' } })).toBe(false)
-    // The nested value object comes from a five-levels-up relative file path.
+    // The nested value object comes from an eight-levels-up relative file path.
     expect(validate?.({ ...instance, total: { amount: '49.90' } })).toBe(false)
     // The local $defs pointer is entity-private but still enforced.
     expect(validate?.({ ...instance, 'line-count': 0 })).toBe(false)
@@ -304,15 +308,15 @@ describe('effective fields', () => {
           type: 'object',
           properties: { id: { type: 'string' }, note: { type: 'string' } },
         }),
-        datamodel('acme/shop/datamodel/narrow', {
+        datamodel('acme/product/shop/datamodel/narrow', {
           $schema: DIALECT,
           type: 'object',
-          allOf: [{ $ref: '../../../datamodel/base-record/schema.json' }],
+          allOf: [{ $ref: '../../../../datamodel/base-record/schema.json' }],
           properties: { id: { type: 'integer' }, note: { minLength: 8 } },
         }),
       ]),
     )
-    const model = effectiveModel(registry, 'acme/shop/datamodel/narrow/schema.json')
+    const model = effectiveModel(registry, 'acme/product/shop/datamodel/narrow/schema.json')
     const id = model?.properties.find((property) => property.name === 'id')
     const note = model?.properties.find((property) => property.name === 'note')
 
@@ -327,23 +331,23 @@ describe('effective fields', () => {
 describe('discriminated unions', () => {
   it('derives a variant map from oneOf with a shared const tag', () => {
     const registry = fixture()
-    const bundle = buildSchemaBundle(registry, 'acme/shop/datamodel/payment-method/schema.json')
-    const union = bundle?.unions[nodeKey('acme/shop/datamodel/payment-method/schema.json', '')]
+    const bundle = buildSchemaBundle(registry, 'acme/product/shop/datamodel/payment-method/schema.json')
+    const union = bundle?.unions[nodeKey('acme/product/shop/datamodel/payment-method/schema.json', '')]
 
     expect(union?.derivable).toBe(true)
     expect(union?.tag).toBe('method')
     // sepa-payment carries its tag through allOf, so the flattener must find it.
     expect(union?.variants.map((variant) => variant.tag)).toEqual(['card', 'sepa'])
     expect(union?.variants.map((variant) => variant.srn)).toEqual([
-      'srn://acme/shop/datamodel/card-payment',
-      'srn://acme/shop/datamodel/sepa-payment',
+      'srn://acme/product/shop/datamodel/card-payment',
+      'srn://acme/product/shop/datamodel/sepa-payment',
     ])
   })
 
   it('falls back to an opaque union when no shared tag exists', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
-        datamodel('acme/shop/datamodel/untagged', {
+        datamodel('acme/product/shop/datamodel/untagged', {
           $schema: DIALECT,
           oneOf: [
             { type: 'object', required: ['pan-last4'], properties: { 'pan-last4': { type: 'string' } } },
@@ -352,7 +356,7 @@ describe('discriminated unions', () => {
         }),
       ]),
     )
-    const id = 'acme/shop/datamodel/untagged/schema.json'
+    const id = 'acme/product/shop/datamodel/untagged/schema.json'
     const bundle = buildSchemaBundle(registry, id)
     const union = bundle?.unions[nodeKey(id, '')]
 
@@ -367,19 +371,19 @@ describe('unresolvable references', () => {
   it('records a dangling $ref as an error instead of dropping it', () => {
     const registry = fixture()
     const dangling = registry.resolutions
-      .get('acme/shop/datamodel/broken/schema.json')
+      .get('acme/product/shop/datamodel/broken/schema.json')
       ?.get('../nope/schema.json')
 
     expect(dangling?.targetId).toBeNull()
     // The path is still a legal entity address, so the author is told which one.
-    expect(dangling?.targetSrn).toBe('srn://acme/shop/datamodel/nope')
+    expect(dangling?.targetSrn).toBe('srn://acme/product/shop/datamodel/nope')
     expect(dangling?.error?.code).toBe('E_SRN_DANGLING')
-    expect(codes(registry, 'srn://acme/shop/datamodel/broken')).toContain('E_SRN_DANGLING')
+    expect(codes(registry, 'srn://acme/product/shop/datamodel/broken')).toContain('E_SRN_DANGLING')
   })
 
   it('surfaces an unresolvable base in the lineage rather than silently skipping it', () => {
     const registry = fixture()
-    const model = effectiveModel(registry, 'acme/shop/datamodel/broken/schema.json')
+    const model = effectiveModel(registry, 'acme/product/shop/datamodel/broken/schema.json')
     const unresolved = model?.lineage.find((node) => node.status === 'unresolved')
 
     expect(unresolved?.ref).toBe('../nope/schema.json')
@@ -391,14 +395,14 @@ describe('unresolvable references', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
         datamodel('acme/datamodel/money', money),
-        datamodel('acme/shop/datamodel/nosy', {
+        datamodel('acme/product/shop/datamodel/nosy', {
           $schema: DIALECT,
           type: 'object',
-          properties: { c: { $ref: '../../../datamodel/money/schema.json#/$defs/currency' } },
+          properties: { c: { $ref: '../../../../datamodel/money/schema.json#/$defs/currency' } },
         }),
       ]),
     )
-    expect(codes(registry, 'srn://acme/shop/datamodel/nosy')).toContain('E_DM_FOREIGN_DEFS')
+    expect(codes(registry, 'srn://acme/product/shop/datamodel/nosy')).toContain('E_DM_FOREIGN_DEFS')
   })
 })
 
@@ -408,26 +412,26 @@ describe('reference form', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
         datamodel('acme/datamodel/money', money),
-        datamodel('acme/shop/datamodel/probe', {
+        datamodel('acme/product/shop/datamodel/probe', {
           $schema: DIALECT,
           type: 'object',
           properties: { value: { $ref: ref } },
         }),
       ]),
     )
-    return codes(registry, 'srn://acme/shop/datamodel/probe')
+    return codes(registry, 'srn://acme/product/shop/datamodel/probe')
   }
 
   it('rejects a $ref that climbs above the catalog root', () => {
-    expect(refCodes('../../../../../elsewhere/schema.json')).toContain('E_DM_REF_ESCAPE')
+    expect(refCodes('../../../../../../elsewhere/schema.json')).toContain('E_DM_REF_ESCAPE')
   })
 
   it('rejects a $ref that lands in another solution', () => {
-    expect(refCodes('../../../../globex/datamodel/money/schema.json')).toContain('E_SRN_CROSS_SOLUTION')
+    expect(refCodes('../../../../../globex/datamodel/money/schema.json')).toContain('E_SRN_CROSS_SOLUTION')
   })
 
   it('rejects a $ref that does not name a schema.json', () => {
-    expect(refCodes('../../../datamodel/money')).toContain('E_DM_REF_TARGET')
+    expect(refCodes('../../../../datamodel/money')).toContain('E_DM_REF_TARGET')
   })
 
   it('rejects an SRN $ref — stock tooling cannot open a private URI scheme', () => {
@@ -439,7 +443,7 @@ describe('reference form', () => {
   })
 
   it('accepts the relative file path a generator would follow', () => {
-    expect(refCodes('../../../datamodel/money/schema.json')).toEqual([])
+    expect(refCodes('../../../../datamodel/money/schema.json')).toEqual([])
   })
 })
 
@@ -451,7 +455,7 @@ describe('provenance and identity', () => {
 
   it('reports an x-srn that disagrees with the file’s path', () => {
     const registry = buildSchemaRegistry(
-      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/shop/datamodel/money' })]),
+      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/product/shop/datamodel/money' })]),
     )
     expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_MISMATCH')
   })
@@ -467,7 +471,7 @@ describe('provenance and identity', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
         datamodel('acme/datamodel/money', { ...money, $id: 'srn://acme/datamodel/money@1' }),
-        datamodel('acme/shop/datamodel/nested-id', {
+        datamodel('acme/product/shop/datamodel/nested-id', {
           $schema: DIALECT,
           type: 'object',
           $defs: { thing: { $id: 'thing.json', type: 'string' } },
@@ -475,7 +479,7 @@ describe('provenance and identity', () => {
       ]),
     )
     expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_ID_FORBIDDEN')
-    expect(codes(registry, 'srn://acme/shop/datamodel/nested-id')).toContain('E_DM_ID_FORBIDDEN')
+    expect(codes(registry, 'srn://acme/product/shop/datamodel/nested-id')).toContain('E_DM_ID_FORBIDDEN')
   })
 })
 
@@ -484,7 +488,7 @@ describe('cycles', () => {
     const registry = fixture()
     expect(registry.inheritance.cyclic).toContain(LOOP_A)
     expect(registry.inheritance.cyclic).toContain(LOOP_B)
-    expect(codes(registry, 'srn://acme/shop/datamodel/loop-a')).toContain('E_DM_INHERIT_CYCLE')
+    expect(codes(registry, 'srn://acme/product/shop/datamodel/loop-a')).toContain('E_DM_INHERIT_CYCLE')
   })
 
   it('flattens a cyclic model without hanging', () => {
@@ -504,14 +508,14 @@ describe('cycles', () => {
   it('tolerates a property-level self reference', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
-        datamodel('acme/shop/datamodel/category', {
+        datamodel('acme/product/shop/datamodel/category', {
           $schema: DIALECT,
           type: 'object',
           properties: { children: { type: 'array', items: { $ref: '../category/schema.json' } } },
         }),
       ]),
     )
-    const id = 'acme/shop/datamodel/category/schema.json'
+    const id = 'acme/product/shop/datamodel/category/schema.json'
     const validate = schemaValidator(registry, id)
     expect(validate?.({ children: [{ children: [] }] })).toBe(true)
     expect(effectiveModel(registry, id)?.lineage).toHaveLength(1)
@@ -537,8 +541,8 @@ describe('buildSchemaBundle', () => {
 
   it('flattens every reachable document so a nested $ref expands to effective fields', () => {
     const registry = fixture()
-    const bundle = buildSchemaBundle(registry, 'acme/shop/datamodel/payment-method/schema.json')
-    const sepa = bundle?.flat['acme/shop/datamodel/sepa-payment/schema.json']
+    const bundle = buildSchemaBundle(registry, 'acme/product/shop/datamodel/payment-method/schema.json')
+    const sepa = bundle?.flat['acme/product/shop/datamodel/sepa-payment/schema.json']
 
     expect(sepa?.map((property) => property.name)).toEqual(['iban', 'method'])
     expect(sepa?.find((property) => property.name === 'method')?.own).toBe(false)
@@ -563,6 +567,6 @@ describe('buildSchemaBundle', () => {
   })
 
   it('returns null for an SRN with no schema', () => {
-    expect(buildSchemaBundle(fixture(), 'srn://acme/shop/datamodel/ghost')).toBeNull()
+    expect(buildSchemaBundle(fixture(), 'srn://acme/product/shop/datamodel/ghost')).toBeNull()
   })
 })

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: adr
-version: 1
+version: 2
 status: review
 title: Kind — ADR
 summary: Contract for architecture decision records — owner-scoped placement, decision-status versus the common status field, date and deciders, the enforced body template, supersession, and derived views.
@@ -32,22 +32,29 @@ ADRs are **owner-scoped**: the bucket `adr/` may sit under any container —
 solution, product, or component ([structure.md](../structure.md)):
 
 ```text
-solutions/acme/adr/0003-single-currency/                 # binds the whole solution
-solutions/acme/shop/adr/0001-event-sourcing/             # binds the shop product
-solutions/acme/shop/checkout/adr/0002-idempotency-keys/  # binds one component
+solutions/acme/adr/0003-single-currency/                    # binds the solution
+solutions/acme/product/shop/adr/0001-event-sourcing/        # binds the product
+solutions/acme/product/shop/component/checkout/adr/0002-idempotency-keys/
+                                                            # binds one component
 ```
+
+Those three positions are exactly what the grammar allows: an `adr` pair may be
+the first pair after the solution, or follow a `product` or `component` pair, and
+nothing else may own one. `solutions/acme/datamodel/money/adr/0001-decimal/` is
+`E_SRN_PLACEMENT` ([srn.md](../srn.md)) — a datamodel owns no entities.
 
 Choose the container the decision **binds**, not the one that happens to have
 implemented it first. A decision that constrains two sibling components belongs
 in their nearest common ancestor's bucket:
 
 ```text
-# binds acme/shop/checkout and acme/shop/inventory
-solutions/acme/shop/adr/0004-outbox-per-service/         # correct
-solutions/acme/shop/checkout/adr/0004-outbox-per-service/# too low: inventory is
-                                                         # bound by a decision filed
-                                                         # inside a component it
-                                                         # does not own
+# binds srn://acme/product/shop/component/checkout
+#   and srn://acme/product/shop/component/inventory
+solutions/acme/product/shop/adr/0004-outbox-per-service/    # correct
+
+solutions/acme/product/shop/component/checkout/adr/0004-outbox-per-service/
+#   too low: inventory is bound by a decision filed inside a component it does
+#   not own
 ```
 
 This is a SHOULD, not a build check: an ADR has no participant list from which
@@ -65,7 +72,8 @@ Ordinals are **per bucket**, not per solution — the SRN already disambiguates:
 
 ```text
 srn://acme/adr/0001-single-currency          # solution bucket, ordinal 1
-srn://acme/shop/adr/0001-event-sourcing      # shop bucket, ordinal 1 — no clash
+srn://acme/product/shop/adr/0001-event-sourcing   # shop bucket, ordinal 1 —
+                                                  # no clash with the above
 ```
 
 Ordinals are never reused, even after an ADR is rejected or superseded; a
@@ -237,7 +245,7 @@ specialized to ADRs:
    `decision-status: proposed`, and the edge:
 
    ```yaml
-   # solutions/acme/shop/adr/0009-change-data-capture/index.md
+   # solutions/acme/product/shop/adr/0009-change-data-capture/index.md
    name: 0009-change-data-capture
    kind: adr
    version: 1
@@ -289,7 +297,7 @@ The ADR's contract surface is the **`## Decision` paragraph**. Per
 
 ## Worked example
 
-`solutions/acme/shop/adr/0001-event-sourcing/index.md`:
+`solutions/acme/product/shop/adr/0001-event-sourcing/index.md`:
 
 ```markdown
 ---
@@ -308,8 +316,9 @@ deciders:
   - sergio
 relations:
   uses:
-    - ../../protocol/order-events
-    - ../../checkout/datamodel/order-placed@1
+    - ../../protocol/order-events            # this product's own protocol:
+                                             # pop the name, pop the adr/ bucket
+    - /product/shop/datamodel/order-placed@1
 tags:
   - persistence
   - orders
@@ -328,7 +337,7 @@ five-year audit trail of price and status changes.
 
 We event-source the order lifecycle. `checkout` appends immutable events to the
 order log; current order state is a projection rebuilt from that log. The
-[order-events](srn://acme/shop/protocol/order-events) protocol is the only
+[order-events](srn://acme/product/shop/protocol/order-events) protocol is the only
 write path.
 
 ## Consequences
@@ -350,7 +359,7 @@ write path.
 - **Change-data-capture from the database log.** Rejected in 2024 because the
   managed database in use offered no stable CDC guarantee. This is what
   eventually superseded the decision — see
-  [0009-change-data-capture](srn://acme/shop/adr/0009-change-data-capture) —
+  [0009-change-data-capture](srn://acme/product/shop/adr/0009-change-data-capture) —
   once that guarantee arrived.
 - **Do nothing and improve logging.** Rejected: it addresses the incidents but
   not the audit obligation.

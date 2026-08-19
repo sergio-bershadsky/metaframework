@@ -1,17 +1,18 @@
 ---
 kind: spec
 name: component
-version: 1
+version: 2
 status: review
 title: Kind — component
-summary: The component kind — the nestable container below product level, its component-type enum, how it declares environments, and how reuse within a solution is expressed by reference.
+summary: The component kind — the nestable container that lives in a component/ bucket under a product or another component, its component-type enum, how it declares environments, and how reuse within a solution is expressed by reference.
 ---
 
 # Kind — component
 
-A **component** is any container below product level: the parts a product is
-built from, nesting arbitrarily deep. A sub-component is just a component whose
-parent is a component — there is no separate kind.
+A **component** lives in a `component/` bucket owned by a product or by another
+component: the parts a product is built from, nesting arbitrarily deep. A
+sub-component is just a component whose owner is a component — there is no
+separate kind, and no separate bucket name.
 
 Shared container rules **C1–C7** are defined in [solution.md](solution.md) and
 bind components unchanged. Ownership sits at the product line
@@ -20,22 +21,53 @@ bind components unchanged. Ownership sits at the product line
 ## Role in the hierarchy
 
 ```text
-solutions/acme/shop/                     # product
-└── checkout/                            # component      srn://acme/shop/checkout
-    ├── index.md
-    ├── payment/                         # sub-component  srn://acme/shop/checkout/payment
-    │   └── index.md
-    ├── datamodel/cart/                  # component-owned datamodel
-    └── requirement/idem-cap/
+solutions/acme/product/shop/                    # product  srn://acme/product/shop
+└── component/                                  # kind bucket
+    └── checkout/                               # component
+        ├── index.md                            #   srn://acme/product/shop/component/checkout
+        ├── component/                          # the same bucket name, one level down
+        │   └── payment/                        # sub-component
+        │       └── index.md                    #   …/component/checkout/component/payment
+        ├── datamodel/
+        │   └── cart/                           # component-owned datamodel
+        └── requirement/
+            └── idem-cap/
 ```
 
-- Every component has a product ancestor. `kind: component` directly under a
-  solution is `E_FM_KIND_LOCATION` (that position is a product).
+- Every component has a product ancestor, and the `component/` bucket repeats at
+  every level of nesting. Two components deep is two `component/` segments —
+  `srn://acme/product/shop/component/checkout/component/payment` — which is
+  verbose and deliberately so: the kind is readable at every level, and
+  `ls` of any directory shows buckets rather than a mix.
 - Nesting is a **composition** statement: `payment` is part of `checkout`. It is
   not a dependency statement — dependencies are edges, and they may point
   anywhere in the solution.
-- A component MAY own `datamodel/`, `protocol/`, `adr/`, and `requirement/`
-  buckets; never `actor/` or `environment/` (`E_STRUCT_KIND_PLACEMENT`).
+- A component MAY own `datamodel/`, `protocol/`, `adr/`, `requirement/`, and
+  further `component/` buckets; never `actor/`, `environment/`, or `product/`.
+
+### Placement is grammar, not a loader check
+
+A `component` pair is legal **only after a `product` or `component` pair**. The
+parser checks this while reading the path, so every case below fails as
+`E_SRN_PLACEMENT` ([srn.md](../srn.md)) before the entity's frontmatter is
+opened:
+
+```text
+solutions/acme/product/shop/component/checkout/                    # legal
+solutions/acme/product/shop/component/checkout/component/payment/  # legal
+solutions/acme/component/checkout/                # E_SRN_PLACEMENT — no product
+solutions/acme/datamodel/money/component/parser/  # E_SRN_PLACEMENT — a datamodel
+                                                  # owns nothing
+```
+
+The old rule "a container below product level is a component" was an inference
+from depth; there is no inference left. `E_FM_KIND_LOCATION` keeps only the
+narrow job of catching a `kind:` that disagrees with the bucket holding it:
+
+```yaml
+# solutions/acme/product/shop/component/checkout/index.md
+kind: product        # E_FM_KIND_LOCATION — the bucket says component
+```
 
 ## Frontmatter additions
 
@@ -115,7 +147,7 @@ Rules:
 | T3 | An `external` component MUST NOT contain child component entities — we do not describe its insides.| `E_COMP_EXTERNAL_CHILD`    |
 
 ```yaml
-# solutions/acme/shop/money-kit/index.md
+# solutions/acme/product/shop/component/money-kit/index.md
 component-type: library
 relations:
   uses:
@@ -126,7 +158,8 @@ An `external` component MAY declare environments — that is how a sandbox
 endpoint is distinguished from a live one:
 
 ```yaml
-# solutions/acme/shop/checkout/psp/index.md
+# solutions/acme/product/shop/component/checkout/component/payment/
+#   component/psp/index.md
 component-type: external
 relations:
   uses:
@@ -146,10 +179,10 @@ reusing side, as a `depends-on` edge**:
 | owning/reused | nothing                                        | `depended-on-by` (inverse, [frontmatter.md](../frontmatter.md)) |
 
 ```yaml
-# solutions/acme/shop/checkout/index.md — the reusing side
+# solutions/acme/product/shop/component/checkout/index.md — the reusing side
 relations:
   depends-on:
-    - /billing/ledger        # component owned by the billing product
+    - /product/billing/component/ledger   # component owned by billing
 ```
 
 `depends-on` (not `uses`) is the reuse edge: it is the structural statement *"I
@@ -161,10 +194,16 @@ different things:
 ```yaml
 relations:
   depends-on:
-    - /billing/ledger                    # I need this component
+    - /product/billing/component/ledger   # I need this component
   uses:
-    - /protocol/ledger-postings          # ...and I speak this contract of it
+    - /protocol/ledger-postings           # ...and I speak this contract of it
 ```
+
+Both are written solution-absolute. A cross-product target is exactly the case
+where a `..` chain stops being readable: from `checkout` the same edge is
+`../../../billing/component/ledger` — three pops to leave the component bucket,
+the product, and the product bucket — and one miscount lands somewhere
+grammatical but wrong ([srn.md](../srn.md)).
 
 A bare `uses: [<component>]` is legal but under-specified — it SHOULD be
 refined into a `uses` edge on the protocol or datamodel once that surface is
@@ -173,20 +212,31 @@ described.
 ### What each side shows
 
 ```text
-  solutions/acme/shop/checkout/            solutions/acme/billing/ledger/
-  +-------------------------+            +-------------------------+
-  | kind: component         |            | kind: component         |
-  | component-type: service |            | component-type: service |
-  | owner: team-checkout    |  authored  | owner: team-billing     |
-  | relations:              | ---------> |                         |
-  |   depends-on:           |   reuse    | (nothing is authored    |
-  |     - /billing/ledger   |    edge    |  here about the reuse)  |
-  +-------------------------+            +-------------------------+
-               |                                      |
-               v                                      v
-  portal: "Depends on ledger             portal: "Reused by checkout
-  (product billing)"                     (product shop)" - derived
-                                         depended-on-by
+srn://acme/product/shop/component/checkout      — the reusing side
+  +-----------------------------------------+
+  | kind: component                         |
+  | component-type: service                 |
+  | owner: team-checkout                    |
+  | relations:                              |
+  |   depends-on:                           |
+  |     - /product/billing/component/ledger |
+  +-----------------------------------------+
+                       |
+                       |  reuse edge, authored once
+                       v
+srn://acme/product/billing/component/ledger     — the owned side
+  +-----------------------------------------+
+  | kind: component                         |
+  | component-type: service                 |
+  | owner: team-billing                     |
+  |                                         |
+  | (nothing about the reuse is             |
+  |  authored here)                         |
+  +-----------------------------------------+
+
+portal, checkout page:  "Depends on ledger — product billing"
+portal, ledger page:    "Reused by checkout — product shop", derived from
+                        depended-on-by
 ```
 
 The reusing page marks the target as **off-tree** (a different product's
@@ -213,7 +263,8 @@ forbidden (`E_COMP_SYMLINK` for the detectable case), for four reasons:
    edge — with one file to change when the relationship ends.
 
 ```text
-solutions/acme/shop/ledger -> ../billing/ledger         # E_COMP_SYMLINK
+solutions/acme/product/shop/component/ledger            # E_COMP_SYMLINK
+  -> ../../billing/component/ledger                     # → product/billing/…
 ```
 
 Dependency cycles among components are legal but flagged `W_COMP_DEP_CYCLE`, so
@@ -223,10 +274,11 @@ they are a deliberate choice rather than an accident.
 
 | Child                                                     | Allowed | Note                                                     |
 | --------------------------------------------------------- | ------- | --------------------------------------------------------- |
-| sub-component directories                                  | yes     | Arbitrary depth; unless `component-type: external` (T3).  |
+| a `component/` bucket                                      | yes     | Arbitrary depth; unless `component-type: external` (T3).  |
 | `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets   | yes     | Protocol only if this component is the NCA of its participants. |
-| `actor/`, `environment/` buckets                            | no      | Solution-level only — `E_STRUCT_KIND_PLACEMENT`.          |
-| a product                                                   | no      | Products are direct children of solutions only.           |
+| `actor/`, `environment/` buckets                            | no      | Solution-level only — `E_SRN_PLACEMENT`.                  |
+| a `product/` bucket                                         | no      | A product pair may only be the first — `E_SRN_PLACEMENT`. |
+| an entity directory not inside a bucket                     | no      | The path would have an odd segment count — `E_SRN_SYNTAX`.|
 
 ## Validation rules
 
@@ -235,17 +287,21 @@ Numbered `CV*` to avoid collision with the container rules C1–C7
 
 | #   | Rule                                                                     | Error class                  |
 | --- | ------------------------------------------------------------------------- | ---------------------------- |
-| CV1 | Component has a product ancestor (never directly under a solution).       | `E_FM_KIND_LOCATION`         |
+| CV1 | The `component/` bucket sits inside a product or another component.       | `E_SRN_PLACEMENT`            |
 | CV2 | `component-type` present and in the closed enum.                          | `E_FM_SCHEMA`                |
 | CV3 | T1 — `library` declares no environment.                                   | `E_COMP_LIBRARY_ENVIRONMENT` |
 | CV4 | T3 — `external` has no child component entities.                          | `E_COMP_EXTERNAL_CHILD`      |
 | CV5 | Component directory is a real directory, not a symlink.                   | `E_COMP_SYMLINK`             |
 | CV6 | T2 — runtime-bearing component declares ≥ 1 environment.                  | `W_COMP_NO_ENVIRONMENT`      |
 | CV7 | `depends-on` graph among components is acyclic.                           | `W_COMP_DEP_CYCLE`           |
+| CV8 | Frontmatter `kind: component` matches the `component/` bucket holding it. | `E_FM_KIND_LOCATION`         |
+
+CV1 is a grammar rule ([srn.md](../srn.md)): the directory path fails to parse,
+so a misplaced component never reaches CV2–CV8.
 
 ## Worked example
 
-`solutions/acme/shop/checkout/index.md`:
+`solutions/acme/product/shop/component/checkout/index.md`:
 
 ```yaml
 ---
@@ -259,17 +315,17 @@ owner: team-checkout
 component-type: service
 relations:
   uses:
-    - /environment/production          # runs here
-    - /environment/staging             # and here
-    - /datamodel/money@1               # consumed contract
-    - /protocol/ledger-postings        # solution-level: NCA of shop + billing
+    - /environment/production            # runs here
+    - /environment/staging               # and here
+    - /datamodel/money@1                 # consumed contract
+    - /protocol/ledger-postings          # solution-level: NCA of shop + billing
   exposes:
-    - ../protocol/order-events         # product-level protocol, NCA of participants
+    - /product/shop/protocol/order-events  # product-level, NCA of participants
   depends-on:
-    - ../inventory                     # sibling component, same product
-    - /billing/ledger                  # reuse: component owned by product billing
+    - ../inventory                       # sibling component in the same bucket
+    - /product/billing/component/ledger  # reuse: owned by the billing product
   implements:
-    - requirement/idem-cap             # this component's own requirement
+    - requirement/idem-cap               # this component's own requirement
 tags:
   - checkout
   - payments
@@ -278,21 +334,33 @@ tags:
 # Checkout
 
 Owns the cart-to-order transition. Reserves stock through
-[inventory](srn://acme/shop/inventory), takes payment through its
-[payment](srn://acme/shop/checkout/payment) sub-component, and emits
-[order-events](srn://acme/shop/protocol/order-events) once the order is paid.
+[inventory](srn://acme/product/shop/component/inventory), takes payment through
+its [payment](srn://acme/product/shop/component/checkout/component/payment)
+sub-component, and emits
+[order-events](srn://acme/product/shop/protocol/order-events) once the order is
+paid.
 
 ## Reuse
 
-Ledger postings come from [ledger](srn://acme/billing/ledger), owned by
-`team-billing`. Checkout depends on it by reference; the component stays in the
-billing product's subtree and is never copied here.
+Ledger postings come from
+[ledger](srn://acme/product/billing/component/ledger), owned by `team-billing`.
+Checkout depends on it by reference; the component stays in the billing
+product's subtree and is never copied here.
 
 ## Sub-components
 
-- [payment](srn://acme/shop/checkout/payment) — PSP orchestration and the
-  external processor it talks to.
+- [payment](srn://acme/product/shop/component/checkout/component/payment) — PSP
+  orchestration and the external processor it talks to.
 ```
+
+Three reference forms appear in that `relations` block, and each is the shortest
+one that is also unambiguous:
+
+| Ref                                   | Resolves to                                                | Why this form                                       |
+| ------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| `requirement/idem-cap`                | `srn://acme/product/shop/component/checkout/requirement/idem-cap` | Own bucket: appended to this entity's path. |
+| `../inventory`                        | `srn://acme/product/shop/component/inventory`               | Sibling in the same `component/` bucket: one `..`.  |
+| `/product/billing/component/ledger`   | `srn://acme/product/billing/component/ledger`                | Leaves the subtree; absolute beats counting `..`.   |
 
 ## What the portal derives
 

@@ -12,53 +12,6 @@ import type { Catalog, Diagnostic } from './types'
  * rule, a relation target, or an SRN in a solution file.
  */
 
-/**
- * Kind-specific frontmatter fields are normative (framework/spec/kinds/*.md),
- * but the loader currently validates only the common contract, so it reports
- * every one of them as an unknown top-level field. Until per-kind schemas land
- * there, those diagnostics are expected noise rather than fixture defects.
- *
- * The allow-list is the exact closed set the kind documents define — a typo
- * (`usag:`, `prioroty:`) still fails, and the filter goes dead of its own
- * accord once the loader knows these fields.
- */
-const KIND_FRONTMATTER_FIELDS = new Set([
-  // solution.md
-  'vision',
-  'scope',
-  'contacts',
-  // product.md
-  'lifecycle',
-  'primary-actors',
-  // component.md
-  'component-type',
-  // datamodel.md
-  'usage',
-  'abstract',
-  // protocol.md
-  'participants',
-  'style',
-  'conforms-to',
-  // actor.md
-  'actor-type',
-  'goals',
-  // environment.md
-  'environment-type',
-  // adr.md
-  'decision-status',
-  'date',
-  'deciders',
-  // requirement.md
-  'requirement-type',
-  'priority',
-])
-
-function isKnownKindField(diagnostic: Diagnostic): boolean {
-  if (diagnostic.code !== 'E_FM_UNKNOWN_FIELD') return false
-  const field = diagnostic.message.match(/unknown top-level field "([^"]+)"/)?.[1]
-  return field !== undefined && KIND_FRONTMATTER_FIELDS.has(field)
-}
-
 const format = (d: Diagnostic) => `${d.code} ${d.path} — ${d.message}`
 
 let catalog: Catalog
@@ -69,7 +22,7 @@ beforeAll(async () => {
 
 describe('shipped catalog', () => {
   it('loads with no error diagnostics', () => {
-    const errors = catalog.diagnostics.filter((d) => d.severity === 'error' && !isKnownKindField(d))
+    const errors = catalog.diagnostics.filter((d) => d.severity === 'error')
     expect(errors.map(format)).toEqual([])
   })
 
@@ -93,10 +46,10 @@ describe('shipped catalog', () => {
   })
 
   it('nests components at least two levels below a product', () => {
-    expect(catalog.entities.get('srn://acme/shop/checkout/payment')?.kind).toBe('component')
-    expect(catalog.entities.get('srn://acme/shop/checkout/payment/psp')?.parent).toBe(
-      'srn://acme/shop/checkout/payment',
-    )
+    expect(catalog.entities.get('srn://acme/product/shop/component/checkout/component/payment')?.kind).toBe('component')
+    expect(
+      catalog.entities.get('srn://acme/product/shop/component/checkout/component/payment/component/psp')?.parent,
+    ).toBe('srn://acme/product/shop/component/checkout/component/payment')
   })
 
   it('renders both status extremes, which the entity header styles differently', () => {
@@ -106,11 +59,11 @@ describe('shipped catalog', () => {
   })
 
   it('derives inverse edges for a component shared across two products', () => {
-    const inbound = catalog.inbound.get('srn://acme/billing/ledger') ?? []
+    const inbound = catalog.inbound.get('srn://acme/product/billing/component/ledger') ?? []
     expect(inbound.map((edge) => edge.from).sort()).toEqual([
-      'srn://acme/billing/reconciliation',
-      'srn://acme/shop',
-      'srn://acme/shop/checkout',
+      'srn://acme/product/billing/component/reconciliation',
+      'srn://acme/product/shop',
+      'srn://acme/product/shop/component/checkout',
     ])
   })
 
@@ -122,7 +75,7 @@ describe('shipped catalog', () => {
 
   it('ships the protocol artifacts the derived diagrams are built from', () => {
     const files = (srn: string) => catalog.entities.get(srn)?.artifacts.map((a) => a.file) ?? []
-    expect(files('srn://acme/shop/protocol/order-placement')).toEqual([
+    expect(files('srn://acme/product/shop/protocol/order-placement')).toEqual([
       'states.json',
       'transport.yaml',
       'workflows/cancel-order.yaml',

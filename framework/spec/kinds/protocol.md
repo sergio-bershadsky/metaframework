@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: protocol
-version: 2
+version: 3
 status: review
 title: Protocol kind
 summary: The protocol entity contract — participants and style frontmatter, transport.yaml, the workflow YAML mini-spec, XState-subset states.json, payload binding, and derived diagrams.
@@ -23,13 +23,29 @@ at the **nearest common ancestor (NCA)** of its *component* participants. This
 document supplies the input to that rule — the `participants` list below is
 what the NCA is computed from (actor participants excluded).
 
+**The NCA is a common prefix of `{kind}/{name}` pairs, never of bare segments.**
+That distinction is load-bearing now that paths are bucketed: `checkout` and
+`ledger` share the literal segment `product`, but `product` alone is a bucket,
+and a bucket has no SRN and cannot hold an `index.md`. Take the prefix pair by
+pair and the answer is always an addressable entity or the solution root:
+
+| Component participants                                                                | Common pair prefix                | Protocol directory                                            |
+| --------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `/product/shop/component/checkout`, `/product/shop/component/inventory`                   | `product/shop`                    | `solutions/acme/product/shop/protocol/…`                      |
+| `/product/shop/component/checkout`, `/product/shop/component/checkout/component/payment`  | `product/shop/component/checkout` | `solutions/acme/product/shop/component/checkout/protocol/…`   |
+| `/product/shop/component/checkout`, `/product/billing/component/ledger`                   | *(empty)*                         | `solutions/acme/protocol/…`                                   |
+
+The third row is why the rule is pairwise: stopping at the shared `product`
+segment would name a bucket, so the prefix is empty and the protocol belongs at
+the solution root — which is where a cross-product settlement bus sits.
+
 ## Entity directory shape
 
 A protocol entity is a directory holding `index.md` plus optional siblings and
 one optional asset subdirectory:
 
 ```text
-solutions/acme/shop/protocol/order-placement/
+solutions/acme/product/shop/protocol/order-placement/
 ├── index.md                # REQUIRED  entity document (frontmatter + prose)
 ├── transport.yaml          # OPTIONAL  wire binding — exactly one transport
 ├── openapi.yaml            # OPTIONAL  external spec, linked from transport.yaml
@@ -108,7 +124,7 @@ participants:
     ref: /actor/customer
     role: initiator
   - alias: checkout
-    ref: /shop/checkout
+    ref: /product/shop/component/checkout
     role: responder
 conforms-to:
   - standard: RFC 9457 Problem Details for HTTP APIs
@@ -135,12 +151,14 @@ Counter-examples:
 style: pub-sub                  # E_FM_SCHEMA — not in the closed set
 transport: http                 # E_FM_UNKNOWN_FIELD — transport lives in transport.yaml
 participants:
-  - alias: Checkout             # E_FM_SCHEMA — alias is not kebab-case
-    ref: /shop/checkout
-  - alias: checkout             # (with the above lowercased) E_PROTO_ALIAS_DUP
-    ref: /shop/datamodel/order  # E_PROTO_PARTICIPANT_KIND — a datamodel cannot participate
+  - alias: Checkout                     # E_FM_SCHEMA — alias is not kebab-case
+    ref: /product/shop/component/checkout
+  - alias: checkout                     # (lowercase the above) E_PROTO_ALIAS_DUP
+    ref: /product/shop/datamodel/order  # E_PROTO_PARTICIPANT_KIND — a datamodel
+                                        # cannot participate
   - alias: solo
-    ref: /shop/inventory        # E_PROTO_PARTICIPANTS if this were the only entry
+    ref: /product/shop/component/inventory   # E_PROTO_PARTICIPANTS if this were
+                                             # the only entry
 ```
 
 ### Why `style` is these three values
@@ -210,18 +228,20 @@ The two directions are cross-checked, both ways, as warnings — mirroring
 legitimately moves before the other.
 
 ```yaml
-# solutions/acme/shop/checkout/index.md
+# solutions/acme/product/shop/component/checkout/index.md
 relations:
   exposes:
-    - ../protocol/order-placement       # → srn://acme/shop/protocol/order-placement
+    - /product/shop/protocol/order-placement   # ✓ the provider side of the edge
 
-# solutions/acme/shop/protocol/order-placement/index.md
+# solutions/acme/product/shop/protocol/order-placement/index.md
 participants:
   - alias: checkout
-    ref: /shop/checkout                 # ✓ matched — checkout is a provider in the graph
+    ref: /product/shop/component/checkout      # ✓ matched — provider in the graph
   - alias: inventory
-    ref: /shop/inventory                # W_PROTO_PARTICIPANT_UNLINKED if inventory's
-                                        # index.md has neither exposes nor uses for this protocol
+    ref: /product/shop/component/inventory     # W_PROTO_PARTICIPANT_UNLINKED if
+                                               # inventory's index.md carries
+                                               # neither exposes nor uses for this
+                                               # protocol
 ```
 
 - `W_PROTO_PARTICIPANT_UNLINKED` — a `component`/`product` participant whose
@@ -406,7 +426,7 @@ datamodel), `summary` (string).
 ### Worked transport examples
 
 **1 — Kafka, a bus protocol with a surface list and no external spec**
-(`solutions/acme/shop/protocol/order-events/transport.yaml`):
+(`solutions/acme/product/shop/protocol/order-events/transport.yaml`):
 
 ```yaml
 kind: kafka
@@ -419,19 +439,19 @@ kafka:
   topics:
     - name: acme.shop.order.placed.v1
       key: order-id
-      message: /shop/datamodel/order-placed@2
+      message: /product/shop/datamodel/order-placed@2
       partitions: 12
       retention: 7d
       summary: Emitted once an order reaches the confirmed state.
     - name: acme.shop.order.cancelled.v1
       key: order-id
-      message: /shop/datamodel/order-cancelled@1
+      message: /product/shop/datamodel/order-cancelled@1
       partitions: 12
       retention: 7d
 ```
 
 **2 — gRPC, delegating the surface to a linked `.proto`**
-(`solutions/acme/shop/checkout/protocol/pricing/transport.yaml`):
+(`solutions/acme/product/shop/component/checkout/protocol/pricing/transport.yaml`):
 
 ```yaml
 kind: grpc
@@ -451,7 +471,7 @@ grpc:
 ```
 
 **3 — in-process, the smallest useful transport**
-(`solutions/acme/shop/checkout/protocol/tax-quoting/transport.yaml`):
+(`solutions/acme/product/shop/component/checkout/protocol/tax-quoting/transport.yaml`):
 
 ```yaml
 kind: in-process
@@ -463,8 +483,8 @@ in-process:
   interface: TaxCalculator
   functions:
     - name: quote
-      request: /shop/datamodel/tax-quote-request@1
-      response: /shop/datamodel/tax-quote@1
+      request: /product/shop/datamodel/tax-quote-request@1
+      response: /product/shop/datamodel/tax-quote@1
       summary: Returns tax for a cart in a jurisdiction.
 ```
 
@@ -703,9 +723,13 @@ to check against — the absence of a check is not a warning).
   from: warehouse            # E_PROTO_WF_ALIAS — no such alias in participants
   to: checkout
   kind: return
-  payload: /shop/actor/customer      # E_PROTO_PAYLOAD_KIND — not a datamodel
+  payload: /actor/customer           # E_PROTO_PAYLOAD_KIND — not a datamodel
   channel: acme.shop.order.shipped   # W_PROTO_WF_CHANNEL_UNKNOWN — no such topic
 ```
+
+(`/product/shop/actor/customer` would not even get that far: actors are
+solution-level, so the path is `E_SRN_PLACEMENT` before its kind is looked up —
+[srn.md](../srn.md).)
 
 ## `states.json` — the conversation state machine
 
@@ -812,13 +836,13 @@ entry's `request`, `response`, or `message` — is an ordinary SRN reference per
 >
 > ```yaml
 > # workflows/place-order.yaml
-> - message: order-placed                        # a name
->   payload: /shop/datamodel/order-placed@2      # the SRN
+> - message: order-placed                              # a name
+>   payload: /product/shop/datamodel/order-placed@2    # the SRN
 >
 > # transport.yaml
 > topics:
 >   - name: acme.shop.order.placed.v1
->     message: /shop/datamodel/order-placed@2    # the SRN
+>     message: /product/shop/datamodel/order-placed@2  # the SRN
 > ``` It MUST resolve to an entity whose `kind` is `datamodel`
 (`E_PROTO_PAYLOAD_KIND`), and it SHOULD pin a version: an unpinned reference
 silently follows the datamodel's latest version, so a contract that was reviewed
@@ -835,30 +859,46 @@ pinning still works here and no longer works in a `$ref` — an SRN carries
 
 Relative references resolve against **the referring file's own URI**, which is
 the artifact path inside the entity — so the depth differs between a sibling
-artifact and a file under `workflows/`:
+artifact and a file under `workflows/`. Taking the protocol
+`srn://acme/product/shop/protocol/order-placement` and the same reference text
+in each of its files:
 
-| Referring file                              | Base URI                                                             | `../../datamodel/order@1` resolves to           |
-| ------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
-| `index.md`                                  | `srn://acme/shop/protocol/order-placement/index.md`                  | `srn://acme/shop/datamodel/order@1`              |
-| `transport.yaml`                            | `srn://acme/shop/protocol/order-placement/transport.yaml`            | `srn://acme/shop/datamodel/order@1`              |
-| `workflows/place-order.yaml`                | `srn://acme/shop/protocol/order-placement/workflows/place-order.yaml`| `srn://acme/shop/protocol/datamodel/order@1` ✗   |
+| Referring file               | Base URI                                                                       | `../../datamodel/order@1` resolves to                       |
+| ---------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `index.md`                   | `srn://acme/product/shop/protocol/order-placement/index.md`                     | `srn://acme/product/shop/datamodel/order@1`                  |
+| `transport.yaml`             | `srn://acme/product/shop/protocol/order-placement/transport.yaml`               | `srn://acme/product/shop/datamodel/order@1`                  |
+| `workflows/place-order.yaml` | `srn://acme/product/shop/protocol/order-placement/workflows/place-order.yaml`   | `srn://acme/product/shop/protocol/datamodel/order@1` ✗       |
 
-That last row is the trap: from inside `workflows/` the same relative reference
-climbs one level less far. Here it lands on a string the parser rejects outright
-— two kind keywords, `protocol` then `datamodel`, so the keyword scan finds more
-than one segment after the kind (`E_SRN_SYNTAX`, [srn.md](../srn.md) rule V3).
-Miscounted depth that happens to stay grammatical fails later instead, as
-`E_SRN_DANGLING`. The correct form here is `../../../datamodel/order@1`.
+The first two rows work because a bucket plus a name is **two** segments in and
+two segments out: `../..` pops `order-placement` and its `protocol/` bucket, and
+`datamodel/order` puts a fresh pair back. The third row is the trap — from
+inside `workflows/` the same text climbs one level less far, and the result has
+five segments after the authority. That is an odd count, i.e. a bucket with no
+name, so the parser rejects it outright (`E_SRN_SYNTAX`,
+[srn.md](../srn.md)). The correct form there is `../../../datamodel/order@1`.
+
+Bucketing changed the failure profile of a miscount, and it is worth knowing
+which half you are in:
+
+- **Off by one** (or any odd number) is always caught. The segment count goes
+  odd, and no odd path parses — whatever the segments happen to say.
+- **Off by two** stays grammatical and fails later, or not at all. From
+  `workflows/`, `../../../../../datamodel/order@1` resolves to
+  `srn://acme/datamodel/order@1` — a perfectly legal solution-level SRN that is
+  simply the wrong entity. It surfaces as `E_SRN_DANGLING` if nothing is there,
+  and as a silently wrong edge if something is.
 
 **Therefore: payload references in `workflows/*.yaml` SHOULD be path-absolute**
-(`/shop/datamodel/order@1`, resolved from the solution root — see
-[srn.md](../srn.md)). They read identically wherever the file sits and survive a
-protocol being re-placed by an NCA change.
+(`/product/shop/datamodel/order@1`, resolved from the solution root — see
+[srn.md](../srn.md)). They read identically wherever the file sits, they survive
+a protocol being re-placed by an NCA change, and they remove the only case the
+grammar cannot catch for you.
 
 ```yaml
-payload: /shop/datamodel/order-request@1       # recommended — path-absolute
-payload: ../../../datamodel/order-request@1    # legal, correct, easy to miscount
-payload: srn://acme/shop/datamodel/order-request@1  # legal, verbose
+payload: /product/shop/datamodel/order-request@1        # recommended
+payload: ../../../datamodel/order-request@1             # legal, correct here,
+                                                        # easy to miscount
+payload: srn://acme/product/shop/datamodel/order-request@1   # legal, verbose
 ```
 
 `states.json` carries no SRN references at all — it names events and states
@@ -911,14 +951,19 @@ a surface list entry, a state, or a transition is additive and always legal.
 
 ## Complete worked example
 
-Protocol `srn://acme/shop/protocol/order-placement`. Component participants are
-`/shop/checkout`, `/shop/checkout/payment`, and `/shop/inventory`; their NCA is
-`/shop`, which is where the protocol directory sits — consistent with
-[structure.md](../structure.md).
+Protocol `srn://acme/product/shop/protocol/order-placement`. The component
+participants are `/product/shop/component/checkout`,
+`/product/shop/component/checkout/component/payment`, and
+`/product/shop/component/inventory`. Their pair prefixes are
+`product/shop` + `component/checkout`, `product/shop` + `component/checkout` +
+`component/payment`, and `product/shop` + `component/inventory`; the longest
+prefix all three share is the single pair `product/shop`, so the NCA is
+`srn://acme/product/shop` and the directory sits in that product's `protocol/`
+bucket — consistent with [structure.md](../structure.md).
 
 ### `index.md`
 
-`solutions/acme/shop/protocol/order-placement/index.md`:
+`solutions/acme/product/shop/protocol/order-placement/index.md`:
 
 ```yaml
 ---
@@ -935,13 +980,13 @@ participants:
     ref: /actor/customer
     role: initiator
   - alias: checkout
-    ref: /shop/checkout
+    ref: /product/shop/component/checkout
     role: responder
   - alias: inventory
-    ref: /shop/inventory
+    ref: /product/shop/component/inventory
     role: responder
   - alias: payment
-    ref: /shop/checkout/payment
+    ref: /product/shop/component/checkout/component/payment
     role: responder
 conforms-to:
   - standard: RFC 9457 Problem Details for HTTP APIs
@@ -955,7 +1000,8 @@ tags:
 
 Checkout is the only responder the customer talks to; inventory and payment are
 reached behind it. Failure is always reported as a Problem Details document, so
-every `error` step carries `/shop/datamodel/problem@1`.
+every `error` step carries `/datamodel/problem@1` — the solution-level shape,
+because every product reports failure the same way.
 
 The message/datamodel matrix on this page is derived from `workflows/` — the
 payload datamodels are deliberately absent from `relations`.
@@ -964,21 +1010,29 @@ payload datamodels are deliberately absent from `relations`.
 The counterpart edges, on the participants' own documents:
 
 ```yaml
-# solutions/acme/shop/checkout/index.md
+# solutions/acme/product/shop/component/checkout/index.md
 relations:
   exposes:
-    - ../protocol/order-placement          # → srn://acme/shop/protocol/order-placement
+    - /product/shop/protocol/order-placement
 
-# solutions/acme/shop/inventory/index.md
+# solutions/acme/product/shop/component/inventory/index.md
 relations:
   exposes:
-    - ../protocol/order-placement
+    - /product/shop/protocol/order-placement
 
-# solutions/acme/shop/checkout/payment/index.md
+# solutions/acme/product/shop/component/checkout/component/payment/index.md
 relations:
   exposes:
-    - ../../protocol/order-placement       # two levels up: payment → checkout → shop
+    - /product/shop/protocol/order-placement
 ```
+
+All three are written solution-absolute, and the point of the example is that
+they are **identical strings** even though the three components sit at three
+different depths. The relative equivalents are not: `../../protocol/order-placement`
+from `checkout` and `inventory` (pop the name, pop the `component/` bucket), and
+`../../../../protocol/order-placement` from `payment` (pop four to leave the
+nested component). Three different counts for one edge is exactly the
+bookkeeping the absolute form removes.
 
 `/actor/customer` needs no back-edge — actors are exempt.
 
@@ -1012,7 +1066,7 @@ steps:
     from: customer
     to: checkout
     kind: call
-    payload: /shop/datamodel/order-request@1
+    payload: /product/shop/datamodel/order-request@1
     note: Requires an Idempotency-Key header, per requirement/idem-cap.
 
   - loop:
@@ -1023,12 +1077,12 @@ steps:
           from: checkout
           to: inventory
           kind: call
-          payload: /shop/datamodel/stock-reservation@1
+          payload: /product/shop/datamodel/stock-reservation@1
         - message: stock-reservation-result
           from: inventory
           to: checkout
           kind: return
-          payload: /shop/datamodel/stock-reservation-result@1
+          payload: /product/shop/datamodel/stock-reservation-result@1
 
   - alt:
       - when: stock fully reserved
@@ -1037,7 +1091,7 @@ steps:
             from: checkout
             to: payment
             kind: call
-            payload: /shop/datamodel/payment-authorization@1
+            payload: /product/shop/datamodel/payment-authorization@1
           - alt:
               - when: authorization approved
                 steps:
@@ -1045,12 +1099,12 @@ steps:
                     from: payment
                     to: checkout
                     kind: return
-                    payload: /shop/datamodel/payment-result@1
+                    payload: /product/shop/datamodel/payment-result@1
                   - message: order-confirmed
                     from: checkout
                     to: customer
                     kind: return
-                    payload: /shop/datamodel/order-confirmation@1
+                    payload: /product/shop/datamodel/order-confirmation@1
                   - opt:
                       when: customer opted into email notifications
                       steps:
@@ -1064,7 +1118,7 @@ steps:
                     from: payment
                     to: checkout
                     kind: error
-                    payload: /shop/datamodel/problem@1
+                    payload: /datamodel/problem@1
                   - message: release-stock
                     from: checkout
                     to: inventory
@@ -1073,13 +1127,13 @@ steps:
                     from: checkout
                     to: customer
                     kind: error
-                    payload: /shop/datamodel/problem@1
+                    payload: /datamodel/problem@1
     otherwise:
       - message: out-of-stock
         from: checkout
         to: customer
         kind: error
-        payload: /shop/datamodel/problem@1
+        payload: /datamodel/problem@1
 ```
 
 Depth audit of this workflow: `loop` = 1; outer `alt` = 1; inner `alt` = 2;
@@ -1135,12 +1189,18 @@ reachable, so no `W_PROTO_STATES_UNREACHABLE`; both final states carry no `on`.
 
 ### Datamodels this protocol expects
 
-All at `srn://acme/shop/datamodel/…`, referenced path-absolute from the
-workflow file: `order-request@1`, `stock-reservation@1`,
-`stock-reservation-result@1`, `payment-authorization@1`, `payment-result@1`,
-`order-confirmation@1`, `problem@1`. Each must exist as an entity directory with
-an `index.md`, or the reference is `E_SRN_DANGLING`
-([srn.md](../srn.md), rule V5).
+Six sit in the product's own bucket, `srn://acme/product/shop/datamodel/…`:
+`order-request@1`, `stock-reservation@1`, `stock-reservation-result@1`,
+`payment-authorization@1`, `payment-result@1`, `order-confirmation@1`. The
+seventh, `problem@1`, is solution-level (`srn://acme/datamodel/problem@1`),
+because every product in the solution reports failure with the same shape.
+
+All seven are referenced path-absolute from the workflow file, which is why the
+`problem` refs read `/datamodel/problem@1` while the rest read
+`/product/shop/datamodel/…` — the difference in the reference is the difference
+in ownership, visible without opening anything. Each must exist as an entity
+directory with an `index.md`, or the reference is `E_SRN_DANGLING`
+([srn.md](../srn.md)).
 
 ## Protocol error classes
 

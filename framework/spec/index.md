@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 2
+version: 3
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, document map, and reading order.
@@ -45,16 +45,30 @@ example. A rule without an example is an incomplete rule and a spec defect.
    ```
 
 2. **SRN identity — the name is the path.** Every entity has exactly one SRN,
-   and the SRN maps 1:1 to its directory under `solutions/`:
+   and the SRN maps 1:1 to its directory under `solutions/`. Below the solution
+   the path is a strict alternation of **kind bucket** and **name**, so an
+   entity's kind is stated at every level rather than inferred from depth:
 
    ```text
-   srn://acme/shop/checkout/payment/datamodel/order@1
-   →  solutions/acme/shop/checkout/payment/datamodel/order/
+   srn://{solution}( /{kind}/{name} )*  [@{version}]
+
+   srn://acme/product/shop/component/checkout/datamodel/cart@1
+   →  solutions/acme/product/shop/component/checkout/datamodel/cart/
    ```
 
+   The eight kind buckets are `product`, `component`, `datamodel`, `protocol`,
+   `actor`, `environment`, `adr`, and `requirement`; they are reserved words and
+   may never be an entity's name. `ls` of any catalog directory therefore lists
+   buckets only, and parsing is a pair walk with no lookahead. Which pair may
+   follow which is part of the grammar — a `product` pair only at solution
+   level, a `component` pair only under a product or component — so a misplaced
+   entity is `E_SRN_PLACEMENT` before any loader rule runs.
+
    One reference syntax is used everywhere the framework owns the format —
-   frontmatter relations, workflow YAML, and prose markdown links. See
-   [srn.md](srn.md).
+   frontmatter relations, workflow YAML, and prose markdown links. Because
+   bucketed paths are long, references outside the referring entity SHOULD be
+   solution-absolute (`/product/shop/datamodel/order-placed@1`) rather than a
+   chain of `..`. See [srn.md](srn.md).
 
    The single exception is `schema.json`, which carries no `$id` and whose
    `$ref`s are relative file paths, so that stock JSON Schema validators and
@@ -87,8 +101,8 @@ example. A rule without an example is an incomplete rule and a spec defect.
 | Document                         | Status  | Contents                                                                     |
 | -------------------------------- | ------- | ---------------------------------------------------------------------------- |
 | [index.md](index.md)             | review  | This overview: purpose, principles, document map, reading order.             |
-| [structure.md](structure.md)     | review  | Directory layout contract: monorepo, nesting, entity directories, placement. |
-| [srn.md](srn.md)                 | review  | SRN grammar, parsing, disk resolution, relative references, validation.      |
+| [structure.md](structure.md)     | review  | Directory layout contract: monorepo, kind buckets, entity directories.       |
+| [srn.md](srn.md)                 | review  | SRN grammar (bucket/name pairs), parsing, disk resolution, relative references, placement, validation. |
 | [frontmatter.md](frontmatter.md) | review  | Common frontmatter contract for every entity `index.md`.                     |
 | [evolution.md](evolution.md)     | review  | Versioning, additive-only rules, swap procedure, git-backed history, status. |
 | `portal.md`                      | planned | Portal loader contract: validation pipeline, derived-diagram inputs.         |
@@ -100,8 +114,8 @@ never overriding them:
 | Document                                     | Status | Contents                                                                               |
 | -------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
 | [kinds/solution.md](kinds/solution.md)       | review | Sealed universe and catalog root; `vision`/`scope`/`contacts`; container rules C1–C7.  |
-| [kinds/product.md](kinds/product.md)         | review | Deliverable and ownership unit under a solution; `lifecycle`, `primary-actors`.        |
-| [kinds/component.md](kinds/component.md)     | review | Nestable container below product level; `component-type`; environments and reuse.      |
+| [kinds/product.md](kinds/product.md)         | review | The `product/` bucket at solution level; `lifecycle`, `primary-actors`.                |
+| [kinds/component.md](kinds/component.md)     | review | The `component/` bucket under a product or component; `component-type`; reuse.         |
 | [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), no `$id`, relative-path `$ref`, schema registry.  |
 | [kinds/protocol.md](kinds/protocol.md)       | review | `participants`/`style`, `transport.yaml`, `workflows/*.yaml`, `states.json`.           |
 | [kinds/actor.md](kinds/actor.md)             | review | Solution-level counterparts; `actor-type`, `goals`, protocol participation.            |
@@ -111,7 +125,9 @@ never overriding them:
 
 The closed v1 ontology (from the decision record) is: **Solution, Product,
 Component** (nestable) as containers, and **Protocol, DataModel, Actor,
-Environment, ADR, Requirement** as owned entity kinds. Extending the ontology is
+Environment, ADR, Requirement** as owned entity kinds. Every kind except
+`solution` is also a bucket name in the path grammar, which is why the reserved
+word list and the kind list are the same eight words. Extending the ontology is
 deferred, so the nine kind documents above are the complete set.
 
 ## Reading order

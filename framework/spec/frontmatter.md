@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: frontmatter
-version: 1
+version: 2
 status: review
 title: Common frontmatter
 summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges, and validation.
@@ -35,7 +35,7 @@ Format rules:
   other unknown field.
 
   ```yaml
-  # solutions/acme/shop/index.md
+  # solutions/acme/product/shop/index.md
   kind: product
   lifecycle: active          # legal — kinds/product.md defines it for products
   actor-type: human          # E_FM_UNKNOWN_FIELD — an actor field on a product
@@ -66,20 +66,29 @@ solution | product | component |
 datamodel | protocol | actor | environment | adr | requirement
 ```
 
-`kind` vs. location: a container's `kind` is determined by nesting depth
-(solution → product → component, components at every deeper level); an owned
-entity's `kind` MUST equal its kind bucket. Examples:
+`kind` vs. location: **`kind` MUST equal the bucket the entity's directory sits
+in** — for every kind, containers included. Nothing is inferred from depth: the
+path states the kind at every level ([srn.md](srn.md)), so the check is a string
+comparison against the second-to-last path segment. The solution root is the
+only entity with no bucket, and its `kind` is always `solution`.
 
 ```yaml
-# solutions/acme/shop/index.md
-kind: product          # correct — direct child of a solution
+# solutions/acme/product/shop/index.md
+kind: product          # correct — the bucket is product/
 
-# solutions/acme/shop/checkout/payment/index.md
-kind: component        # correct — any container below product level
+# solutions/acme/product/shop/component/checkout/component/payment/index.md
+kind: component        # correct — the bucket is component/, at any depth
 
-# solutions/acme/shop/datamodel/order/index.md
-kind: environment      # E_FM_KIND_LOCATION — bucket says datamodel
+# solutions/acme/product/shop/datamodel/order-line/index.md
+kind: environment      # E_FM_KIND_LOCATION — the bucket says datamodel
 ```
+
+Which bucket may sit where is grammar, not frontmatter: a `product/` bucket
+below solution level, a `component/` bucket at solution level, or an `actor/`
+bucket inside a product are all `E_SRN_PLACEMENT` — the directory's own path
+fails to parse, so the entity never reaches frontmatter validation.
+`E_FM_KIND_LOCATION` is left with exactly one job: a `kind` that disagrees with
+a bucket that is itself legally placed.
 
 (Framework spec documents like this file use `kind: spec` and live outside
 `solutions/`; they follow this contract's shape but are not solution entities.)
@@ -100,9 +109,15 @@ closed; extending it is an additive spec change:
 
 Rules:
 
-- An edge whose target kind is illegal for its type is `E_FM_EDGE_TARGET`
-  (rule V7 in [srn.md](srn.md)). Example: `implements: [/actor/customer]` from
-  a component — actors are not implementable.
+- An edge whose target kind is illegal for its type is `E_FM_EDGE_TARGET`,
+  checked once the catalog is resolved ([srn.md](srn.md)). Example:
+  `implements: [/actor/customer]` from a component — actors are not
+  implementable.
+- An edge authored by a kind that is not in its **Legal source kinds** column is
+  `E_FM_EDGE_SOURCE`. Example: `exposes` on a datamodel — only components and
+  products have a public surface. The two codes are separate because they blame
+  different documents: `E_FM_EDGE_SOURCE` is wrong in the file you are reading,
+  `E_FM_EDGE_TARGET` is wrong about the file it points at.
 - **Inverse edges are derived, never authored.** The portal computes `used-by`,
   `exposed-by`, `depended-on-by`, `implemented-by`, `superseded-by` from the
   forward edges. Authoring both directions is double bookkeeping and drifts.
@@ -116,22 +131,36 @@ Rules:
   the alias namespace its workflows use, and the NCA that fixes its directory.
   Neither side is derived from the other; they are cross-checked as warnings.
 
+References are resolved from the referring entity's own directory, and a bucket
+plus a name is **two** path segments — so a target outside the entity's own
+subtree SHOULD be written solution-absolute rather than as a `..` chain
+([srn.md](srn.md)).
+
 ```yaml
+# solutions/acme/product/shop/component/checkout/index.md
 relations:
   exposes:
-    - ../protocol/order-events          # this component provides the protocol
+    - /product/shop/protocol/order-placement   # this component provides it
   uses:
-    - /datamodel/money@1                # pinned solution-level datamodel
+    - /datamodel/money@1                       # pinned solution-level datamodel
     - /environment/production
   depends-on:
-    - /shop/inventory
+    - /product/shop/component/inventory        # sibling component
   implements:
-    - requirement/idem-cap              # this component's own requirement
+    - requirement/idem-cap                     # this component's own bucket:
+                                               # relative, and correct at any depth
 ```
+
+The last entry is the one case where relative still reads better: an entity's
+own bucket is appended to its own path, so `requirement/idem-cap` resolves to
+`srn://acme/product/shop/component/checkout/requirement/idem-cap` and survives
+the component being renamed. The equivalent `../../protocol/order-placement` for
+the first entry pops two segments (`checkout`, then the `component` bucket) and
+is exactly the arithmetic the absolute form removes.
 
 ## Full example
 
-`solutions/acme/shop/checkout/payment/datamodel/order/index.md`:
+`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/index.md`:
 
 ```yaml
 ---
@@ -159,7 +188,11 @@ x-jira-epic: SHOP-142
 # Order
 
 Prose: intent, invariants, review notes. The machine-readable shape lives in
-the sibling `schema.json`, whose `$id` is `srn://acme/shop/checkout/payment/datamodel/order@3`.
+the sibling `schema.json`, which carries **no `$id`** and whose `$ref`s are
+relative file paths, so stock JSON Schema tooling consumes it unaided
+(decision-record amendment 2026-08-19-b). Its identity is this entity's SRN,
+`srn://acme/product/shop/component/checkout/component/payment/datamodel/order`,
+derived from the path; the version above is the only copy of the version.
 ```
 
 The schema's `$ref` edges are deliberately **not** repeated under `relations` —
@@ -178,7 +211,10 @@ summary: |             # E_FM_SCHEMA — multi-line summary
   Customer order
   aggregate.
 relations:
-  used-by: [/shop/checkout]   # E_FM_SCHEMA — inverse edges are derived, not authored
+  used-by:                    # E_FM_SCHEMA — inverse edges are derived, not authored
+    - /product/shop/component/checkout
+  exposes:                    # E_FM_EDGE_SOURCE — a datamodel has no public surface
+    - /product/shop/protocol/order-placement
 ```
 
 ## Delegation to kind documents
@@ -210,6 +246,11 @@ requiredness, or reuse an `x-` prefix for a normative field. In particular:
 | --------------------- | ---------------------------------------------------------------- |
 | `E_FM_SCHEMA`         | Frontmatter fails the common zod schema (type/enum/shape).       |
 | `E_FM_NAME_MISMATCH`  | `name` ≠ entity directory name.                                  |
-| `E_FM_KIND_LOCATION`  | `kind` contradicts the entity's disk position.                   |
+| `E_FM_KIND_LOCATION`  | `kind` ≠ the kind bucket the entity's directory sits in.         |
 | `E_FM_EDGE_TARGET`    | Relation edge targets an entity of an illegal kind.              |
+| `E_FM_EDGE_SOURCE`    | Relation edge authored by a kind that may not author it.         |
 | `E_FM_UNKNOWN_FIELD`  | Unknown top-level field without `x-` prefix.                     |
+
+Placement of the bucket itself is not a frontmatter concern: an illegally
+placed bucket is `E_SRN_PLACEMENT` ([srn.md](srn.md)), raised while the
+directory's path is parsed.

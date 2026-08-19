@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
 import { EntityChildren } from '@/components/entity/entity-children'
+import { EntityGraph } from '@/components/entity/entity-graph'
+import { EntityProtocol } from '@/components/entity/entity-protocol'
 import { EntityRelations } from '@/components/entity/entity-relations'
 import { EntitySchema } from '@/components/entity/entity-schema'
 import { KindBadge, StatusBadge, VersionBadge } from '@/components/kind-badge'
@@ -109,6 +111,8 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
       {entity.body && <Markdown>{entity.body}</Markdown>}
 
       <EntitySchema entity={entity} />
+      <EntityProtocol entity={entity} catalog={catalog} />
+      <EntityGraph entity={entity} catalog={catalog} />
       <EntityArtifacts entity={entity} />
       <EntityRelations entity={entity} catalog={catalog} inbound={inbound} />
       <EntityChildren entities={children} />

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: environment
-version: 1
+version: 2
 status: review
 title: Kind — Environment
 summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts, membership derivation, validation, and derived views.
@@ -37,11 +37,13 @@ direct child of the solution directory:
 
 ```text
 solutions/acme/environment/production/index.md         # legal
-solutions/acme/shop/environment/production/index.md    # ILLEGAL — E_STRUCT_KIND_PLACEMENT
+solutions/acme/product/shop/environment/production/index.md   # E_SRN_PLACEMENT
 ```
 
-The rule and its error class are owned by [structure.md](../structure.md). The
-rationale: an environment is shared. `production` is one place, and components
+The rule is **grammar**, not a loader check: an `environment` pair may only be
+the first pair after the authority, so the second path fails while it is parsed
+([srn.md](../srn.md)). The rationale for putting it in the grammar rather than
+leaving it to review: an environment is shared. `production` is one place, and components
 from every product land in it; if each product owned its own `production`
 entity, the same target would have several SRNs and the config surface would
 fragment into per-product copies that immediately disagree. One target, one
@@ -117,7 +119,7 @@ declares the environments it is deployed to; the environment entity does not
 maintain a roster.
 
 ```yaml
-# solutions/acme/shop/checkout/index.md
+# solutions/acme/product/shop/component/checkout/index.md
 relations:
   uses:
     - /environment/production      # this component is deployed to production
@@ -171,16 +173,16 @@ regions:
     zones: [a, b]
 
 hosts:
-  - component: /shop/checkout
+  - component: /product/shop/component/checkout
     regions: [eu-west-1, us-east-1]
     replicas: { min: 3, max: 24 }
     scaling: horizontal on p95 request latency above 200ms
     notes: stateless; sticky sessions disabled
-  - component: /shop/checkout/payment
+  - component: /product/shop/component/checkout/component/payment
     regions: [eu-west-1]
     replicas: { min: 2, max: 6 }
     scaling: manual
-  - component: /shop/inventory
+  - component: /product/shop/component/inventory
     regions: [eu-west-1]
 ```
 
@@ -216,9 +218,11 @@ strongly preferred here — it is shorter and it survives the environment being
 renamed:
 
 ```yaml
-component: /shop/checkout                     # recommended: solution-absolute
-component: srn://acme/shop/checkout           # equivalent, fully absolute
-component: ../../shop/checkout                # legal, resolves the same, but noisy
+component: /product/shop/component/checkout            # recommended
+component: srn://acme/product/shop/component/checkout  # equivalent, verbose
+component: ../../product/shop/component/checkout       # legal, resolves the
+                                                      # same, and nobody should
+                                                      # have to verify it
 ```
 
 **Product shorthand.** A `product` target means "every component beneath it,
@@ -227,10 +231,10 @@ explicit entry for one descendant is an override, not a conflict:
 
 ```yaml
 hosts:
-  - component: /shop                          # every component under the shop product
+  - component: /product/shop                  # every component under shop
     regions: [eu-west-1]
     replicas: { min: 2, max: 8 }
-  - component: /shop/checkout                 # override for one of them
+  - component: /product/shop/component/checkout    # override for one of them
     regions: [eu-west-1, us-east-1]
     replicas: { min: 3, max: 24 }
 ```
@@ -241,7 +245,7 @@ Counter-examples:
 hosts:
   - component: /actor/customer                # E_ENV_TARGET_KIND — not a component
     regions: [eu-west-1]
-  - component: /shop/inventory
+  - component: /product/shop/component/inventory
     regions: [ap-south-1]                     # E_ENV_REGION_UNKNOWN — not declared
     replicas: { min: 5, max: 2 }              # E_ENV_TOPOLOGY_SCHEMA — min > max
     tier: gold                                # E_ENV_TOPOLOGY_SCHEMA — unknown key
@@ -267,12 +271,12 @@ config:
     value: warn
     description: Root log level for every hosted component.
   - key: DATABASE_URL
-    for: /shop/checkout
+    for: /product/shop/component/checkout
     secret: true
     source: vault:kv/acme/production/checkout#database-url
     description: Primary Postgres DSN for the checkout component.
   - key: FEATURE_INSTANT_REFUNDS
-    for: /shop/checkout/payment
+    for: /product/shop/component/checkout/component/payment
     value: "false"
     description: Kill switch for instant refunds.
 ```
@@ -317,8 +321,9 @@ that does not run in this environment is dead configuration, flagged
 ```yaml
 config:
   - key: WAREHOUSE_API_URL
-    for: /shop/inventory      # W_ENV_CONFIG_ORPHAN if inventory has no
-                              # `uses: /environment/production` edge
+    for: /product/shop/component/inventory   # W_ENV_CONFIG_ORPHAN if inventory
+                                             # has no `uses:` edge to this
+                                             # environment
 ```
 
 Removing a key is therefore a **review-time** responsibility: no build check
@@ -396,7 +401,7 @@ and the configuration keys it provides**. Per
 
 | #     | Rule                                                                                | Class                     |
 | ----- | ----------------------------------------------------------------------------------- | ------------------------- |
-| ENV1  | `environment/` bucket is a direct child of a solution directory.                    | `E_STRUCT_KIND_PLACEMENT` |
+| ENV1  | `environment/` bucket is a direct child of a solution directory.                    | `E_SRN_PLACEMENT`         |
 | ENV2  | `environment-type` present and a member of the closed enum.                         | `E_FM_SCHEMA`             |
 | ENV3  | `environment-type` appears only on `kind: environment` entities.                    | `E_FM_UNKNOWN_FIELD`      |
 | ENV4  | `topology.yaml` parses and matches the schema above (incl. `min ≤ max`, `x-` rule). | `E_ENV_TOPOLOGY_SCHEMA`   |
@@ -441,6 +446,5 @@ apply to both artifacts unchanged.
 | `W_ENV_HOST_UNDECLARED` | Host entry for a component that does not declare this environment.                                                  |
 | `W_ENV_CONFIG_ORPHAN`   | Config entry scoped `for:` a component that does not run in this environment.                                       |
 
-Placement and frontmatter errors reuse `E_STRUCT_KIND_PLACEMENT`
-([structure.md](../structure.md)), `E_FM_SCHEMA` and `E_FM_UNKNOWN_FIELD`
-([frontmatter.md](../frontmatter.md)).
+Placement and frontmatter errors reuse `E_SRN_PLACEMENT` ([srn.md](../srn.md))
+and `E_FM_SCHEMA` / `E_FM_UNKNOWN_FIELD` ([frontmatter.md](../frontmatter.md)).

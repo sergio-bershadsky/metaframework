@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: evolution
-version: 1
+version: 2
 status: review
 title: Evolution and history
 summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples, the swap procedure, the git-backed history contract, and the status lifecycle.
@@ -23,14 +23,22 @@ git.
   any sibling artifact — MUST bump `version` in the same commit.
 - Exception: a change to `status` **alone** (e.g. `review` → `approved`) does
   not bump `version`. Status is workflow state, not content.
-- For a datamodel, the schema `$id` carries the same version and MUST be
-  updated in the same commit:
+- **The frontmatter is the only place a version lives.** Sibling artifacts carry
+  no version of their own — a `version:` key at the top level of
+  `transport.yaml`, `topology.yaml`, or a workflow file is a shape violation for
+  that kind. A datamodel's `schema.json` likewise carries **no `$id`** and no
+  version (decision-record amendment 2026-08-19-b,
+  [kinds/datamodel.md](kinds/datamodel.md)): its `$ref`s are relative file paths,
+  which cannot express `@N`, and its identity is the SRN of the directory holding
+  it. An entity version is a snapshot of the whole directory at one commit, so
+  there is exactly one number to bump and nothing that can drift out of step with
+  it.
 
   ```json
-  { "$id": "srn://acme/shop/checkout/payment/datamodel/order@4" }
+  { "$id": "srn://acme/datamodel/money@4" }   /* E_DM_ID_FORBIDDEN — the version
+                                                 belongs in index.md, and an $id
+                                                 re-bases every relative $ref */
   ```
-
-  `$id` version ≠ frontmatter `version` is a build error (`E_VER_ID_MISMATCH`).
 
 ## The additive-only principle
 
@@ -47,16 +55,25 @@ still bump `version`, but they are not bound by the superset rule below.
 Version `N+1` of a schema MUST accept every instance that version `N`
 accepted. Loosening is legal; tightening or reshaping is not.
 
+Both listings below are
+`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`
+at two successive commits. Neither carries an `$id` or a version: the version
+number lives in the sibling `index.md` and nowhere else, which is why the two
+files below are labelled "version 1" and "version 2" by their commit rather than
+by anything inside them. The `$ref` climbs the eight levels from the entity
+directory to `solutions/acme/`, where the solution-wide `money` vocabulary lives.
+
 Version 1:
 
 ```json
 {
-  "$id": "srn://acme/shop/checkout/payment/datamodel/order@1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "required": ["id", "total"],
   "properties": {
     "id":     { "type": "string" },
-    "total":  { "$ref": "/datamodel/money@1" },
+    "total":  { "$ref": "../../../../../../../../datamodel/money/schema.json" },
     "status": { "enum": ["placed", "paid"] }
   }
 }
@@ -66,17 +83,24 @@ Legal version 2 (every v1 instance still validates):
 
 ```json
 {
-  "$id": "srn://acme/shop/checkout/payment/datamodel/order@2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "required": ["id", "total"],
   "properties": {
     "id":       { "type": "string" },
-    "total":    { "$ref": "/datamodel/money@1" },
+    "total":    { "$ref": "../../../../../../../../datamodel/money/schema.json" },
     "status":   { "enum": ["placed", "paid", "refunded"] },
-    "discount": { "$ref": "/datamodel/money@1" }
+    "discount": { "$ref": "../../../../../../../../datamodel/money/schema.json" }
   }
 }
 ```
+
+The two documents differ only in the `properties` block, which is the point: a
+version bump touches content, never identity. A pin on `money` — "this model was
+reviewed against `money@1`" — cannot live in a `$ref`, because a path carries no
+`@N`; it goes in the entity's `relations.uses` as `/datamodel/money@1`
+([kinds/datamodel.md](kinds/datamodel.md)).
 
 | Change                                             | Verdict | Why                                    |
 | -------------------------------------------------- | ------- | -------------------------------------- |
@@ -115,10 +139,12 @@ For any change the additive rule forbids:
    a last resort. Add the edge on the successor:
 
    ```yaml
-   # solutions/acme/shop/checkout/payment/datamodel/payment-intent/index.md
+   # solutions/acme/product/shop/component/checkout/component/payment/
+   #   datamodel/payment-intent/index.md
    relations:
      supersedes:
-       - ../charge
+       - ../charge          # sibling in the same datamodel/ bucket: one `..`
+                            # leaves payment-intent/ and lands in the bucket
    ```
 
 2. **Migrate referrers** one by one. Each migration is an ordinary additive
@@ -179,8 +205,14 @@ commit c4  version: 3  (added enum value "refunded")
 ```
 
 Index: `{1: c2, 2: c3, 3: c4}`. A referrer pinned to
-`.../datamodel/order@1` gets the `c2` snapshot — including its approved
-status. `order@5` → `E_SRN_VERSION`.
+`/product/shop/component/checkout/component/payment/datamodel/order@1` gets the
+`c2` snapshot — including its approved status. `order@5` → `E_SRN_VERSION`.
+
+A snapshot is loaded against **that commit's tree**, which is what makes the
+relative `$ref`s inside a historical `schema.json` resolve: at `c2` the entity
+sat at whatever path it sat at, and the `..` counts in the file match it. This
+is also why a move is forbidden — the path is the identity, and no rewrite of
+history could keep both.
 
 ## Status lifecycle
 
@@ -218,10 +250,17 @@ and the portal build's validation.
 
 | Code                  | Meaning                                                        |
 | --------------------- | -------------------------------------------------------------- |
-| `E_VER_ID_MISMATCH`   | Schema `$id` version ≠ frontmatter `version`.                  |
 | `E_VER_REGRESSION`    | `version` decreased, or increased by more than 1, in a commit. |
 | `E_SRN_VERSION`       | Pinned `@N` not on filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED`    | Reference targets a `status: deprecated` entity.               |
 
 (`E_VER_REGRESSION` is checkable only where history is available — the portal
 checks it while building the version→commit index.)
+
+**Retired: `E_VER_ID_MISMATCH`.** It meant "schema `$id` version ≠ frontmatter
+`version`". A `schema.json` now carries neither an `$id` nor a version
+(decision-record amendment 2026-08-19-b), so the comparison has no operands and
+the code MUST NOT be emitted. The rule it enforced is gone rather than moved:
+with one copy of the version there is nothing to compare it against. An `$id`
+appearing in a schema at all is `E_DM_ID_FORBIDDEN`
+([kinds/datamodel.md](kinds/datamodel.md)).
