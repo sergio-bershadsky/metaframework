@@ -1,7 +1,7 @@
 ---
 name: courier
 kind: actor
-version: 2
+version: 3
 title: Courier
 summary: The carrier's driver who collects, moves, and hands over a parcel, and whose scans are acme's only ground truth.
 status: approved
@@ -75,6 +75,29 @@ The carrier's *systems* are a different participant with a different type:
 [parcel-carrier](srn://acme/product/fulfilment/component/carrier-gateway/component/parcel-carrier),
 an `external` component. One company, two nodes, because they fail in unrelated
 ways and neither substitutes for the other.
+
+## Scan cadence is a human schedule, and acme's alarms are not
+
+The second goal says a scan at every custody change. What it cannot say is *when*
+that scan reaches acme, and the gap is a working day. Couriers on rural routes
+lose signal for hours; some devices batch and upload at the depot; a driver
+finishing a shift may sync twelve handovers at once. The scan time is real and the
+arrival time is an artefact of a phone.
+
+That matters now that
+[delivery-promise-accuracy](srn://acme/product/fulfilment/requirement/delivery-promise-accuracy)
+fires a customer notification when a parcel records no scan for 48 hours. The
+threshold is 48 rather than 24 for exactly this reason, and even 48 will
+occasionally notify a customer about a parcel sitting on a van that is perfectly
+on time. That is a false positive acme chose, knowing it comes from a person's
+working pattern and not from a system anybody can fix.
+
+The corollary is that no acme component may treat scan silence as a fact about a
+parcel. It is a fact about a device, and the two coincide often enough to be
+useful and rarely enough to be dangerous. `delivered-at` on
+[shipment](srn://acme/product/fulfilment/datamodel/shipment@3) records the scan
+time and not the receipt time precisely so that this distinction stays visible in
+the data rather than being flattened on the way in.
 
 ## Boundary
 
