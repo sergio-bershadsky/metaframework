@@ -12,7 +12,7 @@ import {
   unknownFields,
 } from './frontmatter'
 import type { Artifact, Catalog, Diagnostic, Entity, Relation } from './types'
-import { SrnError, type Srn, formatSrn, parseSrn, resolveRef } from '../srn/srn'
+import { SrnError, type Srn, formatSrn, parentSrn, parseSrn, resolveRef } from '../srn/srn'
 
 const ENTITY_DOCUMENT = 'index.md'
 const ARTIFACT_EXTENSIONS = new Set(['.json', '.yaml', '.yml', '.md'])
@@ -20,8 +20,6 @@ const ARTIFACT_EXTENSIONS = new Set(['.json', '.yaml', '.yml', '.md'])
 /** Kinds that may contain child entity directories (structure.md). */
 const CONTAINER_KINDS = new Set<EntityKind>(['solution', 'product', 'component'])
 
-/** Kinds whose bucket may only sit at solution level (structure.md). */
-const SOLUTION_ONLY_KINDS = new Set<EntityKind>(['actor', 'environment'])
 
 export interface LoadOptions {
   /** Absolute path to the directory holding solution roots. */
@@ -192,15 +190,10 @@ async function readEntity(
     })
   }
 
-  if (parsed.kind && SOLUTION_ONLY_KINDS.has(parsed.kind) && parsed.containers.length > 0) {
-    diagnostics.push({
-      code: 'E_STRUCT_KIND_PLACEMENT',
-      severity: 'error',
-      message: `${parsed.kind} may only live at solution level`,
-      path: relDir,
-      srn,
-    })
-  }
+  // Kind placement (actors and environments at solution level, products directly
+  // under the solution, components only inside containers) is enforced by the
+  // SRN grammar itself now that every path segment is bucketed — a misplaced
+  // entity fails to parse above and never reaches this point.
 
   if (entities.has(srn)) {
     diagnostics.push({
@@ -230,12 +223,13 @@ async function readEntity(
   return entity
 }
 
-/** Kind implied by an entity's position on disk (frontmatter.md). */
+/**
+ * Kind implied by position on disk. With fully bucketed paths this is no longer
+ * an inference from depth — every entity states its kind in the path itself,
+ * and only the solution root has no bucket.
+ */
 function kindFromPosition(srn: Srn): EntityKind {
-  if (srn.kind) return srn.kind
-  if (srn.containers.length === 0) return 'solution'
-  if (srn.containers.length === 1) return 'product'
-  return 'component'
+  return srn.kind ?? 'solution'
 }
 
 async function readArtifacts(dir: string, prefix = ''): Promise<Artifact[]> {
@@ -347,12 +341,9 @@ function linkHierarchy(entities: Map<string, Entity>, diagnostics: Diagnostic[])
 }
 
 function parentOf(entity: Entity): string | null {
-  const { solution, containers, kind } = entity.parsed
-  // An owned entity's parent is its bucket's owner; a container's parent is the
-  // container above it. Either way: drop the entity-identifying tail.
-  const parentContainers = kind ? containers : containers.slice(0, -1)
-  if (!kind && containers.length === 0) return null
-  return formatSrn({ solution, containers: parentContainers, kind: null, name: null, version: null })
+  // Bucketed paths make ownership positional: drop the trailing {kind}/{name}
+  // pair and what remains addresses the owner.
+  return parentSrn(entity.parsed)
 }
 
 /**

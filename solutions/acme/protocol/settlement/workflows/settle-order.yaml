@@ -7,7 +7,7 @@ steps:
     from: payment
     to: [ledger, reconciliation]
     kind: event
-    payload: /shop/checkout/payment/datamodel/order@3
+    payload: /product/shop/component/checkout/component/payment/datamodel/order@3
     channel: acme.settlement.order-paid.v1
     note: Published after funds are captured, never before — a reversal is a new fact.
 
@@ -15,7 +15,7 @@ steps:
     from: ledger
     to: [reconciliation]
     kind: event
-    payload: /billing/datamodel/ledger-entry@1
+    payload: /product/billing/datamodel/ledger-entry@1
     channel: acme.settlement.ledger-entry-posted.v1
     condition: one event per leg, debit and credit
 

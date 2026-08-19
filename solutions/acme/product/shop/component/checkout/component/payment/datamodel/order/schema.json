@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "title": "Order",
+  "description": "Order aggregate owned by the payment component.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../../../../../../../../datamodel/base-record/schema.json"
+    },
+    {
+      "$ref": "../../../../../../../../datamodel/auditable/schema.json"
+    }
+  ],
+  "properties": {
+    "total": {
+      "$ref": "../../../../../../../../datamodel/money/schema.json",
+      "description": "Gross amount payable."
+    },
+    "discount": {
+      "$ref": "../../../../../../../../datamodel/money/schema.json",
+      "description": "Applied discount; added in version 2. Never exceeds total."
+    },
+    "status": {
+      "enum": [
+        "placed",
+        "paid",
+        "refunded"
+      ],
+      "description": "\"refunded\" added in version 3. Moves forward only."
+    },
+    "payment": {
+      "$ref": "../../../../../../datamodel/payment-method/schema.json",
+      "description": "The instrument that was actually charged."
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "$ref": "../../../../../../datamodel/order-line/schema.json"
+      },
+      "description": "Lines as authorized."
+    },
+    "line-count": {
+      "$ref": "#/$defs/positive-int",
+      "description": "Denormalized count, kept for reporting."
+    }
+  },
+  "required": [
+    "total"
+  ],
+  "$defs": {
+    "positive-int": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

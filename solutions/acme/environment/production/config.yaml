@@ -6,21 +6,21 @@ config:
     value: kafka.eu-west-1.acme.internal:9093
     description: Bootstrap servers for the settlement bus.
   - key: DATABASE_URL
-    for: /shop/checkout
+    for: /product/shop/component/checkout
     secret: true
     source: vault:kv/acme/production/checkout#database-url
     description: Primary Postgres DSN for the checkout component.
   - key: ACQUIRER_API_KEY
-    for: /shop/checkout/payment
+    for: /product/shop/component/checkout/component/payment
     secret: true
     source: vault:kv/acme/production/payment#acquirer-api-key
     description: Credential for the card acquirer, rotated every 90 days.
   - key: FEATURE_INSTANT_REFUNDS
-    for: /shop/checkout/payment
+    for: /product/shop/component/checkout/component/payment
     value: "false"
     description: Kill switch for instant refunds; on only for the pilot cohort.
   - key: LEDGER_DSN
-    for: /billing/ledger
+    for: /product/billing/component/ledger
     secret: true
     source: vault:kv/acme/production/ledger#dsn
     description: Postgres DSN of the double-entry ledger.

@@ -12,9 +12,9 @@ goals:
   - Correct a stock count that reality disagrees with, and see why it drifted.
 relations:
   supersedes:
-    - ../shop-admin
+    - /actor/shop-admin
   uses:
-    - /shop/inventory
+    - /product/shop/component/inventory
 tags:
   - internal
   - catalog
@@ -44,4 +44,4 @@ The other two halves of the old role are
 
 `review`, not `approved`: the stock-correction goal is still being argued over
 with team-shop, because it implies a write path into
-[inventory](srn://acme/shop/inventory) that no protocol currently describes.
+[inventory](srn://acme/product/shop/component/inventory) that no protocol currently describes.

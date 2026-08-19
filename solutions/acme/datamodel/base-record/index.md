@@ -28,14 +28,14 @@ framework names it as its own error class rather than leaving it to review.
 
 ## Descendants
 
-[cart](srn://acme/shop/checkout/datamodel/cart@1),
-[order](srn://acme/shop/checkout/payment/datamodel/order@3),
-[order-placed](srn://acme/shop/datamodel/order-placed@1), and
-[ledger-entry](srn://acme/billing/datamodel/ledger-entry@1) all extend it with a
+[cart](srn://acme/product/shop/component/checkout/datamodel/cart@1),
+[order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3),
+[order-placed](srn://acme/product/shop/datamodel/order-placed@1), and
+[ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1) all extend it with a
 root-level `allOf`. That set of edges is the inheritance graph the portal draws;
 it is derived from the schemas, never authored in frontmatter.
 
 The `id` is assigned by the writer, not by a database. A record therefore has an
 identity before it has a row, which is what lets an idempotent retry recognise
 its own earlier attempt — see
-[idem-cap](srn://acme/shop/checkout/requirement/idem-cap).
+[idem-cap](srn://acme/product/shop/component/checkout/requirement/idem-cap).

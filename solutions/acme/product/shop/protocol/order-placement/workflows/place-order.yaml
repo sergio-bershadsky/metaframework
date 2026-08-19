@@ -1,0 +1,85 @@
+name: place-order
+title: Place an order
+summary: Customer submits a cart; checkout reserves stock, authorizes payment, and confirms.
+participants: [customer, checkout, inventory, payment]
+steps:
+  - message: submit-order
+    from: customer
+    to: checkout
+    kind: call
+    payload: /product/shop/datamodel/order-request@1
+    note: Requires an Idempotency-Key header, per requirement/idem-cap.
+
+  - loop:
+      while: inventory answers retry
+      max: 3
+      steps:
+        - message: reserve-stock
+          from: checkout
+          to: inventory
+          kind: call
+        - message: stock-reservation-result
+          from: inventory
+          to: checkout
+          kind: return
+          condition: reservation held for 120 seconds
+
+  - opt:
+      when: the delivery address is in a tax-relevant jurisdiction
+      steps:
+        - message: quote-tax
+          from: checkout
+          to: checkout
+          kind: call
+          note: In-process call into tax-engine — see the tax-quoting protocol.
+
+  - alt:
+      - when: stock fully reserved
+        steps:
+          - message: authorize-payment
+            from: checkout
+            to: payment
+            kind: call
+            payload: /product/shop/component/checkout/component/payment/datamodel/order@3
+          - alt:
+              - when: authorization approved
+                steps:
+                  - message: payment-authorized
+                    from: payment
+                    to: checkout
+                    kind: return
+                  - message: order-confirmed
+                    from: checkout
+                    to: customer
+                    kind: return
+                    payload: /product/shop/datamodel/order-confirmation@1
+                  - opt:
+                      when: customer opted into email notifications
+                      steps:
+                        - message: order-receipt
+                          from: checkout
+                          to: customer
+                          kind: event
+              - when: authorization declined
+                steps:
+                  - message: payment-declined
+                    from: payment
+                    to: checkout
+                    kind: error
+                    payload: /datamodel/problem@1
+                  - message: release-stock
+                    from: checkout
+                    to: inventory
+                    kind: event
+                  - message: order-rejected
+                    from: checkout
+                    to: customer
+                    kind: error
+                    payload: /datamodel/problem@1
+    otherwise:
+      - message: out-of-stock
+        from: checkout
+        to: customer
+        kind: error
+        payload: /datamodel/problem@1
+        note: Sent once the retry budget is exhausted, never on the first refusal.

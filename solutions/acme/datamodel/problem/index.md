@@ -36,7 +36,7 @@ Extension members are permitted by the RFC and by this schema, which is why
 ## Where it is carried
 
 The error steps of
-[order-placement](srn://acme/shop/protocol/order-placement) — `payment-declined`,
+[order-placement](srn://acme/product/shop/protocol/order-placement) — `payment-declined`,
 `order-rejected`, `out-of-stock` — all carry it, and the protocol declares
 conformance to RFC 9457 in its `conforms-to` list. The message-to-datamodel
 matrix on that protocol's page is derived from those payload references, not

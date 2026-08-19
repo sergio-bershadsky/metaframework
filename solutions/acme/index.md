@@ -47,9 +47,9 @@ is a description, not an implementation: every repository that builds one of
 these components is expected to match what is written here, and a divergence is
 a defect in one of the two.
 
-Two products divide the universe. [shop](srn://acme/shop) owns everything a
+Two products divide the universe. [shop](srn://acme/product/shop) owns everything a
 customer touches — cart, checkout, payment orchestration, stock availability.
-[billing](srn://acme/billing) owns everything that happens after the money moves
+[billing](srn://acme/product/billing) owns everything that happens after the money moves
 — the double-entry ledger and the reconciliation job that proves it balances.
 The two meet on exactly one surface, the solution-level
 [settlement](srn://acme/protocol/settlement) bus, which is why that protocol
@@ -57,9 +57,9 @@ lives at the solution root rather than inside either product.
 
 ## Reading order
 
-Start with the [shop](srn://acme/shop) product, then its
-[checkout](srn://acme/shop/checkout) component and the
-[payment](srn://acme/shop/checkout/payment) sub-component beneath it. The
+Start with the [shop](srn://acme/product/shop) product, then its
+[checkout](srn://acme/product/shop/component/checkout) component and the
+[payment](srn://acme/product/shop/component/checkout/component/payment) sub-component beneath it. The
 vocabulary shared by both products is small on purpose:
 [money](srn://acme/datamodel/money@1) for every amount,
 [base-record](srn://acme/datamodel/base-record@1) for identity and creation

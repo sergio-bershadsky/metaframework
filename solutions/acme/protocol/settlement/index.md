@@ -9,13 +9,13 @@ owner: team-billing
 style: bus
 participants:
   - alias: payment
-    ref: /shop/checkout/payment
+    ref: /product/shop/component/checkout/component/payment
     role: publisher
   - alias: ledger
-    ref: /billing/ledger
+    ref: /product/billing/component/ledger
     role: consumer
   - alias: reconciliation
-    ref: /billing/reconciliation
+    ref: /product/billing/component/reconciliation
     role: consumer
 conforms-to:
   - standard: CloudEvents
@@ -31,17 +31,17 @@ tags:
 
 # Settlement
 
-The only surface on which [shop](srn://acme/shop) and
-[billing](srn://acme/billing) meet. Shop publishes the fact that an order was
+The only surface on which [shop](srn://acme/product/shop) and
+[billing](srn://acme/product/billing) meet. Shop publishes the fact that an order was
 paid; billing decides what that means in accounting terms. Neither side calls
 the other, and neither knows how many consumers there are — which is what makes
 this a `bus` and not a request-response protocol.
 
 Placement follows from the participant list rather than from taste: the
 component participants are
-[payment](srn://acme/shop/checkout/payment) under the shop product and
-[ledger](srn://acme/billing/ledger) and
-[reconciliation](srn://acme/billing/reconciliation) under billing, so their
+[payment](srn://acme/product/shop/component/checkout/component/payment) under the shop product and
+[ledger](srn://acme/product/billing/component/ledger) and
+[reconciliation](srn://acme/product/billing/component/reconciliation) under billing, so their
 nearest common ancestor is the solution root, and the entity sits at
 `solutions/acme/protocol/settlement/`. Move a participant and the correct
 placement moves with it.
@@ -53,7 +53,7 @@ paid for. An event breaks that coupling: the payment component's obligation ends
 when the fact is durably published, and billing catches up at its own pace. The
 price is eventual consistency — a paid order is visible in the shop before it is
 visible in the ledger, and the
-[audit-trail](srn://acme/billing/requirement/audit-trail) requirement states how
+[audit-trail](srn://acme/product/billing/requirement/audit-trail) requirement states how
 long that window may be.
 
 ## Ordering and keys

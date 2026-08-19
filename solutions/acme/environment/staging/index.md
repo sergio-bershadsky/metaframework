@@ -26,14 +26,14 @@ shape it will meet, not against a toy.
 - No availability objective. Staging may be down for a working day without
   anyone being paged.
 - The card acquirer is reached through its sandbox endpoint. That is why
-  [psp](srn://acme/shop/checkout/payment/psp) — an `external` component —
+  [psp](srn://acme/product/shop/component/checkout/component/payment/component/psp) — an `external` component —
   legitimately declares both environments: the two endpoints are different
   systems wearing the same name.
 
 ## What runs here
 
 Everything on the checkout path plus the
-[reconciliation](srn://acme/billing/reconciliation) job, which is still `draft`
+[reconciliation](srn://acme/product/billing/component/reconciliation) job, which is still `draft`
 and therefore has no business declaring production. Placement detail is in the
 sibling `topology.yaml`; there is no `config.yaml` because the target provides
 no key beyond the defaults every component ships with.

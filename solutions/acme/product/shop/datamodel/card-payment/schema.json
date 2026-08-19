@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/product/shop/datamodel/card-payment",
+  "title": "Card payment",
+  "description": "Tokenized card instrument. Never carries a primary account number.",
+  "type": "object",
+  "properties": {
+    "method": {
+      "const": "card",
+      "description": "Union tag."
+    },
+    "token": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Opaque acquirer token; valid only for this merchant."
+    },
+    "scheme": {
+      "enum": [
+        "visa",
+        "mastercard",
+        "amex"
+      ],
+      "description": "Card scheme, for display and for routing rules."
+    },
+    "pan-last4": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "Display aid only \u2014 not an identifier."
+    }
+  },
+  "required": [
+    "method",
+    "token",
+    "pan-last4"
+  ]
+}

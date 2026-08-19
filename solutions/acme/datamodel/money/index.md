@@ -30,11 +30,11 @@ euros or a thousand yen, and the bug that follows is discovered by a customer.
 
 Promoted out of `$defs` the moment a second entity needed it, exactly as the
 promotion rule prescribes. It is now referenced by
-[order-line](srn://acme/shop/datamodel/order-line@1),
-[order-confirmation](srn://acme/shop/datamodel/order-confirmation@1),
-[cart](srn://acme/shop/checkout/datamodel/cart@1),
-[order](srn://acme/shop/checkout/payment/datamodel/order@3), and
-[ledger-entry](srn://acme/billing/datamodel/ledger-entry@1) — five entities, one
+[order-line](srn://acme/product/shop/datamodel/order-line@1),
+[order-confirmation](srn://acme/product/shop/datamodel/order-confirmation@1),
+[cart](srn://acme/product/shop/component/checkout/datamodel/cart@1),
+[order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3), and
+[ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1) — five entities, one
 definition, one place to change the currency set.
 
 Those references are not repeated under `relations`: the portal derives the

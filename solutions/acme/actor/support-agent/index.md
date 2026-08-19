@@ -21,14 +21,14 @@ tags:
 A member of the customer support team, acting on a customer's behalf and with
 their consent. The agent sees order and settlement state; they do not see raw
 card data, which never leaves the acquirer's tokenized form (see
-[payment](srn://acme/shop/checkout/payment)).
+[payment](srn://acme/product/shop/component/checkout/component/payment)).
 
 ## Why this is an actor and not a component
 
 The support console is somebody else's product and is not described in this
 solution. What matters here is that a named counterpart initiates refunds and
 reads settlement state, so that the
-[audit-trail](srn://acme/billing/requirement/audit-trail) requirement has a
+[audit-trail](srn://acme/product/billing/requirement/audit-trail) requirement has a
 subject and the ledger's read surface has a stated consumer.
 
 ## Boundaries

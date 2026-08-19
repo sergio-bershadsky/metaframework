@@ -26,7 +26,7 @@ first question about any such edge is why.
 
 - Availability objective 99.9% monthly for the checkout path, measured at the
   public edge. The number itself is an obligation, written down as
-  [p99-checkout-latency](srn://acme/shop/checkout/requirement/p99-checkout-latency).
+  [p99-checkout-latency](srn://acme/product/shop/component/checkout/requirement/p99-checkout-latency).
 - Data residency: order and payment data stay in `eu-west-1`. The `us-east-1`
   region serves read-only catalogue traffic and holds no payment instrument.
 - Change window: schema migrations run through the

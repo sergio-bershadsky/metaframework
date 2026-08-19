@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-srn": "srn://acme/product/billing/datamodel/ledger-entry",
+  "title": "Ledger entry",
+  "description": "One leg of a balanced double-entry posting.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../../../../datamodel/base-record/schema.json"
+    },
+    {
+      "$ref": "../../../../datamodel/auditable/schema.json"
+    }
+  ],
+  "properties": {
+    "order-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order whose payment fact produced this leg."
+    },
+    "batch-id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Posting batch; all legs of one movement share it and sum to zero."
+    },
+    "direction": {
+      "enum": [
+        "debit",
+        "credit"
+      ],
+      "description": "Explicit direction. Amounts are never signed."
+    },
+    "amount": {
+      "$ref": "../../../../datamodel/money/schema.json",
+      "description": "Magnitude of this leg."
+    },
+    "account": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Chart-of-accounts code this leg posts to."
+    },
+    "posted-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the leg became durable."
+    }
+  },
+  "required": [
+    "order-id",
+    "batch-id",
+    "direction",
+    "amount",
+    "account"
+  ]
+}

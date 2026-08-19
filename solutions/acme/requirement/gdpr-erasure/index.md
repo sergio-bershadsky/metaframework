@@ -11,7 +11,7 @@ priority: must
 relations:
   uses:
     - /environment/production
-    - /shop/checkout/payment/datamodel/order@3
+    - /product/shop/component/checkout/component/payment/datamodel/order@3
 tags:
   - compliance
   - privacy
@@ -25,9 +25,9 @@ that holds data identifying them must either delete it or anonymize it beyond
 re-identification, within the statutory window.
 
 The obligation is solution-wide because no single component can discharge it:
-[checkout](srn://acme/shop/checkout) holds contact and address data,
-[payment](srn://acme/shop/checkout/payment) holds tokenized instruments, and
-[ledger](srn://acme/billing/ledger) holds entries it is legally required to keep
+[checkout](srn://acme/product/shop/component/checkout) holds contact and address data,
+[payment](srn://acme/product/shop/component/checkout/component/payment) holds tokenized instruments, and
+[ledger](srn://acme/product/billing/component/ledger) holds entries it is legally required to keep
 for seven years. The last of these is why the requirement says "or anonymize":
 the accounting record survives, the person in it does not.
 
@@ -53,7 +53,7 @@ the accounting record survives, the person in it does not.
 
 AC-2 and AC-3 exist because the first draft of this requirement said "delete",
 and deleting a ledger entry would have broken the double-entry invariant that
-[0001-double-entry](srn://acme/billing/adr/0001-double-entry) is built on. The
+[0001-double-entry](srn://acme/product/billing/adr/0001-double-entry) is built on. The
 statement was widened rather than narrowed, which is legal in place; had it been
 narrowed, this entity would have been superseded instead.
 
@@ -61,5 +61,5 @@ narrowed, this entity would have been superseded instead.
 
 Erasure of data held by systems acme does not operate — the acquirer keeps its
 own transaction record under its own obligation, and
-[psp](srn://acme/shop/checkout/payment/psp) is described here only as far as that
+[psp](srn://acme/product/shop/component/checkout/component/payment/component/psp) is described here only as far as that
 boundary.

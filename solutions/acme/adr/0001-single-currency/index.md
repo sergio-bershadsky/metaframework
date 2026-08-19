@@ -55,7 +55,7 @@ and `USD`, and widening it is an additive change to the `money` schema.
   consumer that reads it into a double will still work and will still be wrong;
   that risk is real and is not mitigated by the schema.
 - Adding a fourth currency touches one schema, but every stored
-  [ledger-entry](srn://acme/billing/datamodel/ledger-entry@1) predating it keeps
+  [ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1) predating it keeps
   validating, because widening an enum is additive.
 
 ## Alternatives considered

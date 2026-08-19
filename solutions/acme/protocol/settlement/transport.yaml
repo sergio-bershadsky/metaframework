@@ -9,13 +9,13 @@ kafka:
   topics:
     - name: acme.settlement.order-paid.v1
       key: order-id
-      message: /shop/checkout/payment/datamodel/order@3
+      message: /product/shop/component/checkout/component/payment/datamodel/order@3
       partitions: 12
       retention: 30d
       summary: Emitted once an order reaches the paid state and funds are captured.
     - name: acme.settlement.ledger-entry-posted.v1
       key: order-id
-      message: /billing/datamodel/ledger-entry@1
+      message: /product/billing/datamodel/ledger-entry@1
       partitions: 12
       retention: 30d
       summary: One event per posted double-entry leg, published by the ledger.

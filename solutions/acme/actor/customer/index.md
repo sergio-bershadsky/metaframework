@@ -13,7 +13,7 @@ goals:
   - Get money back for a returned item within one working day.
 relations:
   uses:
-    - /shop/checkout
+    - /product/shop/component/checkout
 tags:
   - commerce
   - external-facing
@@ -29,18 +29,18 @@ carry it would be wrong within a quarter.
 ## Boundaries
 
 - The customer is never a component. We describe the surfaces they touch —
-  [checkout](srn://acme/shop/checkout) — never their behaviour.
+  [checkout](srn://acme/product/shop/component/checkout) — never their behaviour.
 - A person may hold several roles at once. The same human acting on behalf of
   the merchant is the [merchant-operator](srn://acme/actor/merchant-operator)
   actor, and the two must not be merged just because one body performs both.
 - Guest sessions are in scope: the
-  [guest-checkout](srn://acme/shop/requirement/guest-checkout) requirement exists
+  [guest-checkout](srn://acme/product/shop/requirement/guest-checkout) requirement exists
   precisely because "customer" does not imply "account holder".
 
 ## Participation
 
 The customer is the initiating participant of
-[order-placement](srn://acme/shop/protocol/order-placement) and the `from` of the
+[order-placement](srn://acme/product/shop/protocol/order-placement) and the `from` of the
 `submit-order` step in its `place-order` workflow. Participation is declared on
 the protocol side only; this page carries no edge for it, and the portal derives
 the lane it gets in every sequence diagram.
