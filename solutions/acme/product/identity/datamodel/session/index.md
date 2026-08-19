@@ -1,7 +1,7 @@
 ---
 name: session
 kind: datamodel
-version: 1
+version: 2
 title: Session
 summary: One authentication episode — opaque to its holder, resolvable only by the store that issued it.
 status: approved
@@ -65,6 +65,28 @@ at issuance and a stolen reference has a hard ceiling. That is also what makes
 `created-at` — inherited from [base-record](srn://acme/datamodel/base-record@1) —
 worth having alongside `issued-at`: they differ exactly when an anonymous session
 was later elevated, which is the case the audit trail cares about.
+
+## Impersonation is a field, not a second session
+
+`impersonated-by` names the principal actually at the keyboard when a
+[support-agent](srn://acme/actor/support-agent) is acting on a customer's behalf.
+`account-id` still names the customer, because every permission check, every
+tenant scope, and every record the session writes must be the customer's — an
+impersonated session that authorized as the agent would show the agent's
+entitlements, which is precisely backwards.
+
+The alternative considered was a support session that carried the agent's own
+`account-id` plus a "acting for" attribute consulted by each relying service.
+That pushes the substitution into every consumer and gets it wrong in the first
+service that forgets to look. Putting the customer in `account-id` makes the
+default reading the safe one, and leaves `impersonated-by` as a field only the
+audit trail and the UI banner need to understand.
+
+It is optional and absent on ordinary sessions, so nothing that validated at
+version 1 stops validating. What it is not is a way to *gain* access: an agent
+may only open an impersonated session where a grant already permits it, and that
+grant is an ordinary [access-grant](srn://acme/product/identity/datamodel/access-grant)
+evaluated before the session exists.
 
 ## Anonymous sessions are real records
 

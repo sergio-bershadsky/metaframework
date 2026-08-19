@@ -29,6 +29,11 @@
       "format": "uuid",
       "description": "Tenant the session is acting inside. A tenant-scoped grant is evaluated against this, never against the account's own tenant."
     },
+    "impersonated-by": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Support principal driving this session on the account holder's behalf. Absent on ordinary sessions; account-id still names the customer, never the agent."
+    },
     "authentication-strength": {
       "enum": [
         "none",
