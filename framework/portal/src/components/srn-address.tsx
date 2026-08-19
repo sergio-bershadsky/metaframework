@@ -34,8 +34,11 @@ export function SrnAddress({
 
   return (
     <span className={cn('srn inline-flex items-center gap-1.5 group/srn', className)}>
-      <span className="srn-scheme">srn://</span>
+      {/* The scheme sits inside the path span, not beside it: the row's gap is
+          there to separate the address from the copy button, and an address
+          reads as one string — `srn://` is not a word of its own. */}
       <span className="min-w-0">
+        <span className="srn-scheme">srn://</span>
         {segments.map((segment, index) => (
           <span key={`${segment}-${index}`}>
             {index > 0 && <span className="text-muted-foreground/45">/</span>}

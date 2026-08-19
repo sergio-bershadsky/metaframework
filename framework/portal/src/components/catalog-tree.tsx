@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, Check, ChevronRight, Crosshair, ListFilter, Search, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronRight, Copy, Crosshair, ListFilter, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
@@ -328,6 +328,8 @@ function TreeItem({
           </span>
           {node.hasError && <AlertTriangle className="size-3 shrink-0 text-destructive" aria-label="Has errors" />}
         </Link>
+
+        <CopySrnButton srn={node.srn} />
       </div>
 
       {expanded && hasChildren && (
@@ -351,6 +353,44 @@ function TreeItem({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Copy an entity's SRN straight from the tree.
+ *
+ * The SRN is what you paste into frontmatter, a workflow payload or a schema
+ * ref, so the tree — where you are already hunting for the entity — is the
+ * cheapest place to take it from. The row is truncated to fit the rail, so the
+ * button's tooltip carries the full address.
+ */
+function CopySrnButton({ srn }: { srn: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy(event: React.MouseEvent) {
+    // The row is a link; copying must not navigate.
+    event.preventDefault()
+    event.stopPropagation()
+    await navigator.clipboard.writeText(srn)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1400)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? 'Copied' : srn}
+      aria-label={copied ? `Copied ${srn}` : `Copy ${srn}`}
+      className="focusable shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition
+                 group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+    >
+      {copied ? (
+        <Check className="size-3 text-kind-environment" aria-hidden />
+      ) : (
+        <Copy className="size-3" aria-hidden />
+      )}
+    </button>
   )
 }
 
