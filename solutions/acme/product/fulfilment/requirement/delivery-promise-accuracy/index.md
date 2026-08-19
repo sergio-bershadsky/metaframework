@@ -1,10 +1,10 @@
 ---
 name: delivery-promise-accuracy
 kind: requirement
-version: 2
+version: 3
 title: The date the customer is told is the date that holds
 summary: A promised delivery date is taken from the accepted carrier quote, never recomputed, and met often enough to be believed.
-status: review
+status: approved
 owner: team-fulfilment
 requirement-type: non-functional
 priority: should
@@ -34,7 +34,11 @@ recalculated afterwards, however much better the estimate would look tomorrow.
   [production](srn://acme/environment/production), excluding shipments in the
   `returned` or `failed` states.
 - A parcel that will miss its promised date generates a notification to the
-  customer before the date passes, not after.
+  customer before the date passes, not after. "Will miss" is not a prediction: a
+  parcel qualifies when it has recorded no carrier scan for 48 hours, or has
+  recorded a failed delivery attempt, or the promised date is tomorrow and the
+  parcel has not reached the destination country. Any of the three fires the
+  notification; nothing else does.
 - The promise shown to a customer never moves later. A revised carrier estimate
   is displayed as an exception, alongside the original promise, and does not
   replace it.
@@ -74,16 +78,38 @@ number the carrier contracts are negotiated against, which makes a breach a
 commercial conversation with a counterparty rather than an engineering ticket
 with no owner.
 
-## Why `should` and why still in review
+## Why `should`, and how it left review
 
 A `should`, because the product genuinely ships without it: a customer who is
 shown a range rather than a date can still buy, and the early markets ran that
-way for a year. It is in `review` because the third criterion has no agreed
-trigger — "will miss its promised date" is a prediction, and
-[tracking](srn://acme/product/fulfilment/component/tracking) currently has no
-model that produces one with a defensible false-positive rate. Until that is
-settled, telling customers about delays that do not happen may cost more than
-the silence it replaces.
+way for a year.
+
+It sat in `review` for two versions over the third criterion, which said a parcel
+that "will miss its promised date" must be notified about and left the prediction
+undefined. That is the shape of a criterion nobody can fail, and the objection was
+right: [tracking](srn://acme/product/fulfilment/component/tracking) has no model
+that predicts a miss with a defensible false-positive rate, and telling customers
+about delays that do not happen costs more than the silence it replaces.
+
+What resolved it was giving up on prediction. The three conditions now named in
+the criterion are not forecasts — they are observations, each one a statement
+about what has already happened or failed to: no scan for 48 hours, a recorded
+failed attempt, or still in the wrong country the day before. Each is checkable
+from data
+[tracking](srn://acme/product/fulfilment/component/tracking) already holds, each
+is false when nothing is wrong, and none requires a model anybody has to defend.
+
+That is a clarification of the criterion rather than a change to it. The
+requirement said the same thing at version 1 — tell the customer before the date
+passes — and what versions 2 and 3 added is the definition that makes it possible
+to say whether it was met. With a rule that can be checked, the criterion can be
+agreed to, and the entity is `approved`.
+
+The three conditions are deliberately coarse, and will miss a parcel that is
+quietly going to be a day late with scans arriving on schedule. That case is
+accepted: the fourth criterion still protects the customer from a promise that
+silently slides, and a notification nobody could have justified is worse than a
+notification nobody sent.
 
 ## Out of scope
 
