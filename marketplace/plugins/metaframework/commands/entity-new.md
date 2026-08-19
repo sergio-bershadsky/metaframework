@@ -1,6 +1,6 @@
 ---
 description: Add an entity to a metaframework catalog — product, component, datamodel, protocol, actor, environment, adr or requirement
-argument-hint: [kind] [name] [where it belongs]
+argument-hint: "[kind] [name] [where it belongs]"
 ---
 
 Add an entity to the catalog: `$ARGUMENTS`

@@ -1,6 +1,6 @@
 ---
 description: Validate a metaframework catalog by loading it in the portal, then interpret the diagnostics and propose fixes
-argument-hint: [optional: entity SRN or path to focus on]
+argument-hint: "[optional: entity SRN or path to focus on]"
 allowed-tools: Bash(cd:*), Bash(npx vitest:*), Bash(npm run:*), Read, Grep, Glob
 ---
 

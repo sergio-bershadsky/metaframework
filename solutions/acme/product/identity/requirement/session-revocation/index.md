@@ -1,10 +1,10 @@
 ---
 name: session-revocation
 kind: requirement
-version: 1
+version: 2
 title: A revoked session stops authorizing within five seconds
 summary: Revocation takes effect solution-wide within five seconds, and revoking every session of an account is one action.
-status: approved
+status: review
 owner: team-identity
 requirement-type: functional
 priority: must
@@ -43,6 +43,14 @@ the first denied check in any region.
   attempt.
 - **AC-5** Revocation is idempotent. Revoking an already-revoked session succeeds
   and does not overwrite the original reason or timestamp.
+- **AC-6** Revoking an impersonated session ends the session outright. There is
+  no operation that ends the impersonation and leaves the session authorizing as
+  the account holder.
+  - **Given** a session whose `impersonated-by` names a
+    [support-agent](srn://acme/actor/support-agent)
+  - **When** it is revoked
+  - **Then** no check succeeds for that session, whether asserted for the agent
+    or for the account holder
 
 ## Rationale
 
@@ -56,6 +64,20 @@ rather than about an API.
 AC-4 exists because the alternative is a principal who is silently logged out and
 files a support ticket. The reason is written by a human under
 [auditable](srn://acme/datamodel/auditable@1) discipline and shown back to them.
+
+AC-6 closes a hole that opened the moment
+[session](srn://acme/product/identity/datamodel/session@4) grew `impersonated-by`.
+The tempting operation is "stop impersonating" — end the agent's involvement,
+leave the customer logged in — and it is tempting because it is what the agent
+wants when they finish a call. It is refused here because revocation during an
+incident is aimed at the *session*, and an incident responder who revokes one and
+gets a still-live session back has been given a result that looks like success
+and is not.
+
+Ending impersonation cleanly is a real need and belongs to a different operation
+with a different name, one that is not reachable from the incident-response path
+and does not report itself as a revocation. Two operations that differ in whether
+anything is still authorized afterwards must not share a verb.
 
 AC-5 protects the audit record. A retried revocation that overwrote the first
 reason would replace "credential compromise, ticket 4711" with whatever the retry

@@ -1,6 +1,6 @@
 ---
 description: Start a new metaframework solution catalog — vision, scope, contacts, and the first products, actors and environments
-argument-hint: [solution-name] [one line about what it is]
+argument-hint: "[solution-name] [one line about what it is]"
 ---
 
 Start a new metaframework solution: `$ARGUMENTS`
