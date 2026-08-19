@@ -1,13 +1,20 @@
+/*
+ * Stoplight's Mosaic stylesheet (used by the JSON Schema viewer) is NOT scoped:
+ * it sets Inter globally, redefines --font-mono, and resets heading sizes to
+ * inherit. Unlayered CSS outranks every cascade layer, so imported normally it
+ * beats Tailwind's utilities no matter the order — that is how it silently
+ * flattened prose headings and replaced the type system.
+ *
+ * Declaring `stoplight` as the FIRST layer demotes the whole stylesheet below
+ * everything Tailwind emits, which is exactly the priority it should have: it
+ * styles one embedded widget, not the application.
+ */
+@layer stoplight;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/*
- * Stoplight's Mosaic stylesheet (used by the JSON Schema viewer) is NOT scoped:
- * it redefines --font-mono and sets Inter globally. Imported from a component it
- * loads *after* this file and silently replaces the whole type system, so it is
- * pulled in here instead — ahead of the tokens below, which must win.
- */
-@import "@stoplight/mosaic/styles.css";
+@import "@stoplight/mosaic/styles.css" layer(stoplight);
 
 /*
  * metaframework portal — "architect's console".

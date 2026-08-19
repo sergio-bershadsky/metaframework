@@ -1,14 +1,29 @@
-import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { entityHref } from '@/lib/catalog/href'
+import { EntityLink } from '@/components/entity-link'
+import type { ResolvedMention } from '@/lib/catalog/mentions'
+import { SRN_PATTERN } from '@/lib/catalog/mentions'
 
 /**
- * Entity prose. `srn://` links are rewritten to portal routes so a reference
- * written for a human reading the raw file also works as navigation — the same
- * string serves both readers, which is the point of having one ref syntax.
+ * Entity prose.
+ *
+ * Any SRN in the text becomes a navigable badge, whether it was written as a
+ * markdown link or dropped bare into a sentence. Authors reference things the
+ * way the framework already asks them to — by SRN — and get linking for free,
+ * with no second syntax to learn and nothing to keep in sync.
+ *
+ * Linking is deliberately limited to SRNs. Matching bare entity *names* would
+ * be guesswork: "payment" is a component here and an English word everywhere
+ * else, and a false link is worse than no link in a document people review.
  */
-export function Markdown({ children }: { children: string }) {
+export function Markdown({
+  children,
+  mentions = {},
+}: {
+  children: string
+  /** SRN (as authored) → resolution, from mentionsIn(). */
+  mentions?: Record<string, ResolvedMention>
+}) {
   return (
     <div
       className="max-w-3xl text-[14.5px] leading-7 text-foreground/85
@@ -27,16 +42,18 @@ export function Markdown({ children }: { children: string }) {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        urlTransform={allowSrnUrls}
         components={{
           a({ href, children: label }) {
             if (href?.startsWith('srn://')) {
+              const mention = mentions[href]
               return (
-                <Link
-                  href={entityHref(href.replace(/@\d+$/, ''))}
-                  className="font-mono text-[0.92em] text-primary underline-offset-4 hover:underline"
-                >
-                  {label}
-                </Link>
+                <EntityLink
+                  target={mention?.target ?? null}
+                  reference={href}
+                  version={mention?.version}
+                  className="mx-0.5"
+                />
               )
             }
             return (
@@ -49,9 +66,19 @@ export function Markdown({ children }: { children: string }) {
               </a>
             )
           },
+          // Bare SRNs sitting in ordinary prose are linked too, so authors are
+          // not forced to write a markdown link around every mention.
+          p({ children: content }) {
+            return <p>{linkifyChildren(content, mentions)}</p>
+          },
+          li({ children: content }) {
+            return <li>{linkifyChildren(content, mentions)}</li>
+          },
+          td({ children: content }) {
+            return <td>{linkifyChildren(content, mentions)}</td>
+          },
           code({ className, children: content }) {
-            const isBlock = Boolean(className)
-            if (isBlock) return <code className="font-mono text-[13px]">{content}</code>
+            if (className) return <code className="font-mono text-[13px]">{content}</code>
             return (
               <code className="rounded border border-border bg-surface px-1 py-0.5 font-mono text-[0.88em] text-foreground/90">
                 {content}
@@ -71,4 +98,64 @@ export function Markdown({ children }: { children: string }) {
       </ReactMarkdown>
     </div>
   )
+}
+
+/**
+ * react-markdown sanitises hrefs through `urlTransform`, whose default drops
+ * every scheme outside http/https/mailto/tel — which silently blanked every
+ * `srn://` link. This restores the framework's own scheme while keeping the
+ * protections that matter: `javascript:` and `data:` stay blocked.
+ */
+function allowSrnUrls(url: string): string {
+  const normalized = url.trim().toLowerCase()
+  if (normalized.startsWith('javascript:') || normalized.startsWith('data:') || normalized.startsWith('vbscript:')) {
+    return ''
+  }
+  return url
+}
+
+/**
+ * Replace bare SRNs inside already-rendered children with badges. Only plain
+ * strings are touched, so SRNs inside code spans or existing links are left
+ * exactly as the author wrote them.
+ */
+function linkifyChildren(children: React.ReactNode, mentions: Record<string, ResolvedMention>): React.ReactNode {
+  if (typeof children === 'string') return linkifyText(children, mentions)
+  if (Array.isArray(children)) {
+    return children.map((child, index) =>
+      typeof child === 'string' ? (
+        <span key={index}>{linkifyText(child, mentions)}</span>
+      ) : (
+        child
+      ),
+    )
+  }
+  return children
+}
+
+function linkifyText(text: string, mentions: Record<string, ResolvedMention>): React.ReactNode {
+  if (!text.includes('srn://')) return text
+
+  const parts: React.ReactNode[] = []
+  let cursor = 0
+
+  for (const match of text.matchAll(SRN_PATTERN)) {
+    const ref = match[0]
+    const start = match.index ?? 0
+    if (start > cursor) parts.push(text.slice(cursor, start))
+    const mention = mentions[ref]
+    parts.push(
+      <EntityLink
+        key={`${ref}-${start}`}
+        target={mention?.target ?? null}
+        reference={ref}
+        version={mention?.version}
+        className="mx-0.5"
+      />,
+    )
+    cursor = start + ref.length
+  }
+
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
 }

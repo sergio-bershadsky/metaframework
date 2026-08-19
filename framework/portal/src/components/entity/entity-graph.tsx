@@ -1,4 +1,5 @@
-import { RelationGraph, type RelationGraphEdge, type RelationGraphNode } from '@/components/diagrams/relation-graph'
+import { NavigableRelationGraph } from '@/components/diagrams/navigable'
+import type { RelationGraphEdge, RelationGraphNode } from '@/components/diagrams/relation-graph'
 import type { Catalog, Entity } from '@/lib/catalog'
 
 /**
@@ -51,7 +52,7 @@ export function EntityGraph({ entity, catalog }: { entity: Entity; catalog: Cata
         </span>
       </div>
       <div className="panel mt-4 overflow-hidden">
-        <RelationGraph
+        <NavigableRelationGraph
           nodes={[...nodes.values()]}
           edges={edges}
           focus={entity.srn}

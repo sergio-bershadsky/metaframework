@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
 import { EntityChildren } from '@/components/entity/entity-children'
+import { EntityDetails } from '@/components/entity/entity-details'
 import { EntityGraph } from '@/components/entity/entity-graph'
 import { EntityProtocol } from '@/components/entity/entity-protocol'
 import { EntityRelations } from '@/components/entity/entity-relations'
@@ -13,6 +14,7 @@ import { Markdown } from '@/components/markdown'
 import { SrnAddress } from '@/components/srn-address'
 import { ancestorsOf, childrenOf, entityHref, getCatalog } from '@/lib/catalog'
 import { srnFromSegments } from '@/lib/catalog/href'
+import { mentionsIn } from '@/lib/catalog/mentions'
 import { kindStyle } from '@/lib/ui/kind'
 
 export async function generateMetadata(props: PageProps<'/catalog/[...srn]'>): Promise<Metadata> {
@@ -108,8 +110,9 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
 
       <div className="rule-fade my-7" />
 
-      {entity.body && <Markdown>{entity.body}</Markdown>}
+      {entity.body && <Markdown mentions={mentionsIn(catalog, entity.srn, entity.body)}>{entity.body}</Markdown>}
 
+      <EntityDetails entity={entity} catalog={catalog} />
       <EntitySchema entity={entity} />
       <EntityProtocol entity={entity} catalog={catalog} />
       <EntityGraph entity={entity} catalog={catalog} />

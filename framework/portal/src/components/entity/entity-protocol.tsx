@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react'
-import { SequenceDiagram, type SequenceParticipant } from '@/components/diagrams/sequence-diagram'
+import { NavigableSequenceDiagram } from '@/components/diagrams/navigable'
+import type { SequenceParticipant } from '@/components/diagrams/sequence-diagram'
 import { StateChartDiagram } from '@/components/diagrams/state-chart'
 import type { Catalog, Entity } from '@/lib/catalog'
 import { parseStates } from '@/lib/protocol/states'
@@ -74,7 +75,7 @@ export function EntityProtocol({ entity, catalog }: { entity: Entity; catalog: C
                 <p className="mb-2 font-mono text-[11px] text-muted-foreground">{file}</p>
                 {workflow ? (
                   <div className="panel overflow-hidden p-3">
-                    <SequenceDiagram workflow={workflow} participants={participants} />
+                    <NavigableSequenceDiagram workflow={workflow} participants={participants} />
                   </div>
                 ) : (
                   <Unrenderable messages={issues.map((issue) => `${issue.code}: ${issue.message}`)} />
