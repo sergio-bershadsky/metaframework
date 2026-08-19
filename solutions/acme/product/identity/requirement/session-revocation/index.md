@@ -1,10 +1,10 @@
 ---
 name: session-revocation
 kind: requirement
-version: 3
+version: 4
 title: A revoked session stops authorizing within five seconds
 summary: Revocation takes effect solution-wide within five seconds, and revoking every session of an account is one action.
-status: review
+status: approved
 owner: team-identity
 requirement-type: functional
 priority: must
@@ -58,6 +58,11 @@ the first denied check in any region.
   - **When** the store fails over to another replica at any point after `t`
   - **Then** the session is still revoked, and no check succeeds for it after
     `t + 5s` — not after `failover + 5s`
+- **AC-8** The propagation delay is measured continuously in
+  [production](srn://acme/environment/production), not reconstructed after an
+  incident. A synthetic session is issued, revoked, and re-checked from every
+  region on a fixed interval, and the observed delay is published as a
+  distribution rather than an average.
 
 ## Rationale
 
@@ -106,6 +111,27 @@ missing a criterion.
 The budget not restarting is the other half of it. A failover that reset the five
 seconds would turn this into a promise about a healthy system, and the promise is
 only worth anything about an unhealthy one.
+
+AC-8 is what moves this requirement from stated to true. Every criterion above
+describes a bound, and a bound nobody measures between incidents is an assumption
+with a number in it. The synthetic probe costs one session per region per
+interval and turns "we believe revocation propagates in under five seconds" into a
+distribution somebody can be shown.
+
+A distribution and not an average, because the average is never the problem. Mean
+propagation could sit at 400 ms for a year while one region's tail crosses five
+seconds every deploy, and an average would report that year as flawless. The
+criterion is a bound on the worst case, so the measurement has to be able to see
+one.
+
+Measuring from every region is the part that is easy to drop and expensive to have
+dropped. Revocation is only interesting where a session is being *used*, and a
+probe that revokes and re-checks in the same region validates the one path that was
+never in doubt.
+
+With this in place the requirement is `approved` again: it was moved back to
+`review` when AC-6 was added and stayed there through AC-7, because a criterion
+nobody had yet worked out how to observe is not a criterion anybody had agreed to.
 
 ## Why five, and why this is functional rather than non-functional
 
