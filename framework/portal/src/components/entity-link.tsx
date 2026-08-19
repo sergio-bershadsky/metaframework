@@ -75,8 +75,10 @@ export function EntityLink({
       <span className="text-foreground/90">{target.name}</span>
       {version != null && <span className="text-primary">@{version}</span>}
       {showTitle && <span className="text-muted-foreground">{target.title}</span>}
+      {/* Always visible: the arrow is what marks the badge as navigable, so
+          hiding it until hover hides the affordance from anyone scanning. */}
       <ArrowUpRight
-        className="size-2.5 shrink-0 text-muted-foreground opacity-0 transition group-hover/link:opacity-100"
+        className="size-2.5 shrink-0 text-muted-foreground/60 transition group-hover/link:text-foreground"
         aria-hidden
       />
     </Link>
