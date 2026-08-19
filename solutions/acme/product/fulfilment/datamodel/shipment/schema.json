@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/shipment",
+  "$id": "https://schemas.metaframework.dev/acme/product/fulfilment/datamodel/shipment",
+  "x-srn": "srn://acme/product/fulfilment/datamodel/shipment",
   "title": "Shipment",
   "description": "One parcel: its contents, destination, carrier booking, and current delivery status.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     }
   ],
   "properties": {
@@ -18,12 +19,12 @@
     "order-id": {
       "type": "string",
       "format": "uuid",
-      "description": "Order being fulfilled. Not unique here — one order may split into several shipments."
+      "description": "Order being fulfilled. Not unique here \u2014 one order may split into several shipments."
     },
     "parcel-index": {
       "type": "integer",
       "minimum": 1,
-      "description": "Position of this parcel within its order's split, stamped once and never renumbered. Gaps are legal — a rebooked parcel keeps the number the customer was told."
+      "description": "Position of this parcel within its order's split, stamped once and never renumbered. Gaps are legal \u2014 a rebooked parcel keeps the number the customer was told."
     },
     "parcel-count": {
       "type": "integer",
@@ -33,13 +34,13 @@
     "lines": {
       "type": "array",
       "items": {
-        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
+        "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-line"
       },
       "minItems": 1,
       "description": "The subset of the order's lines travelling in this parcel, in shop's own line model."
     },
     "destination": {
-      "$ref": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/delivery-address",
+      "$ref": "https://schemas.metaframework.dev/acme/product/fulfilment/datamodel/delivery-address",
       "description": "Where the parcel is going. Blanked in place on erasure; the shipment itself survives."
     },
     "status": {
@@ -75,7 +76,7 @@
       "description": "Carrier's own reference. Opaque to acme and unique only within that carrier."
     },
     "shipping-cost": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "What the accepted carrier quote actually cost, including surcharges."
     },
     "weight-grams": {

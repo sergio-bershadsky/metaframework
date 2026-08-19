@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-placed",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-placed",
+  "x-srn": "srn://acme/product/shop/datamodel/order-placed",
   "title": "Order placed",
   "description": "Public fact published when an order is accepted by checkout.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     }
   ],
   "properties": {
@@ -20,13 +21,13 @@
       "description": "Pseudonymous customer reference, replaced on erasure."
     },
     "total": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "Gross amount of the order."
     },
     "lines": {
       "type": "array",
       "items": {
-        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
+        "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-line"
       },
       "description": "The lines as placed."
     },

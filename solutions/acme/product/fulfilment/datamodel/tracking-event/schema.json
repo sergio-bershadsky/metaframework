@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/tracking-event",
+  "$id": "https://schemas.metaframework.dev/acme/product/fulfilment/datamodel/tracking-event",
+  "x-srn": "srn://acme/product/fulfilment/datamodel/tracking-event",
   "title": "Tracking event",
   "description": "One carrier scan against a shipment, normalized into acme's status vocabulary.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     }
   ],
   "properties": {
@@ -60,7 +61,7 @@
     },
     "location": {
       "$ref": "#/$defs/place",
-      "description": "Coarse place of the scan. Never a full address — see the entity document."
+      "description": "Coarse place of the scan. Never a full address \u2014 see the entity document."
     },
     "courier-note": {
       "type": "string",
