@@ -1,7 +1,7 @@
 ---
 name: session-revocation
 kind: requirement
-version: 2
+version: 3
 title: A revoked session stops authorizing within five seconds
 summary: Revocation takes effect solution-wide within five seconds, and revoking every session of an account is one action.
 status: review
@@ -51,6 +51,13 @@ the first denied check in any region.
   - **When** it is revoked
   - **Then** no check succeeds for that session, whether asserted for the agent
     or for the account holder
+- **AC-7** An acknowledged revocation survives a failover of
+  [session-store](srn://acme/product/identity/component/session-store), and the
+  five-second budget is not restarted by one.
+  - **Given** a revocation acknowledged at `t`
+  - **When** the store fails over to another replica at any point after `t`
+  - **Then** the session is still revoked, and no check succeeds for it after
+    `t + 5s` — not after `failover + 5s`
 
 ## Rationale
 
@@ -64,6 +71,10 @@ rather than about an API.
 AC-4 exists because the alternative is a principal who is silently logged out and
 files a support ticket. The reason is written by a human under
 [auditable](srn://acme/datamodel/auditable@1) discipline and shown back to them.
+
+AC-5 protects the audit record. A retried revocation that overwrote the first
+reason would replace "credential compromise, ticket 4711" with whatever the retry
+carried, and the useful sentence would be the one that got lost.
 
 AC-6 closes a hole that opened the moment
 [session](srn://acme/product/identity/datamodel/session@4) grew `impersonated-by`.
@@ -79,9 +90,22 @@ with a different name, one that is not reachable from the incident-response path
 and does not report itself as a revocation. Two operations that differ in whether
 anything is still authorized afterwards must not share a verb.
 
-AC-5 protects the audit record. A retried revocation that overwrote the first
-reason would replace "credential compromise, ticket 4711" with whatever the retry
-carried, and the useful sentence would be the one that got lost.
+AC-7 makes the word "acknowledged" in AC-1 mean something, which on its own it did
+not. Every criterion above is satisfiable by a store that acknowledges as soon as
+one replica has the write, and such a store meets all of them right up to the
+moment a replica is lost — which is precisely the moment an incident is under way
+and the revocation that vanishes is the one that mattered.
+
+Stating it as a criterion rather than leaving it to the component's design is
+deliberate. Durability before acknowledgement is a cost paid on every revocation,
+it is invisible to every test that does not kill a node, and it is the first thing
+an optimisation removes when revocation latency is measured and durability is not.
+A requirement that can be met by a faster, wronger implementation is a requirement
+missing a criterion.
+
+The budget not restarting is the other half of it. A failover that reset the five
+seconds would turn this into a promise about a healthy system, and the promise is
+only worth anything about an unhealthy one.
 
 ## Why five, and why this is functional rather than non-functional
 
