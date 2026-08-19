@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DIAGRAM_BACKGROUND,
   DIAGRAM_CANVAS_VARS,
+  fitCanvasHeight,
   layoutGraph,
   type LayoutDirection,
   type LayoutNode,
@@ -418,6 +419,21 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
     )
   }
 
+  // Same rule as the relation graph: the canvas fits the chart, and `height`
+  // only caps how tall it may grow before panning takes over.
+  const canvasHeight = useMemo(() => {
+    const placedNodes = flow?.nodes ?? []
+    if (placedNodes.length === 0) return fitCanvasHeight(null, height)
+    let top = Number.POSITIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+    for (const node of placedNodes) {
+      const nodeHeight = Number(node.style?.height ?? 0)
+      top = Math.min(top, node.position.y)
+      bottom = Math.max(bottom, node.position.y + nodeHeight)
+    }
+    return fitCanvasHeight(bottom - top, height)
+  }, [flow, height])
+
   return (
     <figure className={cn('panel overflow-hidden', className)}>
       {/* A <figure> may carry exactly one <figcaption>, and the a11y text
@@ -426,7 +442,7 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
         <p className="border-b border-border px-4 py-2.5 text-[12.5px] text-muted-foreground">{chart.description}</p>
       )}
 
-      <div className="relative" style={{ height, ...DIAGRAM_CANVAS_VARS }}>
+      <div className="relative" style={{ height: canvasHeight, ...DIAGRAM_CANVAS_VARS }}>
         {failed ? (
           <TextFallback summary={summary} />
         ) : flow === null ? (

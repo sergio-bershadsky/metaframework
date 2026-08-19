@@ -41,12 +41,12 @@ export function EntityLink({
       <span
         title={`Unresolved reference: ${rawRef ?? 'unknown'}`}
         className={cn(
-          'inline-flex items-baseline gap-1 rounded border border-destructive/40 bg-destructive/10 px-1.5 py-px align-baseline',
-          'font-mono text-[0.85em] text-destructive',
+          'inline-flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-1 py-0 align-baseline',
+          'font-mono text-[0.85em] leading-none text-destructive',
           className,
         )}
       >
-        <Unlink className="size-3 shrink-0 self-center" aria-hidden />
+        <Unlink className="size-3 shrink-0" aria-hidden />
         {rawRef ?? 'unresolved'}
       </span>
     )
@@ -60,20 +60,23 @@ export function EntityLink({
       href={entityHref(target.srn)}
       title={`${style.label} · ${target.title}`}
       className={cn(
-        'focusable group/link inline-flex items-baseline gap-1 rounded border px-1.5 py-px align-baseline',
-        'font-mono text-[0.85em] no-underline transition',
+        // No vertical padding and leading-none: a badge must sit inside the
+        // line box it appears in, or a paragraph full of references ends up
+        // double-spaced compared with one without them.
+        'focusable group/link inline-flex items-center gap-1 rounded border px-1 py-0 align-baseline',
+        'font-mono text-[0.85em] leading-none no-underline transition',
         style.bg,
         style.border,
         'hover:border-border-strong',
         className,
       )}
     >
-      <Icon className={cn('size-3 shrink-0 self-center', style.text)} aria-hidden />
+      <Icon className={cn("size-3 shrink-0", style.text)} aria-hidden />
       <span className="text-foreground/90">{target.name}</span>
       {version != null && <span className="text-primary">@{version}</span>}
       {showTitle && <span className="text-muted-foreground">{target.title}</span>}
       <ArrowUpRight
-        className="size-2.5 shrink-0 self-center text-muted-foreground opacity-0 transition group-hover/link:opacity-100"
+        className="size-2.5 shrink-0 text-muted-foreground opacity-0 transition group-hover/link:opacity-100"
         aria-hidden
       />
     </Link>

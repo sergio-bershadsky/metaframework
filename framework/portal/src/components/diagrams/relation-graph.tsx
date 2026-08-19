@@ -21,6 +21,7 @@ import type { EdgeType, EntityKind } from '@/lib/catalog/frontmatter'
 import {
   DIAGRAM_BACKGROUND,
   DIAGRAM_CANVAS_VARS,
+  fitCanvasHeight,
   layoutGraph,
   type LayoutDirection,
   type PlacedNode,
@@ -324,9 +325,22 @@ export function RelationGraph({
     )
   }
 
+  // Fit the canvas to the graph. `height` is a ceiling, not a fixed size: a
+  // small neighbourhood in a large empty panel reads as a failed render.
+  const canvasHeight = useMemo(() => {
+    if (!placed || placed.size === 0) return fitCanvasHeight(null, height)
+    let top = Number.POSITIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+    for (const box of placed.values()) {
+      top = Math.min(top, box.y)
+      bottom = Math.max(bottom, box.y + box.height)
+    }
+    return fitCanvasHeight(bottom - top, height)
+  }, [placed, height])
+
   return (
     <figure className={cn('panel overflow-hidden', className)} aria-label={label}>
-      <div className="relative" style={{ height, ...DIAGRAM_CANVAS_VARS }}>
+      <div className="relative" style={{ height: canvasHeight, ...DIAGRAM_CANVAS_VARS }}>
         {failed ? (
           <TextFallback lines={text} />
         ) : placed === null ? (

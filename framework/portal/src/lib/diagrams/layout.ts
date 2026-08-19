@@ -69,6 +69,33 @@ export interface LayoutResult {
 }
 
 /**
+ * Diagram spacing — the rule, defined once.
+ *
+ * Every derived diagram reads these numbers, so spacing is a property of the
+ * system rather than something re-tuned per component. Change a value here and
+ * every diagram, including ones not yet written, moves with it.
+ *
+ * The scale is deliberately generous: these diagrams are read, not glanced at,
+ * and crowded nodes make edges ambiguous exactly when a reviewer is trying to
+ * follow one. Values step roughly 1.5× apart so the hierarchy stays legible —
+ * gaps between layers read as "further apart" than gaps within one.
+ */
+export const DIAGRAM_SPACING = {
+  /** Between successive layers — the dominant sense of depth. */
+  betweenLayers: 120,
+  /** Between siblings inside one layer. */
+  betweenNodes: 52,
+  /** Keeps edges off the boxes they pass. */
+  edgeToNode: 32,
+  /** Keeps parallel edges distinguishable where they run together. */
+  edgeToEdge: 18,
+  /** Room reserved between layers for an edge label. */
+  edgeLabel: 14,
+  /** Breathing room inside the canvas, before the first node. */
+  canvasPadding: 32,
+} as const
+
+/**
  * The one place the two diagrams agree on rhythm. Layered is the right family
  * for both: a state chart is a flow, and a relation graph is a DAG with the
  * occasional cycle, which `layered` handles by reversing back edges rather than
@@ -76,12 +103,12 @@ export interface LayoutResult {
  */
 const SHARED_OPTIONS: LayoutOptions = {
   'elk.algorithm': 'layered',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '84',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '28',
-  'elk.spacing.edgeLabel': '10',
-  'elk.spacing.nodeNode': '32',
-  'elk.spacing.edgeNode': '24',
-  'elk.spacing.edgeEdge': '14',
+  'elk.layered.spacing.nodeNodeBetweenLayers': String(DIAGRAM_SPACING.betweenLayers),
+  'elk.layered.spacing.edgeNodeBetweenLayers': String(DIAGRAM_SPACING.edgeToNode),
+  'elk.spacing.edgeLabel': String(DIAGRAM_SPACING.edgeLabel),
+  'elk.spacing.nodeNode': String(DIAGRAM_SPACING.betweenNodes),
+  'elk.spacing.edgeNode': String(DIAGRAM_SPACING.edgeToNode),
+  'elk.spacing.edgeEdge': String(DIAGRAM_SPACING.edgeToEdge),
   'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
   'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
   // Authoring order is meaningful in both sources (the order states and
@@ -91,7 +118,23 @@ const SHARED_OPTIONS: LayoutOptions = {
   // this a compound state is placed as an opaque box and the edges into its
   // children cross it.
   'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-  'elk.padding': '[top=24,left=24,bottom=24,right=24]',
+  'elk.padding': `[top=${DIAGRAM_SPACING.canvasPadding},left=${DIAGRAM_SPACING.canvasPadding},bottom=${DIAGRAM_SPACING.canvasPadding},right=${DIAGRAM_SPACING.canvasPadding}]`,
+}
+
+/** Smallest canvas worth drawing; below this the chrome outweighs the graph. */
+const MIN_CANVAS_HEIGHT = 220
+
+/**
+ * Canvas height that fits the graph instead of a fixed guess.
+ *
+ * A fixed height leaves a small graph sitting in a large empty panel, which
+ * reads as "something failed to load". The supplied height becomes a *ceiling*:
+ * short graphs shrink to their content, tall ones stop growing and pan instead.
+ */
+export function fitCanvasHeight(laidOutHeight: number | null, maxHeight: number): number {
+  if (laidOutHeight === null || laidOutHeight <= 0) return Math.min(maxHeight, MIN_CANVAS_HEIGHT)
+  const withChrome = laidOutHeight + DIAGRAM_SPACING.canvasPadding * 2
+  return Math.round(Math.min(maxHeight, Math.max(MIN_CANVAS_HEIGHT, withChrome)))
 }
 
 /**

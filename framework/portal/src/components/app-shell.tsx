@@ -35,7 +35,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-72 shrink-0 overflow-y-auto border-r border-border bg-surface/40">
+        {/* The tree owns its own scrolling so the filter bar stays pinned. */}
+        <aside className="w-72 shrink-0 overflow-hidden border-r border-border bg-surface/40">
           <CatalogTree roots={tree} />
         </aside>
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
