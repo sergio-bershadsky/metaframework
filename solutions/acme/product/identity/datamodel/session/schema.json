@@ -53,6 +53,11 @@
       "format": "date-time",
       "description": "Absolute deadline. Never extended in place; a refresh issues a new session."
     },
+    "idle-expires-at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Sliding deadline, moved forward on use. The session ends at the earlier of this and expires-at, so it can only shorten the lifetime. Absent where no idle policy applies, as on service-account sessions."
+    },
     "revoked-at": {
       "type": "string",
       "format": "date-time",

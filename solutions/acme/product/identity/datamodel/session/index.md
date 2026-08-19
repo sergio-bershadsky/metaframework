@@ -1,7 +1,7 @@
 ---
 name: session
 kind: datamodel
-version: 3
+version: 4
 title: Session
 summary: One authentication episode — opaque to its holder, resolvable only by the store that issued it.
 status: approved
@@ -82,6 +82,26 @@ at issuance and a stolen reference has a hard ceiling. That is also what makes
 `created-at` — inherited from [base-record](srn://acme/datamodel/base-record@1) —
 worth having alongside `issued-at`: they differ exactly when an anonymous session
 was later elevated, which is the case the audit trail cares about.
+
+### A second clock that can only shorten it
+
+`idle-expires-at` is a sliding deadline that moves forward on use, and it does
+not contradict the paragraph above because the effective end of a session is the
+*earlier* of the two. `expires-at` remains the ceiling nothing can raise; the
+idle clock can only bring the end nearer, never push it out, and a session whose
+idle deadline has passed is `expired` however much absolute time is left.
+
+Two fields rather than one because they answer different questions. The absolute
+deadline bounds a stolen reference — the number a security review argues about.
+The idle deadline bounds an abandoned terminal in a warehouse, which is an
+ergonomics decision the operating team tunes per environment. Folding them into
+one number would have meant every retune of the second re-opened the argument
+about the first.
+
+It is optional, and absent means no idle policy applies — which is the case for
+every service-account session, where "idle" is not a meaningful notion and a
+sliding window would only have produced surprising logouts of things that have
+no operator.
 
 ## Impersonation is a field, not a second session
 
