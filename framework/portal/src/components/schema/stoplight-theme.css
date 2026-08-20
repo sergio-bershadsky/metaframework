@@ -34,7 +34,27 @@
   --color-success: var(--kind-environment);
   --color-warning: var(--warning);
   --color-danger: var(--destructive);
-  --color-code: var(--kind-protocol);
+
+  /*
+   * `--color-code` fills the background of an inline code span inside a schema
+   * description, and it used to be `var(--kind-protocol)` — a fully saturated
+   * cyan at L 0.75. Measured against this console's surface (rgb 17,19,24) it
+   * came out at lab(72.5, -45.8, -13.7): a solid block of colour behind a word,
+   * far brighter than anything else on the page.
+   *
+   * It was also the wrong colour on the rule this console is built on. Hue
+   * means kind (0003-colour-is-ontology), and a code span in a prose
+   * description is not a protocol — it borrowed a kind's identity for
+   * emphasis, which is the one thing the ontology forbids.
+   *
+   * So it takes the same treatment inline code gets everywhere else in the
+   * portal: a raised surface with a border, and text at the body colour.
+   * The pairing token has to move with it — `--color-on-code` is the
+   * foreground Mosaic puts on that fill, and leaving it behind would put
+   * near-white-on-cyan text onto a near-black chip.
+   */
+  --color-code: var(--surface-raised);
+  --color-on-code: color-mix(in oklab, var(--foreground) 90%, transparent);
 
   font-family: var(--font-sans);
   color: var(--foreground);
@@ -91,7 +111,13 @@
 .sl-metaframework-schema .sl-font-mono,
 .sl-metaframework-schema code {
   font-family: var(--font-mono) !important;
-  font-size: 12.5px;
+  /*
+   * Forced for the same reason as the family, and it was not: an inline code
+   * span inside a property description carries Mosaic's own `sl-text-xs`,
+   * which won and rendered at 9.75px — small enough that a reader zooms rather
+   * than reads. Measured on entity-frontmatter before the !important landed.
+   */
+  font-size: 12.5px !important;
 }
 
 /*

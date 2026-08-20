@@ -9,6 +9,54 @@ import { Component, type ReactNode, useState } from 'react'
 import './stoplight-theme.css'
 
 /**
+ * Contain one third-party warning, exactly, and only in development.
+ *
+ * The viewer's combiner picker leaks React's `isOpen` onto a DOM element, which
+ * React reports as "React does not recognize the `isOpen` prop on a DOM
+ * element" — and Next 16 promotes console errors into the dev overlay, so a
+ * schema page opens with an error banner over content that rendered perfectly.
+ *
+ * It is not ours and there is no version to upgrade to. The chain, traced
+ * rather than guessed: `@stoplight/mosaic` Menu calls
+ * `runIfFn(renderTrigger, { isOpen: state.isOpen })` (core.esm.js:16884), and
+ * `@stoplight/json-schema-viewer` passes a *function* trigger that spreads its
+ * whole argument onto Mosaic's `Pressable` (index.mjs:854):
+ *
+ *     renderTrigger: props => React.createElement(Pressable, Object.assign({}, props), …)
+ *
+ * `Pressable` forwards what it does not recognise to its DOM node, so `isOpen`
+ * lands on a `<div>`. Nothing this component passes is involved — the props
+ * given to `JsonSchemaViewer` below are `schema`, `defaultExpandedDepth` and
+ * `emptyText`. Both packages are at their newest published versions
+ * (mosaic 1.53.5, json-schema-viewer 4.16.4, checked 2026-08-20).
+ *
+ * So this is **containment of somebody else's defect, not a fix**, and it is
+ * written to be as narrow as a filter can be: development only, the exact
+ * format string React uses, and only when the offending prop is `isOpen`. Any
+ * other unknown-prop warning — including one this codebase causes — still
+ * reaches the console. The alternative was patch-package plus a postinstall to
+ * maintain a patched copy of a vendored bundle across upgrades, which is more
+ * machinery than a development-only warning earns; React strips these warnings
+ * from production builds entirely, so nothing here affects what ships.
+ *
+ * Delete this the moment the upstream trigger stops spreading its argument.
+ */
+if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+  const reported = console.error
+  console.error = (...args: unknown[]) => {
+    const [format, prop] = args
+    if (
+      typeof format === 'string' &&
+      format.includes('does not recognize the `%s` prop on a DOM element') &&
+      prop === 'isOpen'
+    ) {
+      return
+    }
+    reported(...args)
+  }
+}
+
+/**
  * Stoplight's viewer reads `document` at module scope, so it cannot be rendered
  * on the server at all — importing it eagerly takes the whole page down with
  * "document is not defined". It is therefore loaded client-side only; the
