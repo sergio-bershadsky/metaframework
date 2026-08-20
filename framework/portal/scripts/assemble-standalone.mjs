@@ -76,11 +76,37 @@ await writeFile(
       version: manifest.version,
       private: true,
       type: manifest.type ?? 'commonjs',
+      license: manifest.license,
     },
     null,
     2,
   )}\n`,
 )
+
+/**
+ * Carry the licence into the package, and into the server nested inside it.
+ *
+ * The terms are PolyForm Noncommercial 1.0.0, whose Notices section is an
+ * obligation rather than a courtesy: anyone who receives any part of this
+ * software must also receive the terms, and the `Required Notice:` line at the
+ * top of the file must travel with them. An install that arrives without the
+ * text is the one distribution channel where that obligation is silently
+ * unmet.
+ *
+ * npm always packs a LICENSE found at the *package* root, and the package root
+ * is this directory rather than the repository's — so the file is copied in at
+ * package time instead of committed twice. One source of truth at the
+ * repository root, no second copy to drift, and `files` need not mention it
+ * because npm's inclusion of it is not optional.
+ */
+const licenseSrc = path.resolve(portal, '..', '..', 'LICENSE')
+const licenseText = await readFile(licenseSrc, 'utf8').catch(() => null)
+if (licenseText === null) await fail(`${licenseSrc} is missing — the package must not ship without its terms`)
+if (!licenseText.startsWith('Required Notice:')) {
+  await fail(`${licenseSrc} lost its "Required Notice:" line, which PolyForm requires to travel with every copy`)
+}
+await writeFile(path.join(portal, 'LICENSE'), licenseText)
+await writeFile(path.join(standalone, 'LICENSE'), licenseText)
 
 /* ------------------------------------------------ what the build over-emits */
 

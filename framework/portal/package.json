@@ -19,7 +19,7 @@
     "url": "git+https://github.com/sergio-bershadsky/metaframework.git",
     "directory": "framework/portal"
   },
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Sergey Bershadsky",
   "type": "module",
   "bin": {

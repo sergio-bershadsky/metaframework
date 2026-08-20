@@ -42,3 +42,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Copied in from the repository root by scripts/assemble-standalone.mjs so that
+# npm packs it — the package root is this directory, not the repository's.
+# Tracking a second copy would be a second thing to keep in sync.
+/LICENSE
