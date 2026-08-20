@@ -6,7 +6,8 @@
 > **for**, and it is the thing that most often makes the difference between a
 > catalog that gets used and a catalog that gets stale.
 
-There are two ideas, and the second is the one people miss.
+Three ideas. The second is the one people miss, and the third is the one that
+keeps the catalog from rotting into a project tracker.
 
 ## 1. It is component-driven product management
 
@@ -92,7 +93,7 @@ any good, and a machine that will consume it. When they conflict:
   solutions -name index.md | wc -l` returning 324 on 2026-08-20 is a fact.
 - Do not put a fact in a diagram that is not also in the text.
 
-## The honest status of idea 2
+### The honest status of idea 2
 
 State this plainly when someone asks, because overselling it is the fastest way
 to lose trust in the catalog:
@@ -107,3 +108,70 @@ So idea 2 is a **direction that has already paid for itself in design
 decisions** rather than a capability anyone can use today. Write as if the
 consumer exists — that is the discipline that will make it possible — and never
 claim that it does.
+
+## 3. State lives here; transition lives in the task manager
+
+The catalog answers **what is true now**, and — where a document is still
+`draft` or `review` — **what is intended**. It does not answer *how we get from
+one to the other*. That is a task manager's job (Jira, Linear, Asana), and the
+two must not both try, because the moment they do the answer exists twice and
+one copy starts lying.
+
+**The seam is the version.** A unit of work, expressed in this methodology, is:
+
+> take `srn://acme/product/shop/component/checkout` from v3 to v4
+
+The ticket owns the transition — who, when, in what order, blocked by what, at
+what estimate. The catalog owns the endpoints: v3 is on disk and in git, v4 is
+what the reviewed description says it will be. Neither duplicates the other, and
+a reader can always ask git which one they are looking at.
+
+### What this rules out of the ontology, deliberately
+
+If you catch yourself wanting one of these fields, the *ticket* wants it, not
+the entity:
+
+- No assignee, no reviewer queue, no sprint, no iteration, no estimate, no due
+  date, no start date, no blocked-by, no "in progress".
+- No workflow states. `status` is the review state of the **description**
+  (`draft | review | approved | deprecated`) and it is not a kanban column —
+  there is no "doing", because doing is the transition and transitions are not
+  described here.
+- No burndown, no velocity, no percent-complete. A `metric` measures the system,
+  never the project delivering it.
+
+### The current/desired distinction is already in the frontmatter
+
+It is the `status` × `lifecycle` cross, and this is the clearest way to read it:
+
+| `status` | `lifecycle` | What the page is |
+| --- | --- | --- |
+| `approved` | `released` | **Current state.** Reviewed description of a thing that exists. |
+| `approved` | `planned` | **Desired state.** A reviewed design; the transition is a ticket. |
+| `review` | `planned` | A *proposed* desired state — not yet agreed, so nothing should be built from it. |
+| `draft` | `released` | Current state, badly described. A documentation ticket, not a delivery one. |
+
+The design-first normal case is row two, and it is the one that makes the
+division of labour work: the description is agreed and stable *before* anybody
+opens a ticket, so the ticket can be about delivery rather than about what was
+meant.
+
+### Practical guidance for an author
+
+- When somebody asks you to record *progress*, decline and say where it goes. A
+  half-built component is `lifecycle: in-development` and nothing more — the
+  percentage lives in the tracker.
+- When a change is agreed, the artifact is a **version bump plus a description
+  of the new state**, not a changelog of the work. Evolution rules
+  (`evolution.md`) are what make v3→v4 a reviewable diff.
+- A good ticket title in this methodology names an SRN and a version delta. If
+  a ticket cannot be phrased that way, it is either not a change to the system
+  or the catalog is missing the entity it would change.
+
+### The honest status of idea 3
+
+Nothing integrates. No ticket anywhere links to an SRN, nothing derives a work
+item from a version delta, and the portal has no notion of a task manager. The
+division of labour is a *rule for authors* today, not a wired-up workflow — and
+the rule is the valuable half, because it is what stops the catalog decaying
+into a project-tracking tool that nobody updates.

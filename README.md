@@ -25,7 +25,8 @@ docs/
 
 ## What this is for
 
-Two ideas, and the second is the one that explains the first's strictness.
+Three ideas. The second explains why the first is enforced so strictly; the
+third is what keeps the catalog from decaying into a project tracker.
 
 ### 1. Component-driven product management
 
@@ -84,6 +85,34 @@ mechanisms are built and the consumers are not —
 has no external caller, and no deployment reads a `config.yaml`. Idea 2 is a
 direction that has already paid for itself in design decisions, not a
 capability anyone can use today.
+
+### 3. State lives here; transition lives in the task manager
+
+The catalog answers **what is true now** and — where a document is still `draft`
+or `review` — **what is intended**. It does not answer *how we get from one to
+the other*. That belongs to a task manager (Jira, Linear, Asana), and the two
+must not both try, because the moment they do the answer exists twice and one
+copy starts lying.
+
+**The seam is the version.** A unit of work, expressed in this methodology, is:
+
+> take `srn://acme/product/shop/component/checkout` from v3 to v4
+
+The ticket owns the transition — who, when, blocked by what, at what estimate.
+The catalog owns the endpoints: v3 is on disk and in git, v4 is what the
+reviewed description says it will be.
+
+So the ontology deliberately has **no assignee, no sprint, no estimate, no due
+date, no blocked-by and no "in progress"**. `status` is the review state of the
+*description*, not a kanban column — there is no "doing", because doing is the
+transition. Current versus desired is already the `status` × `lifecycle` cross:
+`approved` + `released` is the current state, `approved` + `planned` is an
+agreed desired state whose transition is somebody's ticket.
+
+As with idea 2: nothing integrates yet. No ticket anywhere links to an SRN and
+nothing derives a work item from a version delta. It is a rule for authors, and
+the rule is the valuable half — it is what stops the catalog decaying into a
+project tracker nobody updates.
 
 ## Core principles
 
