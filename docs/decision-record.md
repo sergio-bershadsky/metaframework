@@ -832,3 +832,98 @@ Whether `framework/spec/*.md` should follow its own rule. Those files are read o
 a git host, not through the portal, and their h1 is the document's only title, so
 they keep it. If the spec is ever rendered *by* the portal, that decision comes
 back.
+
+## Amendment 2026-08-20-e — two heading defects: one collision, one code wearing the wrong severity
+
+Two unrelated things, settled together because both were the same mistake in
+different clothing: a name that did not say what it named.
+
+### An authored `## Artifacts` and the portal's Artifacts section were one heading
+
+An entity page prints two documents at once. `index.md` is the first — prose the
+author wrote, whose `##` headings are that document's outline. Everything the
+portal derives around it is the second: Details, Artifacts, Relations,
+Neighbourhood, Contents, Realized by. Both were bare `<h2>`s, so the outlines
+were spliced into one flat list of peers. Twelve protocol documents open a
+`## Artifacts` section to explain what their sibling files are for — a genuinely
+different thing from the portal's list of those files — and on all twelve the
+page carried two level-2 headings reading "Artifacts" with nothing to separate
+them. `carrier-booking`'s outline read `… Failure / Artifacts / Details /
+Artifacts / Book one parcel …`.
+
+**Nothing was wrong with the pixels.** Measured on that page: the authored
+heading is 16px, no transform, letter-spacing −0.4px, `foreground` (lab L\* 94.2);
+the portal's is 12px, uppercase, letter-spacing +1.68px, `muted-foreground`
+(lab L\* 57.0). Four axes apart, and a sighted reader was never confused. The
+**accessible name** was identical: Chrome does not fold `text-transform` into
+name computation, so the accessibility tree held `heading "Artifacts" [level=2]`
+twice. That is what a screen reader navigates by and what an outline tool lists,
+and it was the only thing that had collided.
+
+So the distinction was made where it was missing, in one shared component
+(`components/entity/section-heading.tsx`), and only there. Every portal-drawn
+section label carries a visually hidden `— portal section` inside the heading —
+inside the text rather than as an `aria-label`, so a plain `textContent` outline
+sees it too — and each such `<section>` names itself with `aria-labelledby`,
+which makes it a `region` landmark. The portal's sections are now reachable and
+skippable as landmarks; the entity's own prose is not. That is the structural
+half of the same statement: these are not sections of the document.
+
+**Why not rename the twelve.** It treats the symptom twelve times and does not
+stay treated — the next author to write `## Details` collides again — and it
+costs real content: those sections say why the artifacts are shaped as they are,
+which no generated list can say.
+
+**Why not demote authored headings a level so the outlines nest.** Settled
+against yesterday (amendment 2026-08-20-d): the markdown diff is the review
+surface, and a renderer that draws `##` as `<h3>` puts the file and the page in
+two different documents. That argument binds here unchanged, and it is why the
+fix had to be on the portal's own headings, which have no source in the file at
+all.
+
+### `E_SRN_VERSION` was an error code emitted at warning severity under a Warnings heading
+
+`/diagnostics` listed three `E_`-prefixed items inside "Warnings". Code, severity
+and heading disagreed three ways, and the plugin's reference notes had written
+the disagreement down as a known spec divergence.
+
+It was not a divergence. It was a misreading, and the loader was the party in the
+wrong. V7 (`srn.md`) reads "Pinned `@N` exists on the filesystem **or in the
+version→commit index**" — it asks whether a pin resolves *at all*, and its worked
+failure is `money@9` when the index holds only v1. A pin that reads an older
+snapshot out of the index resolves perfectly; `evolution.md`'s own example has
+`order@1` returning the `c2` snapshot while `order` is at v3, with no diagnostic
+attached. **The specification never classed a stale pin as anything.** So no
+amendment to V7 was needed and none was made.
+
+What the loader detects is a different, narrower and genuinely useful fact: this
+pin resolves and has fallen behind. It is now `W_REF_STALE_PIN`, severity
+warning, named in the `W_REF_*` family beside `W_REF_DEPRECATED`, which is the
+other "legal, but flagged so migrations converge" reference warning. It is
+reported and never failed: an `@N` left behind by a migration is
+indistinguishable from a deliberate freeze, and only the author knows which.
+
+`E_SRN_VERSION` keeps its name, keeps error severity, and is emitted by exactly
+one module — `lib/history/git.ts`, the only one that can ask git whether a commit
+exists. The loader never opens git and was therefore never in a position to raise
+V7.
+
+The new code is documented in `srn.md` and in `evolution.md`'s error-class table
+before it is emitted, because the diagnostic-inventory suite reads the spec at run
+time and fails a code the spec does not publish — which is the mechanism that
+would have caught this class of drift had the code been invented rather than
+borrowed. The plugin's "spec discrepancies" note now records the settlement
+instead of the divergence.
+
+### What this amendment does not settle
+
+Whether the portal's section labels should say "portal section" *visibly*. The
+hidden qualifier restores the distinction the accessibility tree had lost and
+changes no pixels, which is the smallest honest fix; a visible marker separating
+authored prose from derived data is a design question, and a larger one, because
+`Realized by`, the metric stats and the vision block sit *above* the prose and
+would need the same treatment.
+
+And whether `W_REF_STALE_PIN` should be suppressible per reference — a deliberate
+freeze has no way to say so, so it warns forever. An `x-` frontmatter annotation
+is the obvious shape and nothing needs it yet.

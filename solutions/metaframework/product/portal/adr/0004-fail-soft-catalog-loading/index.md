@@ -1,7 +1,7 @@
 ---
 name: 0004-fail-soft-catalog-loading
 kind: adr
-version: 1
+version: 2
 title: Loading is fail-soft — violations are diagnostics, not exceptions
 summary: A broken catalog renders with its errors visible instead of failing to a blank page, which is what makes the diagnostics page an integrity gate rather than a stack trace.
 status: review
@@ -58,9 +58,12 @@ same list rather than reported separately.
   hermetic temp fixture **per diagnostic class**, 21 of them at the time of the
   commit, which is only possible because each class produces a value rather than
   an exception.
-- Severity became a design decision rather than an accident. `E_SRN_VERSION` and
-  `W_REF_DEPRECATED` are warnings because they describe drift; everything
-  structural is an error.
+- Severity became a design decision rather than an accident. `W_REF_STALE_PIN`
+  and `W_REF_DEPRECATED` are warnings because they describe drift; everything
+  structural is an error. (The first of those was spelled `E_SRN_VERSION` until
+  decision-record amendment 2026-08-20-e, which is the counter-example: a code
+  whose name and severity disagreed taught readers that the severity was the
+  accident.)
 - **A fail-soft loader silently tolerates a catalog nobody looks at.** Errors
   that block nothing are errors that accumulate, and with no CI in this
   repository there is nothing between a broken catalog and a merge except a

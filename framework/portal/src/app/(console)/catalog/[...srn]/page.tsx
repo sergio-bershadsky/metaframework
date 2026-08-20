@@ -13,6 +13,7 @@ import { EntityGraph } from '@/components/entity/entity-graph'
 import { EntityRelations } from '@/components/entity/entity-relations'
 import { EntityVersionNotice, EntityVersionProblem } from '@/components/entity/entity-version-notice'
 import { METRIC_STAT_FIELDS, MetricStats } from '@/components/entity/metric-stats'
+import { SectionHeading } from '@/components/entity/section-heading'
 import { SolutionVision } from '@/components/entity/solution-vision'
 import { HistoryPanel } from '@/components/history/history-panel'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
@@ -421,9 +422,9 @@ function HistoricalRelations({ entity, catalog }: { entity: Entity; catalog: Cat
   }
 
   return (
-    <section className="mt-10">
+    <section className="mt-10" aria-labelledby="section-relations">
       <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Relations</h2>
+        <SectionHeading id="section-relations">Relations</SectionHeading>
         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <ArrowUpRight className="size-3 text-warning" aria-hidden />
           outgoing only, as authored at v{entity.frontmatter.version}

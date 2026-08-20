@@ -20,10 +20,21 @@ import {
 } from '@xyflow/react'
 import { ArrowUpRight, ChevronRight, Home } from 'lucide-react'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { entityHref } from '@/lib/catalog/href'
 import { DIAGRAM_BACKGROUND, DIAGRAM_CANVAS_VARS } from '@/lib/diagrams/layout'
-import { type PolarLink, polarLayout, toCartesian } from '@/lib/diagrams/polar'
+import {
+  type CanvasSize,
+  drawnExtent,
+  fitZoom,
+  fittedLayout,
+  type MapExtent,
+  MAP_NODE,
+  MAX_DEPTH,
+  MIN_ZOOM,
+  NODE_SEPARATION,
+} from '@/lib/diagrams/map-fit'
+import { type PolarLayout, type PolarLink, polarLayout, toCartesian } from '@/lib/diagrams/polar'
 import {
   RECENTRE_MS,
   useIsHydrated,
@@ -68,8 +79,10 @@ import '@xyflow/react/dist/style.css'
  * is the only way to move sideways — and hovering brings it back to full
  * strength, so reading a box before clicking it costs a glance.
  *
- * THE ROOT VIEW STOPS AT THE PRODUCTS — see ROOT_DEPTH. Every other focus keeps
- * the full three rings.
+ * EVERY VIEW DRAWS WHAT IT CAN FRAME LEGIBLY, and says what it left out. The
+ * depth is not a property of the focused node — it is measured against the
+ * canvas, at the size the canvas actually is. See `lib/diagrams/map-fit.ts`,
+ * which owns that arithmetic and is where the promise is tested.
  */
 
 export type MapKind = 'solution' | 'product' | 'component'
@@ -100,59 +113,8 @@ export interface SolutionMapProps {
   className?: string
 }
 
-/**
- * One size for every box: the focus is marked by its ring, never by its bulk.
- *
- * A box carries the entity's NAME and nothing else. On an entity page there is
- * room to gloss an identifier with its title; on a map there are twenty-five of
- * them at once, and the title is the first thing that stops being read. It is
- * still on the focused node, in the tooltip, and in the caption below.
- */
-const MAP_NODE = { width: 158, height: 30 } as const
-
 /** How far past the outermost ring a departing node travels before it is dropped. */
 const EXIT_MARGIN = 260
-
-/** Clear space between the fitted ring and the canvas edge. */
-const VIEW_PADDING = 40
-/** Vertical room left for the trail and the legend to sit over. */
-const OVERLAY_ROOM = 44
-
-/**
- * The viewport frames the rings the map PROMISES — the focus and two steps out.
- * The third ring is context and is allowed to spill past the edge, which is the
- * honest rendering of "there is more out here, but it is not the answer".
- */
-const FITTED_RINGS = 2
-
-/**
- * How far the ROOT view reaches: the solution and its products, nothing deeper.
- *
- * This is geometry, not taste. A box is 158px wide and its name is set at 12px.
- * With three rings, acme's twenty-five boxes reach 461 units from the centre,
- * and the viewport fits that into a 670x464 canvas at zoom 0.36 — where 12px
- * type renders at 4.3px: present, and unreadable. Measured, not estimated; the
- * same view on a 1920x1080 window managed 0.69, or 8.3px, which is not much
- * better. No amount of styling fixes twenty-five boxes in that space, so the fix
- * is to show fewer: one solution and its products land at zoom 0.82 (9.9px) on
- * the small window and at the 1.0 ceiling on the large one, for every solution
- * in this catalog.
- *
- * The relief is bounded, and the bound is the product count, not the entity
- * count — a synthetic solution with twenty products measures 0.40 at 1024x720,
- * back at the floor. Past roughly six products this view needs a different
- * answer, and this is not it.
- *
- * What the root view gives up is real — a component-to-component dependency
- * crossing two products is invisible from here — so the loss is DRAWN rather
- * than left to be discovered: every box says how many entities it contains that
- * this view is not showing (see `hidden` below). Clicking a product restores the
- * full depth around it, which is where those crossings are worth reading anyway.
- */
-const ROOT_DEPTH = 1
-
-const MIN_ZOOM = 0.35
-const MAX_ZOOM = 1
 
 /** Gap between a box's edge and the line that reaches it. */
 const EDGE_INSET = 5
@@ -177,8 +139,9 @@ type MapFlowEdge = Edge
 /**
  * How far back an element sits when nothing is hovered.
  *
- * `soft` is the ring past the two the viewport frames; `far` is everything off
- * the focused branch. The opacities live in globals.css with the `.dgm-recede`
+ * `soft` is a box still on its way off the canvas — on the focused branch, but
+ * past the depth this view draws; `far` is everything off the focused branch
+ * entirely. The opacities live in globals.css with the `.dgm-recede`
  * family, because that class is applied to the group React Flow owns — the only
  * element that dims a node, an edge, its marker and its label together. An
  * edge's `style` reaches its path, which these custom edge components never
@@ -486,7 +449,7 @@ const edgeTypes: EdgeTypes = { spine: SpineEdge, cross: CrossEdge }
 
 export function SolutionMap({ nodes, links, root, label = 'Solution map', className }: SolutionMapProps) {
   const [requested, setRequested] = useState(root)
-  const reduced = usePrefersReducedMotion()
+  const [animating, setAnimating] = useState(false)
 
   const byId = useMemo(() => new Map(nodes.map((node) => [node.srn, node])), [nodes])
   // Derived, not corrected in an effect: a focus that no longer exists (a
@@ -500,19 +463,34 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
     [links],
   )
 
-  // The root is the one focus with a depth limit of its own — see ROOT_DEPTH.
-  const layout = useMemo(
+  /**
+   * The same neighbourhood cut at one, two and three rings.
+   *
+   * All three are built up front and the canvas size picks between them, rather
+   * than the size feeding into one layout call. The reason is identity: a
+   * window drag fires a resize a hundred times, and a layout rebuilt on each
+   * one would hand `usePolarTransition` a new object a hundred times and
+   * animate the map through every frame of the drag. Picking from a memoised
+   * list returns the SAME object until the answer actually changes, so a resize
+   * that does not cross a legibility boundary costs nothing at all.
+   */
+  const candidates = useMemo(
     () =>
-      polarLayout({
-        nodes: ids,
-        links: polarLinks,
-        focus,
-        ...(focus === root ? { maxDepth: ROOT_DEPTH } : {}),
-      }),
-    [ids, polarLinks, focus, root],
+      Array.from({ length: MAX_DEPTH }, (_, index) =>
+        polarLayout({
+          nodes: ids,
+          links: polarLinks,
+          focus,
+          maxDepth: index + 1,
+          nodeSeparation: NODE_SEPARATION,
+        }),
+      ),
+    [ids, polarLinks, focus],
   )
-  const frame = usePolarTransition(layout, layout.extent + EXIT_MARGIN)
-  const fitRadius = layout.radii[Math.min(FITTED_RINGS, layout.radii.length - 1)] ?? 0
+
+  const surface = useRef<HTMLDivElement>(null)
+  const size = useCanvasSize(surface)
+  const layout = useMemo(() => (size ? fittedLayout(candidates, size) : candidates[0]), [candidates, size])
 
   const recentre = useCallback((srn: string) => setRequested(srn), [])
 
@@ -543,7 +521,7 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
 
   /**
    * How far back each box sits. Off the focused branch wins over merely being
-   * past the framed rings, because the two say different things and the further
+   * past the drawn rings, because the two say different things and the further
    * one is the one worth saying.
    *
    * At the solution root the branch is the whole containment tree, so nothing is
@@ -554,16 +532,163 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
     const branch = branchOf(focus, byId, children)
     const levels = new Map<string, Recession>()
     for (const node of nodes) {
-      const depth = layout.depth.get(node.srn)
-      // Against FITTED_RINGS, not against the layout's depth limit: the two
-      // coincide at every focus but the root, and at the root they must not —
-      // ROOT_DEPTH stops the layout inside the framed rings, so reading the
-      // limit there would push the products themselves back as spillover.
-      const beyondFramedRings = depth === undefined || depth > FITTED_RINGS
-      levels.set(node.srn, !branch.has(node.srn) ? 'far' : beyondFramedRings ? 'soft' : 'none')
+      // A node with no depth is not in this view at all. It still gets a level,
+      // because it is still on screen for the length of one transition on its
+      // way out, and it must fade rather than blink.
+      const leaving = !layout.depth.has(node.srn)
+      levels.set(node.srn, !branch.has(node.srn) ? 'far' : leaving ? 'soft' : 'none')
     }
     return levels
   }, [nodes, byId, children, layout, focus])
+
+  const trail = useMemo(() => {
+    const chain: SolutionMapNode[] = []
+    const seen = new Set<string>()
+    let id: string | null = focus
+    while (id && !seen.has(id)) {
+      seen.add(id)
+      const node = byId.get(id)
+      if (!node) break
+      chain.unshift(node)
+      id = node.parent
+    }
+    return chain
+  }, [focus, byId])
+
+  const summary = useMemo(
+    () => describe(byId, layout, links, recession, hidden),
+    [byId, layout, links, recession, hidden],
+  )
+  const hydrated = useIsHydrated()
+
+  if (nodes.length <= 1) {
+    return (
+      <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
+        Nothing to map — this solution has no products yet.
+      </p>
+    )
+  }
+
+  return (
+    <figure
+      className={cn('panel diagram-surface overflow-hidden', className)}
+      aria-label={label}
+      aria-busy={animating || undefined}
+    >
+      <div ref={surface} className="relative h-full w-full" style={DIAGRAM_CANVAS_VARS}>
+        {/* Overlaid rather than mounted as React Flow panels, which render after
+            the nodes: a keyboard reader must not have to walk twenty-five boxes
+            to reach the control that would have taken them out of there. */}
+        {/* Extra room at the bottom clears React Flow's own attribution, which
+            the legend would otherwise sit on top of. */}
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2.5 pb-6">
+          <FocusTrail trail={trail} root={root} onRecentre={recentre} />
+          <div className="flex justify-end">
+            <EdgeLegend />
+          </div>
+        </div>
+
+        {/* The canvas waits for a measured surface, not merely for hydration.
+            Depth is chosen against the canvas size, so mounting before that size
+            is known would hand the transition a layout it is about to replace,
+            and the map would arrive by unfolding from a depth nobody asked for.
+            One extra frame of the placeholder buys a first paint that is already
+            the right map. */}
+        {hydrated && size ? (
+          <MapCanvas
+            layout={layout}
+            links={links}
+            nodeData={nodeData}
+            recession={recession}
+            focus={focus}
+            onAnimatingChange={setAnimating}
+          />
+        ) : (
+          <MapPending />
+        )}
+      </div>
+
+      <figcaption className="sr-only">
+        <p>{summary.headline}</p>
+        <ul>
+          {summary.lines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </figcaption>
+    </figure>
+  )
+}
+
+/**
+ * The size of the box the map has to fit into, or null until it is known.
+ *
+ * Measured here rather than read from React Flow's own store, because the
+ * answer is needed BEFORE React Flow exists: it decides how many rings the
+ * layout has, and the layout decides what React Flow is handed. Rounded to
+ * whole pixels and compared before it is stored, so the sub-pixel jitter a
+ * `ResizeObserver` reports during a window drag does not become a re-render.
+ */
+function useCanvasSize(ref: RefObject<HTMLElement | null>): CanvasSize | null {
+  const [size, setSize] = useState<CanvasSize | null>(null)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+
+    const observer = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect
+      if (!box) return
+      const next = { width: Math.round(box.width), height: Math.round(box.height) }
+      if (next.width === 0 || next.height === 0) return
+      setSize((current) => (current && current.width === next.width && current.height === next.height ? current : next))
+    })
+
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref])
+
+  return size
+}
+
+/**
+ * The canvas itself, mounted only once the layout it will draw is final.
+ *
+ * The split from `SolutionMap` is what keeps the map from animating on arrival.
+ * The transition hook seeds itself from the layout it first sees and animates
+ * towards every one after that, so a component that renders once with a
+ * placeholder layout and again with the real one has already committed to
+ * playing the difference between them. Mounting the hook late means the first
+ * layout it sees is the only one it needs.
+ */
+function MapCanvas({
+  layout,
+  links,
+  nodeData,
+  recession,
+  focus,
+  onAnimatingChange,
+}: {
+  layout: PolarLayout
+  links: readonly SolutionMapLink[]
+  nodeData: ReadonlyMap<string, MapNodeData>
+  recession: ReadonlyMap<string, Recession>
+  focus: string
+  onAnimatingChange: (animating: boolean) => void
+}) {
+  const reduced = usePrefersReducedMotion()
+  const frame = usePolarTransition(layout, layout.extent + EXIT_MARGIN)
+  // Memoised, and that is not a micro-optimisation: a fresh object here would
+  // change identity on every animation frame and re-fire the viewport effect
+  // sixty times a second, each time asking for a 650ms zoom to where it already
+  // is.
+  const extent = useMemo(() => drawnExtent(layout), [layout])
+
+  // The figure carries `aria-busy`, and the figure is one level up. Reporting
+  // the flag rather than hoisting the hook keeps the late mount above intact.
+  useEffect(() => {
+    onAnimatingChange(frame.animating)
+  }, [frame.animating, onAnimatingChange])
 
   const flowNodes = useMemo<MapFlowNode[]>(() => {
     const placed: MapFlowNode[] = []
@@ -634,99 +759,41 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
     [flowEdges, highlight, recession],
   )
 
-  const trail = useMemo(() => {
-    const chain: SolutionMapNode[] = []
-    const seen = new Set<string>()
-    let id: string | null = focus
-    while (id && !seen.has(id)) {
-      seen.add(id)
-      const node = byId.get(id)
-      if (!node) break
-      chain.unshift(node)
-      id = node.parent
-    }
-    return chain
-  }, [focus, byId])
-
-  const summary = useMemo(
-    () => describe(byId, layout, links, recession, hidden),
-    [byId, layout, links, recession, hidden],
-  )
-  const hydrated = useIsHydrated()
-
-  if (nodes.length <= 1) {
-    return (
-      <p className={cn('panel px-4 py-6 text-[13px] text-muted-foreground', className)}>
-        Nothing to map — this solution has no products yet.
-      </p>
-    )
-  }
-
   return (
-    <figure
-      className={cn('panel diagram-surface overflow-hidden', className)}
-      aria-label={label}
-      aria-busy={frame.animating || undefined}
+    <ReactFlow
+      nodes={litNodes}
+      edges={litEdges}
+      {...highlight.handlers}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      // Positions ARE the centres: the layout is polar and its origin is the
+      // focus, so letting React Flow keep its top-left convention would put
+      // every ring half a box off its own radius.
+      nodeOrigin={[0.5, 0.5]}
+      colorMode="dark"
+      minZoom={MIN_ZOOM}
+      maxZoom={2}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      // Each box carries its own button, so React Flow's wrapper must not be
+      // a second tab stop for the same target.
+      nodesFocusable={false}
+      edgesFocusable={false}
+      elementsSelectable={false}
+      zoomOnDoubleClick={false}
     >
-      <div className="relative h-full w-full" style={DIAGRAM_CANVAS_VARS}>
-        {/* Overlaid rather than mounted as React Flow panels, which render after
-            the nodes: a keyboard reader must not have to walk twenty-five boxes
-            to reach the control that would have taken them out of there. */}
-        {/* Extra room at the bottom clears React Flow's own attribution, which
-            the legend would otherwise sit on top of. */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2.5 pb-6">
-          <FocusTrail trail={trail} root={root} onRecentre={recentre} />
-          <div className="flex justify-end">
-            <EdgeLegend />
-          </div>
-        </div>
-
-        {!hydrated ? (
-          <MapPending />
-        ) : (
-        <ReactFlow
-          nodes={litNodes}
-          edges={litEdges}
-          {...highlight.handlers}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          // Positions ARE the centres: the layout is polar and its origin is the
-          // focus, so letting React Flow keep its top-left convention would put
-          // every ring half a box off its own radius.
-          nodeOrigin={[0.5, 0.5]}
-          colorMode="dark"
-          minZoom={MIN_ZOOM}
-          maxZoom={2}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          // Each box carries its own button, so React Flow's wrapper must not be
-          // a second tab stop for the same target.
-          nodesFocusable={false}
-          edgesFocusable={false}
-          elementsSelectable={false}
-          zoomOnDoubleClick={false}
-        >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={DIAGRAM_BACKGROUND.gap}
-            size={DIAGRAM_BACKGROUND.size}
-            color={DIAGRAM_BACKGROUND.color}
-          />
-          <Controls showInteractive={false} style={{ margin: 10 }} />
-          <ViewportKeeper radius={fitRadius} focus={focus} reduced={reduced} />
-        </ReactFlow>
-        )}
-      </div>
-
-      <figcaption className="sr-only">
-        <p>{summary.headline}</p>
-        <ul>
-          {summary.lines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      </figcaption>
-    </figure>
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={DIAGRAM_BACKGROUND.gap}
+        size={DIAGRAM_BACKGROUND.size}
+        color={DIAGRAM_BACKGROUND.color}
+      />
+      <Controls showInteractive={false} style={{ margin: 10 }} />
+      {/* Everything drawn is framed. The depth was chosen so that it fits, so
+          fitting anything less would leave a ring hanging off the edge that the
+          map had already decided was worth showing. */}
+      <ViewportKeeper extent={extent} focus={focus} reduced={reduced} />
+    </ReactFlow>
   )
 }
 
@@ -755,23 +822,25 @@ function MapPending() {
  * is derived from how far the outermost ring reaches, so a dense neighbourhood
  * pulls back and a sparse one does not sit lost in a large canvas.
  */
-function ViewportKeeper({ radius, focus, reduced }: { radius: number; focus: string; reduced: boolean }) {
+function ViewportKeeper({ extent, focus, reduced }: { extent: MapExtent; focus: string; reduced: boolean }) {
   const { setViewport } = useReactFlow()
   const width = useStore((state) => state.width)
   const height = useStore((state) => state.height)
   const settled = useRef(false)
+  const { halfWidth, halfHeight } = extent
 
   useEffect(() => {
     if (width === 0 || height === 0) return
-    const span = (radius + MAP_NODE.width / 2 + VIEW_PADDING) * 2
-    const usable = Math.max(Math.min(width, height - OVERLAY_ROOM), 120)
-    const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, usable / span))
+    // The same arithmetic that chose the depth, applied to the depth it chose —
+    // one function, so the zoom the reader gets is the zoom the choice was made
+    // on rather than a second formula that agrees with it today.
+    const zoom = fitZoom({ halfWidth, halfHeight }, { width, height })
     // The first placement must not animate: there is nothing to travel from,
     // and a map that zooms itself on arrival reads as a page still loading.
     const duration = settled.current && !reduced ? RECENTRE_MS : 0
     settled.current = true
     void setViewport({ x: width / 2, y: height / 2, zoom }, { duration })
-  }, [width, height, radius, focus, reduced, setViewport])
+  }, [width, height, halfWidth, halfHeight, focus, reduced, setViewport])
 
   return null
 }
@@ -833,13 +902,23 @@ function FocusTrail({
  * its own key with different numbers is a legend that drifts from the graph, so
  * the samples below use the same widths and dash pattern as the edges.
  *
- * The `+n` row is here for the same reason the marker exists: the root view
- * stops at the products, and a reader who has never seen the deeper rings needs
- * one line telling them the number is a door rather than a defect.
+ * The `+n` row is here for the same reason the marker exists: a view draws only
+ * the rings it can draw legibly, and a reader who has never seen the ones it
+ * dropped needs one line telling them the number is a door rather than a defect.
+ *
+ * Unlike the focus trail beside it, this keeps the overlay's
+ * `pointer-events-none`: nothing in here is interactive — three rows of
+ * `svg`/`dt`/`dd` and no control — so claiming the pointer only took clicks away
+ * from whatever the legend happens to sit on. Measured on /map/acme focused on
+ * `billing` at 1024x720: the `payment` box overlaps the legend by 35.3x14.2px,
+ * and `document.elementFromPoint` in the middle of that corner returned a legend
+ * row, so clicking there failed to re-centre on `payment`. The box is still
+ * veiled over 10.5% of its area — that is overlay placement, a separate
+ * question — but it is now clickable everywhere it is drawn.
  */
 function EdgeLegend() {
   return (
-    <dl className="pointer-events-auto w-[152px] rounded-md border border-border bg-surface/90 p-1.5 backdrop-blur-sm">
+    <dl className="w-[152px] rounded-md border border-border bg-surface/90 p-1.5 backdrop-blur-sm">
       <div className="flex items-center gap-2 px-0.5 py-0.5">
         <svg width="24" height="6" viewBox="0 0 24 6" aria-hidden className="shrink-0">
           <line x1="0" y1="3" x2="24" y2="3" stroke="var(--border-strong)" strokeWidth="2" />
@@ -916,7 +995,11 @@ function describe(
     lines.push(`Not drawn at this focus — centre on one to open it: ${withHidden.join(', ')}.`)
   }
 
-  const reach = layout.maxDepth === 1 ? 'one step' : `${layout.maxDepth} steps`
+  // The depth actually drawn, not the depth asked for: the view stops at
+  // whichever comes first, the legibility limit or the end of the structure,
+  // and a caption that named the limit would over-promise on a shallow branch.
+  const drawn = Math.max(0, ...layout.depth.values())
+  const reach = drawn === 1 ? 'one step' : `${drawn} steps`
   return {
     headline: `Structure around ${name(layout.focus)}: ${layout.depth.size - 1} entities within ${reach}.`,
     lines,

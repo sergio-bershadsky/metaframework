@@ -860,3 +860,14 @@ The complete error-class list for this document:
 `W_REF_DEPRECATED` (a warning): a reference whose target entity has
 `status: deprecated` — legal, but flagged so migrations converge
 ([evolution.md](evolution.md)).
+
+`W_REF_STALE_PIN` (a warning): a pin that **resolves** but is behind — `@1`
+against a target now at `@4`. V7 is not about this and never was. V7 asks
+whether the pin resolves *at all*, and a pin that reads an older snapshot out of
+the version→commit index resolves perfectly ([evolution.md](evolution.md) —
+`order@1` gets the `c2` snapshot while `order` is at v3). Nothing in this
+specification makes an old pin illegal; that is the point of pinning. But an
+`@N` left behind by a migration is indistinguishable, from the outside, from a
+deliberate freeze, so the drift is *reported* and never *failed*: only the author
+knows which one it is. A catalog whose `/diagnostics` shows nothing but
+`W_REF_STALE_PIN` is a valid catalog.

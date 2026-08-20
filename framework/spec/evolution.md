@@ -361,9 +361,19 @@ and the portal build's validation.
 | `E_VER_REGRESSION`    | `version` decreased, or increased by more than 1, in a commit. |
 | `E_SRN_VERSION`       | Pinned `@N` not on filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED`    | Reference targets a `status: deprecated` entity.               |
+| `W_REF_STALE_PIN`     | Pinned `@N` resolves, but the target has moved past it.        |
 
 (`E_VER_REGRESSION` is checkable only where history is available — the portal
 checks it while building the version→commit index.)
+
+The two version codes answer different questions and MUST NOT be conflated.
+`E_SRN_VERSION` is an **error** and asks whether the pin resolves at all; it can
+only be raised by something holding the version→commit index, which is why the
+portal raises it in `lib/history`, at resolution time, and never at load.
+`W_REF_STALE_PIN` is a **warning** and asks whether a resolving pin has fallen
+behind; the loader can answer that from frontmatter alone. `order@1` while
+`order` is at v3 is `W_REF_STALE_PIN` and legal; `order@5` is `E_SRN_VERSION`
+and is not.
 
 **Retired: `E_VER_ID_MISMATCH`.** It meant "schema `$id` version ≠ frontmatter
 `version`". A `schema.json` carries an `$id` again (decision-record amendment

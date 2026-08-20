@@ -175,6 +175,7 @@ approved → deprecated   # swap completed, or retired without a successor
 | `E_VER_REGRESSION` | `version` decreased, or increased by more than 1, in a commit.     |
 | `E_SRN_VERSION`    | Pinned `@N` not on the filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED` | Reference targets a `status: deprecated` entity.                   |
+| `W_REF_STALE_PIN`  | Pinned `@N` resolves, but the target has moved past it.            |
 
 Datamodel-specific: `E_DM_NOT_ADDITIVE` (`schemas.md`).
 Retired, MUST NOT be emitted: `E_VER_ID_MISMATCH`.

@@ -51,8 +51,17 @@ export interface PolarInput {
   maxDepth?: number
   /** Smallest step between successive rings. */
   ringGap?: number
-  /** Arc length one node needs on its ring before the ring must grow. */
-  nodeSpacing?: number
+  /**
+   * Smallest centre-to-centre distance any two boxes may sit at.
+   *
+   * A straight-line distance, not an arc: what has to clear is the gap between
+   * two rectangles, and no amount of angle between them says anything about
+   * that. Callers pass a value larger than the box's own diagonal — two
+   * axis-aligned boxes at that distance cannot overlap whatever direction the
+   * offset points in, which is the property that has to survive the map being
+   * re-centred and every angle in it changing.
+   */
+  nodeSeparation?: number
   /** Where a lone first-ring node sits. Default is straight up. */
   startAngle?: number
 }
@@ -75,33 +84,35 @@ export interface PolarLayout {
 const DEFAULTS = {
   maxDepth: 3,
   ringGap: 150,
-  nodeSpacing: 172,
+  nodeSeparation: 182,
   startAngle: -Math.PI / 2,
 } as const
 
-/** A ring may not grow more than this many gaps to fit a crowded wedge. */
+/** A ring may not grow more than this many steps to fit a crowded ring. */
 const MAX_RING_STRETCH = 3
 
 /**
  * How hard a subtree's size pulls on the wedge it gets.
  *
- * Straight leaf-count weighting is the textbook answer and it is the wrong one
- * here. A ring is sized by the NARROWEST wedge on it, so a product with
- * seventeen components does not merely take most of the circle — it starves its
- * two-component sibling into a sliver, and that sliver is what pushes every
- * ring outwards until the map is too small to read.
+ * Damping keeps the ordering — a big branch still gets more room — while
+ * bounding how lopsided the split may become, so a product with seventeen
+ * components cannot starve its two-component sibling into a sliver.
  *
- * Damping the weight keeps the ordering (a big branch still gets more room)
- * while bounding how lopsided the split may become. The exponent was chosen by
- * measuring the two real catalogs rather than by taste — fitted ring radius,
- * smaller is better:
+ * The exponent used to be the lever that decided whether a map was readable,
+ * because rings were sized by the narrowest WEDGE on them and a sliver pushed
+ * every ring outwards. Under the chord rule below it is nearly inert, and the
+ * measurement says so. Walking every focus of the three shipped solutions at
+ * three window sizes, and summing the mean number of rings each view manages to
+ * draw at the legibility floor (more is better, since the floor is held
+ * either way):
  *
- *     exponent   1.0    0.75   0.5
- *     acme       438    461    486
- *     brass      533    365    300
+ *     exponent      1.0     0.75    0.5
+ *     rings drawn   12.56   12.58   12.31
+ *     worst zoom    0.582   0.582   0.582
  *
- * 0.75 is the value that makes the *worst* of the two as good as it gets;
- * pushing further trades acme away for a solution that is already comfortable.
+ * 0.75 stays because it is marginally the best of the three and because the
+ * anti-sliver property is worth keeping on its own terms — not because the
+ * legibility of this catalog depends on it any more. It does not.
  */
 const WEIGHT_EXPONENT = 0.75
 
@@ -112,7 +123,7 @@ export function polarLayout(input: PolarInput): PolarLayout {
     focus,
     maxDepth = DEFAULTS.maxDepth,
     ringGap = DEFAULTS.ringGap,
-    nodeSpacing = DEFAULTS.nodeSpacing,
+    nodeSeparation = DEFAULTS.nodeSeparation,
     startAngle = DEFAULTS.startAngle,
   } = input
 
@@ -180,7 +191,6 @@ export function polarLayout(input: PolarInput): PolarLayout {
   const share = (id: string) => (leaves.get(id) ?? 1) ** WEIGHT_EXPONENT
 
   const angle = new Map<string, number>([[focus, startAngle]])
-  const span = new Map<string, number>([[focus, TAU]])
 
   // The focus owns the wedge *centred* on `startAngle`, not one beginning
   // there, so a single first-ring node lands exactly on it rather than
@@ -197,27 +207,49 @@ export function polarLayout(input: PolarInput): PolarLayout {
     for (const kid of kids) {
       const wedge = (to - from) * (share(kid) / total)
       angle.set(kid, cursor + wedge / 2)
-      span.set(kid, wedge)
       stack.push({ id: kid, from: cursor, to: cursor + wedge })
       cursor += wedge
     }
   }
 
   // --- radii ---------------------------------------------------------------
-  // A ring grows until the narrowest wedge on it is wide enough to hold a node.
-  // Sizing from the wedge, not from the node count, is what keeps a ring honest
-  // when its nodes are bunched inside one parent's slice instead of spread
-  // evenly — and the stretch is capped, because past a point a ring that has
-  // grown to avoid every overlap has simply left the canvas.
+  // A ring grows until the two CLOSEST boxes on it are far enough apart.
+  //
+  // Closest in straight-line distance, which is the only thing a box can
+  // overlap along. Sizing a ring from the narrowest WEDGE on it — the obvious
+  // reading of "give every node room" — measures the wrong quantity twice over.
+  // It is too generous when a wedge is narrow but its owner's neighbours are
+  // half a turn away, and too mean when a wedge is wide: two products on a
+  // three-node map each own a half-circle, and a half-circle of angle says
+  // nothing about whether 158px of box fits between their centres. It did not.
+  // The solution and both its products overlapped at every window size.
+  //
+  // The constraint is the chord. Two nodes on ring r separated by Δ radians sit
+  //
+  //     2 · r · sin(Δ/2)
+  //
+  // apart, so the ring must satisfy 2·r·sin(Δ/2) ≥ nodeSeparation for its
+  // smallest Δ. Sorting the ring by angle makes that pair adjacent — on a
+  // circle the closest pair always is — so one pass over the sorted gaps finds
+  // it.
+  //
+  // Two more pairs exist and neither needs its own rule. The focus sits at the
+  // origin, so its distance to any ring-1 node is exactly r₁; and any two nodes
+  // on different rings are at least (rₖ − rₖ₋₁) apart, by the triangle
+  // inequality. Both are covered by making the step between rings — and hence
+  // the first ring's radius — never smaller than the separation.
+  //
+  // The stretch stays capped: past a point a ring that has grown to avoid every
+  // overlap has simply left the canvas, and a crowded ring is answered by
+  // drawing fewer rings (see the map's own depth rule) rather than by pushing
+  // this one out to the horizon.
+  const step = Math.max(ringGap, nodeSeparation)
   const radii = [0]
   for (let ring = 1; ring < levels.length; ring += 1) {
-    let needed = 0
-    for (const id of levels[ring]) {
-      const wedge = Math.max(span.get(id) ?? TAU, 1e-4)
-      needed = Math.max(needed, nodeSpacing / wedge)
-    }
-    const floor = radii[ring - 1] + ringGap
-    radii.push(Math.min(Math.max(floor, needed), radii[ring - 1] + ringGap * MAX_RING_STRETCH))
+    const closest = closestGap(levels[ring], angle)
+    const needed = closest === undefined ? 0 : nodeSeparation / (2 * Math.sin(closest / 2))
+    const floor = radii[ring - 1] + step
+    radii.push(Math.min(Math.max(floor, needed), radii[ring - 1] + step * MAX_RING_STRETCH))
   }
 
   const points = new Map<string, PolarPoint>()
@@ -234,6 +266,35 @@ export function polarLayout(input: PolarInput): PolarLayout {
     extent: radii[radii.length - 1] ?? 0,
     maxDepth,
   }
+}
+
+/**
+ * The smallest angle between any two nodes on one ring, or `undefined` when
+ * there are fewer than two of them and nothing on the ring can collide.
+ *
+ * Sorting is what makes this one pass rather than n²: on a circle the closest
+ * pair is always adjacent in angular order, so only the consecutive gaps — the
+ * wrap-around one included — can win. The result never exceeds π, because the
+ * gaps sum to a full turn, so `sin(gap / 2)` is on its rising arm and the chord
+ * it feeds is monotone in the gap.
+ *
+ * The floor guards a degenerate ring: two nodes sharing an angle would demand
+ * an infinite radius, and an infinity here propagates into every position on
+ * the map. The caller's stretch cap turns the large-but-finite number this
+ * returns into a bounded ring instead.
+ */
+function closestGap(ids: readonly string[], angle: ReadonlyMap<string, number>): number | undefined {
+  if (ids.length < 2) return undefined
+
+  const sorted = ids
+    .map((id) => (((angle.get(id) ?? 0) % TAU) + TAU) % TAU)
+    .sort((a, b) => a - b)
+
+  let smallest = TAU - (sorted[sorted.length - 1] - sorted[0])
+  for (let index = 1; index < sorted.length; index += 1) {
+    smallest = Math.min(smallest, sorted[index] - sorted[index - 1])
+  }
+  return Math.max(smallest, 1e-4)
 }
 
 /** Undirected neighbour lists per edge language, in authoring order. */

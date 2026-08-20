@@ -380,7 +380,9 @@ beforeAll(async () => {
   await entity('acme/component/rogue', base('rogue', 'component'))
   // E_SRN_RESERVED — a kind keyword used as an entity name.
   await entity('acme/actor/metric', base('metric', 'actor'))
-  // E_SRN_VERSION — a pin that no longer matches the target's version.
+  // W_REF_STALE_PIN — a pin that resolves but no longer matches the target's
+  // version. Not E_SRN_VERSION: that is a pin resolving to nothing, which needs
+  // git, which a temp fixture has not got.
   await entity(
     'acme/product/shop/component/returns',
     base('returns', 'component', { relations: { uses: ['../../datamodel/money@7'] } }),
@@ -567,12 +569,12 @@ const PIPELINE_CODES = [
   'E_SRN_PLACEMENT',
   'E_SRN_RESERVED',
   'E_SRN_DANGLING',
-  'E_SRN_VERSION',
   'E_SRN_CROSS_SOLUTION',
   'E_STRUCT_NESTED_ENTITY',
   'E_STRUCT_MISSING_INDEX',
   'E_STRUCT_BODY_H1',
   'W_REF_DEPRECATED',
+  'W_REF_STALE_PIN',
   'W_CAP_UNREALIZED',
   'W_CAP_REALIZATION_EDGE',
   'E_MET_NO_SUBJECT',
@@ -609,6 +611,8 @@ const UNREACHABLE_FROM_DISK: Record<string, string> = {
   'E_STRUCT_DUPLICATE_SRN':
     'a bucketed path maps to exactly one SRN, so two entity directories cannot collide; the check guards a future non-filesystem source',
   'E_VER_REGRESSION': 'lib/history reads git, not the catalog directory — a temp fixture has no history',
+  'E_SRN_VERSION':
+    'V7 is "the pin resolves to no commit", which only lib/history can answer — a temp fixture has no history. A pin that resolves but has fallen behind is W_REF_STALE_PIN, and the fixture does fire that',
 }
 
 describe('diagnostic emission — every pipeline code fires on the fixture', () => {

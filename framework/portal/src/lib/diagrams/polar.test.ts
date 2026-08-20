@@ -36,6 +36,111 @@ const STRUCTURE: PolarLink[] = [
 
 const NODES = ['sol', 'p1', 'p2', 'c1', 'c2', 'c3', 'c4']
 
+/** The map's own box, and the separation the component asks the layout for. */
+const BOX = { width: 158, height: 30 }
+const SEPARATION = Math.hypot(BOX.width, BOX.height) + 22
+
+/** A solution with `count` products, each holding `each` components. */
+function solutionShape(count: number, each = 0): { nodes: string[]; links: PolarLink[] } {
+  const nodes = ['sol']
+  const links: PolarLink[] = []
+  for (let product = 0; product < count; product += 1) {
+    const id = `p${product}`
+    nodes.push(id)
+    links.push(contains('sol', id))
+    for (let component = 0; component < each; component += 1) {
+      const child = `${id}c${component}`
+      nodes.push(child)
+      links.push(contains(id, child))
+    }
+  }
+  return { nodes, links }
+}
+
+/**
+ * The closest two boxes on a laid-out map, and how far they miss each other by.
+ *
+ * `clear` is the slack in the axis that separates them: two axis-aligned boxes
+ * are apart exactly when their centres differ by a full width horizontally OR a
+ * full height vertically, so the better of the two axes is what decides, and
+ * its surplus is what there is to report. Negative means they overlap.
+ */
+function tightestPair(layout: ReturnType<typeof polarLayout>): { pair: string; clear: number } {
+  const placed = [...layout.points].map(([id, point]) => ({ id, ...toCartesian(point) }))
+  let worst = { pair: 'nothing to compare', clear: Number.POSITIVE_INFINITY }
+
+  for (let a = 0; a < placed.length; a += 1) {
+    for (let b = a + 1; b < placed.length; b += 1) {
+      const clear = Math.max(
+        Math.abs(placed[a].x - placed[b].x) - BOX.width,
+        Math.abs(placed[a].y - placed[b].y) - BOX.height,
+      )
+      if (clear < worst.clear) worst = { pair: `${placed[a].id}/${placed[b].id}`, clear }
+    }
+  }
+
+  return worst
+}
+
+describe('polarLayout box clearance', () => {
+  /**
+   * The defect this suite exists for.
+   *
+   * `/map/brass` drew its solution and both its products on top of each other
+   * at every window size — measured at 1920x1080, the root box sat at x=1025
+   * and its two products at x=875 and x=1175, three 158px boxes across 300px of
+   * canvas. The wedges were a half-circle each and looked generous; the CHORD
+   * between the centres was 150, and the chord is what a box lies along.
+   *
+   * The fewer the nodes the wider the wedges, so the smallest maps were the
+   * worst ones — which is why one, two and three products are all asserted, and
+   * why the assertion is on measured rectangles rather than on radii.
+   */
+  for (const products of [1, 2, 3]) {
+    it(`keeps a solution clear of its ${products} product${products === 1 ? '' : 's'}`, () => {
+      const { nodes, links } = solutionShape(products)
+      const layout = polarLayout({ nodes, links, focus: 'sol', nodeSeparation: SEPARATION })
+
+      expect(tightestPair(layout).clear).toBeGreaterThan(0)
+    })
+  }
+
+  it('keeps every box clear on the shape /map/brass actually has', () => {
+    // A solution, two products, and the components under them — the map that
+    // was overlapping, at each of the depths the view is allowed to draw.
+    const { nodes, links } = solutionShape(2, 3)
+
+    const overlapping = [1, 2, 3]
+      .map((maxDepth) => ({
+        maxDepth,
+        tightest: tightestPair(polarLayout({ nodes, links, focus: 'sol', maxDepth, nodeSeparation: SEPARATION })),
+      }))
+      .filter(({ tightest }) => tightest.clear <= 0)
+      .map(({ maxDepth, tightest }) => `depth ${maxDepth}: ${tightest.pair} by ${(-tightest.clear).toFixed(1)}px`)
+
+    expect(overlapping).toEqual([])
+  })
+
+  it('keeps every box clear from every focus, not just from the root', () => {
+    // Re-centring changes every angle on the map, so a clearance that held at
+    // the root says nothing about the view one click away. This walks all of
+    // them.
+    const { nodes, links } = solutionShape(3, 4)
+    const overlapping: string[] = []
+
+    for (const focus of nodes) {
+      for (const maxDepth of [1, 2, 3]) {
+        const tightest = tightestPair(polarLayout({ nodes, links, focus, maxDepth, nodeSeparation: SEPARATION }))
+        if (tightest.clear <= 0) {
+          overlapping.push(`${focus} at depth ${maxDepth}: ${tightest.pair} by ${(-tightest.clear).toFixed(1)}px`)
+        }
+      }
+    }
+
+    expect(overlapping).toEqual([])
+  })
+})
+
 describe('polarLayout', () => {
   it('puts the focus at the centre and its neighbours on the first ring', () => {
     const layout = polarLayout({ nodes: NODES, links: STRUCTURE, focus: 'sol' })
@@ -66,9 +171,9 @@ describe('polarLayout', () => {
   })
 
   it('does not let a dense branch starve its sibling into a sliver', () => {
-    // Sixteen components against one: leaf-count weighting would hand the small
-    // product 1/17 of the circle, and the ring radius is set by the NARROWEST
-    // wedge on it, so that sliver is what makes the whole map unreadable.
+    // Sixteen components against one. Leaf-count weighting hands the small
+    // product a seventeenth of the circle, and its single child then sits so
+    // close to the dense branch beside it that the two read as one crowd.
     const big = Array.from({ length: 16 }, (_, index) => `b${index}`)
     const links = [
       contains('sol', 'big'),
@@ -81,13 +186,17 @@ describe('polarLayout', () => {
       links,
       focus: 'sol',
       ringGap: 150,
-      nodeSpacing: 172,
+      nodeSeparation: 172,
     })
 
-    // Leaf weighting hands the small product one seventeenth of the circle, and
-    // 172 units of arc across 0.37 radians needs a radius of 465. The damped
-    // split gets the same ring under 300.
-    expect(layout.radii[1]).toBeLessThan(300)
+    // The lone component keeps clear air around it. Damped, the nearest node of
+    // the dense branch is 0.52 radians away; leaf weighting would put it at
+    // 0.37, and the sliver would show.
+    const s0 = layout.points.get('s0')?.angle ?? 0
+    const nearest = Math.min(
+      ...big.map((id) => Math.abs(shortestTurn(s0, layout.points.get(id)?.angle ?? 0))),
+    )
+    expect(nearest).toBeGreaterThan(0.5)
 
     // Ordering survives: the dense branch still spans more than half the map.
     const centre = layout.points.get('big')?.angle ?? 0
@@ -125,25 +234,31 @@ describe('polarLayout', () => {
     expect(layout.depth.get('far')).toBe(2)
   })
 
-  it('grows a ring until its narrowest wedge can hold a node', () => {
-    // Ten siblings on one ring: at the default gap they would overlap, so the
-    // ring must be pushed out beyond it.
+  it('grows a ring until the CHORD between neighbours clears a box', () => {
+    // Ten siblings on one ring. The arc between them clears 120 at a radius of
+    // 191; the straight line between their centres does not until 195, and the
+    // straight line is the one a box occupies.
     const many = Array.from({ length: 10 }, (_, index) => `n${index}`)
     const links = many.map((id) => contains('root', id))
-    const layout = polarLayout({ nodes: ['root', ...many], links, focus: 'root', ringGap: 100, nodeSpacing: 120 })
+    const layout = polarLayout({ nodes: ['root', ...many], links, focus: 'root', ringGap: 100, nodeSeparation: 120 })
 
     const radius = layout.points.get('n0')?.radius ?? 0
     expect(radius).toBeGreaterThan(100)
-    // Arc length between neighbours now clears the demanded spacing.
-    expect((radius * TAU) / 10).toBeGreaterThanOrEqual(120 - 1e-6)
+    expect(2 * radius * Math.sin(TAU / 10 / 2)).toBeGreaterThanOrEqual(120 - 1e-6)
+    // The arc rule would have stopped 4 units short — small, and the whole
+    // difference between boxes that touch and boxes that do not.
+    expect((radius * TAU) / 10).toBeGreaterThan(120)
   })
 
   it('caps how far a ring may be pushed out', () => {
     const many = Array.from({ length: 200 }, (_, index) => `n${index}`)
     const links = many.map((id) => contains('root', id))
-    const layout = polarLayout({ nodes: ['root', ...many], links, focus: 'root', ringGap: 100, nodeSpacing: 120 })
+    const layout = polarLayout({ nodes: ['root', ...many], links, focus: 'root', ringGap: 100, nodeSeparation: 120 })
 
-    expect(layout.points.get('n0')?.radius).toBe(300)
+    // Three steps, and the step is the separation because it is larger than the
+    // ring gap asked for — two boxes on neighbouring rings have to clear each
+    // other exactly as much as two on the same one.
+    expect(layout.points.get('n0')?.radius).toBe(360)
   })
 
   it('ignores links whose endpoints are not on the map', () => {

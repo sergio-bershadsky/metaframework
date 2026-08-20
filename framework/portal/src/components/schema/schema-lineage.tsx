@@ -1,5 +1,6 @@
 import { ChevronRight, Layers, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
+import { SectionHeading } from '@/components/entity/section-heading'
 import { entityHref } from '@/lib/catalog'
 import type { LineageField, LineageMember, LineageView } from '@/lib/schema/lineage'
 
@@ -34,7 +35,9 @@ export function SchemaLineage({ view }: { view: LineageView }) {
   return (
     <div className="mt-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Lineage</h3>
+        <SectionHeading level={3} className="text-[11px]">
+          Lineage
+        </SectionHeading>
         <p className="text-[11.5px] text-muted-foreground">
           {view.inherits
             ? 'allOf intersects — a base is never overridden, only narrowed'

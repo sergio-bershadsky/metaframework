@@ -226,7 +226,12 @@ references *out* of it. A relative `$ref` is `E_DM_REF_TARGET` (`schemas.md`).
 - No suffix means **latest** — a moving target by design; pin for
   reproducibility.
 - Only current versions exist on disk. `@N` resolves via the target's current
-  frontmatter, else via the git version→commit index, else `E_SRN_VERSION`.
+  frontmatter, else via the git version→commit index, else `E_SRN_VERSION` (an
+  error: the pin names nothing).
+- A pin that *does* resolve but is behind its target — `@1` against a current
+  `@4` — is legal and is `W_REF_STALE_PIN`, a warning. It is reported and never
+  failed: a forgotten migration and a deliberate freeze look identical from
+  outside the file.
 - The suffix pins only the entity the SRN addresses. There is no way to pin an
   ancestor.
 

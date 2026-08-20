@@ -454,12 +454,24 @@ function resolveRelations(
       }
 
       if (relation.version !== null && relation.version !== target.frontmatter.version) {
-        // Historic versions live in git, not on disk; the git index resolves
-        // them lazily. Flag the mismatch so a stale pin is visible.
+        // NOT `E_SRN_VERSION`. V7 (srn.md) fails a pin that exists "neither on
+        // the filesystem nor in the version→commit index" — a reference to
+        // nothing, which is an error. This pin resolves: historic versions live
+        // in git, and evolution.md's worked example has `order@1` legitimately
+        // reading the v1 snapshot while the entity is at v3. Emitting the error
+        // code here for a legal pin put code, severity and the /diagnostics
+        // heading in three-way disagreement, and it is the loader that was
+        // wrong: only `lib/history/git.ts`, which can actually ask git whether a
+        // commit exists, is in a position to raise V7 — and it does.
+        //
+        // What is true here is narrower and worth saying on its own: the pin has
+        // fallen behind. Either a deliberate freeze or a forgotten migration,
+        // and only the author knows which, so it is a warning
+        // (decision-record amendment 2026-08-20-e).
         diagnostics.push({
-          code: 'E_SRN_VERSION',
+          code: 'W_REF_STALE_PIN',
           severity: 'warning',
-          message: `"${relation.ref}" pins v${relation.version} but current is v${target.frontmatter.version}`,
+          message: `"${relation.ref}" pins v${relation.version} but current is v${target.frontmatter.version} — the pin still resolves, from git`,
           path: path.join(entity.relDir, ENTITY_DOCUMENT),
           srn: entity.srn,
         })

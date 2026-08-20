@@ -5,6 +5,7 @@ import { JourneyDiagram, type JourneyStepTarget } from '@/components/diagrams/jo
 import { LinkedStateChart, NavigableSequenceDiagram } from '@/components/diagrams/navigable'
 import type { SequenceParticipant } from '@/components/diagrams/sequence-diagram'
 import { JourneyLegend, type JourneyLegendStep } from '@/components/entity/journey-legend'
+import { SectionHeading } from '@/components/entity/section-heading'
 import { SchemaLineage } from '@/components/schema/schema-lineage'
 import { StoplightSchemaView } from '@/components/schema/stoplight-schema-view'
 import { stateChartAnchors, workflowAnchors } from '@/lib/artifacts/anchors'
@@ -54,9 +55,9 @@ export async function EntityArtifacts({ entity, catalog }: { entity: Entity; cat
   const ordered = [...blocks].sort((a, b) => Number(b.primary) - Number(a.primary))
 
   return (
-    <section className="mt-10">
+    <section className="mt-10" aria-labelledby="section-artifacts">
       <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Artifacts</h2>
+        <SectionHeading id="section-artifacts">Artifacts</SectionHeading>
         <span className="font-mono text-[11px] text-muted-foreground">
           {entity.artifacts.length} file{entity.artifacts.length === 1 ? '' : 's'}
         </span>

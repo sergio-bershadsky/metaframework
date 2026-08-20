@@ -40,12 +40,12 @@ What `npx vitest run src/lib/catalog` asserts to be empty of errors.
 | `E_FM_EDGE_SOURCE`       | error    | The entity's kind may not author that edge type.                                                    |
 | `E_FM_EDGE_TARGET`       | error    | The resolved target's kind is illegal for that edge type.                                           |
 | `E_SRN_DANGLING`         | error    | A relation reference resolves to an SRN with no entity in the map.                                  |
-| `E_SRN_VERSION`          | **warning** | A `@N` pin ≠ the target's current `version`.                                                     |
 | `E_STRUCT_NESTED_ENTITY` | error    | A child `index.md` directly below a non-container entity.                                           |
 | `E_STRUCT_MISSING_INDEX` | error    | An entity's computed parent SRN has no entity behind it.                                            |
 | `E_STRUCT_DUPLICATE_SRN` | error    | A second directory resolving to an already-registered SRN.                                          |
 | `E_STRUCT_BODY_H1`       | error    | A level-1 heading in the prose; the page already renders `title` as the h1.                         |
 | `W_REF_DEPRECATED`       | warning  | The relation target has `status: deprecated`.                                                       |
+| `W_REF_STALE_PIN`        | warning  | A `@N` pin that resolves but is behind the target's current `version`.                              |
 
 Graph-shape checks the loader gained with the `capability`, `journey` and
 `metric` kinds (`checkGraphShape` in the same module; `E_MET_TARGET` and
@@ -272,11 +272,15 @@ Never emit or cite these; a mention in older prose is stale.
 
 ## 4. Spec discrepancies to be aware of
 
-- **`E_SRN_VERSION` severity.** The specification classes a stale pin as error
-  V7. The catalog loader emits it as a **warning** (a pin that does not match the
-  current version is not fatal, because historic versions resolve from git);
-  `lib/history/git.ts` emits it as an error when the commit genuinely does not
-  exist. A green catalog check therefore does not mean every pin is current.
+- **`E_SRN_VERSION` severity — settled, no longer a discrepancy.** The loader
+  used to emit `E_SRN_VERSION` at severity `warning` for a stale-but-resolving
+  pin, which read as a spec divergence. It was not: V7 asks whether a pin
+  resolves *at all*, and a pin reading an older snapshot out of the
+  version→commit index resolves. The loader now emits `W_REF_STALE_PIN` for the
+  drift, and `E_SRN_VERSION` is an error emitted only by `lib/history/git.ts`,
+  when the commit genuinely does not exist (decision-record amendment
+  2026-08-20-e). A green catalog check still does not mean every pin is current —
+  read the warnings.
 - **A metric with no subject is `E_MET_NO_SUBJECT`, an error** — the one
   required relation edge in the whole contract. An earlier draft of
   `framework/spec/frontmatter.md` also called it `W_METRIC_UNATTACHED` and

@@ -79,7 +79,6 @@ actually show.
 | `E_SRN_RESERVED`         | error    | One of the eleven kinds used as a solution or entity *name*.                             | Rename the directory (unpublished) or swap (published). Kinds are bucket names only.     |
 | `E_SRN_CROSS_SOLUTION`   | error    | A network-path reference (`//other-solution/…`) leaving the solution.                    | Solutions are sealed. Model the foreign thing as an `external` component instead.        |
 | `E_SRN_DANGLING`         | error    | The reference resolves to an SRN with no entity behind it — typo, entity not created yet, or the target failed to load at stage 2. | Check the target exists **and loads**; fix the target's own diagnostics first.            |
-| `E_SRN_VERSION`          | **warning** | A `@N` pin that does not match the target's current `version`.                        | Bump the pin, or leave it if the pin is deliberate — historic versions resolve from git.  |
 | `E_FM_SCHEMA`            | error    | Type, enum, shape or requiredness violation — including an authored inverse edge, a string `version`, a multi-line `summary`, a missing per-kind required field, `deciders` absent on an accepted ADR. | Read the message: it names the field path and the constraint. Fix first, always.          |
 | `E_FM_NAME_MISMATCH`     | error    | `name` ≠ the directory name.                                                             | Change `name` to match the directory — never the directory to match `name`.               |
 | `E_FM_KIND_LOCATION`     | error    | `kind` ≠ the bucket the directory sits in.                                               | Change `kind`, or move the directory if it is unpublished and the placement was the error. |
@@ -90,6 +89,7 @@ actually show.
 | `E_STRUCT_MISSING_INDEX` | error    | An entity exists below a directory that has no `index.md`.                               | Create the missing parent `index.md` — or fix the parent's `E_FM_SCHEMA`, which is the usual real cause. |
 | `E_STRUCT_DUPLICATE_SRN` | error    | Two directories resolving to one SRN — a symlink, or a case-insensitive filesystem.      | Remove the duplicate. Symlinks are never a legitimate reuse mechanism (rule C5).           |
 | `W_REF_DEPRECATED`       | warning  | The reference target has `status: deprecated`.                                            | Migrate to the successor named by the target's derived `superseded-by`, or accept it.      |
+| `W_REF_STALE_PIN`        | warning  | A `@N` pin that resolves but no longer matches the target's current `version`.           | Bump the pin, or leave it if the freeze is deliberate — historic versions resolve from git. |
 
 Codes the loader gained with the `capability`, `journey` and `metric` kinds. The
 severity split is one rule worth reading as a rule: a violation is an **error**
@@ -135,10 +135,12 @@ Which warnings matter:
 
 - **`W_REF_DEPRECATED`** — matters. It means a swap is unfinished. Each one is a
   referrer that still has to be migrated before the old entity can rest.
-- **`E_SRN_VERSION`** (emitted as a warning by this loader, though the
-  specification classes it as an error) — matters when unintentional. A pin at
-  `@1` against a current `@4` is either a deliberate freeze or a forgotten
-  migration; only the author knows which, so ask rather than bumping silently.
+- **`W_REF_STALE_PIN`** — matters when unintentional. A pin at `@1` against a
+  current `@4` is either a deliberate freeze or a forgotten migration; only the
+  author knows which, so ask rather than bumping silently. It is *not*
+  `E_SRN_VERSION`: that error means the pin resolves to no commit at all, it is
+  raised by the history layer rather than the loader, and it never appears among
+  the warnings.
 - **`W_DM_CONTRADICTION`, `W_DM_UNION_TAG`** — schema-quality signals from the
   datamodel registry; act on them when touching the schema anyway.
 - **`W_CAP_UNREALIZED`** — matters *read against `status`*, and not otherwise. On

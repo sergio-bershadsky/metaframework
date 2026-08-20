@@ -1,4 +1,5 @@
 import { EntityLink } from '@/components/entity-link'
+import { SectionHeading } from '@/components/entity/section-heading'
 import type { Catalog, Entity } from '@/lib/catalog'
 import { kindFieldNames } from '@/lib/catalog/frontmatter'
 import { mentionsInValue } from '@/lib/catalog/mentions'
@@ -35,8 +36,8 @@ export function EntityDetails({
   if (fields.length === 0) return null
 
   return (
-    <section className="mt-10">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Details</h2>
+    <section className="mt-10" aria-labelledby="section-details">
+      <SectionHeading id="section-details">Details</SectionHeading>
 
       <dl className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-[max-content_1fr]">
         {fields.map(([field, value]) => (

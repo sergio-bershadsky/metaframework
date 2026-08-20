@@ -1,5 +1,6 @@
 import { CornerDownRight } from 'lucide-react'
 import Link from 'next/link'
+import { SectionHeading } from '@/components/entity/section-heading'
 import { KindBadge } from '@/components/kind-badge'
 import type { Catalog, EdgeType, Entity } from '@/lib/catalog'
 import { entityHref } from '@/lib/catalog/href'
@@ -67,9 +68,9 @@ export function CapabilityRealizedBy({
     })
 
   return (
-    <section className="mt-8">
+    <section className="mt-8" aria-labelledby="section-realized-by">
       <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Realized by</h2>
+        <SectionHeading id="section-realized-by">Realized by</SectionHeading>
         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <CornerDownRight className="size-3" aria-hidden />
           derived from `realizes`, never authored here

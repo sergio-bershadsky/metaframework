@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { contentsAnchor, deeperAnchor } from '@/components/entity/contents-jump'
+import { SectionHeading } from '@/components/entity/section-heading'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
 import type { Entity } from '@/lib/catalog'
 import { entityHref } from '@/lib/catalog/href'
@@ -34,8 +35,8 @@ export function EntityChildren({
   if (entities.length === 0) return null
 
   return (
-    <section className="mt-10">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Contents</h2>
+    <section className="mt-10" aria-labelledby="section-contents">
+      <SectionHeading id="section-contents">Contents</SectionHeading>
 
       <div className="mt-4 space-y-6">
         <KindGroups entities={entities} anchor={contentsAnchor} />
@@ -44,7 +45,7 @@ export function EntityChildren({
       {descendants.length > 0 && (
         <>
           <div className="mt-8 flex flex-wrap items-baseline gap-3">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Deeper</h3>
+            <SectionHeading level={3}>Deeper</SectionHeading>
             <span className="text-[11px] text-muted-foreground">
               everything below the entries above, flattened
             </span>

@@ -1,7 +1,7 @@
 ---
 name: catalog-loader
 kind: component
-version: 2
+version: 3
 title: Catalog loader
 summary: The fail-soft walk from filesystem to entity graph — the zod frontmatter contract, relation resolution, the derived inverse index, and the dev fingerprint cache.
 status: review
@@ -44,11 +44,18 @@ Nothing in this module throws. Every violation becomes a `Diagnostic` on
 `catalog.diagnostics`, and the portal renders the broken catalog with the reason
 visible instead of failing to a blank page —
 [0004-fail-soft-catalog-loading](srn://metaframework/product/portal/adr/0004-fail-soft-catalog-loading).
-Thirteen codes are raised from `load.ts`: `E_FM_SCHEMA`, `E_FM_NAME_MISMATCH`,
+Nineteen codes are raised from `load.ts`: `E_FM_SCHEMA`, `E_FM_NAME_MISMATCH`,
 `E_FM_KIND_LOCATION`, `E_FM_UNKNOWN_FIELD`, `E_FM_EDGE_SOURCE`,
-`E_FM_EDGE_TARGET`, `E_SRN_SYNTAX`, `E_SRN_DANGLING`, `E_SRN_VERSION`,
-`E_STRUCT_MISSING_INDEX`, `E_STRUCT_NESTED_ENTITY`, `E_STRUCT_DUPLICATE_SRN`
-and `W_REF_DEPRECATED`. `load.test.ts` runs one hermetic temp fixture per
+`E_FM_EDGE_TARGET`, `E_SRN_SYNTAX`, `E_SRN_DANGLING`, `E_STRUCT_MISSING_INDEX`,
+`E_STRUCT_NESTED_ENTITY`, `E_STRUCT_DUPLICATE_SRN`, `E_STRUCT_BODY_H1`,
+`E_MET_NO_SUBJECT`, `E_JRN_ACTOR_KIND`, `W_MET_SUBJECT_SCOPE`,
+`W_CAP_UNREALIZED`, `W_CAP_REALIZATION_EDGE`, `W_REF_DEPRECATED` and
+`W_REF_STALE_PIN`. `E_SRN_VERSION` is deliberately **not** among them: V7 asks
+whether a pinned `@N` resolves at all, which only the version→commit index can
+answer and this module never opens git. The drift the loader *can* see — a pin
+that resolves but is behind its target — is `W_REF_STALE_PIN`, a warning of its
+own rather than an error code worn at the wrong severity (decision-record
+amendment 2026-08-20-e). `load.test.ts` runs one hermetic temp fixture per
 diagnostic class.
 
 ## The frontmatter contract as executable code

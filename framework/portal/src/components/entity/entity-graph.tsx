@@ -1,5 +1,6 @@
 import { NavigableRelationGraph } from '@/components/diagrams/navigable'
 import type { RelationGraphEdge, RelationGraphNode } from '@/components/diagrams/relation-graph'
+import { SectionHeading } from '@/components/entity/section-heading'
 import type { Catalog, Entity } from '@/lib/catalog'
 
 /**
@@ -44,9 +45,9 @@ export function EntityGraph({ entity, catalog }: { entity: Entity; catalog: Cata
   if (edges.length === 0) return null
 
   return (
-    <section className="mt-10">
+    <section className="mt-10" aria-labelledby="section-neighbourhood">
       <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Neighbourhood</h2>
+        <SectionHeading id="section-neighbourhood">Neighbourhood</SectionHeading>
         <span className="font-mono text-[11px] text-muted-foreground">
           {edges.length} relation{edges.length === 1 ? '' : 's'}, one hop
         </span>

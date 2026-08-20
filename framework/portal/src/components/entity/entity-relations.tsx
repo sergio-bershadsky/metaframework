@@ -1,5 +1,6 @@
 import { ArrowUpRight, CornerDownRight } from 'lucide-react'
 import Link from 'next/link'
+import { SectionHeading } from '@/components/entity/section-heading'
 import { KindBadge } from '@/components/kind-badge'
 import type { Catalog, EdgeType, Entity } from '@/lib/catalog'
 import { entityHref } from '@/lib/catalog/href'
@@ -42,8 +43,8 @@ export function EntityRelations({
   const incoming = groupBy(shown, (edge) => edge.edge)
 
   return (
-    <section className="mt-10">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Relations</h2>
+    <section className="mt-10" aria-labelledby="section-relations">
+      <SectionHeading id="section-relations">Relations</SectionHeading>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
         <div>

@@ -1,7 +1,7 @@
 ---
 name: catalog-validation
 kind: component
-version: 2
+version: 3
 title: Catalog validation
 summary: Legality — how to run the portal's check, the cascade order to read it in, the code-to-fix table, and an explicit inventory of what it does not cover.
 status: review
@@ -61,9 +61,9 @@ recounting dots.
 
 **Which warnings matter.** The check filters on `severity === 'error'`, so
 warnings never fail it and a passing run never prints them. `W_REF_DEPRECATED`
-means a swap is unfinished; `E_SRN_VERSION` — emitted as a warning by this loader
-though the specification classes it as an error — is either a deliberate freeze
-or a forgotten migration, and only the author knows which.
+means a swap is unfinished; `W_REF_STALE_PIN` — a pin that still resolves but is
+behind its target — is either a deliberate freeze or a forgotten migration, and
+only the author knows which.
 
 ## The section that makes it honest
 
