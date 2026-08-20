@@ -26,7 +26,7 @@ steps:
       open it — nothing in the flow above brings them here.
 
   - actor: /actor/reviewer
-    touches: /product/authoring-kit/component/architecture-review
+    touches: /product/authoring-kit/component/plugin
     protocol: none
     # portal -> authoring-kit, carried by the person: they leave the browser and
     # ask a model. The portal has no surface for this question at all.

@@ -1,7 +1,7 @@
 ---
 name: 0010-additive-only-evolution
 kind: adr
-version: 1
+version: 2
 title: Evolution is additive-only — never reduce, only extend or swap
 summary: A contract surface is extended in place with a version bump or replaced by a successor carrying a supersedes edge; it is never narrowed, and no entity is ever deleted, moved or renamed.
 status: review
@@ -101,9 +101,9 @@ one at a time as ordinary additive changes, set the predecessor to
   frontmatter contract against its predecessor, and nothing detects a deleted
   directory at all. `docs/decision-record.md` being append-only is enforced by no
   test, no lint and no hook. The rule is held by author discipline and by the
-  authoring kit's
-  [entity-evolution](srn://metaframework/product/authoring-kit/component/entity-evolution)
-  skill.
+  authoring kit's `evolve-entity` skill, carried by its
+  [plugin](srn://metaframework/product/authoring-kit/component/plugin)
+  component.
 - **The spec has already broken it twice, and the breaches are recorded rather
   than repaired.** Commit `5b8a3e8` bumped `index.md` 3→5, `srn.md` 3→5,
   `evolution.md` 2→4 and `frontmatter.md` 2→4 in one commit, so `index.md@4`,

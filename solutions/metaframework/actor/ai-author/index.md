@@ -1,7 +1,7 @@
 ---
 name: ai-author
 kind: actor
-version: 1
+version: 2
 title: AI author
 summary: The model runtime that authors the catalog through the plugin's skills — the reader every SKILL.md description is actually written for.
 status: review
@@ -14,7 +14,7 @@ goals:
   - Recognise a change that is forbidden in place before making it.
 relations:
   uses:
-    - /product/authoring-kit/component/commands
+    - /product/authoring-kit/component/plugin
     - /product/authoring-kit/component/reference-bundle
 tags:
   - llm
@@ -38,7 +38,7 @@ The runtime is outside the ownership boundary. Its internals are not described
 here, its behaviour cannot be changed from this repository, and the only
 negotiation available is the wording of a skill and the phrasing of a rule. What
 *is* ours is the plugin: the seven skills, the three commands, the agent, and the
-2,571-line reference bundle it reads when `framework/spec/` is not on disk.
+3,562-line reference bundle it reads when `framework/spec/` is not on disk.
 
 The boundary test's third question settles it: does anything have to name this
 counterpart in a `uses`, `exposes`, `depends-on` or `implements` edge? Nothing
@@ -77,7 +77,7 @@ is a `must` with no enforcement behind it.
 
 This actor is not the reviewing agent. `agents/catalog-reviewer.md` is a
 configuration *we* own — a prompt plus `tools: Read, Grep, Glob` — described on
-[architecture-review](srn://metaframework/product/authoring-kit/component/architecture-review);
+[plugin](srn://metaframework/product/authoring-kit/component/plugin);
 the runtime that executes it is this actor. The two are separate for the same
 reason a credential is separate from the process that assumes it.
 

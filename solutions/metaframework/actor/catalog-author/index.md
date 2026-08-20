@@ -1,7 +1,7 @@
 ---
 name: catalog-author
 kind: actor
-version: 1
+version: 2
 title: Catalog author
 summary: The person who writes index.md, schema.json, workflows and states.json — and the named beneficiary of the portal's diagnostics page.
 status: review
@@ -14,7 +14,7 @@ goals:
   - Write a description a colleague and a model can both act on.
 relations:
   uses:
-    - /product/authoring-kit/component/commands
+    - /product/authoring-kit/component/plugin
     - /product/portal/component/console/component/diagnostics-report
 tags:
   - authoring

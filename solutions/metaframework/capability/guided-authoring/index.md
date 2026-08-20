@@ -1,7 +1,7 @@
 ---
 name: guided-authoring
 kind: capability
-version: 1
+version: 2
 title: Get a conformant description written by somebody who has not read the rules
 summary: Put a person or a model in front of an empty directory and have them produce a catalog that is legal, without them having read the specification first.
 status: review
@@ -45,12 +45,12 @@ kit that disagrees with the spec guides them somewhere else.
   narrow — is exactly what the framework forbids, and nothing in the repository
   compares an entity against its predecessor, so a narrowing edit and a `git mv`
   both pass the check. Being told *before* making the change is therefore part
-  of the doing, not a nicety
-  ([entity-evolution](srn://metaframework/product/authoring-kit/component/entity-evolution)).
+  of the doing, not a nicety — the `evolve-entity` skill on the kit's
+  [plugin](srn://metaframework/product/authoring-kit/component/plugin).
 - **Stops at legality plus advice.** Whether the resulting description is any
-  *good* is asked by
-  [architecture-review](srn://metaframework/product/authoring-kit/component/architecture-review),
-  and its answer is a judgement, not a verdict. The judgement is inside this
+  *good* is asked by the same
+  [plugin](srn://metaframework/product/authoring-kit/component/plugin)'s
+  `review-solution` skill, and its answer is a judgement, not a verdict. The judgement is inside this
   capability only as far as "here are fifteen candidates worth looking at";
   deciding is the reader's.
 - **Says nothing about which model.** The runtime is

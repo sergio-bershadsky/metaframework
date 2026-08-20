@@ -19,7 +19,10 @@ swaps — entities are never moved or renamed.
 **Rules:** `framework/spec/` when the repository has it (authoritative),
 otherwise `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` (`srn.md`,
 `structure.md`, `frontmatter.md`, `schemas.md`, `protocols.md`,
-`environments.md`, `journeys.md`, `evolution.md`).
+`environments.md`, `journeys.md`, `evolution.md`). `decomposition.md` in the
+same directory carries the component tests and the granularity band — judgement
+the spec deliberately leaves open, so it applies even when `framework/spec/` is
+on disk.
 
 ## Step 1 — check legality first
 
@@ -120,6 +123,25 @@ same enum repeated. Each copy drifts independently; the catalog then describes a
 disagreement it does not have. The fix is promotion to one datamodel entity that
 the others `$ref` — or an `abstract: true` base composed with `allOf`.
 
+**Component trees read against the component tests.** The four tests and the
+granularity band are in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`; read every
+product's component tree against them. The smells, none of which any `R_*`
+code fires on:
+
+| Smell                                             | What it usually means                                                                                          |
+|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| Component count outside the band                  | Twenty+: cut by file layout or org chart. Exactly one: not decomposed, or a component wearing a product's clothes |
+| A component nothing references                    | No inbound edge from outside its own subtree — the boundary carries no edge, so the test fails even when `R_ORPHAN` stays quiet (outgoing edges silence it) |
+| Component-per-source-file                         | The catalog mirrors the source tree; git already stores that, and every refactor now demands a swap             |
+| Prose restating the parent                        | The `index.md` says nothing its parent does not — a feature or chapter filed as an entity; fold it into the parent's prose as a table, files as artifacts |
+| Density inconsistent across products              | "Component" no longer means one altitude; every cross-product comparison silently compares different things     |
+
+Each of these is a structural finding whose fix is a merge — a swap, priced in
+referrers — so confirm against the tests before proposing it, and remember the
+asymmetry: a missing split is cheap to add later, a wrong boundary costs a
+swap to remove.
+
 **Decisions with no ADR.** Any of these without a record is a hole: the split of
 one product into components, a persistence or messaging choice visible in the
 protocols, an external dependency (`component-type: external`), a
@@ -202,4 +224,7 @@ it.
 - **`references/review-checklist.md`** — every thing to look for: symptom, how
   to confirm it, the false positives, the fix and what the fix costs.
 - **`references/writing-the-review.md`** — report structure and a worked excerpt.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`** — the
+  component tests, the band, and the anti-patterns behind the Step 5
+  decomposition smells.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the distilled spec.

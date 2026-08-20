@@ -1,7 +1,7 @@
 ---
 name: kit-works-without-the-spec
 kind: requirement
-version: 1
+version: 2
 title: The kit produces correct catalogs without the spec on disk
 summary: An installed plugin cannot see framework/spec, so the bundled distillation must be sufficient on its own and must agree with the spec when both are present.
 status: review
@@ -35,19 +35,23 @@ and it must **agree** with the spec whenever both are visible.
   - Verified by reading: all seven `SKILL.md` files, `agents/catalog-reviewer.md`
     and `commands/solution-new.md` carry the rule; `commands/entity-new.md` and
     `commands/catalog-check.md` delegate it to the skill they route to.
-- Every file in `skills/_shared/references/` opens by naming the spec document it
-  distils and conceding precedence to it.
-  - Verified 2026-08-19 by reading the opening blockquote of all seven files.
+- Every file in `skills/_shared/references/` opens by naming what it distils and
+  conceding precedence to `framework/spec/`.
+  - Verified 2026-08-20 by reading the opening blockquote of all nine files.
+    Eight name a spec document; `decomposition.md` names this repository's
+    recomposition history and an external comparison as its sources — the calls
+    it carries are ones the spec leaves open — and still concedes precedence to
+    the spec wherever the two overlap.
 - No rule stated in the bundle contradicts the rule it distils in
   `framework/spec/`.
   - **Unverified.** Nothing compares the two, and the comparison has never been
     made document by document.
 - No factual claim a skill makes about the portal or the repository is stale.
-  - **Currently false.** `skills/validate-catalog/SKILL.md` says "Two files run"
-    and "A pass looks like `Test Files  2 passed (2)`";
-    `framework/portal/src/lib/catalog` holds four test files today —
-    `fingerprint.test.ts`, `fixture-check.test.ts`, `load.test.ts`,
-    `tree.test.ts` — and the run prints four.
+  - **Currently false.** `skills/validate-catalog/SKILL.md:26` says "Two files
+    run", and `:29` shows a pass as `Test Files  2 passed (2)` — now softened
+    by "Test counts drift as the fixture grows; the pass/fail line is the
+    signal", but `framework/portal/src/lib/catalog` holds ten test files today
+    and the run prints ten.
 - A catalog authored with the plugin installed outside this repository loads with
   zero error diagnostics.
   - **Never attempted.** Both catalogs in the repository — `solutions/acme` and
@@ -57,8 +61,8 @@ and it must **agree** with the spec whenever both are visible.
 ## Rationale
 
 `marketplace/README.md` gives the reason the duplication exists: "an installed
-plugin cannot see `framework/spec/` on disk". 7,279 lines of specification become
-2,571 lines of distillation, and the compression is where fidelity is lost —
+plugin cannot see `framework/spec/` on disk". 9,832 lines of specification become
+3,562 lines of distillation, and the compression is where fidelity is lost —
 worked examples and rationale go first, and a rule whose only clear statement was
 inside an example goes with them.
 

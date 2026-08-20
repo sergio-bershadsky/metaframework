@@ -34,7 +34,10 @@ This skill carries procedure and judgement. Legality lives in the specification.
   (`$id`, `x-srn`, canonical schema URLs), `protocols.md` (the protocol artifacts),
   `environments.md` (environment, actor, ADR, requirement), `journeys.md` (the
   `journey.yaml` mini-spec and the product-crossing check), `evolution.md`
-  (names are permanent). The business layer is spread across those on purpose:
+  (names are permanent), `decomposition.md` (the component tests and the
+  granularity band — judgement the spec deliberately leaves open, so it applies
+  even when `framework/spec/` is on disk). The business layer is spread across
+  those on purpose:
   capability and metric fields and the `realizes`/`measures` edges are in
   `frontmatter.md`, their placement is in `structure.md`, and only the journey
   artifact needed a file of its own.
@@ -109,6 +112,22 @@ produces a catalog nobody recognises.
 
 Apply the heuristics below. Write down, for each non-obvious call, the
 alternative rejected and why — that list is what makes Phase 3 reviewable.
+
+This is the point where the cut gets made, so before any candidate earns the
+word **component**, put it through the four component tests, in order: is it a
+unit of **delivery and decision** (ships, versions, fails, own-able separately
+from its parent)? does its boundary **carry an edge** (something outside it
+references it)? does it have its **own failure mode**? could a **team own it**?
+A candidate failing all four is a feature, a file, or a chapter — content of a
+component: it becomes a table in the parent's prose and its files the parent's
+artifacts, not an entity. Hold each product to the **granularity band** — a
+handful of components, not one and not twenty — and hold the density
+*consistent across products*, because a catalog where one product has two
+components and its neighbour has twenty has stopped meaning one thing by
+"component". When in doubt, do not split yet: merging later destroys prose and
+edges through a swap, splitting later is additive and cheap. The tests, the
+band, and the anti-patterns this catalog has already paid for are in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`.
 
 ### Phase 3 — Propose the tree, then STOP
 
@@ -335,6 +354,10 @@ dispatch it for a full audit rather than re-deriving the tree by hand.
   rule with its argument, and the mechanical definition of a product crossing.
   Read it before proposing any journey; **H13** is only as good as that
   definition.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`** — the
+  four component tests, the granularity band, the merge/split asymmetry, and
+  the three anti-patterns with the receipts from this repository's own history.
+  Read it at Phase 2, before any cut is proposed.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the distilled rules,
   used when `framework/spec/` is not on disk.
 - **`solutions/acme/`** — the worked fixture, when the repository is present.

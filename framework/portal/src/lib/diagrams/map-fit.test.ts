@@ -134,7 +134,6 @@ const KNOWN_TIGHT: Record<string, string[]> = {
   ],
   'srn://acme': [],
   'srn://metaframework': [
-    '1024x720 focus=authoring-kit: 9 neighbours, zoom 0.69 (8.2px)',
     '1024x720 focus=portal: 11 neighbours, zoom 0.58 (7.0px)',
     '1024x720 focus=catalog-loader: 10 neighbours, zoom 0.66 (7.9px)',
   ],

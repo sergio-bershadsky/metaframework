@@ -1,7 +1,7 @@
 ---
 name: review-first-change
 kind: requirement
-version: 1
+version: 2
 title: A change to a described system is reviewed as a diff before it lands
 summary: The file diff is the review surface; a change to the catalog should be read and judged before it is merged, and today nothing makes that happen.
 status: review
@@ -72,7 +72,7 @@ unmet obligation, and the difference matters to whoever picks this repository up
 ## Out of scope
 
 Review *quality*. What makes a description good rather than merely legal is the
-subject of the authoring kit's
-[architecture-review](srn://metaframework/product/authoring-kit/component/architecture-review)
-component and its 352-line checklist. This requirement is only about the loop
+subject of the `review-solution` skill on the authoring kit's
+[plugin](srn://metaframework/product/authoring-kit/component/plugin)
+component and its 562-line checklist. This requirement is only about the loop
 existing.

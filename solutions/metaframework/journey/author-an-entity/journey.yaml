@@ -1,7 +1,7 @@
 name: author-an-entity
 steps:
   - actor: /actor/ai-author
-    touches: /product/authoring-kit/component/commands
+    touches: /product/authoring-kit/component/plugin
     note: /entity-new routes on kind and stops. Every command in the kit ends by
       forbidding the model to improvise from the command file.
 
@@ -11,7 +11,7 @@ steps:
       framework/spec on disk and this repository is the only one that has it.
 
   - actor: /actor/ai-author
-    touches: /product/authoring-kit/component/entity-authoring
+    touches: /product/authoring-kit/component/plugin
     note: Writes index.md, and schema.json or workflows if the kind has them.
       Placement is decided here and is the one thing that cannot be fixed later.
 
@@ -24,7 +24,7 @@ steps:
       every violation becomes a diagnostic; nothing throws.
 
   - actor: /actor/ai-author
-    touches: /product/authoring-kit/component/catalog-validation
+    touches: /product/authoring-kit/component/plugin
     protocol: none
     # portal -> authoring-kit, carried by the actor: it reads the printed
     # diff and looks the code up in a markdown table.

@@ -1,7 +1,7 @@
 ---
 name: 0001-skills-organised-by-activity
 kind: adr
-version: 1
+version: 2
 title: Organise the skills by activity, not by entity kind
 summary: Skills are cut by what the author is doing — design, add, evolve, validate, review — because one skill per kind would make seven skills fight over the same trigger phrases.
 status: review
@@ -12,8 +12,7 @@ deciders:
   - sergio
 relations:
   uses:
-    - ../../component/entity-authoring
-    - ../../component/commands
+    - ../../component/plugin
 tags:
   - plugin
   - decomposition
@@ -64,11 +63,12 @@ those two and covers the other seven kinds. The dispatch rule lives in one place
   stale when a kind document changes. Its 612-line `worked-examples.md` exists
   because a single procedure covering seven kinds is not readable without one
   worked instance per kind.
-- The catalog inherits the shape. This solution models the three creation skills
-  as one component,
-  [entity-authoring](srn://metaframework/product/authoring-kit/component/entity-authoring),
-  for the same reason the decision gives: three components whose summaries differ
-  only by which kind they accept are indistinguishable siblings.
+- The catalog does not model the cut as component boundaries. A skill cannot
+  ship, version, fail or be owned apart from the plugin that carries it, so this
+  solution models the whole deliverable as one component,
+  [plugin](srn://metaframework/product/authoring-kit/component/plugin), and the
+  activity cut lives there as a table in the prose — with this decision as the
+  record of why the rows are what they are.
 - Nothing enforces the disjointness. Trigger-phrase overlap is a property of
   prose, and no test in this repository reads a `description` field. If two
   skills start competing, the symptom is a model picking the wrong one, and there

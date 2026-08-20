@@ -6,7 +6,7 @@ steps:
       a wrong bucket is a swap rather than a move.
 
   - actor: /actor/catalog-author
-    touches: /product/authoring-kit/component/commands
+    touches: /product/authoring-kit/component/plugin
     protocol: none
     # specification -> authoring-kit, carried by the person: they type a slash
     # command. Nothing passes from the spec to the plugin.
@@ -14,12 +14,12 @@ steps:
       telling the model not to improvise from the command file.
 
   - actor: /actor/catalog-author
-    touches: /product/authoring-kit/component/solution-design
+    touches: /product/authoring-kit/component/plugin
     note: The interview, the decomposition heuristics, a proposed SRN tree, and
       the sign-off gate that runs before any file exists.
 
   - actor: /actor/ai-author
-    touches: /product/authoring-kit/component/entity-authoring
+    touches: /product/authoring-kit/component/plugin
     note: The hand-off. The model writes index.md and any sibling artifact; the
       person has approved a tree, not a document.
 

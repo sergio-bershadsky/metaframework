@@ -927,3 +927,77 @@ would need the same treatment.
 And whether `W_REF_STALE_PIN` should be suppressible per reference — a deliberate
 freeze has no way to say so, so it warns forever. An `x-` frontmatter annotation
 is the obvious shape and nothing needs it yet.
+
+## Amendment 2026-08-20-f — pre-baseline recomposition of the authoring-kit, executed in place
+
+The authoring-kit product was remodelled from seven components to two, and the
+old seven were deleted rather than swapped. Both halves of that sentence are
+decisions, and this amendment records them.
+
+### The modelling error, in the owner's words
+
+> From a product-management view the authoring-kit was modelled wrongly on two
+> axes at once. GRANULARITY: seven components, roughly one per skill — but a
+> skill is a FEATURE, not a component. It cannot ship, version, fail or be
+> owned separately from the plugin that carries it; a component is a unit of
+> delivery and decision, and the unit of delivery here is the plugin.
+> HONESTY: the catalog names the kit as if it were an agnostic authoring tool,
+> when the real thing on disk is a CLAUDE CODE PLUGIN
+> (`marketplace/plugins/metaframework`: `skills/`, `commands/`, `agents/`,
+> `.claude-plugin/`) distributed through a Claude MARKETPLACE
+> (`marketplace/`). That is a real, well-known structure and the catalog hides
+> it behind invented vocabulary — in a solution whose founding rule is "model
+> what exists".
+
+The target shape is two components. `component/plugin` is the deliverable
+itself, naming the Claude Code structure plainly: the seven skills are a table
+in its prose and their `SKILL.md` files are its artifacts — the way
+`schema.json` is a datamodel's artifact — not sub-components; the three
+commands and the reviewer agent are prose sections, not entities; portability
+to other agent runtimes is aspiration and is not modelled.
+`component/reference-bundle` is kept, because it is the one boundary that earns
+its place: it distils the specification product, an installed plugin cannot
+read `framework/spec/`, and drift between spec and bundle is a real defect
+class that has occurred twice in this project's history. A distinct failure
+mode is the component test, and the bundle is the only part of the plugin that
+passes it.
+
+Six component entities were deleted outright — `solution-design`,
+`entity-authoring`, `entity-evolution`, `catalog-validation`,
+`architecture-review` (with its `catalog-facts` child) and `commands` — and
+every edge and prose link that pointed at them, across actors, journeys,
+capabilities, ADRs and requirements, was repointed at `component/plugin` in the
+same change, with a version bump on every entity edited.
+
+### Why the swap procedure was deliberately not used
+
+`framework/spec/evolution.md`'s swap-and-deprecate exists to protect reviewed
+structure with live referrers: both entities stay live while referrers migrate
+one at a time, and the tombstone remains as the address history of something a
+consumer once relied on. Nothing in this catalog has ever been approved — the
+owner has explicitly kept every entity at `status: review` pending his first
+item-by-item pass. Recomposition before that first baseline is unfinished
+**authorship**, not evolution; running it through the swap procedure would have
+left seven permanent tombstone directories in the one catalog the owner intends
+to run his project from, deprecation edges pointing at entities no reader ever
+depended on, and a `supersedes` chain recording the revision history of a
+draft. Git keeps that memory instead — the seven deleted entities exist in
+full in every commit before this one.
+
+### The boundary of the exception
+
+The exception is the pre-baseline state, and it ends at the owner's first
+item-by-item confirmation. From the moment an entity in this catalog is
+approved, every structural change to it goes through `evolution.md`'s swap
+procedure without argument, tombstones included. In-place recomposition is a
+decision made once, here, for a catalog that has never been reviewed — not a
+habit, and not a precedent for the next time a decomposition looks wrong.
+
+### What this amendment does not settle
+
+Whether the `component-type` enum should grow a value for a distributable
+content artifact. `component/plugin` carries `library` and records the strain
+in its own prose: the enum fits the mechanics (read, not run) and misses the
+distribution half, which `plugin.json`'s version field carries. No other entity
+in the three shipped catalogs needs the missing value yet, and an enum widened for
+one entity is the kind of change the spec should make for two.

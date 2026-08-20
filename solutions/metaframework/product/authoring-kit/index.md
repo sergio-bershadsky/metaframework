@@ -1,9 +1,9 @@
 ---
 name: authoring-kit
 kind: product
-version: 2
+version: 3
 title: Authoring kit
-summary: The Claude Code plugin that teaches a model to author and evolve a catalog — seven skills, three commands, one agent, and a distilled copy of the spec.
+summary: A Claude Code plugin distributed through a Claude marketplace — seven skills, three commands, one agent and a distilled copy of the spec, teaching a model to author and evolve a catalog.
 status: review
 owner: sergio
 lifecycle: incubating
@@ -23,13 +23,18 @@ tags:
   - authoring
 ---
 
-`marketplace/plugins/metaframework/` — a Claude Code plugin: seven skills, three
-commands, one agent, seven shared reference files, eight skill-local reference
-files and one Python script. 7,488 lines of markdown and Python (`wc -l` over
-every file in the plugin except `plugin.json`, which is 19 lines of manifest).
+`marketplace/plugins/metaframework/` — a Claude Code plugin, distributed through
+the Claude marketplace at `marketplace/`: seven skills, three commands, one
+agent, nine shared reference files, nine skill-local reference files and one
+Python script. 10,245 lines of markdown and Python (`wc -l` over every `.md`
+and `.py` file in the plugin; `plugin.json`, the 19-line manifest, is the only
+file not counted).
 
-It ships no build, no binary and no runtime. Its whole substance is prose written
-to be read by a model at the moment it is about to write a catalog file.
+It ships no build, no binary and no runtime. Its whole substance is prose
+written to be read by a model at the moment it is about to write a catalog
+file. That is a real, well-known structure — `skills/`, `commands/`, `agents/`,
+`.claude-plugin/` — and this catalog names it as what it is rather than as an
+agnostic authoring tool it is not.
 
 ## Why this is a product and not a component of the portal
 
@@ -42,44 +47,33 @@ spec has. **Audience:** the reader it is written for is
 no surface for at all; the portal is a read-only renderer aimed at a human
 opening a page. **Form:** it is markdown that becomes part of a model's context,
 not a Next.js application. Folding it into the portal would put a set of
-instructions for writing files inside a product whose stated design claim is that
-it only reads them.
-
-## Its decomposition is argued in its own README
-
-`marketplace/README.md` states the seam and this catalog follows it rather than
-inventing one:
-
-> The three creation skills are disjoint by kind: `datamodel` → `model-data`,
-> `protocol` → `protocol-design`, everything else → `add-entity`. The two audit
-> skills are disjoint by question: `validate-catalog` asks "is it legal?",
-> `review-solution` asks "is it any good?".
-
-Followed **by responsibility, not by file**. The three creation skills are one
-component — [entity-authoring](srn://metaframework/product/authoring-kit/component/entity-authoring)
-— because three components whose summaries differ only by which kind they accept
-is precisely the "two components whose summaries you cannot tell apart" failure
-that the kit's own `agents/catalog-reviewer.md` tells a reviewer to flag. The two
-audit skills stay apart because they answer different questions, and the question
-is the component boundary here.
+instructions for writing files inside a product whose stated design claim is
+that it only reads them.
 
 ## What it is made of
 
+Two components, because the product contains exactly one boundary along which
+its parts ship, fail and drift separately:
+
+- [plugin](srn://metaframework/product/authoring-kit/component/plugin) — the
+  deliverable itself: the seven skills, the three commands, the reviewer agent,
+  the `catalog_facts.py` script and the manifest. A skill is a feature of the
+  plugin, not a component — it cannot ship, version, fail or be owned
+  separately from the plugin that carries it — so the skills are a table in
+  that component's prose and their `SKILL.md` files are its artifacts, the same
+  way `schema.json` is a datamodel's artifact.
 - [reference-bundle](srn://metaframework/product/authoring-kit/component/reference-bundle)
-  — the distilled spec, carried so the rules travel with the plugin.
-- [solution-design](srn://metaframework/product/authoring-kit/component/solution-design)
-  — the phase before any file exists; its output is an agreed SRN tree.
-- [entity-authoring](srn://metaframework/product/authoring-kit/component/entity-authoring)
-  — one entity, any kind, once its placement is settled.
-- [entity-evolution](srn://metaframework/product/authoring-kit/component/entity-evolution)
-  — the only part permitted near a published entity.
-- [catalog-validation](srn://metaframework/product/authoring-kit/component/catalog-validation)
-  — legality: run the check, read the cascade, know what it does not cover.
-- [architecture-review](srn://metaframework/product/authoring-kit/component/architecture-review)
-  — judgement, with [catalog-facts](srn://metaframework/product/authoring-kit/component/architecture-review/component/catalog-facts)
-  underneath it as the only executable artifact in the kit.
-- [commands](srn://metaframework/product/authoring-kit/component/commands)
-  — 130 lines that route and nothing else.
+  — the distilled spec, carried so the rules travel with the plugin. It earns
+  the separate component because it has a failure mode nothing else in the
+  plugin has: it distils another product, an installed plugin cannot read
+  `framework/spec/`, and drift between spec and bundle has already happened
+  twice in this project's history.
+
+How the skills are cut — by activity, never by entity kind — is a recorded
+decision,
+[0001-skills-organised-by-activity](srn://metaframework/product/authoring-kit/adr/0001-skills-organised-by-activity),
+and the seam is stated in `marketplace/README.md`: the three creation skills
+are disjoint by kind, the two audit skills disjoint by question.
 
 ## The dependency, and its direction
 
@@ -96,23 +90,21 @@ distillation stops being a distillation.
 
 ## What it owns no code for
 
-The kit documents enforcement it does not perform. `validate-catalog` is a
-reader's manual over `framework/portal/src/lib/catalog`, which belongs to a
-different product; the pass condition it teaches is
-`cd framework/portal && npx vitest run src/lib/catalog`, run by a human. That
-cross-product edge is authored on
-[catalog-validation](srn://metaframework/product/authoring-kit/component/catalog-validation),
-where it belongs, and it is the honest picture rather than an embarrassment: the
-kit's job is to know what the check means, not to be the check.
+The kit documents enforcement it does not perform. Its `validate-catalog` skill
+is a reader's manual over `framework/portal/src/lib/catalog`, which belongs to
+a different product; the pass condition it teaches is
+`cd framework/portal && npx vitest run src/lib/catalog`, run by a human or a
+model. That cross-product edge is authored on
+[plugin](srn://metaframework/product/authoring-kit/component/plugin), where it
+belongs, and it is the honest picture rather than an embarrassment: the kit's
+job is to know what the check means, not to be the check.
 
 ## Where it is already drifting
 
-`skills/validate-catalog/SKILL.md` tells its reader "Two files run" and "A pass
-looks like `Test Files  2 passed (2)`". Today `framework/portal/src/lib/catalog`
-holds four test files — `fingerprint.test.ts`, `fixture-check.test.ts`,
-`load.test.ts`, `tree.test.ts` — and the run prints four. Nothing in the
-repository detects that: no test, no lint, no CI compares the kit's claims
-against the portal or the spec.
+`skills/validate-catalog/SKILL.md:26` says "Two files run";
+`framework/portal/src/lib/catalog` holds ten test files today and the run
+prints ten. Nothing in the repository detects that: no test, no lint, no CI
+compares the kit's claims against the portal or the spec.
 [kit-works-without-the-spec](srn://metaframework/product/authoring-kit/requirement/kit-works-without-the-spec)
 records the obligation and the fact that nothing enforces it.
 
@@ -121,11 +113,17 @@ records the obligation and the fact that nothing enforces it.
 No release. Zero git tags, no changelog, no publish step, no registry entry;
 the documented install path in `marketplace/README.md` is an absolute local
 filesystem path on the author's machine, with "from a git remote, point
-`marketplace add` at the repository instead" offered untested. `lifecycle:
-incubating` is that fact, not a hedge.
+`marketplace add` at the repository instead" offered untested.
+`marketplace/.claude-plugin/marketplace.json` lists this one plugin with
+`source: "./plugins/metaframework"` — a relative path inside this repository,
+not a remote anyone else can reach. `lifecycle: incubating` is that fact, not a
+hedge.
+
+No runtime but Claude, either. Portability to other agent runtimes is
+aspiration, and this catalog does not model aspiration.
 
 There is also no packaging component in this tree. `marketplace.json` plus
-`plugin.json` is about forty lines of declaration with no behaviour, no test and
-no consumer inside the repository; install and distribution are stated here, in
-prose, rather than given a directory. That omission is a decision, recorded so it
-is not read as an oversight.
+`plugin.json` is about forty lines of declaration with no behaviour, no test
+and no consumer inside the repository; install and distribution are stated
+here, in prose, rather than given a directory. That omission is a decision,
+recorded so it is not read as an oversight.

@@ -1,7 +1,7 @@
 ---
 name: document-a-solution
 kind: journey
-version: 1
+version: 2
 title: Document a solution
 summary: A person's path from an empty directory to a described system — spec, kit, model, and the one page that says whether any of it is legal.
 status: review
@@ -58,7 +58,7 @@ claim, and it is the accurate one:
   installed anywhere but here
   ([kit-works-without-the-spec](srn://metaframework/product/authoring-kit/requirement/kit-works-without-the-spec)).
 - **authoring-kit → portal.** The kit's own skills end on the portal's check, and
-  [catalog-validation](srn://metaframework/product/authoring-kit/component/catalog-validation)
+  its [plugin](srn://metaframework/product/authoring-kit/component/plugin)
   declares a real `depends-on` edge to
   [catalog-loader](srn://metaframework/product/portal/component/catalog-loader).
   What crosses is a command a person types and files already on disk. There is
@@ -93,9 +93,9 @@ manufacture the step, the path stops at the page.
 
 ## Out of scope
 
-Changing an entity that already exists. That is
-[entity-evolution](srn://metaframework/product/authoring-kit/component/entity-evolution)'s
-path and it has a different outcome — additive edit or swap — so by the
+Changing an entity that already exists. That is the `evolve-entity` skill's
+path ([plugin](srn://metaframework/product/authoring-kit/component/plugin))
+and it has a different outcome — additive edit or swap — so by the
 no-branching rule it is a different journey, and it is not written down yet.
 
 Judging the result. `steps[5]` ends on a page, not on a verdict; the audit is

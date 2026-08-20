@@ -1,7 +1,7 @@
 ---
 name: additive-only-evolution
 kind: requirement
-version: 1
+version: 2
 title: A contract surface is never reduced, only extended or swapped
 summary: An entity's contract surface may be extended with a version bump or replaced by a successor that is swapped in; it is never narrowed in place.
 status: review
@@ -62,8 +62,9 @@ contract against its predecessor, and nothing detects a deleted directory at all
 no hook.
 
 So AC-1 through AC-3 are held by author discipline and by the authoring kit's
-[entity-evolution](srn://metaframework/product/authoring-kit/component/entity-evolution)
-skill, which owns the additive-versus-swap decision. AC-4 is implemented but
+`evolve-entity` skill
+([plugin](srn://metaframework/product/authoring-kit/component/plugin)),
+which owns the additive-versus-swap decision. AC-4 is implemented but
 unwired. AC-5 is a convention that this repository has already broken twice.
 
 ## Rationale

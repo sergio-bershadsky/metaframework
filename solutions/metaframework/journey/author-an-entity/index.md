@@ -1,7 +1,7 @@
 ---
 name: author-an-entity
 kind: journey
-version: 1
+version: 2
 title: Author an entity
 summary: A model's loop from a slash command to a green check — three crossings between the plugin and the portal, every one of them carried by the model itself.
 status: review
@@ -38,8 +38,9 @@ error-severity diagnostic.
 
 A kind and a name, decided by somebody else. The dispatch rule is stated once, in
 `/entity-new`: datamodel goes to `model-data`, protocol goes to
-`protocol-design`, everything else goes to `add-entity`
-([entity-authoring](srn://metaframework/product/authoring-kit/component/entity-authoring)).
+`protocol-design`, everything else goes to `add-entity` — all three skills
+carried by the kit's
+[plugin](srn://metaframework/product/authoring-kit/component/plugin).
 This path begins after that decision, which is why it is one entity's path and
 not a solution's.
 
@@ -86,8 +87,8 @@ unmet, and it is unmet on this exact hop.
 ## Out of scope
 
 Changing an entity that already exists — a different outcome, therefore a
-different journey, and the skill for it is
-[entity-evolution](srn://metaframework/product/authoring-kit/component/entity-evolution).
+different journey, and the skill for it is `evolve-entity`, on the same
+[plugin](srn://metaframework/product/authoring-kit/component/plugin).
 
 Whether the entity is any good. The kit splits legality from judgement on
 purpose, and the judgement half is walked by somebody else in

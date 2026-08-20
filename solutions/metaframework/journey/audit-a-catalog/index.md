@@ -1,7 +1,7 @@
 ---
 name: audit-a-catalog
 kind: journey
-version: 1
+version: 2
 title: Audit a catalog
 summary: A reviewer's path through the portal to a judgement — five surfaces, one crossing out of the product, and a loop that never closes.
 status: review
@@ -43,8 +43,9 @@ and `[5]` unchanged.
 
 `steps[5]` goes from portal to
 [authoring-kit](srn://metaframework/product/authoring-kit), and the person
-carries it: they close the browser and ask a model to run
-[architecture-review](srn://metaframework/product/authoring-kit/component/architecture-review).
+carries it: they close the browser and ask a model to run the `review-solution`
+skill of the kit's
+[plugin](srn://metaframework/product/authoring-kit/component/plugin).
 There is no link, no button, and no handoff of any kind: grepping
 `framework/portal/src` for `marketplace`, `entity-new` or `catalog-check` returns
 nothing, so the portal has never mentioned the plugin to anybody.

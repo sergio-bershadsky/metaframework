@@ -1,7 +1,7 @@
 ---
 name: human-and-ai-readable
 kind: requirement
-version: 1
+version: 2
 title: The catalog is readable by a human and by an agent, with grep alone
 summary: A person or a model with no tooling must be able to navigate, cite and correctly modify the catalog using a text editor and grep.
 status: review
@@ -90,7 +90,7 @@ references resolve by grep" — would produce a figure nobody measured to descri
 a property that is either true of a format or not.
 
 The strongest evidence that the requirement holds is the existence of the
-[authoring-kit](srn://metaframework/product/authoring-kit): 2,571 lines of
+[authoring-kit](srn://metaframework/product/authoring-kit): 3,562 lines of
 distilled reference that a model reads instead of the repository, written on the
 assumption that a model *can* work the catalog from prose alone. If AC-6 were
 false, the kit would have to ship a parser.
