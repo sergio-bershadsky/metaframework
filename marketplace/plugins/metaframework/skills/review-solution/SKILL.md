@@ -16,6 +16,12 @@ that would be made and which mechanism it needs; when the user asks for the
 change, hand it to the `evolve-entity` skill, because most structural fixes are
 swaps — entities are never moved or renamed.
 
+**Why before what:** read
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/philosophy.md` first. A review
+that only checks legality misses the two failures that matter most — a
+description that says what without why, and structured data a consumer could
+never use. Both are judgement calls the rule files do not make.
+
 **Rules:** `framework/spec/` when the repository has it (authoritative),
 otherwise `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` (`srn.md`,
 `structure.md`, `frontmatter.md`, `schemas.md`, `protocols.md`,

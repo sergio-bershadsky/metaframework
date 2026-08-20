@@ -21,6 +21,14 @@ procedure. A bad name costs a swap; a bad boundary costs many.
 
 ## Read the rules before proposing anything
 
+**First, read `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/philosophy.md`.**
+It is short, it is not a rule file, and it decides things the rule files cannot:
+how much to write, how precise to be, and whether a machine-readable artifact
+beside the prose is worth the effort. The catalog is component-driven product
+management *and* an intermediate representation meant to be consumed by other
+codebases and by agents — an author who has only read the placement grammar
+will produce a tree that is legal and useless.
+
 This skill carries procedure and judgement. Legality lives in the specification.
 
 - If `framework/spec/` exists in the repository, it is **authoritative** — read
