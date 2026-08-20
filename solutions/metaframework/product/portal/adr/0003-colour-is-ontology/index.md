@@ -1,9 +1,9 @@
 ---
 name: 0003-colour-is-ontology
 kind: adr
-version: 2
+version: 3
 title: Colour is ontology
-summary: Each of the twelve entity kinds owns one hue and nothing else in the console is coloured, so hue always answers "what kind of thing is this?" — the three conceptual kinds in a quieter second tier.
+summary: Hue means kind — twelve kinds in two tiers — and its one exception is the ten component-types, in a third and dimmer register that resolves before hue does.
 status: review
 owner: sergio
 decision-status: accepted
@@ -77,6 +77,50 @@ band to make the phrase "chroma tier" literally true would take most of the
 tier's separation with it, so the description was corrected instead of the
 palette. The rule above is unchanged: hue still means "which kind", and the tier
 means "concept or structure" — never "how important".
+
+## Amended at v3 — the rule acquires its first real exception
+
+`component-type` now carries a hue, on a chip in the entity header. That
+contradicts the sentence at the top of this record — "Nothing else in the UI is
+given a hue" — and it is an amendment rather than a corner case, so it is
+written here rather than left for a reader to discover in `globals.css`.
+
+**Why it was granted.** The console already refuses colour to `lifecycle`, and
+the reasoning on `LifecycleChip` is the test this had to pass: colour is
+rationed, and a claimant must show both that the fact is worth the channel and
+that no better channel exists. `component-type` clears both where lifecycle did
+not. It is the most useful fact about a component after its name — whether the
+thing is a service, a library or somebody else's system changes how every other
+statement on the page reads — and unlike lifecycle it is a flat set of ten with
+no order, so there is no position marker to draw instead. The alternative on
+offer was an eleventh grey chip in a row of four.
+
+**What keeps "hue means kind" true anyway.** Two things, and both are
+structural rather than promises:
+
+- **A third register, resolved before hue is.** The component-type tokens are
+  `oklch(0.70, 0.09)` — darker than both kind tiers and less chromatic than the
+  structural one. Measured against `--background` on 2026-08-20: component-type
+  6.78–7.63:1, against structural 7.3–9.5:1 and conceptual 10.1–10.6:1. The
+  register is a contrast step *below* everything that means "kind", so the eye
+  settles "this is a facet" before it asks which colour it is.
+- **Hue never carries the identity alone.** The label is always drawn and every
+  type has its own icon. That is what makes ten hues at ~36° affordable on a
+  wheel this record already called crowded at nine: colour groups, and the word
+  decides. It would not have been affordable on a graph node, which is exactly
+  why this record rejected colour-by-edge-type.
+
+**The honest cost.** There are now three tiers to learn instead of two, and a
+reader who has learned only "hue means kind" will briefly misread a dim orange
+`gateway` chip as a kind they have not met. Nothing enforces the register — no
+test asserts that a `--ctype-*` token stays out of the structural band, exactly
+as nothing enforces any other rule here.
+
+**`external` is not a hue and that is deliberate.** It is near-achromatic
+(`oklch(0.68, 0.015)`), because "a system this solution does not own" is the one
+value that should recede. It is also the only component-type whose colour means
+something other than "which one" — a small inconsistency, kept because greying
+the foreign thing says more than a tenth hue would.
 
 ## Consequences
 

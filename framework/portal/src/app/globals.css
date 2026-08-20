@@ -203,6 +203,45 @@
   --kind-capability: oklch(0.8 0.08 12);
   --kind-journey: oklch(0.8 0.08 115);
   --kind-metric: oklch(0.8 0.08 315);
+
+  /*
+   * The COMPONENT-TYPE register — a third tier, and the first hues in this
+   * console that do not answer "which kind".
+   *
+   * That is a real amendment to the rule above rather than a corner of it, and
+   * 0003-colour-is-ontology carries it at v3 with the argument. The short
+   * version: `component-type` is the most useful fact about a component after
+   * its name, it is a flat set of ten with no order, and unlike `lifecycle` it
+   * has no better encoding available — there is no sequence to mark.
+   *
+   * L 0.70 / C 0.09 puts the whole set BELOW both kind tiers in lightness and
+   * below the structural tier in chroma:
+   *
+   *              L          C
+   *   structural 0.72–0.78  0.14–0.15
+   *   conceptual 0.80       0.08
+   *   component-type 0.70   0.09
+   *
+   * So the register resolves before the hue does: anything this dark is a
+   * facet, not a kind. Ten hues at ~36° is tighter than the nine the ADR
+   * already called crowded, and it is affordable only because hue never carries
+   * the identity alone here — the label is always drawn and each type has its
+   * own icon, so colour groups and the word decides.
+   *
+   * `external` is deliberately near-achromatic. "A system this solution does
+   * not own" is the one value that should recede, and greying it says that in a
+   * way a tenth hue could not.
+   */
+  --ctype-gateway: oklch(0.7 0.09 25);
+  --ctype-job: oklch(0.7 0.09 60);
+  --ctype-application: oklch(0.7 0.09 95);
+  --ctype-datastore: oklch(0.7 0.09 145);
+  --ctype-ui: oklch(0.7 0.09 200);
+  --ctype-specification: oklch(0.7 0.09 235);
+  --ctype-service: oklch(0.7 0.09 265);
+  --ctype-library: oklch(0.7 0.09 305);
+  --ctype-content: oklch(0.7 0.09 340);
+  --ctype-external: oklch(0.68 0.015 268);
 }
 
 @layer base {

@@ -17,6 +17,7 @@ import { SectionHeading } from '@/components/entity/section-heading'
 import { SolutionVision } from '@/components/entity/solution-vision'
 import { HistoryPanel } from '@/components/history/history-panel'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
+import { ComponentTypeChip } from '@/components/component-type-chip'
 import { LifecycleChip } from '@/components/lifecycle-chip'
 import { Markdown } from '@/components/markdown'
 import { SrnAddress } from '@/components/srn-address'
@@ -122,6 +123,8 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
   // Read from `view`, not from `entity`: a revision written before the field
   // existed has no lifecycle, and inheriting today's would date-mix.
   const lifecycle = lifecycleOf(entity.kind, view.frontmatter as Record<string, unknown>)
+  // Only components carry it; the chip renders nothing for anything else.
+  const componentType = (view.frontmatter as Record<string, unknown>)['component-type']
 
   return (
     <article className="px-8 py-8">
@@ -196,6 +199,11 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
               state of the thing. Two chips that looked alike would undo the
               distinction the spec works hardest to draw — see LifecycleChip. */}
           {lifecycle && <LifecycleChip stage={lifecycle} />}
+          {/* After lifecycle, not before: the status/lifecycle pair is a
+              deliberate adjacency (review state of the description, delivery
+              state of the thing) and must not be split by a third chip. This
+              says what the thing IS, which is a different question again. */}
+          {typeof componentType === 'string' && <ComponentTypeChip value={componentType} />}
           <VersionPicker
             href={href}
             selected={view.frontmatter.version}
