@@ -84,7 +84,12 @@ jobs:
       # clean — and its output is the line a reviewer of a catalog PR wants
       # to read in the log.
       - name: metaframework check
-        run: node bin/metaframework.mjs check
+        # `working-directory: .` is the repository root, not this job's default
+        # — which is the point. The CLI resolves its catalog from `cwd` by
+        # walking up for a `solutions/` directory, so running it from the root
+        # exercises the discovery a user gets, and the script path has to be
+        # spelled out because `bin/` lives under framework/portal.
+        run: node framework/portal/bin/metaframework.mjs check
         working-directory: .
 
       # The `engines` floor is a promise made to whoever installs the CLI, and
@@ -100,7 +105,7 @@ jobs:
       - name: the declared engines floor actually runs the packaged CLI
         run: |
           node --version
-          node bin/metaframework.mjs check
+          node framework/portal/bin/metaframework.mjs check
         working-directory: .
 
       # Back to the toolchain's Node for the packaging audit, which shells out
