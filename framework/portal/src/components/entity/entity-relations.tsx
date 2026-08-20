@@ -1,4 +1,4 @@
-import { ArrowUpRight, CornerDownRight } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { SectionHeading } from '@/components/entity/section-heading'
 import { KindBadge } from '@/components/kind-badge'
@@ -100,7 +100,7 @@ export function EntityRelations({
 
         <div>
           <h3 className="mb-2.5 flex items-center gap-1.5 text-[13px] font-medium text-foreground/80">
-            <CornerDownRight className="size-3.5 text-muted-foreground" aria-hidden />
+            <ArrowDownLeft className="size-3.5 text-muted-foreground" aria-hidden />
             Incoming
             <span className="font-normal text-muted-foreground">— derived, never authored</span>
           </h3>
