@@ -14,6 +14,20 @@ const plexMono = IBM_Plex_Mono({
   weight: ['400', '500', '600'],
 })
 
+/**
+ * Every page renders at request time, and this is declared once at the root so
+ * that a page added later inherits it instead of having to remember.
+ *
+ * The catalog is request-time input now. A prerendered page is a page whose
+ * catalog was captured on whichever machine ran `next build` — for the CLI, the
+ * machine that packaged it — so `/`, `/diagnostics` and `/map` would have
+ * shipped with this repository's own fixtures baked into them and would never
+ * have shown a user their own solutions. Nothing here is cacheable across
+ * requests by construction, so forcing dynamic costs a deployment nothing but
+ * the render itself: the catalog is still read once per process there.
+ */
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: {
     default: 'metaframework',

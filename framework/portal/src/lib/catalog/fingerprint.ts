@@ -24,8 +24,9 @@ import path from 'node:path'
  * ~18ms: 597 awaited operations each need a turn of an event loop that the dev
  * server keeps busy with watchers and HMR, and the walk has nothing to overlap
  * with anyway — no request can proceed until it answers. It is only ever called
- * on the development path (see `loadIfChanged` in ./index), so no served request
- * outside a developer's own machine blocks on it.
+ * when the portal is serving a working tree (see `loadIfChanged` in ./index and
+ * the two modes in ./mode) — a developer's `next dev` or the CLI on that same
+ * developer's machine — so no request served from a deployment blocks on it.
  */
 export function catalogFingerprint(catalogDir: string): string {
   let newest = 0

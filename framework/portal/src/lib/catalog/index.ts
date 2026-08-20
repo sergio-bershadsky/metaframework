@@ -3,6 +3,7 @@ import { cache } from 'react'
 import { type SchemaRegistry, buildSchemaRegistry } from '../schema/registry'
 import { catalogFingerprint } from './fingerprint'
 import { loadCatalog } from './load'
+import { servingWorkingTree } from './mode'
 import { KIND_ORDER } from './tree'
 import type { Catalog, Entity } from './types'
 
@@ -59,16 +60,19 @@ export function withSchemaRegistry(catalog: Catalog): LoadedCatalog {
 /**
  * Per-request memoised catalog.
  *
- * In development the filesystem decides: every request fingerprints the catalog
- * tree and re-reads it only when that fingerprint moved, which is what makes
- * editing an `index.md` show up on reload. In production the tree is read once
- * per process — the catalog is static input to a deployed build.
+ * Which of the two strategies below applies is decided by
+ * {@link servingWorkingTree}, not by NODE_ENV. Serving a working tree — `next dev`, and the CLI, which is a
+ * production build pointed at a directory the user is editing — the filesystem
+ * decides: every request fingerprints the catalog tree and re-reads it only when
+ * that fingerprint moved, which is what makes editing an `index.md` show up.
+ * Serving a deployed build, the tree is read once per process, because there the
+ * catalog really is static input to a build.
  */
 const load = async (): Promise<LoadedCatalog> =>
   withSchemaRegistry(await loadCatalog({ catalogDir: catalogDir() }))
 
 /**
- * Development-only catalog cache, keyed on {@link catalogFingerprint}.
+ * Working-tree catalog cache, keyed on {@link catalogFingerprint}.
  *
  * Parsing the catalog costs two orders of magnitude more than stat'ing it, and
  * between two page loads the answer is almost always "nothing changed".
@@ -88,32 +92,33 @@ const load = async (): Promise<LoadedCatalog> =>
  * Held per-key rather than as a plain memo so that a stale entry is replaced,
  * not accumulated: only the newest fingerprint's catalog is retained.
  */
-let devCatalog: { fingerprint: string; loading: Promise<LoadedCatalog> } | null = null
+let watchedCatalog: { fingerprint: string; loading: Promise<LoadedCatalog> } | null = null
 
 async function loadIfChanged(): Promise<LoadedCatalog> {
   const fingerprint = catalogFingerprint(catalogDir())
-  if (devCatalog?.fingerprint === fingerprint) return devCatalog.loading
+  if (watchedCatalog?.fingerprint === fingerprint) return watchedCatalog.loading
 
   const loading = load()
-  devCatalog = { fingerprint, loading }
+  watchedCatalog = { fingerprint, loading }
   // A failed load must not be remembered as this fingerprint's answer, or the
   // error sticks until the next edit. The caller still sees the rejection.
   loading.catch(() => {
-    if (devCatalog?.loading === loading) devCatalog = null
+    if (watchedCatalog?.loading === loading) watchedCatalog = null
   })
   return loading
 }
 
 const loadOnce = cache(loadIfChanged)
 
-let productionCatalog: Promise<LoadedCatalog> | null = null
+let deployedCatalog: Promise<LoadedCatalog> | null = null
 
 async function loaded(): Promise<LoadedCatalog> {
-  if (process.env.NODE_ENV === 'production') {
-    productionCatalog ??= load()
-    return productionCatalog
-  }
-  return loadOnce()
+  // Deliberately not `NODE_ENV === 'production'`. The CLI is a production build
+  // that serves a live working tree; reading the catalog once per process there
+  // means an edit is never seen. See ./mode for the two modes.
+  if (servingWorkingTree()) return loadOnce()
+  deployedCatalog ??= load()
+  return deployedCatalog
 }
 
 export async function getCatalog(): Promise<Catalog> {

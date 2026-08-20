@@ -672,3 +672,111 @@ The `journey.yaml` step format and its `E_JRN_*` codes beyond
 because the capability warning beside them is the same check; the migration of
 the 67 components; and the catalog's own self-description, still listed as open
 in 2026-08-20-a.
+
+## Amendment 2026-08-20-c — the portal is a published CLI, and it serves somebody else's catalog
+
+The portal stops being a thing you clone and becomes a thing you install:
+
+```bash
+npm install -g @bershadsky/metaframework
+cd ~/code/my-solution && metaframework
+```
+
+That one line inverts every assumption the portal was built under. It no longer
+lives beside the catalog it renders; it no longer owns the repository it runs
+in; and the tree under it is being edited *while it serves*. Three decisions
+follow, and they are the amendment.
+
+### The catalog is found, not configured
+
+Discovery walks up. `solutions/` in the working directory, then in its parent,
+and up to the filesystem root — the way git finds `.git` — stopping at the first
+one that holds a solution rather than the first one that merely has the name.
+`--dir` beats `CATALOG_DIR` beats the walk. When nothing is found the error
+lists every path tried, because "no catalog found" without the list is
+unactionable and the answer is almost always "you are one directory too deep".
+
+The alternative, a config file, was rejected for the reason the framework
+rejects a database: the filesystem already says where the catalog is.
+
+### Two serving modes, and `NODE_ENV` is not one of them
+
+A `next start` bundle sets `NODE_ENV=production`, and until now that was the
+switch deciding whether the catalog could be read once and kept. Shipped as a
+CLI that reading is wrong: the CLI *is* a production build, pointed at a
+directory the user is editing right now.
+
+So the switch is named for what it actually distinguishes —
+`METAFRAMEWORK_MODE`, with `working-tree` and `deployment`:
+
+- **working-tree** — the filesystem is the truth on every request. Fingerprint
+  the tree, re-read when it moves, watch it so an open page hears about the
+  edit. `next dev` and the CLI are both this; the CLI sets the variable
+  explicitly, which is the one environment line packaging must never lose.
+- **deployment** — the catalog is static input to a build, read once per
+  process. This is still right for a hosted portal, and the original reasoning
+  for it stands unamended.
+
+The inference from `NODE_ENV` is kept as the fallback, so a genuine deployment
+needs no variable and an unrecognised value degrades to the old behaviour rather
+than stopping a server from serving.
+
+The live-reload route ships in every build and answers 404 outside working-tree
+mode. Compiling it out would mean two route tables for one bundle, and in
+deployment mode nothing connects to it anyway.
+
+### What is published, and from where
+
+**`framework/portal` is the package root, and stays there.** The published
+artifact *is* the built Next app: the standalone trace, `next.config.ts` and
+`.next/` all resolve from the app directory, so a separate `packages/cli` would
+either re-export a build it does not own or be a second package solving nothing.
+The cost — one directory that is both the monorepo's app and a published package
+— is paid by an allowlist, not by a restructure. The repository root stays
+private and unversioned; `framework/portal/package.json` carries the product's
+public version.
+
+The tarball is a compiled server, not a source tree:
+
+- `output: 'standalone'` traces what the server actually imports, `node_modules`
+  included. `sharp` and its `@img` prebuilds are excluded from the trace: 27MB
+  of *platform* binaries for a portal that renders no `next/image` at all.
+- Every runtime library is therefore declared as a **devDependency**. They are
+  build inputs to a bundle; a published CLI that made a user install `mermaid`
+  and `monaco-editor` to run a server that already contains them would be
+  shipping the same bytes twice. `npm install -g` adds exactly one package.
+- `files` is an allowlist — bin, standalone, README. No `src`, no tests, no
+  `.next/cache`, and above all no `solutions/`: shipping the monorepo's own
+  catalog inside a tool for reading catalogs would be a category error.
+- `prepack` builds and assembles, so a stale bundle cannot be published.
+- The trace deliberately omits `public/` and `.next/static`, on the assumption
+  of a CDN in front. There is no CDN in front of a laptop, so assembly copies
+  them inside the standalone directory and asserts they arrived — the failure it
+  prevents is the quiet one, where the server boots and every asset 404s.
+
+Measured: **12.4 MiB packed, 50.6 MiB unpacked, 1684 files** — under the ~100MB
+threshold with room to spare. It is dominated, in order, by the server bundles
+(23MB, chiefly monaco and elkjs), the traced Next runtime (16MB, of which 4.3MB
+is one font-metrics JSON), and the browser bundles (14MB).
+
+The floor is **Node 20.11** — verified by running the tarball on 20.9.0, 20.10.0
+and 20.11.0, not by reading a compatibility table. Next 16 itself needs 20.9;
+the CLI's use of `import.meta.dirname` is what moves it two patch releases up.
+
+### Consequences
+
+`next dev` and a published `metaframework` are now the same mode serving
+different directories, which is the property to preserve: a bug reproducible in
+one is reproducible in the other. The portal's integrity gate travels with it —
+`metaframework check` is the same loader and the same diagnostics as
+`/diagnostics`, exiting 1 on errors, so a catalog in someone else's repository
+is held to this framework's rules by the same code that renders it.
+
+### What this amendment does not settle
+
+Publishing itself: the `@bershadsky` scope does not exist on npm yet, and that
+is the owner's step. Whether the portal's version becomes the framework's
+version, or the spec versions separately. And the ~2.8MB of duplicated monaco
+SSR chunks in the server bundle, which are a build artifact of a client-only
+editor being reachable from a server component — worth a look before the
+tarball grows again.
