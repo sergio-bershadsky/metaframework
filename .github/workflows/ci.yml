@@ -49,6 +49,14 @@ jobs:
 
       - run: npm ci
 
+      # Next 16 generates the route types (`PageProps<'/route'>`,
+      # `LayoutProps`) into .next/types, and tsc cannot see them until it has.
+      # A developer machine always has them from a previous `next dev`, which
+      # is exactly why the omission survived until CI ran on a clean checkout.
+      # `typegen` does only that generation — no build, no bundling.
+      - name: generate route types
+        run: npx next typegen
+
       - name: typecheck
         run: npm run typecheck
 
