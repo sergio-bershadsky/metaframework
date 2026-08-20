@@ -18,8 +18,6 @@ tags:
   - turn
 ---
 
-# An action does not end the turn
-
 ## Context
 
 boardgame.io's default is that a turn ends when its move budget is exhausted.

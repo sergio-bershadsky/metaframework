@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: adr
-version: 2
+version: 3
 status: review
 title: Kind — ADR
 summary: Contract for architecture decision records — owner-scoped placement, decision-status versus the common status field, date and deciders, the enforced body template, supersession, and derived views.
@@ -171,7 +171,9 @@ filtered by `decision-status`; it is never filtered by `status`.
 
 ## Body template
 
-The ADR body uses four level-2 headings, with exactly this text and casing:
+The ADR body uses four level-2 headings, with exactly this text and casing —
+and nothing above them, since every body starts at `##`
+([structure.md](../structure.md#the-document-body)):
 
 ```markdown
 ## Context
@@ -323,8 +325,6 @@ tags:
   - persistence
   - orders
 ---
-
-# Event-source the order lifecycle
 
 ## Context
 

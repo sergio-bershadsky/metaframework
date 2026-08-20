@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: journey
-version: 1
+version: 2
 status: review
 title: Kind — Journey
 summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
@@ -461,8 +461,6 @@ tags:
   - commerce
   - cross-product
 ---
-
-# Place an order
 
 The path the shop is built around, end to end: sign in, pay, get an invoice,
 watch the parcel arrive. It crosses four products, which is the point — every

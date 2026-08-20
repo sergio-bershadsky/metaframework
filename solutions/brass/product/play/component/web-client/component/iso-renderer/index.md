@@ -19,8 +19,6 @@ tags:
   - pixi
 ---
 
-# Isometric renderer
-
 `map/PixiMap.tsx`, `map/iso.ts`, `map/scaffold.ts` and `map/types.ts` — a 2:1
 isometric renderer built on PixiJS, scaffolding an integer cell lattice from the
 engine's board graph and drawing it with baked sprite art from `assets/`.

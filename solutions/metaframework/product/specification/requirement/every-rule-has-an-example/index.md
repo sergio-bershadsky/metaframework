@@ -18,8 +18,6 @@ tags:
   - documentation
 ---
 
-# Every normative rule carries a worked example
-
 `framework/spec/index.md:32`, under §"Normative language", states the bar the
 specification holds itself to:
 

@@ -50,6 +50,7 @@ export function VersionPicker({
   selected,
   current,
   options,
+  reach,
   className,
 }: {
   /** The entity's canonical route, without a query. */
@@ -60,6 +61,12 @@ export function VersionPicker({
   current: number
   /** Every version in history, newest first. */
   options: VersionOption[]
+  /**
+   * The floor of the version index, when it sits above v1 — see HistoryReach.
+   * A list that silently starts at v7 claims the entity has no earlier past;
+   * this is what lets the list say "starts here" instead.
+   */
+  reach?: { earliest: number; short: string; date: string } | null
   className?: string
 }) {
   const historical = selected !== current
@@ -131,6 +138,23 @@ export function VersionPicker({
             </Link>
           </DropdownMenuItem>
         ))}
+
+        {/* The end of the list, said out loud. Without it a list that starts at
+            v7 reads as "this entity has seven versions and I am showing them
+            all", and a reader who then types ?v=1 and is refused concludes the
+            portal is broken. It is the last item because that is where the
+            reader arrives asking the question. */}
+        {reach && (
+          <>
+            <DropdownMenuSeparator />
+            <p className="px-2 py-1.5 text-[11.5px] leading-relaxed text-muted-foreground">
+              The list starts at <span className="font-mono">v{reach.earliest}</span> —{' '}
+              <code className="font-mono text-[11px]">{reach.short}</code> is the oldest commit touching this
+              path. {reach.earliest === 2 ? 'v1 is' : `v1–v${reach.earliest - 1} are`} older than it and
+              cannot be shown here.
+            </p>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

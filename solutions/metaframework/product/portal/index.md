@@ -21,8 +21,6 @@ tags:
   - read-only
 ---
 
-# Portal
-
 `framework/portal` — a single Next.js 16.3.1 / React 19.2.8 application, 23,277
 lines of TypeScript, TSX and CSS under `src/`, 16 test files, 395 tests, ~1.2s
 (measured 2026-08-19 with `npx vitest run`). It reads `solutions/` and `.git/`

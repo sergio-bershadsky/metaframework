@@ -18,8 +18,6 @@ tags:
   - founding
 ---
 
-# Review is git-native and the portal is read-only
-
 ## Context
 
 Once the catalog is files

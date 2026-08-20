@@ -209,6 +209,16 @@ async function readEntity(
   // SRN grammar itself now that every path segment is bucketed — a misplaced
   // entity fails to parse above and never reaches this point.
 
+  if (hasLevelOneHeading(content)) {
+    diagnostics.push({
+      code: 'E_STRUCT_BODY_H1',
+      severity: 'error',
+      message: 'body carries a level-1 heading — the page renders `title` as the h1; start sections at "##"',
+      path: docPath,
+      srn,
+    })
+  }
+
   if (entities.has(srn)) {
     diagnostics.push({
       code: 'E_STRUCT_DUPLICATE_SRN',
@@ -235,6 +245,43 @@ async function readEntity(
   }
   entities.set(srn, entity)
   return entity
+}
+
+/**
+ * Does the prose carry a heading at level 1?
+ *
+ * The entity page already renders frontmatter `title` as the document's h1, so
+ * a `#` anywhere in the body makes a second one: an outline that no screen
+ * reader and no outline-consuming tool can read as a tree. Until this check
+ * existed every shipped entity opened with `# <title>` — the same string the
+ * header had just printed — so the rule costs authors a heading they were
+ * duplicating anyway (framework/spec/structure.md, "The document body").
+ *
+ * Fenced blocks are skipped, because `# solutions/acme/…` inside a fence is a
+ * path comment and the spec's examples are full of them. The fence state is a
+ * simple toggle on ``` / ~~~, which is exact for well-formed markdown; a
+ * document with an unclosed fence has a bigger problem than this diagnostic.
+ */
+function hasLevelOneHeading(body: string): boolean {
+  const lines = body.split('\n')
+  let fenced = false
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    if (/^\s{0,3}(```|~~~)/.test(line)) {
+      fenced = !fenced
+      continue
+    }
+    if (fenced) continue
+    if (/^\s{0,3}#\s/.test(line)) return true
+    // Setext: a run of "=" underlining a PARAGRAPH line is an h1 too, and it is
+    // the one spelling a `#`-only check would let through. Only a paragraph —
+    // the same run under a list item, a table row or a quote is not a heading.
+    const previous = index > 0 ? lines[index - 1] : ''
+    if (/^\s{0,3}=+\s*$/.test(line) && /^\s{0,3}[^\s#>|*+\-=]/.test(previous)) return true
+  }
+
+  return false
 }
 
 /**

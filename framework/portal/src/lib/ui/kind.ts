@@ -19,6 +19,15 @@ import type { EntityKind } from '../catalog/frontmatter'
  * Colour is ontology: every kind owns one hue, defined once in globals.css and
  * referenced everywhere — tree, badges, diagram nodes. Nothing else in the UI
  * is allowed to be colourful, so hue always means "kind" and never decoration.
+ *
+ * Twelve kinds in two tiers. The nine structural kinds — what the system is made
+ * of — are full-chroma; capability, journey and metric describe intent and are
+ * set apart by BOTH lower chroma AND higher lightness. Both, deliberately: at
+ * the 14–16px an icon is actually met, the brightness step separates the tiers
+ * at least as strongly as the desaturation does. globals.css carries the
+ * measured CIELAB numbers beside the tokens; this is only the reminder that the
+ * tier is two channels, so a future kind added at low chroma and structural
+ * lightness would not join the tier — it would just look washed out.
  */
 export interface KindStyle {
   label: string

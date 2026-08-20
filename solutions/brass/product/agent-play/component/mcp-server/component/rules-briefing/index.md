@@ -18,8 +18,6 @@ tags:
   - llm
 ---
 
-# Rules briefing
-
 `rules-content.ts` — three static markdown documents exported as string constants and
 served over `rules://brass/rulebook`, `rules://brass/strategy` and
 `rules://brass/moves`.

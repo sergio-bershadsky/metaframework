@@ -17,8 +17,6 @@ tags:
   - client
 ---
 
-# A reload rejoins the same seat
-
 Browsers reload. A tab crashes, a laptop sleeps, someone hits F5 out of habit —
 and in a game that runs for an hour with no accounts, losing a seat to any of
 those would be fatal to the session.

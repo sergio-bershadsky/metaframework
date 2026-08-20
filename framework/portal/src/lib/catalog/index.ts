@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { cache } from 'react'
 import { type SchemaRegistry, buildSchemaRegistry } from '../schema/registry'
+import { artifactDiagnostics } from './artifact-checks'
 import { catalogFingerprint } from './fingerprint'
 import { loadCatalog } from './load'
 import { servingWorkingTree } from './mode'
@@ -58,6 +59,27 @@ export function withSchemaRegistry(catalog: Catalog): LoadedCatalog {
 }
 
 /**
+ * Fold the artifact mini-spec parsers in, for the same reason and by the same
+ * route as {@link withSchemaRegistry}.
+ *
+ * `journey.yaml`, `workflows/*.yaml` and `states.json` each have a parser that
+ * validates them, and every one of those parsers was reachable only from a
+ * rendering component — so a journey with an unknown key showed `E_JRN_SCHEMA`
+ * on its own page while /diagnostics reported the catalog clean and the header
+ * count did not move. See ./artifact-checks for what is checked and what is
+ * deliberately left out.
+ *
+ * Composed here rather than inside `loadCatalog` on the same grounds: that
+ * function is the pure filesystem → entity-graph step, and its tests run against
+ * hermetic temp fixtures that assert an exact diagnostics list.
+ */
+export function withArtifactChecks(catalog: Catalog): Catalog {
+  const diagnostics = artifactDiagnostics(catalog)
+  if (diagnostics.length === 0) return catalog
+  return { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }
+}
+
+/**
  * Per-request memoised catalog.
  *
  * Which of the two strategies below applies is decided by
@@ -69,7 +91,7 @@ export function withSchemaRegistry(catalog: Catalog): LoadedCatalog {
  * catalog really is static input to a build.
  */
 const load = async (): Promise<LoadedCatalog> =>
-  withSchemaRegistry(await loadCatalog({ catalogDir: catalogDir() }))
+  withSchemaRegistry(withArtifactChecks(await loadCatalog({ catalogDir: catalogDir() })))
 
 /**
  * Working-tree catalog cache, keyed on {@link catalogFingerprint}.

@@ -19,8 +19,6 @@ tags:
   - history
 ---
 
-# Catalog history
-
 A protocol whose initiator and responder both exist, both compile, and never
 speak to each other, because nothing renders the initiator.
 

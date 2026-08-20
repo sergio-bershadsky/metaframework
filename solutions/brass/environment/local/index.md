@@ -11,8 +11,6 @@ tags:
   - development
 ---
 
-# Local
-
 One developer's machine. `pnpm dev` starts two processes with `concurrently`: the
 game server on `:8000` and the Vite dev server on `:5173`. Nothing is shared, no
 data is of record, and anyone may break it at any moment.

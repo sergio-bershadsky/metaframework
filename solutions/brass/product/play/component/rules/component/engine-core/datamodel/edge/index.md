@@ -13,8 +13,6 @@ tags:
   - static-data
 ---
 
-# Edge
-
 The static half of the network. An edge is a *possible* connection printed on the
 board; a
 [built-link](srn://brass/product/play/component/rules/component/engine-core/datamodel/built-link@1)

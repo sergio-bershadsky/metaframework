@@ -21,8 +21,6 @@ tags:
   - hot-path
 ---
 
-# Authorization check p99 latency
-
 [authz-check-latency](srn://acme/product/identity/requirement/authz-check-latency)
 is a `must`, and it is a tax every product in the solution pays on every
 request. This is the number that says whether acme is paying the tax it agreed

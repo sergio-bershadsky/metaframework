@@ -16,8 +16,6 @@ tags:
   - setup
 ---
 
-# Two, three and four players are all fully supported
-
 Brass changes shape with the number of players, and not by a scaling factor: the
 deck gains whole banner colours, the merchant pool gains tiles, and some
 merchants do not activate at all below a threshold. A two-player game with the

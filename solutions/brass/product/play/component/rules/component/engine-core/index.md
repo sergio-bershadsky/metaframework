@@ -22,8 +22,6 @@ tags:
   - domain
 ---
 
-# Engine core
-
 The game itself, with no framework anywhere in it: `types.ts`, `board.ts`,
 `industryData.ts`, `market.ts`, `income.ts`, `network.ts`, `deck.ts`, `scoring.ts`
 and `mechanics.ts`. Nine files, none of which knows that a turn loop, a socket or a

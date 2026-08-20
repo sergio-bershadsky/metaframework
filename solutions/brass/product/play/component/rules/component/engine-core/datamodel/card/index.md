@@ -13,8 +13,6 @@ tags:
   - hidden-information
 ---
 
-# Card
-
 The unit of authorisation. Every one of the six actions discards exactly one
 card, and which cards a player holds is the only private information in the
 game — see

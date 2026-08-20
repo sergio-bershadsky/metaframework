@@ -13,8 +13,6 @@ tags:
   - navigation
 ---
 
-# Tree projection
-
 `src/lib/catalog/tree.ts`, 306 lines, with a 376-line test. `buildTree()` turns
 the loaded `Catalog` into `TreeNode` — srn, name, title, kind, status, version,
 owner, children, and one boolean saying whether the entity itself carries an

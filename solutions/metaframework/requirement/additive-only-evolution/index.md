@@ -16,8 +16,6 @@ tags:
   - founding
 ---
 
-# A contract surface is never reduced, only extended or swapped
-
 Stated in the founding decision record as "never reduce, only extend, or create
 new and swap later", and specified in `framework/spec/evolution.md`. Removing a
 property, narrowing an enum, weakening an acceptance criterion, deleting a

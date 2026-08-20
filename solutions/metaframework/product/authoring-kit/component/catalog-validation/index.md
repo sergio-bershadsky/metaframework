@@ -18,8 +18,6 @@ tags:
   - diagnostics
 ---
 
-# Catalog validation
-
 `skills/validate-catalog/` — `SKILL.md` (199 lines) plus
 `references/diagnostics.md` (229). One question: **is it legal?** The
 architectural question is

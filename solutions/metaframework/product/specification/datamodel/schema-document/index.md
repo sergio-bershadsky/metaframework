@@ -14,8 +14,6 @@ tags:
   - schema
 ---
 
-# Schema document
-
 Every datamodel entity in every catalog owns exactly one `schema.json`, and this
 is the profile it must satisfy. Specified in `framework/spec/kinds/datamodel.md`
 (version 5, 1,220 lines — the longest document in the spec); validated by

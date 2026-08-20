@@ -26,8 +26,6 @@ tags:
   - entity-page
 ---
 
-# Entity view
-
 The page a reviewer spends their time on: `src/app/(console)/catalog/[...srn]/page.tsx`
 (519 lines) plus six components under `src/components/entity/` and five shared
 renderers — `kind-badge`, `srn-address`, `entity-link`, `markdown`,

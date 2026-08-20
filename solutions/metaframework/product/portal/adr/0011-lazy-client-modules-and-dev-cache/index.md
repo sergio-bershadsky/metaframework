@@ -18,8 +18,6 @@ tags:
   - measurement
 ---
 
-# Lazy client modules, and a stat-walk cache in development
-
 ## Context
 
 Two costs were measured on the same day and turned out to have the same shape:

@@ -18,8 +18,6 @@ tags:
   - framework
 ---
 
-# Build on boardgame.io
-
 ## Context
 
 Brass: Birmingham is a hidden-information, turn-based game for two to four

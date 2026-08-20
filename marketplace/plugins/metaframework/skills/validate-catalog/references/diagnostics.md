@@ -44,6 +44,7 @@ What `npx vitest run src/lib/catalog` asserts to be empty of errors.
 | `E_STRUCT_NESTED_ENTITY` | error    | A child `index.md` directly below a non-container entity.                                           |
 | `E_STRUCT_MISSING_INDEX` | error    | An entity's computed parent SRN has no entity behind it.                                            |
 | `E_STRUCT_DUPLICATE_SRN` | error    | A second directory resolving to an already-registered SRN.                                          |
+| `E_STRUCT_BODY_H1`       | error    | A level-1 heading in the prose; the page already renders `title` as the h1.                         |
 | `W_REF_DEPRECATED`       | warning  | The relation target has `status: deprecated`.                                                       |
 
 Graph-shape checks the loader gained with the `capability`, `journey` and
@@ -78,6 +79,10 @@ Loader behaviours worth knowing:
   `E_STRUCT_MISSING_INDEX` at every child.
 - The kind-specific schema is chosen by **disk position**, not by the declared
   `kind`, so a mislabelled entity still gets its real kind's rules applied.
+- `E_STRUCT_BODY_H1` covers both spellings of a level-1 heading — `# Title` and
+  a `=` underline — and ignores anything inside a fenced block, where a `#` is a
+  path comment. The fix is to delete the heading: it repeated frontmatter
+  `title`, which the page renders as the h1.
 
 ### `lib/schema/registry.ts` — datamodel schemas
 
@@ -287,10 +292,25 @@ Never emit or cite these; a mention in older prose is stale.
   against the schema artifact beside it, so a paragraph describing the retired
   convention ("`schema.json` carries no `$id`", a `$ref` written as
   `../../../../datamodel/order-line/schema.json`) survives a green catalog check
-  indefinitely. `solutions/acme/.../datamodel/order/index.md` has carried exactly
-  that. Grep for it explicitly, and trust the `schema.json` over the prose:
+  indefinitely. `solutions/acme/.../datamodel/order/index.md` carried exactly that
+  until its version 4, which corrected the description and changed no artifact.
+  Grep for it explicitly, and trust the `schema.json` over the prose:
 
   ```bash
   grep -rnE 'no [`"]?\$id|\.\./[^ ]*schema\.json|SCHEMA_BASE_URL|localhost:3000' \
     --include='index.md' solutions/
   ```
+
+  Most of what that prints is legitimate and must not be "fixed". Triage by
+  what the page *is*:
+
+  | Hit                                                              | Verdict                                                              |
+  |------------------------------------------------------------------|----------------------------------------------------------------------|
+  | A `datamodel` page describing its own sibling `schema.json` in the retired terms | the defect — correct the prose, bump the entity's `version` |
+  | An ADR recording the convention's history — `metaframework/adr/0004` and `0005` (superseded), `0006` and `0007` (accepted; they are what retired it) | history, recorded as written; never rewritten |
+  | `SCHEMA_BASE_URL` / `localhost:3000` on a portal, environment or solution page | live fact — it is the retrieval address, retired only *inside artifacts* |
+  | Prose naming the retired form to warn about it                   | intended, including the correction note left behind by such a fix     |
+
+  The only checked half of this is the artifact side: `$id`, `x-srn` and every
+  `$ref` are validated against the entity's path by the catalog suite and the
+  registry. The prose side is grep and review, which is why it drifts.

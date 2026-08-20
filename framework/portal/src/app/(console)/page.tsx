@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { StatusBadge, VersionBadge } from '@/components/kind-badge'
 import { SrnAddress } from '@/components/srn-address'
 import { type Entity, entitiesOfSolution, entityHref, getCatalog } from '@/lib/catalog'
-import { ENTITY_KINDS } from '@/lib/catalog/frontmatter'
+import { KIND_ORDER } from '@/lib/catalog/tree'
 import { kindStyle } from '@/lib/ui/kind'
 
 export default async function HomePage() {
@@ -50,7 +50,9 @@ function SolutionCard({
   entities: Entity[]
   index: number
 }) {
-  const counts = ENTITY_KINDS.map((kind) => ({
+  // Reading order, the same sequence the rail groups by — see the note on
+  // ENTITY_KINDS for why the adoption-ordered list never reaches a reader.
+  const counts = KIND_ORDER.map((kind) => ({
     kind,
     count: entities.filter((entity) => entity.kind === kind).length,
   })).filter(({ count, kind }) => count > 0 && kind !== 'solution')

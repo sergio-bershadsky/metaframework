@@ -21,8 +21,6 @@ tags:
   - modelling
 ---
 
-# One abstract discount base, two subtypes, three arithmetic kinds
-
 ## Context
 
 Growth had to express six things acme sells promotions with: a percentage off,

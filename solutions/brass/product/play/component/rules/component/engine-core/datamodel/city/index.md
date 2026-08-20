@@ -13,8 +13,6 @@ tags:
   - static-data
 ---
 
-# City
-
 A build location: extends
 [board-location](srn://brass/product/play/component/rules/component/engine-core/datamodel/board-location@1)
 with the two things that make it buildable — the region whose banner colour

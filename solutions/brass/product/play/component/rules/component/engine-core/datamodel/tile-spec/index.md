@@ -13,8 +13,6 @@ tags:
   - rules
 ---
 
-# Tile spec
-
 The printed numbers on one industry tile, keyed by
 [industry-type](srn://brass/product/play/component/rules/component/engine-core/datamodel/industry-type@1)
 and `level`. Thirty-one rows across six industries; `count` says how many copies

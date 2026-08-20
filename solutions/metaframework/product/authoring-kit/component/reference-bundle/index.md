@@ -19,8 +19,6 @@ tags:
   - distillation
 ---
 
-# Reference bundle
-
 `skills/_shared/references/` — seven markdown files, 2,571 lines:
 `environments.md` (650), `protocols.md` (648), `schemas.md` (388),
 `structure.md` (260), `srn.md` (229), `frontmatter.md` (218), `evolution.md`

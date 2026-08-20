@@ -13,8 +13,6 @@ tags:
   - commerce
 ---
 
-# Merchant tile state
-
 What the setup shuffle put on a merchant slot, and what is left of it. Distinct
 from
 [merchant](srn://brass/product/play/component/rules/component/engine-core/datamodel/merchant@1),

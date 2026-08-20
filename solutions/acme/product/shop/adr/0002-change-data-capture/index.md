@@ -23,8 +23,6 @@ tags:
   - orders
 ---
 
-# Replace the order event log with change data capture
-
 ## Context
 
 [0001-event-sourcing](srn://acme/product/shop/adr/0001-event-sourcing) bought an ordered,

@@ -19,8 +19,6 @@ tags:
   - privacy
 ---
 
-# Audience
-
 Holds one membership set per
 [audience-segment](srn://acme/product/growth/datamodel/audience-segment@1), keyed
 by account. It answers two questions and refuses every other one: *is this

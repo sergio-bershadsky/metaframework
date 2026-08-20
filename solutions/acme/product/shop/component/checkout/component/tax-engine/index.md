@@ -18,8 +18,6 @@ tags:
   - library
 ---
 
-# Tax engine
-
 A build-time artifact with no runtime of its own: it runs inside whatever
 process embeds it, which today is exactly one —
 [checkout](srn://acme/product/shop/component/checkout). It computes tax for a

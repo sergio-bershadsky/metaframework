@@ -17,8 +17,6 @@ tags:
   - privacy
 ---
 
-# Erasure of personal data on request
-
 A [customer](srn://acme/actor/customer) may demand that acme stop holding their
 personal data. When that demand is verified, every component in this solution
 that holds data identifying them must either delete it or anonymize it beyond

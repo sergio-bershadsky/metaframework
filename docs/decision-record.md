@@ -780,3 +780,55 @@ version, or the spec versions separately. And the ~2.8MB of duplicated monaco
 SSR chunks in the server bundle, which are a build artifact of a client-only
 editor being reachable from a server component — worth a look before the
 tarball grows again.
+
+## Amendment 2026-08-20-d — one h1 per page: the title is frontmatter's, not the prose's
+
+Every entity page rendered two `<h1>`s. The portal draws frontmatter `title` in
+the header, and every one of the 288 shipped `index.md` files then opened with
+`# <title>` — not a paraphrase, not a section name: the **same string**, byte for
+byte, in all 288 (checked, not assumed). The page printed the title twice, and a
+document with two top-level headings has no outline for a screen reader's
+heading navigation or for anything else that reads a document as a tree.
+
+### Fixing the source, not the renderer
+
+The mechanical fix was to demote authored headings by one level in the markdown
+renderer: `#` renders as `<h2>`, the outline is legal, and no author can break it
+again. It was rejected on two counts.
+
+It does not fix the defect. The second h1 was a *duplicate title*, so demoting it
+leaves the same string on the page twice and merely relabels the copy — while
+dragging every authored `##` down to `<h3>`, which this renderer styles as small
+uppercase muted text. The outline would be correct and 288 pages would look worse.
+
+And it makes the file disagree with the page. Review here is git-native — "files
+are the review surface; the portal is read-only presentation", from the founding
+record's Process section — so the artifact a reviewer reads is the markdown diff,
+on a git host that renders `#` as an h1. A renderer that silently says
+otherwise puts the source and the page in two different documents.
+
+So the rule is on the source: **`index.md` prose carries no level-1 heading;
+sections start at `##`** (`structure.md`, "The document body"). The 288
+duplicated headings were deleted — provably lossless, since each was exactly the
+`title` the header already renders.
+
+### The rule is enforced, because a convention would rot
+
+A catalog convention nobody checks is a convention until the next entity. The
+loader now raises `E_STRUCT_BODY_H1`, severity **error**, so the zero-error
+catalog-load requirement is what holds it — the same gate `metaframework check`
+runs in someone else's repository. Both spellings are caught, `# Title` and a
+`=` underline; a `#` inside a fenced block is a path comment and is ignored,
+which is what makes the rule usable in a spec full of `# solutions/acme/…`.
+
+The kind body templates that showed `# <Title>` (capability, metric,
+requirement), the frontmatter worked example, and the plugin's per-kind worked
+examples were all corrected — an authoring kit that keeps emitting the violation
+is the same rot with a longer fuse.
+
+### What this amendment does not settle
+
+Whether `framework/spec/*.md` should follow its own rule. Those files are read on
+a git host, not through the portal, and their h1 is the document's only title, so
+they keep it. If the spec is ever rendered *by* the portal, that decision comes
+back.

@@ -215,12 +215,15 @@ describe('applyLens', () => {
   })
 
   it('orders kind buckets by the ontology, not by what it met first', () => {
+    // `adr` leads the leaf kinds: a decision is authored against the container
+    // itself, so KIND_ORDER ranks it with structure rather than behind every
+    // artifact the container happens to hold.
     expect(keysOf(applyLens(mixed.children, 'kind'))).toEqual([
+      'adr',
       'protocol',
       'datamodel',
       'environment',
       'requirement',
-      'adr',
     ])
   })
 

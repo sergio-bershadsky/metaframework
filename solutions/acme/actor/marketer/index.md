@@ -19,8 +19,6 @@ tags:
   - internal
 ---
 
-# Marketer
-
 A member of the commercial team who decides what acme offers and to whom. The
 marketer is the only actor in this catalog whose ordinary working day changes
 what a customer pays, which is why every write path they touch is described as a

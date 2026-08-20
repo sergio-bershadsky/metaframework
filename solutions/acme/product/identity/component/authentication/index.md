@@ -29,8 +29,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Authentication
-
 Turns a proof into a [session](srn://acme/product/identity/datamodel/session@4). It reads
 [credential](srn://acme/product/identity/datamodel/credential@1) records, checks the
 presented proof against the verifier behind each one's locator, and writes the

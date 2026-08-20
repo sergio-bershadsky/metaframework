@@ -25,8 +25,6 @@ tags:
   - support
 ---
 
-# Refund request
-
 The one surface a human drives directly against
 [billing](srn://acme/product/billing). A [support agent](srn://acme/actor/support-agent)
 asks for a refund on a settled order; the [ledger](srn://acme/product/billing/component/ledger)

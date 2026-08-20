@@ -13,8 +13,6 @@ tags:
   - foundation
 ---
 
-# Access grant
-
 [role](srn://acme/product/identity/datamodel/role@1) and
 [permission](srn://acme/product/identity/datamodel/permission@2) are different things —
 one is a bundle an administrator hands to a person, the other is a single

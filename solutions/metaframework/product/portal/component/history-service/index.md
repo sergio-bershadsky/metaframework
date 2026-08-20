@@ -20,8 +20,6 @@ tags:
   - history
 ---
 
-# History service
-
 `src/app/api/history/[...path]/route.ts`, 90 lines. `GET` only, `runtime =
 'nodejs'` because `child_process` rules out the edge runtime, `dynamic =
 'force-dynamic'`.

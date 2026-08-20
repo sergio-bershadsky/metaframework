@@ -24,8 +24,6 @@ tags:
 x-cost-center: "4713"
 ---
 
-# Identity
-
 Who is this principal, and may they do this thing. Two questions, four
 components, and a deliberate refusal to answer a third — identity never decides
 *what* a resource is or *what* an action means, only whether the principal

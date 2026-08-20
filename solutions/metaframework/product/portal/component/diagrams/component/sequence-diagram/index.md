@@ -20,8 +20,6 @@ tags:
   - protocol
 ---
 
-# Sequence diagram
-
 `src/components/diagrams/sequence-diagram.tsx` (616 lines), drawn from a
 protocol's `workflows/*.yaml` through `layoutWorkflow()` and `narrateWorkflow()`
 in

@@ -18,8 +18,6 @@ tags:
   - authority
 ---
 
-# The server adjudicates every move
-
 ## Context
 
 Brass is a game about scarce shared resources. Coal and iron cubes sit on other

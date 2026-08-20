@@ -15,8 +15,6 @@ tags:
   - nextjs
 ---
 
-# Next.js 16 with async request APIs
-
 ## Context
 
 The founding decision record, written the same morning, named "Next.js 15" in

@@ -13,8 +13,6 @@ tags:
   - framework-shape
 ---
 
-# Move envelope
-
 What actually crosses the socket when a player acts. Every move from both
 products — a browser click and an agent's `make_move` alike — becomes one of
 these, so it is the narrowest point in the whole system and the place

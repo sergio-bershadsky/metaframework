@@ -20,8 +20,6 @@ tags:
   - operations
 ---
 
-# One origin on self-run k3s, promoted by hand
-
 ## Context
 
 The split-origin deployment worked and was awkward for a reason that had nothing

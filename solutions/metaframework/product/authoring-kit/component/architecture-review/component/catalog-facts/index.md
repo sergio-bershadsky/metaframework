@@ -16,8 +16,6 @@ tags:
   - review
 ---
 
-# Catalog facts
-
 `skills/review-solution/scripts/catalog_facts.py` — 609 lines, standard library
 only, read-only, no network. It walks a solution directory, resolves every
 reference it can find (frontmatter `relations`, protocol `participants`,

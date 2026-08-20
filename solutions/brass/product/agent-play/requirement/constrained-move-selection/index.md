@@ -17,8 +17,6 @@ tags:
   - integrity
 ---
 
-# An agent can only submit a move it was just offered
-
 The engine would refuse an illegal move from any client
 ([legal-move-enforcement](srn://brass/requirement/legal-move-enforcement)). This
 requirement is a stronger and different claim about the agent boundary

@@ -34,8 +34,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Delivery orchestrator
-
 The only component in this product that decides anything. It consumes
 [order-placed](srn://acme/product/shop/datamodel/order-placed@1), splits the order
 into one or more parcels, chooses a carrier and a service level for each, and

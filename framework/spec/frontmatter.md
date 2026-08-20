@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: frontmatter
-version: 5
+version: 6
 status: review
 title: Common frontmatter
 summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges over the eleven kinds, the status-versus-lifecycle split, and validation.
@@ -367,9 +367,10 @@ tags:
 x-jira-epic: SHOP-142
 ---
 
-# Order
-
-Prose: intent, invariants, review notes. The machine-readable shape lives in
+Prose: intent, invariants, review notes. It opens with a paragraph, never a
+heading: `title` above is the page's h1, and a second one would leave the
+document with no outline ([structure.md](structure.md#the-document-body)).
+The machine-readable shape lives in
 the sibling `schema.json`, whose REQUIRED root `$id` and every cross-entity
 `$ref` are canonical HTTP URLs, so stock JSON Schema tooling can dereference
 them unaided (decision-record amendments 2026-08-19-c and 2026-08-19-d).

@@ -17,8 +17,6 @@ tags:
   - dead-code
 ---
 
-# History panel
-
 `src/components/history/history-panel.tsx` (458 lines) and `diff-view.tsx`
 (217 lines). It is the only code in the repository that fetches
 `/api/history`, and nothing in the repository renders it.

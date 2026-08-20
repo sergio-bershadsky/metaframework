@@ -17,8 +17,6 @@ tags:
   - privacy
 ---
 
-# An opponent's hand never leaves the server
-
 Brass is a hidden-information game, and the hidden information is the hand. A
 player who can see what their opponents hold knows which cities they can build
 in, which industries they can develop, and whether they can afford the sale they

@@ -21,8 +21,6 @@ tags:
   - authoring
 ---
 
-# Authoring kit
-
 `marketplace/plugins/metaframework/` — a Claude Code plugin: seven skills, three
 commands, one agent, seven shared reference files, eight skill-local reference
 files and one Python script. 7,488 lines of markdown and Python (`wc -l` over

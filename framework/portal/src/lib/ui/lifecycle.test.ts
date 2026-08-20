@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { KIND_FRONTMATTER, ENTITY_KINDS, type EntityKind } from '../catalog/frontmatter'
-import { LIFECYCLE_STAGES, lifecycleOf } from './lifecycle'
+import { LIFECYCLE_STAGES, LIFECYCLE_TAIL, lifecycleOf } from './lifecycle'
 
 /**
  * The chip's stage meter counts bars, so an empty or stale stage list would
@@ -35,6 +35,22 @@ describe('LIFECYCLE_STAGES', () => {
     expect(LIFECYCLE_STAGES.component).toContain('in-development')
     expect(LIFECYCLE_STAGES.component).toContain('released')
   })
+
+  it('ends both sequences with exactly the shared decay tail', () => {
+    // The chip draws the tail differently from the run-up, so this is load
+    // bearing: a sixth component stage appended after `retired`, or a rename of
+    // either word, would silently turn decay back into two more rungs of
+    // progress. kinds/product.md names this tail and says it is the whole reason
+    // the two kinds may share the field name.
+    for (const kind of ['product', 'component'] as const) {
+      expect(LIFECYCLE_STAGES[kind].slice(-LIFECYCLE_TAIL.length)).toEqual(LIFECYCLE_TAIL)
+      // And nowhere else — `tailFrom` is computed as the first match, so a tail
+      // word appearing early would cut the run-up short.
+      for (const stage of LIFECYCLE_STAGES[kind].slice(0, -LIFECYCLE_TAIL.length)) {
+        expect(LIFECYCLE_TAIL).not.toContain(stage)
+      }
+    }
+  })
 })
 
 describe('lifecycleOf', () => {
@@ -44,7 +60,19 @@ describe('lifecycleOf', () => {
       label: 'Released',
       index: LIFECYCLE_STAGES.component.indexOf('released'),
       total: LIFECYCLE_STAGES.component.length,
+      tailFrom: LIFECYCLE_STAGES.component.indexOf('sunset'),
+      inTail: false,
     })
+  })
+
+  it('separates the run-up from the decay tail, for both kinds', () => {
+    // The bug this replaces: `released` lit 3 of 5 bars and `sunset` lit 4 of 5,
+    // so the dying component read as the further-along one. Position is real;
+    // "more is better" was not, and `inTail` is what the chip draws instead.
+    expect(lifecycleOf('component', { lifecycle: 'sunset' })).toMatchObject({ index: 3, tailFrom: 3, inTail: true })
+    expect(lifecycleOf('component', { lifecycle: 'released' })).toMatchObject({ index: 2, tailFrom: 3, inTail: false })
+    expect(lifecycleOf('product', { lifecycle: 'maintenance' })).toMatchObject({ index: 3, tailFrom: 4, inTail: false })
+    expect(lifecycleOf('product', { lifecycle: 'retired' })).toMatchObject({ index: 5, tailFrom: 4, inTail: true })
   })
 
   it('opens hyphens out rather than showing a kebab token', () => {

@@ -18,8 +18,6 @@ tags:
   - player-facing
 ---
 
-# Host
-
 The player who clicked **Create session room**. The server issues them seat `0` and
 the game state records `hostID: '0'`; from then on they are an ordinary
 [player](srn://brass/actor/player) with exactly one extra capability — the

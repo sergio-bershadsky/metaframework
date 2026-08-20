@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: protocol
-version: 3
+version: 4
 status: review
 title: Protocol kind
 summary: The protocol entity contract — participants and style frontmatter, transport.yaml, the workflow YAML mini-spec, XState-subset states.json, payload binding, and derived diagrams.
@@ -995,8 +995,6 @@ tags:
   - commerce
   - synchronous
 ---
-
-# Order placement
 
 Checkout is the only responder the customer talks to; inventory and payment are
 reached behind it. Failure is always reported as a Problem Details document, so

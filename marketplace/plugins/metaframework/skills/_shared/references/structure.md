@@ -51,7 +51,9 @@ the owner has no entities of that kind; empty buckets should not be committed.
 **A directory under `solutions/` is an entity if and only if it contains an
 `index.md`.** There are no other markers. An entity directory holds:
 
-- `index.md` — REQUIRED. Frontmatter plus prose.
+- `index.md` — REQUIRED. Frontmatter plus prose. The prose carries **no
+  level-1 heading**: `title` is already the page's h1, and a second one leaves
+  the document with no outline (`E_STRUCT_BODY_H1`). Sections start at `##`.
 - **Sibling artifacts** — kebab-case, **bare** filenames named by role, never
   prefixed with the entity name. `schema.json`, not `order.schema.json`.
 - **Asset subdirectories** — named for their role (`workflows/`, `examples/`),
@@ -341,6 +343,7 @@ products.
 | `E_STRUCT_MISSING_INDEX` | A directory that owns an entity has no `index.md`, so the owner's SRN resolves to nothing. |
 | `E_STRUCT_NESTED_ENTITY` | An `index.md` sits directly below an entity that is not a container.                       |
 | `E_STRUCT_DUPLICATE_SRN` | Two directories resolve to the same SRN (symlink, case-insensitive filesystem).            |
+| `E_STRUCT_BODY_H1`       | An `index.md` body carries a level-1 heading; `title` is already the page's h1.            |
 | `W_STRUCT_PROTOCOL_NCA`  | Protocol not at the NCA of its component/product participants.                             |
 | `E_JRN_ARTIFACT_MISSING` | A journey entity directory with no `journey.yaml` (`journeys.md`).                         |
 | `W_JRN_ARTIFACT_UNKNOWN` | Unrecognised file in a journey entity directory.                                           |

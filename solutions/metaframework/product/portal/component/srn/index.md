@@ -13,8 +13,6 @@ tags:
   - grammar
 ---
 
-# SRN parser and resolver
-
 `framework/portal/src/lib/srn/srn.ts` — 307 lines, no runtime dependency, not
 even `zod`. It is the bottom of the portal: every other module imports it and it
 imports nothing of ours. `srn.test.ts` is 415 lines, longer than the module, and

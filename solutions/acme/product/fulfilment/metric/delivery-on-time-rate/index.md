@@ -21,8 +21,6 @@ tags:
   - customer-experience
 ---
 
-# Delivery on-time rate
-
 The number that says whether the date acme told a customer was worth telling
 them. It carries two subjects, and it is the same observation for both:
 [delivery-promise-accuracy](srn://acme/product/fulfilment/requirement/delivery-promise-accuracy)

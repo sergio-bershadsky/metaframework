@@ -19,8 +19,6 @@ tags:
   - operations
 ---
 
-# Maintainer
-
 One person, holding every operational role this solution has: author, reviewer,
 release manager and on-call. There is no team structure and no OWNERS file; the
 `owner: sergio-bershadsky` on every entity in this catalog is asserted from the

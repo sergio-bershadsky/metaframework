@@ -19,8 +19,6 @@ tags:
   - editor
 ---
 
-# Artifact viewer
-
 The pane that shows a catalog file as itself. Seven files under
 `src/components/code/` — `artifact-block.tsx` (433), `source-view.tsx` (199),
 `monaco.ts` (325), `code-block.tsx` (141), `anchor-link.tsx` (41) and the two

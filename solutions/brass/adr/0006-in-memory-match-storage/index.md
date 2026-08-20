@@ -19,8 +19,6 @@ tags:
   - operations
 ---
 
-# Match state lives in the process, and deploys end games
-
 ## Context
 
 boardgame.io ships an `InMemory` store as its default and adapters for Postgres,

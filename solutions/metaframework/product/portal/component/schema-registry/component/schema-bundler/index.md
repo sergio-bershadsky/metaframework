@@ -13,8 +13,6 @@ tags:
   - offline
 ---
 
-# Schema bundler
-
 `src/lib/schema/dereference.ts`, 92 lines. `bundleSchema(entity, catalogDir)`
 returns one self-contained document plus the catalog-relative paths of every
 file it pulled in.

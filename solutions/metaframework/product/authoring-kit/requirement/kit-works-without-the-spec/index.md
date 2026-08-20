@@ -17,8 +17,6 @@ tags:
   - drift
 ---
 
-# The kit produces correct catalogs without the spec on disk
-
 The plugin is installed into a Claude Code session that may be working in any
 repository. `framework/spec/` is in *this* one and in no other, so a plugin that
 only works beside its own specification is a plugin that only works here.

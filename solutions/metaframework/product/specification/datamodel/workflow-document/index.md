@@ -14,8 +14,6 @@ tags:
   - protocol
 ---
 
-# Workflow document
-
 One named, ordered exchange between a protocol's participants, in a file at
 `workflows/<name>.yaml` beside the protocol's `index.md`. Specified in
 `framework/spec/kinds/protocol.md` under "The workflow mini-spec"; parsed by

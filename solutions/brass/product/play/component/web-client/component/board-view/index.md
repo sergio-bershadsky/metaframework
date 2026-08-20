@@ -22,8 +22,6 @@ tags:
   - svg
 ---
 
-# Board view
-
 `map/flatBoard.ts` (pure projection helpers), `map/FlatMap.tsx` (the SVG), and
 `map/BoardStage.tsx` (which picks a renderer). It is the board a player actually
 looks at.

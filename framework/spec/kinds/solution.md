@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: solution
-version: 4
+version: 5
 status: review
 title: Kind — solution
 summary: The solution kind — the sealed universe and catalog root, its frontmatter additions, the shared container rules C1–C7, and the no-cross-solution boundary.
@@ -284,8 +284,6 @@ tags:
   - retail
   - flagship
 ---
-
-# Acme Retail Platform
 
 Acme sells physical goods online. This catalog describes the systems that take
 an order from a customer's cart to a settled payment and a shipped parcel.

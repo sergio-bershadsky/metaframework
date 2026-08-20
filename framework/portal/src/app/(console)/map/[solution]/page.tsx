@@ -1,12 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import {
-  type MapKind,
-  SolutionMap,
-  type SolutionMapLink,
-  type SolutionMapNode,
-} from '@/components/diagrams/solution-map'
+import { DeferredSolutionMap } from '@/components/diagrams/deferred-solution-map'
+import type { MapKind, SolutionMapLink, SolutionMapNode } from '@/components/diagrams/solution-map'
 import { type Catalog, entitiesOfSolution, getCatalog } from '@/lib/catalog'
 import { CONTAINER_KINDS } from '@/lib/catalog/frontmatter'
 
@@ -72,8 +68,12 @@ export default async function SolutionMapPage(props: PageProps<'/map/[solution]'
         </div>
 
         <p className="mt-2.5 max-w-3xl text-[13.5px] leading-relaxed text-muted-foreground">
-          Products and components only. Click any box to re-centre the map on it; the ring a box sits on is
-          how far it is from the centre, and the third ring is context rather than an answer.{' '}
+          {/* Every line here costs the canvas its height, and the canvas is
+              where the legibility went: at 1920x1080 one extra wrapped line
+              takes 22px off the map and roughly 3% off its zoom. */}
+          Products and components only. The view stops at the products;{' '}
+          <span className="font-mono text-[12.5px]">+n</span> counts what a box contains and this view is not
+          drawing. Click any box to re-centre on it.{' '}
           <span className="font-mono text-[12.5px] text-foreground/70">
             {products} product{products === 1 ? '' : 's'} · {components} component
             {components === 1 ? '' : 's'} · {crossing} dependenc{crossing === 1 ? 'y' : 'ies'}
@@ -85,7 +85,7 @@ export default async function SolutionMapPage(props: PageProps<'/map/[solution]'
         {/* Keyed by solution: switching route replaces the map rather than
             re-centring the old one, which would animate between two graphs that
             share no nodes. */}
-        <SolutionMap
+        <DeferredSolutionMap
           key={root}
           nodes={nodes}
           links={links}

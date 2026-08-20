@@ -16,8 +16,6 @@ tags:
   - swap
 ---
 
-# Entity evolution
-
 `skills/evolve-entity/` — `SKILL.md` (234 lines) plus
 `references/swap-walkthrough.md` (279). Two mechanisms carry every change: an
 additive edit in place with a `version` bump, and a **swap** — a successor entity

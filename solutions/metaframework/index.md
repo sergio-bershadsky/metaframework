@@ -42,8 +42,6 @@ tags:
   - meta
 ---
 
-# Metaframework
-
 This catalog describes the repository it lives in. Three deliverables:
 [specification](srn://metaframework/product/specification) says what a catalog
 must be, [portal](srn://metaframework/product/portal) renders one, and

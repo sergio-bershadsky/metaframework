@@ -11,8 +11,6 @@ tags:
   - customer-facing
 ---
 
-# Fulfil an order
-
 Acme can turn an order into a parcel a customer has taken from a courier's
 hands. It can hold the stock while the payment clears, decide what travels in
 which box and by whose van, get a carrier to accept it, and keep the customer

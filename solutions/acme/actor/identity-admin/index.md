@@ -20,8 +20,6 @@ tags:
   - internal
 ---
 
-# Identity administrator
-
 The person who hands out access and takes it away. Distinct from
 [support-agent](srn://acme/actor/support-agent), who acts *on* customer data
 within permissions someone else granted, and from

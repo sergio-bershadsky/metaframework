@@ -17,8 +17,6 @@ tags:
   - performance
 ---
 
-# Promotion evaluation fits inside the checkout latency budget
-
 [checkout](srn://acme/product/shop/component/checkout) has its own p99 to meet
 and growth is a new tenant of it. This requirement fixes what growth is allowed
 to consume and, more importantly, fixes what happens when it cannot: the engine

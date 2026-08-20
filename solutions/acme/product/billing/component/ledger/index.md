@@ -24,8 +24,6 @@ tags:
   - datastore
 ---
 
-# Ledger
-
 Consumes paid-order facts from the
 [settlement](srn://acme/protocol/settlement) bus and turns each into a balanced
 set of [ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1) legs, posted

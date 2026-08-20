@@ -29,8 +29,6 @@ tags:
   - asynchronous
 ---
 
-# Settlement
-
 The only surface on which [shop](srn://acme/product/shop) and
 [billing](srn://acme/product/billing) meet. Shop publishes the fact that an order was
 paid; billing decides what that means in accounting terms. Neither side calls

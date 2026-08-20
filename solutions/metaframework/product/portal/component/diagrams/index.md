@@ -18,8 +18,6 @@ tags:
   - diagrams
 ---
 
-# Diagrams
-
 Four drawings, one shared kit, and a rule that binds all of them: **no diagram
 in this portal is authored**. Each is computed from something already in the
 catalog — frontmatter relation edges, a workflow YAML, a `states.json`, or the

@@ -22,8 +22,6 @@ tags:
   - mermaid
 ---
 
-# State chart
-
 `src/components/diagrams/state-chart.tsx` (493 lines), rendering mermaid
 `stateDiagram-v2` text produced by `statesToMermaid()` in
 [protocol-model](srn://metaframework/product/portal/component/protocol-model).

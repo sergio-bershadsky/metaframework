@@ -19,8 +19,6 @@ tags:
   - interaction
 ---
 
-# Action composition
-
 The conversation between a human and the interface that stands between them and
 a move. It is a protocol and not merely a component's internals because it has
 two participants with genuinely different knowledge: the player knows what they

@@ -16,8 +16,6 @@ tags:
   - support
 ---
 
-# Support agent
-
 A member of the customer support team, acting on a customer's behalf and with
 their consent. The agent sees order and settlement state; they do not see raw
 card data, which never leaves the acquirer's tokenized form (see

@@ -158,7 +158,15 @@ describe('getEntityHistory', () => {
 describe('resolveVersion', () => {
   it('resolves a pinned old version to its snapshot commit', async () => {
     const resolution = await resolveVersion(ORDER, 1, { catalogDir: repo.catalogDir })
-    expect(resolution).toEqual({ version: 1, commit: c2, current: false, code: null, hint: null })
+    expect(resolution).toEqual({
+      version: 1,
+      commit: c2,
+      current: false,
+      code: null,
+      miss: null,
+      message: null,
+      hint: null,
+    })
   })
 
   it('resolves the current version to the filesystem, not to a commit', async () => {
@@ -171,6 +179,66 @@ describe('resolveVersion', () => {
     const resolution = await resolveVersion(ORDER, 9, { catalogDir: repo.catalogDir })
     expect(resolution.code).toBe('E_SRN_VERSION')
     expect(resolution.commit).toBeNull()
+    expect(resolution.miss).toBe('never-written')
+    expect(resolution.message).toContain('v1, v2, v3')
+  })
+})
+
+/**
+ * The rename case, which is the one the portal cannot follow by design: a
+ * repository-wide move means `git log -- <new path>` starts at the move, so the
+ * entity's earlier versions are outside the index. The tool must not pretend
+ * they never existed — evolution.md says versions start at 1, so a floor above
+ * v1 is evidence, not a guess.
+ */
+describe('history that does not reach the entity’s first version', () => {
+  const MOVED = 'acme/product/shop/component/checkout/datamodel/order'
+  let moved: Repo
+  let renameCommit: string
+
+  beforeAll(async () => {
+    moved = await makeRepo()
+    await moved.write(`${ORDER}/index.md`, document(1, 'approved'))
+    moved.commit('add order')
+    await moved.write(`${ORDER}/index.md`, document(2, 'approved'))
+    moved.commit('order v2')
+
+    // The move itself, exactly as `522c6bb refactor!: fully bucketed SRN paths`
+    // did it: the directory is renamed and the version bumped in one commit.
+    await mkdir(path.dirname(path.join(moved.catalogDir, MOVED)), { recursive: true })
+    git(moved.root, ['mv', `solutions/${ORDER}`, `solutions/${MOVED}`])
+    await moved.write(`${MOVED}/index.md`, document(3, 'approved'))
+    renameCommit = moved.commit('bucket the paths')
+
+    await moved.write(`${MOVED}/index.md`, document(4, 'approved'))
+    moved.commit('order v4')
+
+    clearHistoryCache()
+  })
+
+  it('reports where the trail stops instead of an index that looks complete', async () => {
+    const history = await getEntityHistory(MOVED, { catalogDir: moved.catalogDir })
+    expect(Object.keys(history.versions).sort()).toEqual(['3', '4'])
+    expect(history.reach).toMatchObject({ earliestVersion: 3, commit: renameCommit, complete: false })
+  })
+
+  it('says an unreachable version existed, rather than that it never did', async () => {
+    const resolution = await resolveVersion(MOVED, 1, { catalogDir: moved.catalogDir })
+    expect(resolution.code).toBe('E_SRN_VERSION')
+    expect(resolution.miss).toBe('before-reach')
+    expect(resolution.message).toMatch(/existed, but is not reachable/)
+    expect(resolution.message).toMatch(/already carried v3/)
+    expect(resolution.hint).toMatch(/does not follow renames/)
+  })
+
+  it('still calls a version above the floor never-written', async () => {
+    const resolution = await resolveVersion(MOVED, 9, { catalogDir: moved.catalogDir })
+    expect(resolution.miss).toBe('never-written')
+  })
+
+  it('marks a history that does reach v1 as complete', async () => {
+    const history = await getEntityHistory(ORDER, { catalogDir: repo.catalogDir })
+    expect(history.reach).toMatchObject({ earliestVersion: 1, complete: true })
   })
 })
 

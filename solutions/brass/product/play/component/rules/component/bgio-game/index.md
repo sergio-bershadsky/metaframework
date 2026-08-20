@@ -23,8 +23,6 @@ tags:
   - framework-binding
 ---
 
-# boardgame.io game binding
-
 `game.ts`, and nothing else. It is the seam between a framework-free engine and a
 framework, and keeping it to one file is what makes the other two sub-components
 testable without a game loop.

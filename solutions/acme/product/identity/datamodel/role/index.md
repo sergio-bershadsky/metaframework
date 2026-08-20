@@ -12,8 +12,6 @@ tags:
   - identity
 ---
 
-# Role
-
 What an [identity-admin](srn://acme/actor/identity-admin) actually assigns. A role
 is a bundle of [permission](srn://acme/product/identity/datamodel/permission@2) documents
 with a stable `code`, and it exists because humans reason about jobs — "refund

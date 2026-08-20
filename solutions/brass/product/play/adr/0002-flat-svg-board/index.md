@@ -20,8 +20,6 @@ tags:
   - rendering
 ---
 
-# Replace the 3D board with a flat SVG projection
-
 ## Context
 
 Two things were true after the first playable milestone. The 3D board looked

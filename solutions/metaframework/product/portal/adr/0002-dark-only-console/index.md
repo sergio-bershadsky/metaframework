@@ -18,8 +18,6 @@ tags:
   - design-system
 ---
 
-# The portal is a dark-only architect's console
-
 ## Context
 
 The founding decision record settles the portal's visual direction in one line —

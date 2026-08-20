@@ -17,8 +17,6 @@ tags:
   - client
 ---
 
-# Motion is skipped for anyone who asked their OS to skip it
-
 Because the framework broadcasts whole states and never says what changed, the
 client reconstructs the difference between consecutive states and plays it back:
 money and VP counters roll, new tiles fly onto the board, income markers step.

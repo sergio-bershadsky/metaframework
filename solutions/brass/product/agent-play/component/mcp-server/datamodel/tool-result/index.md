@@ -13,8 +13,6 @@ tags:
   - union
 ---
 
-# Tool result
-
 A tagged union on `ok`. Its design goal is narrow and unusual: **a failure must
 leave the model able to continue**. An agent playing a whole match has no human
 to relay a stack trace to, so a failure that only says "something went wrong" ends

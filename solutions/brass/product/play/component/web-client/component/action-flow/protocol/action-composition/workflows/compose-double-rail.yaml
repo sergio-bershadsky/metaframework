@@ -29,10 +29,9 @@ steps:
             to: player
             kind: return
             note: >-
-              Only reachable when the enumerator already found a two-edge move,
-              which it gates on two links left, fifteen pounds and a barrel the
-              player can actually reach. The flow never offers a choice that
-              would then be refused.
+              Only reachable when the enumerator already found a two-edge move, which it
+              gates on two links left, fifteen pounds and a reachable barrel. The flow
+              never offers a choice that would be refused.
           - opt:
               when: the player takes the second road
               steps:

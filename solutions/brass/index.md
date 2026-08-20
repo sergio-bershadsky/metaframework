@@ -34,8 +34,6 @@ tags:
   - boardgame-io
 ---
 
-# Brass Online
-
 An online implementation of **Brass: Birmingham** for two to four human players, and
 — since the MCP surface landed — for a mix of humans and LLM agents at the same
 table. The whole catalog turns on one decision: there is exactly one rules engine,

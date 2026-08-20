@@ -21,8 +21,6 @@ tags:
   - incubating
 ---
 
-# Agent play
-
 A model sits at the table. Not as an AI opponent inside the server — as an ordinary
 client that happens to be an LLM, connected through a Model Context Protocol adapter
 that holds exactly one seat.

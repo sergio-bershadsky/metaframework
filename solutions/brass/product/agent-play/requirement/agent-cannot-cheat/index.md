@@ -17,8 +17,6 @@ tags:
   - mcp
 ---
 
-# The MCP process never receives another player's hand
-
 A human at the table trusts the software to hide their cards. Adding a
 non-human player is exactly the moment that trust is most easily lost, and the
 loss would be invisible: an agent that could see every hand would simply play

@@ -13,8 +13,6 @@ tags:
   - exchange
 ---
 
-# Promotion quote
-
 The response payload of
 [promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation).
 It is `usage: exchange` and nothing persists it: a quote is an opinion about a

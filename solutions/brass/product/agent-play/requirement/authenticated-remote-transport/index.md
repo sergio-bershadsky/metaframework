@@ -17,8 +17,6 @@ tags:
   - mcp
 ---
 
-# No public MCP endpoint exists until it is authenticated
-
 Today the MCP server is a stdio subprocess. The host launches it, owns it, and
 is the only thing that can talk to it; there is no endpoint, so there is nothing
 to authenticate.

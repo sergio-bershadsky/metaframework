@@ -18,8 +18,6 @@ tags:
   - provenance
 ---
 
-# The skills are the single source of every rule number
-
 ## Context
 
 Brass: Birmingham is a commercial board game whose rulebook is copyrighted, not

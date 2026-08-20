@@ -6,7 +6,7 @@ import { DiffView } from '@/components/history/diff-view'
 import { VersionBadge } from '@/components/kind-badge'
 // Type-only: erased at compile time, so the server-only git module never
 // reaches the client bundle.
-import type { EntityHistory, FileDiff, FileRevision } from '@/lib/history/git'
+import type { EntityHistory, FileDiff, FileRevision, HistoryReason } from '@/lib/history/git'
 import { cn } from '@/lib/utils'
 
 /**
@@ -17,6 +17,13 @@ import { cn } from '@/lib/utils'
  * an entity page must not pay for history nobody opened. The same laziness is
  * what makes the degraded case cheap — a catalog outside git costs one failed
  * `rev-parse` and renders an explanation, never a broken page.
+ *
+ * `initialHistory` is the exception, and it is free: the entity page already
+ * reads the log to build its version picker, so handing that result down saves
+ * the round trip without adding a git call. It seeds the panel; it does not open
+ * it. Server-rendered history is a reason to label the closed disclosure
+ * honestly — "4 revisions", or why there are none — not a reason to spend the
+ * page's vertical space on a diff nobody asked for.
  *
  * State here is derived wherever it can be. Selection falls back to the newest
  * revision and every fetched payload carries the key it was fetched for, so
@@ -49,6 +56,35 @@ const VIEW_LABELS: Record<HistoryView, { label: string; description: string }> =
   source: { label: 'Source', description: 'the whole file at this revision' },
 }
 
+/**
+ * What each reason means for this reader, in their terms.
+ *
+ * The four are genuinely different situations and one sentence cannot cover
+ * them: an entity nobody has committed yet is the normal state of work in
+ * progress, while a catalog outside a repository is a deployment fact the reader
+ * cannot do anything about from here. Saying "without a repository" over a
+ * perfectly good repository that simply has not seen this directory yet is the
+ * kind of wrong that makes a reader distrust the rest of the page.
+ */
+const EXPLANATIONS: Record<HistoryReason, string> = {
+  'not-committed':
+    'This entity has not been committed yet, so there is no earlier version to show — what is on the page is all there is.',
+  'not-a-repository':
+    'Previous versions live in git history, not on disk — without a repository the portal can only show what is current.',
+  'no-git-binary': 'The portal reads history by running git, and there is no git executable on this machine.',
+  'git-error': 'git refused the read, so the past is unreachable from here; what is on the page is current.',
+}
+
+/** The closed disclosure has to say what opening it will find. */
+function summarise(history: EntityHistory | null): string {
+  if (!history) return 'git-backed'
+  if (history.unavailable) {
+    return history.unavailable.reason === 'not-committed' ? 'not committed yet' : 'unavailable'
+  }
+  const count = history.revisions.length
+  return `${count} revision${count === 1 ? '' : 's'}`
+}
+
 interface Payload {
   key: string
   diff?: FileDiff
@@ -68,7 +104,7 @@ export function HistoryPanel({
   defaultOpen = false,
   className,
 }: HistoryPanelProps) {
-  const [open, setOpen] = useState(defaultOpen || Boolean(initialHistory))
+  const [open, setOpen] = useState(defaultOpen)
   const [history, setHistory] = useState<EntityHistory | null>(initialHistory ?? null)
   const [historyError, setHistoryError] = useState<string | null>(null)
 
@@ -159,11 +195,7 @@ export function HistoryPanel({
       >
         <History className="size-3.5 text-muted-foreground" aria-hidden />
         <span className="font-medium">History</span>
-        <span className="font-mono text-[11px] text-muted-foreground">
-          {history
-            ? `${history.revisions.length} revision${history.revisions.length === 1 ? '' : 's'}`
-            : 'git-backed'}
-        </span>
+        <span className="font-mono text-[11px] text-muted-foreground">{summarise(history)}</span>
         <ChevronDown
           className={cn('ml-auto size-3.5 text-muted-foreground transition-transform', open && 'rotate-180')}
           aria-hidden
@@ -195,8 +227,7 @@ export function HistoryPanel({
               <span className="mx-1.5 opacity-40">·</span>
               {history.unavailable.message}
               <span className="mt-1 block text-[12px] opacity-80">
-                {history.unavailable.hint ??
-                  'Previous versions live in git history, not on disk — without a repository the portal can only show what is current.'}
+                {history.unavailable.hint ?? EXPLANATIONS[history.unavailable.reason]}
               </span>
             </PanelNotice>
           )}
@@ -210,6 +241,24 @@ export function HistoryPanel({
                     {history.shallow
                       ? 'Shallow clone — older revisions are not in this checkout. Run `git fetch --unshallow` to see them.'
                       : `Only the ${history.revisions.length} most recent revisions are listed.`}
+                  </span>
+                </p>
+              )}
+
+              {/* A third way for this list to be short, and the only one that
+                  was silent: the log stops where the path stops. The oldest
+                  entry below is an entity that already had a past, and a
+                  revision list that does not say so reads as a full biography.
+                  Not the shallow-clone register — nothing here is fixable by
+                  fetching, so this is stated rather than warned about. */}
+              {!history.shallow && history.reach && !history.reach.complete && (
+                <p className="flex items-start gap-2 border-b border-border px-4 py-2 text-[12px] text-muted-foreground">
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  <span>
+                    The trail stops at <code className="font-mono text-[11px]">{history.reach.short}</code>,
+                    where this entity already carried v{history.reach.earliestVersion}. Earlier revisions
+                    were written under a path this listing cannot follow — the version index does not follow
+                    renames, because entities are not meant to move.
                   </span>
                 </p>
               )}

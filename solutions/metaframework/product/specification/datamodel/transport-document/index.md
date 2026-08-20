@@ -14,8 +14,6 @@ tags:
   - protocol
 ---
 
-# Transport document
-
 `transport.yaml` beside a protocol's `index.md`: **how the conversation reaches
 the wire**, one protocol, one transport. Specified in
 `framework/spec/kinds/protocol.md` §"`transport.yaml`" (lines 263–493) — a

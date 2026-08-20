@@ -1,9 +1,9 @@
 ---
 name: 0003-colour-is-ontology
 kind: adr
-version: 1
+version: 2
 title: Colour is ontology
-summary: Each of the nine entity kinds owns one hue and nothing else in the console is coloured, so hue always answers "what kind of thing is this?".
+summary: Each of the twelve entity kinds owns one hue and nothing else in the console is coloured, so hue always answers "what kind of thing is this?" — the three conceptual kinds in a quieter second tier.
 status: review
 owner: sergio
 decision-status: accepted
@@ -18,8 +18,6 @@ tags:
   - portal
   - design-system
 ---
-
-# Colour is ontology
 
 ## Context
 
@@ -42,25 +40,60 @@ one background.
 
 ## Decision
 
-Hue means kind. Each of the nine kinds owns one hue, defined once in
-`src/app/globals.css` at matched lightness and chroma — the nine `--kind-*`
-tokens run `oklch(0.72–0.78, 0.14–0.15, h)`, holding lightness and chroma inside
-a band narrow enough that hue is the only difference a reader can see, so no
-kind reads as louder than another. `src/lib/ui/kind.ts` is the single table
-mapping kind to that token plus its text/background/border classes and its
-icon, and every surface — tree row, badge, graph node, diagram lifeline, chip —
-reads from it through `kindStyle()` or `kindColorVar()`. Nothing else in the UI
-is given a hue.
+Hue means kind. Each kind owns one hue, defined once in `src/app/globals.css`,
+and the nine **structural** kinds hold matched lightness and chroma — those
+`--kind-*` tokens run `oklch(0.72–0.78, 0.14–0.15, h)`, a band narrow enough
+that hue is the only difference a reader can see, so no kind reads as louder
+than another. `src/lib/ui/kind.ts` is the single table mapping kind to that
+token plus its text/background/border classes and its icon, and every surface —
+tree row, badge, graph node, diagram lifeline, chip — reads from it through
+`kindStyle()` or `kindColorVar()`. Nothing else in the UI is given a hue.
+
+## Amended at v2 — a second tier, and it is not a chroma tier
+
+Reopening the ontology (decision-record amendment 2026-08-20-a) added
+`capability`, `journey` and `metric`. Nine hues at roughly 35° apart were
+already on the distinguishability floor, so three more at full chroma would have
+collided: hue alone had run out. The three are given a **conceptual tier** at
+`oklch(0.80, 0.08, h)` and take the three real gaps left on the wheel.
+
+What is worth recording is the part the code comment originally got wrong. The
+tier was described as carried by chroma. It is carried by chroma **and**
+lightness, and at the size a kind is actually met the second channel is not the
+junior partner. Measured in CIELAB (D65) from the tokens themselves:
+
+| tier       | L\*       | C\*ab     | contrast vs `--background` |
+| ---------- | --------- | --------- | -------------------------- |
+| structural | 65.3–73.5 | 41.7–60.5 | 7.3:1 – 9.5:1              |
+| conceptual | 75.7–77.3 | 26.5–31.7 | 10.1:1 – 10.6:1            |
+
+Chroma is the larger move by the metric — 22.6 C\* units between the means
+against 6.7 L\* units — but a kind reaches a reader as a 14–16px icon or a badge
+dot, and the eye's spatial acuity for chroma is far below its acuity for
+luminance. At that size the brightness step separates the tiers at least as
+strongly as the desaturation does, and every conceptual hue sits a full contrast
+step above every structural one. Flattening lightness back into the structural
+band to make the phrase "chroma tier" literally true would take most of the
+tier's separation with it, so the description was corrected instead of the
+palette. The rule above is unchanged: hue still means "which kind", and the tier
+means "concept or structure" — never "how important".
 
 ## Consequences
 
 - **The graphs lost their easiest encoding.** An edge type may not own a colour,
-  so `relation-graph.tsx` tells the five edge types apart by stroke weight, dash
+  so `relation-graph.tsx` tells the seven edge types apart by stroke weight, dash
   pattern and arrowhead — `exposes` is 2px solid, `depends-on` is `7 4`,
-  `implements` is `1.5 3.5`, `supersedes` is `11 4` with an open arrowhead — and
-  its legend draws line samples instead of colour chips. That vocabulary is
-  harder to learn than five colours would have been, and it is the price of the
-  rule.
+  `implements` is `1.5 3.5`, `realizes` is a heavier `6 3 1.5 3` dash-dot,
+  `measures` is a round-capped dot trail with an open arrowhead, `supersedes` is
+  `11 4` with an open arrowhead — and its legend draws line samples, arrowheads
+  included, instead of colour chips. That vocabulary is harder to learn than
+  seven colours would have been, and it is the price of the rule. It is also
+  fragile in a way colour would not have been: with two of the three channels
+  spent, `realizes` and `measures` shipped 0.25px apart in weight, and a
+  capability page opens its graph at zoom 0.58 where that became 0.15px. The
+  edges now carry `vector-effect: non-scaling-stroke`, which takes weight and
+  dash period out of the viewport transform, because a vocabulary that only
+  reads at 100% is not a vocabulary.
 - **The accent hue got a job instead of a decoration.** `--primary` is spent on
   one thing in the graphs: which edges touch the entity the page is about.
 - **Three colours survive outside the ontology, and they are severity, not
@@ -77,8 +110,8 @@ is given a hue.
   hand-converted once into `src/lib/ui/console-tokens.ts`, each annotated with
   the token it came from. Nothing regenerates them. If a token in `globals.css`
   moves, this file does not notice.
-- **The rule is already broken in the file that defines it.** `STATUS_STYLES` at
-  `src/lib/ui/kind.ts:127` paints the *approved* status chip with
+- **The rule is already broken in the file that defines it.** `STATUS_STYLES` in
+  `src/lib/ui/kind.ts` paints the *approved* status chip with
   `text-kind-environment` — literally the environment kind's green — and the
   deprecated chip with `text-destructive`. So on every entity page an approved
   document wears a kind hue that has nothing to do with its kind. It is a real

@@ -13,8 +13,6 @@ tags:
   - network
 ---
 
-# Built link
-
 The dynamic half of the network: a player's token on one of the 39 printed
 [edge](srn://brass/product/play/component/rules/component/engine-core/datamodel/edge@1)
 connections. Extends

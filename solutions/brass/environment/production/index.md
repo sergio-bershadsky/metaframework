@@ -15,8 +15,6 @@ tags:
   - hetzner
 ---
 
-# Production
-
 The only target with real players on it. One host,
 `https://brass.bershadsky.dev`, resolved through Cloudflare (proxied) to a k3s
 cluster on Hetzner, namespace `brass`, ingress by Traefik, certificates by

@@ -22,8 +22,6 @@ tags:
   - contract
 ---
 
-# Move enumerator
-
 Two files, `legalMoves.ts` and `planners.ts`, and the most important contract in the
 solution. Everything that offers a player a choice — the browser's action flow, the
 MCP tool surface, the bot validator — asks this component what is legal and offers

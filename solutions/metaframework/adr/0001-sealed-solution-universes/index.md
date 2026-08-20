@@ -18,8 +18,6 @@ tags:
   - founding
 ---
 
-# Solutions are sealed universes
-
 ## Context
 
 The framework was designed as a monorepo holding many catalogs: `solutions/`

@@ -16,8 +16,6 @@ tags:
   - core
 ---
 
-# Core contracts
-
 Five documents, 2,018 lines, at the root of `framework/spec/`:
 
 | Document         | Version | Lines | What it fixes                                                        |

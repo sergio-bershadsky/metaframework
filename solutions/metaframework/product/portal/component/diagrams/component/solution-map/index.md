@@ -21,8 +21,6 @@ tags:
   - map
 ---
 
-# Solution map
-
 `src/components/diagrams/solution-map.tsx` (774 lines) plus the two routes
 `src/app/(console)/map/page.tsx` and `map/[solution]/page.tsx`. It is the only
 whole-catalog view in the portal, and the only diagram that does not use ELK.

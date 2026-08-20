@@ -13,8 +13,6 @@ tags:
   - finance
 ---
 
-# Campaign
-
 A campaign is the unit a marketer plans in and the unit finance holds them to.
 It funds discounts, it does not describe one: nothing in this model says how
 much comes off a basket, and a campaign with no promos attached is a legal,

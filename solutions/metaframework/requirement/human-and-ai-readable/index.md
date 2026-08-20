@@ -16,8 +16,6 @@ tags:
   - founding
 ---
 
-# The catalog is readable by a human and by an agent, with grep alone
-
 The founding principle, and the one every format choice in the framework was
 settled against. `framework/spec/index.md` core principle 5 states it: names are
 kebab-case, references are greppable URIs, frontmatter fields are flat and

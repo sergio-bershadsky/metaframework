@@ -32,9 +32,11 @@
  * badges, and in diagram nodes — so a datamodel is the same emerald everywhere
  * it appears. Nothing else in the UI is allowed to be colourful.
  *
- * The kinds sit in two tiers, and the tier is carried by CHROMA: nine
- * structural kinds at C 0.14–0.15, three conceptual ones at C 0.08. See the
- * --kind-* block below.
+ * The kinds sit in two tiers, and the tier is carried by CHROMA AND LIGHTNESS
+ * TOGETHER: nine structural kinds at oklch C 0.14–0.15 / L 0.72–0.78, three
+ * conceptual ones at C 0.08 / L 0.80 — paler AND brighter, not merely paler.
+ * See the --kind-* block below for what that measures as and which channel is
+ * doing the work at glyph size.
  */
 
 @theme inline {
@@ -139,12 +141,29 @@
    * The CONCEPTUAL tier. Nine hues at ~35° already sat on the distinguishability
    * floor, so three more at full chroma would have collided — hue alone had run
    * out. These three drop to C 0.08 (a little over half the structural 0.14–0.15)
-   * and rise to L 0.80 (just above the structural 0.72–0.78 band), so SATURATION
+   * and rise to L 0.80 (just above the structural 0.72–0.78 band), so the tier
    * reads as "concept vs structure" before hue resolves at all: capability,
    * journey and metric describe intent, the other nine describe the built thing.
    * Within the tier only three hues have to be told apart, and they take the
    * three real gaps left on the wheel — journey between actor and environment,
    * metric between solution and adr, capability between adr and requirement.
+   *
+   * TWO channels carry the tier, not one, and the name "chroma tier" was only
+   * ever half true. Measured in CIELAB (D65) from the tokens below:
+   *
+   *              L*            C*ab          contrast vs --background
+   *   structural 65.3–73.5     41.7–60.5     7.3:1 – 9.5:1
+   *   conceptual 75.7–77.3     26.5–31.7     10.1:1 – 10.6:1
+   *
+   * Chroma is the larger move by the metric — 22.6 C* units between the two
+   * means against 6.7 L* units — but a kind is met as a 14–16px icon or a badge
+   * dot, and the eye's spatial acuity for chroma is far below its acuity for
+   * luminance. At that size the brightness step is doing at least as much
+   * separating as the desaturation is, and the conceptual tier lands a full
+   * contrast step above every structural hue. That is why the lift is written
+   * here as part of the design rather than as a rounding of the chroma decision:
+   * flattening L back into the structural band to make the label "chroma tier"
+   * literally true would take the tier's separation with it.
    *
    * Measured in oklab (ΔE = √(ΔL²+Δa²+Δb²)), against the console's own floor —
    * the closest existing pair, environment/datamodel at 0.0725:

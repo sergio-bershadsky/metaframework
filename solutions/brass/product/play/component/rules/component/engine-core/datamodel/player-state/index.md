@@ -13,8 +13,6 @@ tags:
   - player
 ---
 
-# Player state
-
 Everything a seat owns that is not on the board. Setup gives every player £17,
 income space 10 (which is income level 0), 14 link tokens and a full mat of 45
 tiles; `vp`, `spent` and `discard` start empty and `hand` is dealt to 8.

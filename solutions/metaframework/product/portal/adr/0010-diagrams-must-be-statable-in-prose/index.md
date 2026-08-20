@@ -19,8 +19,6 @@ tags:
   - ai-readable
 ---
 
-# A diagram the catalog cannot state in prose is a diagram it cannot review
-
 ## Context
 
 The framework's founding principle is that the catalog must be readable by a

@@ -79,26 +79,49 @@ export interface RelationGraphProps {
 }
 
 /**
- * Edge vocabulary. `sample` is the legend swatch, and it is the same dash
- * pattern the canvas draws — a legend that redraws its own key is a legend that
- * drifts from the graph.
+ * Edge vocabulary. The legend draws from this same table — a legend that
+ * redraws its own key is a legend that drifts from the graph.
+ *
+ * Every distinction here has to be carried by weight, dash and arrowhead alone,
+ * because hue means "kind" and an edge type may not own one. That constraint is
+ * fine until two types land close together on all three channels at once, which
+ * is what happened to `realizes` and `measures`: 1.25 against 1 is a difference
+ * of 0.25px at zoom 1, and a capability page opens its graph at 0.58, where the
+ * pair measured 0.73px against 0.58px with seven edges converging on one node.
+ * Neither the weights nor the dashes survived that reduction, so the answer is
+ * one channel that does not reduce and two that are further apart:
+ *
+ * - `vectorEffect: non-scaling-stroke` on every edge (see `flowEdges`) takes
+ *   stroke width and dash period out of the viewport transform, so what is
+ *   authored here is what is drawn at any zoom.
+ * - `realizes` is heavier than `implements` rather than equal to it, which is
+ *   also the truer statement: realizing a capability is a claim about the whole
+ *   product, satisfying a requirement is a claim about one component.
+ * - `measures` is a round-capped DOT trail rather than a short dash. Against a
+ *   dash-dot it differs in kind and not in rhythm — there are no line segments
+ *   in it at all — which is the difference that survives being made small.
  */
 const EDGE_STYLES = {
-  uses: { label: 'uses', width: 1.25, dash: undefined, marker: MarkerType.ArrowClosed },
-  exposes: { label: 'exposes', width: 2, dash: undefined, marker: MarkerType.ArrowClosed },
-  'depends-on': { label: 'depends on', width: 1.25, dash: '7 4', marker: MarkerType.ArrowClosed },
-  implements: { label: 'implements', width: 1.25, dash: '1.5 3.5', marker: MarkerType.ArrowClosed },
+  uses: { label: 'uses', width: 1.25, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
+  exposes: { label: 'exposes', width: 2, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
+  'depends-on': { label: 'depends on', width: 1.25, dash: '7 4', cap: undefined, marker: MarkerType.ArrowClosed },
+  implements: { label: 'implements', width: 1.25, dash: '1.5 3.5', cap: undefined, marker: MarkerType.ArrowClosed },
   // A delivery claim, like `implements` one level up — hence a dash-dot that
   // reads as a relative of it, and a place in the legend beside it. This map's
   // key order is the legend order, and it follows frontmatter.md's table
   // rather than EDGE_TYPES: that list is adoption order and grows by
   // appending, which is the wrong thing for a reader to see first.
-  realizes: { label: 'realizes', width: 1.25, dash: '5 3 1.5 3', marker: MarkerType.ArrowClosed },
+  realizes: { label: 'realizes', width: 1.9, dash: '6 3 1.5 3', cap: undefined, marker: MarkerType.ArrowClosed },
   // An observation, not a dependency: the open arrowhead says nothing flows
-  // along this edge, the same distinction `supersedes` draws.
-  measures: { label: 'measures', width: 1, dash: '2 3', marker: MarkerType.Arrow },
-  supersedes: { label: 'supersedes', width: 1.25, dash: '11 4', marker: MarkerType.Arrow },
-} satisfies Record<EdgeType, { label: string; width: number; dash: string | undefined; marker: MarkerType }>
+  // along this edge, the same distinction `supersedes` draws. The round cap is
+  // what turns the dash into a dot — a zero-length segment draws nothing under
+  // a butt cap and a full circle under a round one.
+  measures: { label: 'measures', width: 1, dash: '0.01 4.5', cap: 'round', marker: MarkerType.Arrow },
+  supersedes: { label: 'supersedes', width: 1.25, dash: '11 4', cap: undefined, marker: MarkerType.Arrow },
+} satisfies Record<
+  EdgeType,
+  { label: string; width: number; dash: string | undefined; cap: 'round' | undefined; marker: MarkerType }
+>
 
 const EDGE_ORDER = Object.keys(EDGE_STYLES) as EdgeType[]
 
@@ -420,7 +443,16 @@ export function RelationGraph({
           sourceHandle: self ? 'self-out' : 'out',
           targetHandle: self ? 'self-in' : 'in',
           hidden: hiddenTypes.has(edge.edge),
-          style: { stroke, strokeWidth: style.width, strokeDasharray: style.dash },
+          // `non-scaling-stroke` is the reason the vocabulary is legible at all:
+          // the viewport is a CSS transform, so without it a 1px edge is drawn
+          // at 0.58px on a capability page, and the dash periods shrink with it.
+          style: {
+            stroke,
+            strokeWidth: style.width,
+            strokeDasharray: style.dash,
+            strokeLinecap: style.cap,
+            vectorEffect: 'non-scaling-stroke',
+          },
           markerEnd: { type: style.marker, width: 14, height: 14, color: stroke },
           ariaLabel: `${edge.from} ${style.label} ${edge.to}`,
         }
@@ -631,16 +663,33 @@ function GraphToolbar({
                   !on && 'opacity-40',
                 )}
               >
-                <svg width="22" height="6" viewBox="0 0 22 6" aria-hidden className="shrink-0">
+                {/* The swatch carries every channel the canvas uses, arrowhead
+                    included. It used to draw the line and drop the head, which
+                    left `realizes` and `measures` differing by a dash pattern
+                    alone in the one place a reader goes to tell them apart. */}
+                <svg width="26" height="8" viewBox="0 0 26 8" aria-hidden className="shrink-0">
                   <line
                     x1="0"
-                    y1="3"
-                    x2="22"
-                    y2="3"
+                    y1="4"
+                    x2={style.marker === MarkerType.ArrowClosed ? 18 : 20}
+                    y2="4"
                     stroke="var(--border-strong)"
                     strokeWidth={style.width}
                     strokeDasharray={style.dash}
+                    strokeLinecap={style.cap}
                   />
+                  {style.marker === MarkerType.ArrowClosed ? (
+                    <path d="M18 1 L25 4 L18 7 Z" fill="var(--border-strong)" />
+                  ) : (
+                    <path
+                      d="M19 1 L25 4 L19 7"
+                      fill="none"
+                      stroke="var(--border-strong)"
+                      strokeWidth="1.25"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
                 </svg>
                 <span className="flex-1 truncate font-mono text-[10.5px] text-foreground/80">{style.label}</span>
                 <span className="font-mono text-[10.5px] tabular-nums text-muted-foreground">{counts.get(type)}</span>

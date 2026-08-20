@@ -16,8 +16,6 @@ tags:
   - judgement
 ---
 
-# Architecture review
-
 `skills/review-solution/SKILL.md` (156 lines) + `references/review-checklist.md`
 (352) + `references/writing-the-review.md` (100), plus
 `agents/catalog-reviewer.md` (99). One responsibility: **answer the question the

@@ -29,8 +29,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Coupon service
-
 Owns every [coupon](srn://acme/product/growth/datamodel/coupon@1) acme has ever
 issued and every [redemption](srn://acme/product/growth/datamodel/redemption@1)
 it has recorded. It is the stateful centre of an otherwise stateless product,

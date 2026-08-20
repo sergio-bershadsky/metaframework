@@ -12,8 +12,6 @@ tags:
   - commerce
 ---
 
-# Order line
-
 A line is the pairing of a SKU with a quantity and the price that applied when
 the customer saw it. The price is captured, not looked up: a repricing after the
 fact changes the catalog, never an order that has already been placed, and a

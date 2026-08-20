@@ -26,8 +26,6 @@ tags:
   - live
 ---
 
-# Play
-
 Everything a human touches: the engine that knows the rules, the server that
 adjudicates with it, the browser client that renders a game and narrows it into
 clickable moves, and the ingress that puts both behind one hostname.

@@ -13,8 +13,6 @@ tags:
   - aggregate
 ---
 
-# Shipment
-
 The aggregate this product exists to maintain. It extends
 [base-record](srn://acme/datamodel/base-record@1) for identity and creation time,
 carries a [delivery-address](srn://acme/product/fulfilment/datamodel/delivery-address@1)

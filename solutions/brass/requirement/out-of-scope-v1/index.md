@@ -16,8 +16,6 @@ tags:
   - scope
 ---
 
-# Recorded non-goals for v1
-
 Every one of these has been asked for, and every one has an answer. The point of
 writing them down as a `wont` rather than deleting them is that the same request
 arrives again next month and deserves a recorded answer rather than a blank

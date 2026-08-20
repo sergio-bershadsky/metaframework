@@ -67,6 +67,9 @@ import '@xyflow/react/dist/style.css'
  * answer along with the clutter. Anything receded stays clickable — re-centring
  * is the only way to move sideways — and hovering brings it back to full
  * strength, so reading a box before clicking it costs a glance.
+ *
+ * THE ROOT VIEW STOPS AT THE PRODUCTS — see ROOT_DEPTH. Every other focus keeps
+ * the full three rings.
  */
 
 export type MapKind = 'solution' | 'product' | 'component'
@@ -122,6 +125,32 @@ const OVERLAY_ROOM = 44
  */
 const FITTED_RINGS = 2
 
+/**
+ * How far the ROOT view reaches: the solution and its products, nothing deeper.
+ *
+ * This is geometry, not taste. A box is 158px wide and its name is set at 12px.
+ * With three rings, acme's twenty-five boxes reach 461 units from the centre,
+ * and the viewport fits that into a 670x464 canvas at zoom 0.36 — where 12px
+ * type renders at 4.3px: present, and unreadable. Measured, not estimated; the
+ * same view on a 1920x1080 window managed 0.69, or 8.3px, which is not much
+ * better. No amount of styling fixes twenty-five boxes in that space, so the fix
+ * is to show fewer: one solution and its products land at zoom 0.82 (9.9px) on
+ * the small window and at the 1.0 ceiling on the large one, for every solution
+ * in this catalog.
+ *
+ * The relief is bounded, and the bound is the product count, not the entity
+ * count — a synthetic solution with twenty products measures 0.40 at 1024x720,
+ * back at the floor. Past roughly six products this view needs a different
+ * answer, and this is not it.
+ *
+ * What the root view gives up is real — a component-to-component dependency
+ * crossing two products is invisible from here — so the loss is DRAWN rather
+ * than left to be discovered: every box says how many entities it contains that
+ * this view is not showing (see `hidden` below). Clicking a product restores the
+ * full depth around it, which is where those crossings are worth reading anyway.
+ */
+const ROOT_DEPTH = 1
+
 const MIN_ZOOM = 0.35
 const MAX_ZOOM = 1
 
@@ -137,6 +166,8 @@ interface MapNodeData extends Record<string, unknown> {
   title: string
   kind: MapKind
   focused: boolean
+  /** Entities contained by this one that the current view does not draw. */
+  hidden: number
   onRecentre: (srn: string) => void
 }
 
@@ -197,19 +228,17 @@ function setBack<T extends { id: string; className?: string }>(
  * foreground and there would be no focus left to speak of; those neighbours are
  * what hover is for.
  */
-function branchOf(focus: string, byId: ReadonlyMap<string, SolutionMapNode>): Set<string> {
+function branchOf(
+  focus: string,
+  byId: ReadonlyMap<string, SolutionMapNode>,
+  children: ReadonlyMap<string, string[]>,
+): Set<string> {
   const branch = new Set<string>()
 
   let ancestor: string | null = focus
   while (ancestor !== null && !branch.has(ancestor)) {
     branch.add(ancestor)
     ancestor = byId.get(ancestor)?.parent ?? null
-  }
-
-  const children = new Map<string, string[]>()
-  for (const node of byId.values()) {
-    if (node.parent === null) continue
-    children.set(node.parent, [...(children.get(node.parent) ?? []), node.srn])
   }
 
   const pending = [focus]
@@ -223,6 +252,49 @@ function branchOf(focus: string, byId: ReadonlyMap<string, SolutionMapNode>): Se
   }
 
   return branch
+}
+
+/** Containment children per node, in the order the catalog listed them. */
+function childrenOf(nodes: readonly SolutionMapNode[]): Map<string, string[]> {
+  const children = new Map<string, string[]>()
+  for (const node of nodes) {
+    if (node.parent === null) continue
+    children.set(node.parent, [...(children.get(node.parent) ?? []), node.srn])
+  }
+  return children
+}
+
+/**
+ * How many entities each box contains that this view does not draw.
+ *
+ * Counted over the whole subtree, not just the immediate children, because the
+ * number answers "what am I not being shown", and a product whose one component
+ * holds four of its own is hiding five things, not one. A box with nothing
+ * missing gets zero and says nothing — the marker only ever appears where the
+ * map is genuinely incomplete, which is what makes it worth reading.
+ */
+function hiddenCounts(
+  nodes: readonly SolutionMapNode[],
+  children: ReadonlyMap<string, string[]>,
+  placed: ReadonlySet<string>,
+): Map<string, number> {
+  const counts = new Map<string, number>()
+
+  for (const node of nodes) {
+    let hidden = 0
+    const seen = new Set<string>([node.srn])
+    const pending = [...(children.get(node.srn) ?? [])]
+    while (pending.length > 0) {
+      const id = pending.pop() as string
+      if (seen.has(id)) continue
+      seen.add(id)
+      if (!placed.has(id)) hidden += 1
+      pending.push(...(children.get(id) ?? []))
+    }
+    counts.set(node.srn, hidden)
+  }
+
+  return counts
 }
 
 /**
@@ -272,13 +344,31 @@ function MapBox({ data }: NodeProps<MapFlowNode>) {
         }}
         onClick={() => data.onRecentre(data.srn)}
         aria-current={data.focused ? 'true' : undefined}
-        aria-label={`Centre the map on ${data.name}, ${style.label.toLowerCase()}`}
-        title={`${data.name} — ${data.title}`}
+        aria-label={
+          data.hidden > 0
+            ? `Centre the map on ${data.name}, ${style.label.toLowerCase()}, containing ${data.hidden} more not drawn here`
+            : `Centre the map on ${data.name}, ${style.label.toLowerCase()}`
+        }
+        title={data.hidden > 0 ? `${data.name} — ${data.title} · ${data.hidden} inside` : `${data.name} — ${data.title}`}
       >
         <Icon className="size-3.5 shrink-0" style={{ color: hue }} aria-hidden />
         <span className="min-w-0 flex-1 truncate font-mono text-[12px] leading-none tracking-tight text-foreground">
           {data.name}
         </span>
+        {/* The count of what this box contains and the map is not drawing. It
+            is `aria-hidden` because the button's own label already says it in
+            words; a screen reader hearing "+5" would be told a number with no
+            noun. Kept inside the button so it moves, fades and recedes with the
+            box rather than as a second thing floating beside it. */}
+        {data.hidden > 0 && (
+          <span
+            aria-hidden
+            className="shrink-0 rounded-sm border px-1 font-mono text-[10px] leading-[1.25] text-muted-foreground"
+            style={{ borderColor: `color-mix(in oklab, ${hue} 35%, transparent)` }}
+          >
+            +{data.hidden}
+          </span>
+        )}
       </button>
 
       {/* The title is worth the room for exactly one node: the one being read. */}
@@ -320,7 +410,15 @@ function boxEdgePoint(
 ): { x: number; y: number } {
   const { x: dx, y: dy } = direction
   const length = Math.hypot(dx, dy)
-  if (length === 0) return { x: cx, y: cy }
+  // Coincident, not merely equal. An exact zero was guarded before; a direction
+  // of ~1e-9 was not, and both axis tests below then read as "parallel", making
+  // `scale` infinite and the path `M -Infinity,-Infinity`, which the browser
+  // rejects outright. It happens on the first animated frame after a re-centre,
+  // where a child entering from its parent's position sits a hair off it —
+  // which is exactly what the root view does now on every click. The threshold
+  // sits an order of magnitude above the axis epsilon so the two cannot
+  // disagree about whether there is a direction here.
+  if (length < 1e-5) return { x: cx, y: cy }
   const toSide = Math.abs(dx) < 1e-6 ? Number.POSITIVE_INFINITY : MAP_NODE.width / 2 / Math.abs(dx)
   const toCap = Math.abs(dy) < 1e-6 ? Number.POSITIVE_INFINITY : MAP_NODE.height / 2 / Math.abs(dy)
   const scale = Math.min(toSide, toCap) + inset / length
@@ -402,7 +500,17 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
     [links],
   )
 
-  const layout = useMemo(() => polarLayout({ nodes: ids, links: polarLinks, focus }), [ids, polarLinks, focus])
+  // The root is the one focus with a depth limit of its own — see ROOT_DEPTH.
+  const layout = useMemo(
+    () =>
+      polarLayout({
+        nodes: ids,
+        links: polarLinks,
+        focus,
+        ...(focus === root ? { maxDepth: ROOT_DEPTH } : {}),
+      }),
+    [ids, polarLinks, focus, root],
+  )
   const frame = usePolarTransition(layout, layout.extent + EXIT_MARGIN)
   const fitRadius = layout.radii[Math.min(FITTED_RINGS, layout.radii.length - 1)] ?? 0
 
@@ -411,6 +519,12 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
   // Rebuilt when the neighbourhood changes, NOT per frame: React Flow re-renders
   // a custom node when its data identity changes, and at sixty frames a second
   // that would re-render every box for the whole transition.
+  const children = useMemo(() => childrenOf(nodes), [nodes])
+  const hidden = useMemo(
+    () => hiddenCounts(nodes, children, new Set(layout.depth.keys())),
+    [nodes, children, layout],
+  )
+
   const nodeData = useMemo(() => {
     const map = new Map<string, MapNodeData>()
     for (const node of nodes) {
@@ -420,11 +534,12 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
         title: node.title,
         kind: node.kind,
         focused: node.srn === focus,
+        hidden: hidden.get(node.srn) ?? 0,
         onRecentre: recentre,
       })
     }
     return map
-  }, [nodes, focus, recentre])
+  }, [nodes, focus, hidden, recentre])
 
   /**
    * How far back each box sits. Off the focused branch wins over merely being
@@ -436,15 +551,19 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
    * which is the view's entire reason for existing.
    */
   const recession = useMemo(() => {
-    const branch = branchOf(focus, byId)
+    const branch = branchOf(focus, byId, children)
     const levels = new Map<string, Recession>()
     for (const node of nodes) {
       const depth = layout.depth.get(node.srn)
-      const beyondFramedRings = depth === undefined || depth >= layout.maxDepth
+      // Against FITTED_RINGS, not against the layout's depth limit: the two
+      // coincide at every focus but the root, and at the root they must not —
+      // ROOT_DEPTH stops the layout inside the framed rings, so reading the
+      // limit there would push the products themselves back as spillover.
+      const beyondFramedRings = depth === undefined || depth > FITTED_RINGS
       levels.set(node.srn, !branch.has(node.srn) ? 'far' : beyondFramedRings ? 'soft' : 'none')
     }
     return levels
-  }, [nodes, byId, layout, focus])
+  }, [nodes, byId, children, layout, focus])
 
   const flowNodes = useMemo<MapFlowNode[]>(() => {
     const placed: MapFlowNode[] = []
@@ -529,7 +648,10 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
     return chain
   }, [focus, byId])
 
-  const summary = useMemo(() => describe(byId, layout, links, recession), [byId, layout, links, recession])
+  const summary = useMemo(
+    () => describe(byId, layout, links, recession, hidden),
+    [byId, layout, links, recession, hidden],
+  )
   const hydrated = useIsHydrated()
 
   if (nodes.length <= 1) {
@@ -710,6 +832,10 @@ function FocusTrail({
  * The two languages, drawn the way the canvas draws them. A legend that redraws
  * its own key with different numbers is a legend that drifts from the graph, so
  * the samples below use the same widths and dash pattern as the edges.
+ *
+ * The `+n` row is here for the same reason the marker exists: the root view
+ * stops at the products, and a reader who has never seen the deeper rings needs
+ * one line telling them the number is a door rather than a defect.
  */
 function EdgeLegend() {
   return (
@@ -728,6 +854,18 @@ function EdgeLegend() {
         <dt className="font-mono text-[10.5px] text-muted-foreground">depends on</dt>
         <dd className="sr-only">Dependency — crosses the structure rather than forming it.</dd>
       </div>
+      <div className="flex items-center gap-2 px-0.5 py-0.5">
+        <span
+          aria-hidden
+          className="grid h-[13px] w-6 shrink-0 place-items-center rounded-sm border border-border-strong font-mono text-[9px] text-muted-foreground"
+        >
+          +n
+        </span>
+        <dt className="font-mono text-[10.5px] text-muted-foreground">inside, not drawn</dt>
+        <dd className="sr-only">
+          How many entities that box contains which this view does not show. Centre the map on it to open them.
+        </dd>
+      </div>
     </dl>
   )
 }
@@ -738,6 +876,7 @@ function describe(
   layout: ReturnType<typeof polarLayout>,
   links: readonly SolutionMapLink[],
   recession: ReadonlyMap<string, Recession>,
+  hidden: ReadonlyMap<string, number>,
 ): { headline: string; lines: string[] } {
   const name = (srn: string) => byId.get(srn)?.name ?? srn
   const rings = new Map<number, string[]>()
@@ -767,8 +906,19 @@ function describe(
     )
   }
 
+  // The `+n` marker in words. Same rule as the canvas: named only where the
+  // view is actually incomplete, so silence here means nothing is missing.
+  const withHidden = [...layout.depth.keys()]
+    .filter((srn) => (hidden.get(srn) ?? 0) > 0)
+    .map((srn) => `${name(srn)} contains ${hidden.get(srn)} more`)
+    .sort()
+  if (withHidden.length > 0) {
+    lines.push(`Not drawn at this focus — centre on one to open it: ${withHidden.join(', ')}.`)
+  }
+
+  const reach = layout.maxDepth === 1 ? 'one step' : `${layout.maxDepth} steps`
   return {
-    headline: `Structure around ${name(layout.focus)}: ${layout.depth.size - 1} entities within ${layout.maxDepth} steps.`,
+    headline: `Structure around ${name(layout.focus)}: ${layout.depth.size - 1} entities within ${reach}.`,
     lines,
   }
 }

@@ -19,8 +19,6 @@ tags:
   - founding
 ---
 
-# The SRN is the JSON Schema reference syntax
-
 ## Context
 
 The founding session settled the SRN as the framework's identity and reference

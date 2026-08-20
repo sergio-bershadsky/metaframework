@@ -11,8 +11,6 @@ tags:
   - cross-cutting
 ---
 
-# Establish who a principal is
-
 Acme can take a claim — *I am this account* — and raise its confidence in that
 claim to a level it has decided is enough for what is being asked. It can create
 the claim in the first place, by binding a handle and a first credential to a

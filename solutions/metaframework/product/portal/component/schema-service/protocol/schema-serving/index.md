@@ -19,8 +19,6 @@ tags:
   - interoperability
 ---
 
-# Schema serving
-
 The only conversation in this solution with a party outside it. One initiator —
 stock JSON Schema tooling, described as
 [schema-consumer](srn://metaframework/actor/schema-consumer) — and one

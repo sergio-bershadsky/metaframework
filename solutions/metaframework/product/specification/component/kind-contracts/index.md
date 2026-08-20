@@ -21,8 +21,6 @@ tags:
   - kinds
 ---
 
-# Kind contracts
-
 `framework/spec/kinds/` — nine documents, 5,261 lines, one per ontology kind:
 
 | Document         | Version | Lines | Adds                                                      |

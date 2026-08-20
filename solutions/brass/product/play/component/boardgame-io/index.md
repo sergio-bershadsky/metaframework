@@ -18,8 +18,6 @@ tags:
 x-version: ^0.50.2
 ---
 
-# boardgame.io
-
 An open-source turn-based game framework, described here as far as this solution's
 boundary requires and no further. Without this node in the graph, "the server is
 twenty-six lines" reads as a gap in the description instead of as the decision it is.

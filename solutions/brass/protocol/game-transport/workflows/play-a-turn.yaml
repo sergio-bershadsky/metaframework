@@ -36,10 +36,9 @@ steps:
                   to: web-client
                   kind: error
                   note: >-
-                    Not a wire message. boardgame.io reverts every mutation the
-                    handler made and broadcasts nothing, so the client observes
-                    the rejection only as the absence of an update — which is why
-                    the UI is built to offer none but enumerated moves.
+                    Not a wire message. boardgame.io reverts every mutation the handler
+                    made and broadcasts nothing, so the client observes the rejection
+                    only as the absence of an update.
 
   - message: confirm-turn
     from: web-client
@@ -80,7 +79,6 @@ steps:
             channel: state-update
             payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
             note: >-
-              Same wire event as any other update — the era boundary is visible
-              only in the state that arrives. In the canal era it carries the
-              scoring, the level-1 purge, the cleared links and a fresh deal; in
-              the rail era it carries the final scores and ctx.gameover.
+              Same wire event as any other update; the era boundary is visible only in
+              the state that arrives. Canal era carries scoring, the level-1 purge,
+              cleared links and a deal; rail era the final scores.

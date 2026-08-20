@@ -16,8 +16,6 @@ tags:
   - data
 ---
 
-# Score trajectories at read time; never delete a game
-
 ## Context
 
 The last phase of the MCP track proposes persisting every finished match as an

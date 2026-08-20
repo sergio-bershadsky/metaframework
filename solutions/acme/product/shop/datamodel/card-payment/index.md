@@ -12,8 +12,6 @@ tags:
   - payments
 ---
 
-# Card payment
-
 The `method: card` branch of
 [payment-method](srn://acme/product/shop/datamodel/payment-method@1). It carries a token
 issued by the acquirer, the scheme, and the last four digits — and deliberately

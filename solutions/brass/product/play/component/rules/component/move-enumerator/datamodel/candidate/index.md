@@ -12,8 +12,6 @@ tags:
   - planning
 ---
 
-# Candidate
-
 A single selectable option for a single unit. The planners produce them; the
 sourcing UI renders them; the engine re-validates the player's pick against a
 freshly computed set before applying anything.

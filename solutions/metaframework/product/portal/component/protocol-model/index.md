@@ -19,8 +19,6 @@ tags:
   - diagrams
 ---
 
-# Protocol model
-
 `src/lib/protocol/` — `workflow.ts` (1,091 lines), `states.ts` (569),
 `mermaid.ts` (241), with 1,287 lines of tests across the three. One component,
 because all three answer the same question: turn a protocol's sibling artifact

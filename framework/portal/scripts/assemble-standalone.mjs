@@ -13,7 +13,7 @@
  * HTML renders, and every stylesheet and script 404s. The assertions at the
  * end are here so that failure cannot leave this script.
  */
-import { cp, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -82,6 +82,75 @@ await writeFile(
   )}\n`,
 )
 
+/* ------------------------------------------------ what the build over-emits */
+
+/**
+ * The raw TypeScript Turbopack leaves beside each Monaco worker.
+ *
+ * `new Worker(new URL('./json.worker.ts', import.meta.url), …)` is recognised
+ * as a worker and compiled into `static/chunks/turbopack-worker-*.js` — but the
+ * `new URL(…)` inside it is *also* treated as an asset reference on its own, so
+ * the uncompiled `.ts` module is copied verbatim into `static/media/` as well.
+ * Both modules end up in the client chunk; only the compiled one is reachable.
+ *
+ * Measured against the packaged build, not inferred: a datamodel page mounts
+ * the JSON editor and makes exactly one `new Worker(...)` call, and its
+ * argument is `turbopack-worker-2gqdcwp7k90ea.js` — the compiled chunk, served
+ * as `application/javascript`. The `.ts` copy is never requested.
+ *
+ * Deleting it cannot break a working path, because there is no working path it
+ * could be on: this server answers `.ts` with `Content-Type: video/mp2t`, and
+ * no browser will run a module worker off that. It is removed so the next
+ * reader does not find raw TypeScript in a published build and reopen the
+ * question.
+ */
+const media = path.join(standalone, '.next', 'static', 'media')
+const rawWorkerSources = (await isDir(media))
+  ? (await readdir(media)).filter((name) => /\.worker\.[^.]+\.ts$/.test(name))
+  : []
+for (const name of rawWorkerSources) await rm(path.join(media, name))
+
+/**
+ * The whole of Monaco, compiled a second time for a server that never renders it.
+ *
+ * `.next/server/chunks/ssr/` is the server-side half of the client-component
+ * graph, and Turbopack builds it for every client module whether or not the
+ * server can reach it. Monaco is reached two ways, and neither survives to a
+ * server render: `SourceView` is `dynamic(..., { ssr: false })`, and
+ * `CodeBlock` reaches `./monaco` through an `import()` inside `useEffect`. So
+ * the whole of it is compiled, shipped, and never opened — 113 chunks and 12MB
+ * on the build this was written against, three of which were byte-identical
+ * 949kB copies of one vendor chunk differing only in their own
+ * `sourceMappingURL`.
+ *
+ * The check below is the safety rail, and it is the *shape* of the reference
+ * that makes this safe rather than the crawl that confirmed it: every chunk
+ * here is loaded asynchronously, by path, from a lazy `import()`. A module the
+ * server actually needed would appear as a synchronous `require()` somewhere in
+ * `.next/server`. If one ever does, this script stops instead of publishing a
+ * build that 500s on a page nobody thought to open.
+ */
+const ssrChunks = path.join(standalone, '.next', 'server', 'chunks', 'ssr')
+const monacoChunks = (await isDir(ssrChunks))
+  ? (await readdir(ssrChunks)).filter((name) => name.includes('monaco'))
+  : []
+for (const file of await serverFiles(path.join(standalone, '.next', 'server'))) {
+  const source = await readFile(file, 'utf8')
+  const required = source.match(/require\("[^"]*monaco[^"]*"\)/)
+  if (required) await fail(`${file} requires ${required[0]} synchronously — the SSR chunks are load-bearing after all`)
+}
+for (const name of monacoChunks) await rm(path.join(ssrChunks, name))
+
+async function serverFiles(dir) {
+  const found = []
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) found.push(...(await serverFiles(full)))
+    else if (entry.name.endsWith('.js') && !entry.name.includes('monaco')) found.push(full)
+  }
+  return found
+}
+
 // The three things the CLI needs to exist at runtime, checked rather than
 // assumed. `server.js` is the entry `bin/metaframework.mjs` requires; the two
 // asset trees are what it serves to a browser.
@@ -100,4 +169,7 @@ for (const required of [
 const chunks = await readdir(path.join(standalone, '.next', 'static'))
 if (chunks.length === 0) await fail('.next/static copied but empty')
 
-process.stdout.write(`assemble-standalone: ${standalone} is ready to pack\n`)
+process.stdout.write(
+  `assemble-standalone: dropped ${rawWorkerSources.length} raw worker source(s) and ${monacoChunks.length} unreachable Monaco SSR chunk(s)\n` +
+    `assemble-standalone: ${standalone} is ready to pack\n`,
+)

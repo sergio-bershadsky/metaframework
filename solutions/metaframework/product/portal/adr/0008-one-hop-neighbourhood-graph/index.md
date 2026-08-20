@@ -19,8 +19,6 @@ tags:
   - diagrams
 ---
 
-# The entity graph is one hop, and only one hop
-
 ## Context
 
 Frontmatter `relations` plus the loader's derived inbound index give the portal a

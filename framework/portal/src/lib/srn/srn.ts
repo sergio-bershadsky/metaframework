@@ -244,6 +244,34 @@ export function parentSrn(srn: Srn): string | null {
 }
 
 /**
+ * The names of the containers between `base` and `srn`, outermost first —
+ * `['fulfilment', 'carrier-gateway']` for a datamodel two components down, and
+ * `[]` for a direct child.
+ *
+ * The context a tree gives by indentation, for the flat lists that cannot. Two
+ * of them need it and needed it for the same reason: names collide across the
+ * catalog (every product has a `checkout`-shaped component somewhere, every
+ * component may own an `api` protocol), so a bare name in a flat list is
+ * ambiguous exactly where the list is most useful. It lives here rather than
+ * beside either caller because it is a fact about SRN structure — pairs of
+ * kind/name, the last of which is the entity itself.
+ *
+ * `base` defaults to the solution root, which is what a solution-level list
+ * (`Realized by` on a capability) wants: the first name back is the owning
+ * product. A malformed SRN yields `[]` rather than throwing — a list that
+ * refuses to render is worse than one row missing its context.
+ */
+export function ownerTrail(srn: string, base?: string): string[] {
+  try {
+    const path = parseSrn(srn).path
+    const from = base ? parseSrn(base).path.length : 0
+    return path.slice(from, -1).map((segment) => segment.name)
+  } catch {
+    return []
+  }
+}
+
+/**
  * Resolve an SRN to its entity directory, relative to the catalog root.
  * The `@version` suffix never appears on disk.
  */

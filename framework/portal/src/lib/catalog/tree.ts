@@ -21,24 +21,45 @@ export interface TreeNode {
 }
 
 /**
- * Sibling order in the hierarchy, and group order under the Kind lens.
+ * Reading order — the one ordering of the kinds a reader is ever shown.
  *
- * Containers first, then the things they own in the order an architect reads
- * them: behaviour (protocol, datamodel), participants (actor, environment),
- * intent (capability, journey), then the paperwork (requirement, metric, adr).
- * `solution` only ever appears at the root of the hierarchy, but the root is a
- * level like any other and the Kind lens buckets it too, so the order is
- * exhaustive over the ontology.
+ * Sibling order in the hierarchy, group order under the Kind lens, the Kind
+ * filter menu, and the per-kind counts on a solution card. Its counterpart is
+ * `ENTITY_KINDS` (./frontmatter), which is adoption order and append-only; that
+ * list answers "is this a kind?" and never "in what order do kinds read?". See
+ * its comment for the rule.
+ *
+ * Containers first, then the DECISIONS that bind the container, then the things
+ * it owns in the order an architect reads them: behaviour (protocol,
+ * datamodel), participants (actor, environment), intent (capability, journey),
+ * then requirement and metric. `solution` only ever appears at the root of the
+ * hierarchy, but the root is a level like any other and the Kind lens buckets it
+ * too, so the order is exhaustive over the ontology.
+ *
+ * **Why `adr` sits with the containers and not last.** Every other kind here is
+ * a claim about the described system: what it is made of, how the parts talk,
+ * who uses it, what it must do. An ADR is the only kind whose subject is the
+ * *shape* — why this container is arranged this way and not another way — so it
+ * is authored against the container itself, exactly as a sub-product or a
+ * sub-component is, while a protocol or a datamodel is one artifact among the
+ * many a container holds. That makes a decision a PEER of structure rather than
+ * a leaf of it, which is the ontology the framework's own solution states in as
+ * many words: the decision record is not an appendix to the structure, it is
+ * half of what the reader came for. Sorting decisions behind every leaf kind
+ * contradicted that on the rail and on every container's Contents list alike.
+ *
+ * The rule is about the kind, so it holds for every container in every
+ * catalog — a solution, a product, a component — and never for one solution.
  *
  * The three newest kinds are inserted where they read rather than appended:
  * a capability and a journey belong beside the participants they involve, and a
- * metric belongs beside the requirement it puts a number on. No pair of the
- * original nine changed places.
+ * metric belongs beside the requirement it puts a number on.
  */
 export const KIND_ORDER: readonly EntityKind[] = [
   'solution',
   'product',
   'component',
+  'adr',
   'protocol',
   'datamodel',
   'actor',
@@ -47,7 +68,6 @@ export const KIND_ORDER: readonly EntityKind[] = [
   'journey',
   'requirement',
   'metric',
-  'adr',
 ]
 
 export function buildTree(catalog: Catalog): TreeNode[] {
@@ -203,6 +223,17 @@ export interface LensGroupNode {
    * DIRECT members — exactly what expanding this bucket reveals. Deliberately
    * not a subtree total: grandchildren sit in their own buckets one level down,
    * and counting them here would promise rows this bucket does not hold.
+   *
+   * The stronger reason is what the header says. A bucket header is a PREDICATE
+   * over its members — kind is datamodel, status is draft, owner is team-a — so
+   * a subtree total would count entities that falsify it: "12" beside Draft,
+   * mostly approved. Direct counts also partition the level, which is the
+   * property that makes them readable — over the shipped catalog they sum to
+   * 288 across 95 kind-lens buckets, one per entity, where subtree totals sum to
+   * 872 because every entity is re-counted in each ancestor's bucket.
+   *
+   * "How big is this subtree?" is a real question, and it is a question about an
+   * ENTITY, not about a bucket. It belongs on the container's own row.
    */
   count: number
   children: LensNode[]

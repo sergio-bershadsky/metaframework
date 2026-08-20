@@ -20,8 +20,6 @@ tags:
   - ci
 ---
 
-# CI runner
-
 The `build` workflow's runtime. It is modelled as an actor rather than an
 environment on purpose: a pipeline is not a deployment target of this solution's
 components. Nothing *runs* in CI in the sense

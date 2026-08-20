@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: structure
-version: 3
+version: 4
 status: review
 title: Directory structure
 summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, and naming rules.
@@ -121,6 +121,47 @@ solutions/acme/product/shop/protocol/order-placement/
     ├── cancel-order.yaml
     └── place-order.yaml
 ```
+
+### The document body
+
+**Rule:** the prose in `index.md` MUST NOT contain a level-1 heading. Sections
+start at `##`. Violation is `E_STRUCT_BODY_H1`
+([below](#structure-error-classes)).
+
+The title is already stated, once, in frontmatter `title`, and the portal
+renders it as the page's `<h1>`. A `#` in the prose therefore produces a second
+`<h1>` on the same page — a document with two top-level headings has no outline,
+which is what a screen reader's heading navigation and every outline-consuming
+tool read the page by. In practice the duplicate was never a *different* title
+either: every entity in this repository opened with `# <title>`, byte-identical
+to the frontmatter field the header had just printed, so the rule removes a
+repetition rather than a section.
+
+```markdown
+---
+name: order
+kind: datamodel
+title: Order
+# … the rest of the frontmatter
+---
+
+The order aggregate as the payment component owns it: …
+
+## Invariants the schema cannot express
+```
+
+The rule is on the **source**, not on the renderer. Demoting authored headings
+at render time would fix the outline while leaving the file — which is what
+review reads, in a diff and on any git host — saying something the page does not
+say. Level in the source and level on the page agree.
+
+Both markdown spellings of a level-1 heading are covered: `# Title`, and `Title`
+underlined with `=`. A `#` inside a fenced block is prose about a path or a
+shell, not a heading, and is never flagged.
+
+Which headings each kind then uses is that kind's business: `kinds/adr.md` pins
+four level-2 sections, `kinds/requirement.md` pins one, and the rest leave them
+conventional. No kind may pin a level-1 heading.
 
 Kind buckets are the mirror image: they hold entity directories and nothing
 else.
@@ -454,13 +495,15 @@ occurrence anywhere below the solution is `E_SRN_PLACEMENT`.
 
 Placement is grammar now, so the structural checks are only what the grammar
 cannot see: a document that should exist and does not, an entity where no entity
-may be, and two directories claiming one SRN.
+may be, two directories claiming one SRN, and a document whose prose opens a
+heading level the page has already used ([above](#the-document-body)).
 
 | Code                     | Meaning                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------ |
 | `E_STRUCT_MISSING_INDEX` | A directory that owns an entity has no `index.md`, so the owner's SRN resolves to nothing. |
 | `E_STRUCT_NESTED_ENTITY` | An `index.md` sits directly below an entity that is not a container.                       |
 | `E_STRUCT_DUPLICATE_SRN` | Two directories resolve to the same SRN.                                                   |
+| `E_STRUCT_BODY_H1`       | An `index.md` body carries a level-1 heading; the page already renders `title` as the h1.  |
 | `W_STRUCT_PROTOCOL_NCA`  | Protocol not at the NCA of its component/product participants.                             |
 
 Notes on each, because the grammar overlaps them:

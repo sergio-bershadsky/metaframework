@@ -17,8 +17,6 @@ tags:
   - ai-readable
 ---
 
-# Every diagram states itself in words
-
 A picture the catalog cannot state in prose is a picture the catalog cannot
 review. Every drawing the portal derives — the relation graph, the solution map,
 the sequence diagram, the state chart — must ship, in the rendered DOM, a text

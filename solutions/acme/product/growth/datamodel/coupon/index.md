@@ -13,8 +13,6 @@ tags:
   - coupons
 ---
 
-# Coupon
-
 The presented half of the discount hierarchy, and the deepest model in this
 catalog: `base-record → discount → coupon`, each hop a root-level `allOf` and
 each hop adding exactly what its level is responsible for. Identity and creation

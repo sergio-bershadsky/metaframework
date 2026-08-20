@@ -18,8 +18,6 @@ tags:
   - history
 ---
 
-# Git history
-
 `src/lib/history/git.ts`, 895 lines, the single largest module in `src/lib`.
 The catalog keeps only current versions on disk, so every historical read goes
 through git.

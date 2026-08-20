@@ -13,8 +13,6 @@ tags:
   - scoring
 ---
 
-# Merchant bonus
-
 A property of the **location**, not of the tile placed on it. Each of the five
 merchant locations carries exactly one printed bonus, and it fires once, when
 that location's free barrel is spent on a sale:

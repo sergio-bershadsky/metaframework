@@ -24,8 +24,6 @@ tags:
   - interaction
 ---
 
-# Action flow
-
 `actionFlow.ts`, plus the composition state held in `GameView` and the prompts in
 `SourcePrompt` and `SellWizard`. It converts clicks into exactly one legal move.
 

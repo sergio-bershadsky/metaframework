@@ -13,8 +13,6 @@ tags:
   - board-game
 ---
 
-# Industry type
-
 Six values, closed by the printed game: `coal`, `iron`, `brewery`, `cotton`,
 `manufacturer`, `pottery`. Everything else in the engine is indexed by one of
 them — the industry-tile table, a city's build slots, an industry card's face, a

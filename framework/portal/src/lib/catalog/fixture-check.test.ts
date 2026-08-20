@@ -1,8 +1,9 @@
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { CANONICAL_SCHEMA_HOST, schemaServingUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
+import { artifactDiagnostics } from './artifact-checks'
 import { ENTITY_KINDS } from './frontmatter'
-import { withSchemaRegistry } from './index'
+import { withArtifactChecks, withSchemaRegistry } from './index'
 import { loadCatalog } from './load'
 import type { Catalog, Diagnostic } from './types'
 
@@ -44,6 +45,42 @@ describe('shipped catalog', () => {
     expect(registry.diagnostics.map(format)).toEqual([])
     expect(merged.diagnostics.length).toBe(catalog.diagnostics.length + registry.diagnostics.length)
     for (const diagnostic of catalog.diagnostics) expect(merged.diagnostics).toContain(diagnostic)
+  })
+
+  it('surfaces artifact mini-spec diagnostics through the catalog the portal renders', () => {
+    // The same hole the assertion above closed for datamodels, one artifact
+    // class later: `journey.yaml`, `workflows/*.yaml` and `states.json` each
+    // have a parser, and every one of them was reachable only from a rendering
+    // component. This assertion is the reason the shipped catalog's seventeen
+    // over-cap notes and one mismatched machine id were found at all — the
+    // "loads with no error diagnostics" test above never saw them, because
+    // `loadCatalog` does not open an artifact past parsing it.
+    const withArtifacts = withArtifactChecks(catalog)
+    const errors = withArtifacts.diagnostics.filter((d) => d.severity === 'error')
+
+    expect(errors.map(format)).toEqual([])
+    for (const diagnostic of catalog.diagnostics) expect(withArtifacts.diagnostics).toContain(diagnostic)
+  })
+
+  it('checks every artifact the entity page draws, and only those', () => {
+    // The dispatch table is duplicated between this module and
+    // `entity-artifacts.tsx` — one by kind and filename, one by kind and
+    // filename — so the two must agree on which files are validated at all. A
+    // count derived from the catalog rather than written down catches an
+    // artifact class that gained a parser on one side only.
+    const drawn = [...catalog.entities.values()].flatMap((entity) =>
+      entity.artifacts
+        .filter(
+          (artifact) =>
+            (entity.kind === 'journey' && artifact.file === 'journey.yaml') ||
+            (entity.kind === 'protocol' && artifact.file.startsWith('workflows/')) ||
+            (entity.kind === 'protocol' && artifact.file === 'states.json'),
+        )
+        .map((artifact) => `${entity.relDir}/${artifact.file}`),
+    )
+
+    expect(drawn.length).toBeGreaterThan(0)
+    for (const diagnostic of artifactDiagnostics(catalog)) expect(drawn).toContain(diagnostic.path)
   })
 
   it('exposes exactly one solution root per catalog directory', async () => {

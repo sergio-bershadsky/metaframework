@@ -18,8 +18,6 @@ tags:
   - founding
 ---
 
-# The filesystem is the database
-
 ## Context
 
 The framework had to choose where a catalog's content lives before anything else

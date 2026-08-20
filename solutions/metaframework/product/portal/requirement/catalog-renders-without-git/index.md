@@ -16,8 +16,6 @@ tags:
   - history
 ---
 
-# The catalog renders without git, and says why the past is missing
-
 History is an **enrichment**, not a precondition. The current state of every
 entity is on disk; only the past requires git. So the absence of git must
 degrade the portal rather than break it, and the degradation must be legible —

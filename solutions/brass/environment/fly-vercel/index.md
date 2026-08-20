@@ -11,8 +11,6 @@ tags:
   - superseded
 ---
 
-# Fly + Vercel (superseded)
-
 The original public target: the server as a Fly.io app, the client as a Vercel
 deployment, two different origins talking across the internet. Superseded on
 2026-07-17 by [production](srn://brass/environment/production), and kept described

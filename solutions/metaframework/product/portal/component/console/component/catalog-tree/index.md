@@ -18,8 +18,6 @@ tags:
   - navigation
 ---
 
-# Catalog tree
-
 `src/components/catalog-tree.tsx`, 866 lines, the single client component in the
 rail. It renders the `TreeNode` projection that
 [tree-projection](srn://metaframework/product/portal/component/catalog-loader/component/tree-projection)

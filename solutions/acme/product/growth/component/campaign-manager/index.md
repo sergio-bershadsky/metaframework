@@ -29,8 +29,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Campaign manager
-
 The only writer of [campaign](srn://acme/product/growth/datamodel/campaign@1),
 [promo](srn://acme/product/growth/datamodel/promo@1), and
 [audience-segment](srn://acme/product/growth/datamodel/audience-segment@1)

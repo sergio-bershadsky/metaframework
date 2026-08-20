@@ -13,8 +13,6 @@ tags:
   - setup
 ---
 
-# Deck config
-
 The recipe `buildDeck` shuffles. Given a seat count it returns the complete
 distribution, and because nothing is removed at setup it is also "how many cards
 are in this era's deck" — the canal-to-rail transition reshuffles every discard

@@ -18,8 +18,6 @@ tags:
   - external-facing
 ---
 
-# Courier
-
 A person employed or contracted by a carrier, never by acme. They are in this
 catalog for one reason: every fact acme knows about a parcel in motion
 originates with a scan they made, and a description of

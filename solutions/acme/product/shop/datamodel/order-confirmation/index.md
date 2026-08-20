@@ -13,8 +13,6 @@ tags:
   - wire
 ---
 
-# Order confirmation
-
 The reply to a successful `submit-order`, and the payload a support agent quotes
 back at a customer. It is deliberately thin: an identifier, a status, a total,
 and a timestamp. Everything else about the order is retrievable from the order

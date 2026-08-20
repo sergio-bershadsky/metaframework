@@ -18,8 +18,6 @@ tags:
   - identity
 ---
 
-# Schema registry
-
 `src/lib/schema/url.ts` (156 lines) and `src/lib/schema/registry.ts` (1,403).
 Two files, one job seen from two angles: what a schema **is called**, and
 whether it is **legal**. Splitting them into two components would have produced

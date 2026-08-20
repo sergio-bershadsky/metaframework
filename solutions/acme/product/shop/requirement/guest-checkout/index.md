@@ -16,8 +16,6 @@ tags:
   - checkout-path
 ---
 
-# Checkout without an account
-
 A [customer](srn://acme/actor/customer) who has never bought from acme must be
 able to complete a purchase with an email address and a payment instrument, and
 nothing else. Account creation is offered after payment, never before it, and

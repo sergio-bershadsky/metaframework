@@ -18,8 +18,6 @@ tags:
   - player-facing
 ---
 
-# Player
-
 Anybody holding the invite URL `/play/:matchID`. There is no signup, no profile and
 no persistent identity: a player is a name typed into one field plus a credential
 string the server issues on join, cached in `localStorage` under

@@ -19,8 +19,6 @@ tags:
   - json-schema
 ---
 
-# Schema consumer
-
 A class of tool, not a named system: `ajv`, `json-schema-ref-parser`,
 `json-schema-to-typescript`, a browser validator, a code generator in some other
 repository. It never learns what an SRN is. It is handed a URL and expected to

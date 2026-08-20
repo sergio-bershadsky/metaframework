@@ -8,9 +8,9 @@ steps:
     to: flow
     kind: call
     note: >-
-      Deliberately absent from the states.json machine. Sell has no single map
-      target and its questions are ordered per tile, which is a sequence rather
-      than a lifecycle — so it is modelled here and nowhere else.
+      Deliberately absent from the states.json machine. Sell has no single map target
+      and its questions are ordered per tile, which is a sequence rather than a
+      lifecycle.
 
   - message: offer-sellable-tiles
     from: flow
@@ -65,10 +65,9 @@ steps:
           to: player
           kind: return
           note: >-
-            One pick per firing develop bonus, routing each free develop to the
-            chosen industry's lowest remaining tile. Omitting the picks falls
-            through to the engine's develop-lowest heuristic, which is legal but
-            rarely what a player wants.
+            One pick per firing develop bonus, routing each free develop to the chosen
+            industry's lowest remaining tile. Omitting the picks falls through to the
+            engine's develop-lowest heuristic.
         - message: pick-candidate
           from: player
           to: flow
@@ -79,6 +78,5 @@ steps:
     to: player
     kind: return
     note: >-
-      One sell move carrying merchantPerTile index-aligned to the tile ids, the
-      barrels in tile order, and the develop-bonus industries. Everything the
-      player answered travels together; nothing was committed until now.
+      One sell move carrying merchantPerTile index-aligned to the tile ids, the barrels
+      in tile order, and the develop-bonus industries. Nothing was committed until now.

@@ -18,8 +18,6 @@ tags:
   - rules
 ---
 
-# One engine, compiled into every surface
-
 ## Context
 
 Three surfaces need to know Brass rules, and they need to know them for

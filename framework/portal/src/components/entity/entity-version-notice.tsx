@@ -18,10 +18,34 @@ import { cn } from '@/lib/utils'
 
 const BOX = 'rounded-lg border border-warning/35 bg-warning/[0.07] p-4'
 
+/**
+ * What the version→commit index can and cannot reach, in one sentence.
+ *
+ * Used by both boxes below, and by nothing else, because it is the same fact in
+ * both places: the reader is looking at git-backed history, and history that
+ * stops short of v1 is history with a floor. Saying which floor, and why, is the
+ * difference between "there is only one version" and "there is one version I can
+ * show you" — see HistoryReach in lib/history/git.ts.
+ */
+export function ReachNote({ earliest, short, date }: { earliest: number; short: string; date: string }) {
+  const below = earliest === 2 ? 'v1' : `v1–v${earliest - 1}`
+  return (
+    <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+      Git history for this path starts at{' '}
+      <code className="font-mono text-[11.5px] text-warning/90">{short}</code>{' '}
+      <time dateTime={date}>{date.slice(0, 10)}</time>, where the entity already carried{' '}
+      <span className="font-mono">v{earliest}</span>. {below} {earliest === 2 ? 'was' : 'were'} written before
+      that commit and {earliest === 2 ? 'is' : 'are'} not reachable from here — the version index does not
+      follow renames, because evolution.md forbids moving an entity at all.
+    </p>
+  )
+}
+
 export function EntityVersionNotice({
   version,
   current,
   total,
+  reach,
   date,
   subject,
   short,
@@ -34,7 +58,10 @@ export function EntityVersionNotice({
 }: {
   version: number
   current: number
+  /** How many versions the picker can offer — not the entity's version count. */
   total: number
+  /** The floor of the version index, when it sits above v1. */
+  reach?: { earliest: number; short: string; date: string } | null
   date: string
   subject: string
   short: string
@@ -49,9 +76,15 @@ export function EntityVersionNotice({
           cannot be scrolled past, and a heading there would put the document
           outline out of order for anyone navigating by headings. The section's
           aria-label carries the name instead. */}
+      {/* "Version 7 of 2" is what the old wording produced once a rename put the
+          version number above the count of versions git can reach. The number
+          and the count are different things, so they are said separately. */}
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-warning">
         <History className="size-4 shrink-0" aria-hidden />
-        Version {version} of {total} — not the latest
+        Version {version} — not the latest
+        <span className="font-normal text-muted-foreground">
+          ({total} version{total === 1 ? '' : 's'} available here)
+        </span>
       </p>
 
       <p className="mt-2 text-[13px] leading-relaxed text-foreground/80">
@@ -59,6 +92,8 @@ export function EntityVersionNotice({
         <span className="font-mono text-warning">v{current}</span>, and everything below is the entity as it stood
         at <span className="font-mono text-warning">v{version}</span>.
       </p>
+
+      {reach && <ReachNote earliest={reach.earliest} short={reach.short} date={reach.date} />}
 
       <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
         <GitCommitVertical className="size-3.5 shrink-0 self-center" aria-hidden />
@@ -103,13 +138,20 @@ export function EntityVersionNotice({
 
 /**
  * The requested version could not be produced — a bad pin, a catalog outside
- * git, a shallow clone. The page still renders the current entity beneath this,
- * because a broken query parameter is no reason to show nothing.
+ * git, a shallow clone, or a version older than this path's history reaches.
+ * The page still renders the current entity beneath this, because a broken query
+ * parameter is no reason to show nothing.
+ *
+ * The headline splits on WHY. "No such version" and "not reachable from here"
+ * send a reader to two different places — one to fix their link, the other to
+ * the repository — and a single wording for both sends half of them to the
+ * wrong one.
  */
 export function EntityVersionProblem({
   requested,
   current,
   reason,
+  unreachable = false,
   hint,
   href,
   className,
@@ -118,6 +160,8 @@ export function EntityVersionProblem({
   requested: string
   current: number
   reason: string
+  /** The version existed; the index simply does not reach back to it. */
+  unreachable?: boolean
   hint?: string | null
   href: string
   className?: string
@@ -126,7 +170,15 @@ export function EntityVersionProblem({
     <section className={cn(BOX, 'animate-rise', className)} aria-label="Version not available">
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-warning">
         <TriangleAlert className="size-4 shrink-0" aria-hidden />
-        Cannot show <code className="font-mono">?v={requested}</code>
+        {unreachable ? (
+          <>
+            <code className="font-mono">?v={requested}</code> is out of reach, not missing
+          </>
+        ) : (
+          <>
+            Cannot show <code className="font-mono">?v={requested}</code>
+          </>
+        )}
       </p>
 
       <p className="mt-2 text-[13px] leading-relaxed text-foreground/80">{reason}</p>

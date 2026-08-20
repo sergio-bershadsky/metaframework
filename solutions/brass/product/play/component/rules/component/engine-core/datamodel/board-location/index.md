@@ -13,8 +13,6 @@ tags:
   - board-graph
 ---
 
-# Board location
-
 Every node of the board graph is a labelled point on a piece of printed
 cardboard. This model factors that out: a stable `id` used as the vertex key
 everywhere in the engine, a `name` for display, and the `x`/`y` the artwork puts

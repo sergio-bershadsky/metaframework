@@ -19,8 +19,6 @@ tags:
   - founding
 ---
 
-# History is git-backed; only current versions exist on disk
-
 ## Context
 
 Once the catalog is files

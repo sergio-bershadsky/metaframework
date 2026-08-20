@@ -13,8 +13,6 @@ tags:
   - derived
 ---
 
-# Game deltas
-
 This model exists because of an absence. The server broadcasts the whole
 [game-state](srn://brass/product/play/component/rules/component/engine-core/datamodel/game-state@1)
 on every update — `deltaState` is unset, so there is no patch stream — and the

@@ -20,8 +20,6 @@ tags:
   - checkout-path
 ---
 
-# Checkout conversion
-
 Of the customers who got as far as submitting a basket, how many ended up with
 an order. It is the front door of
 [order-fulfilment](srn://acme/capability/order-fulfilment): a basket that dies

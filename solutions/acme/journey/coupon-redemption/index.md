@@ -15,8 +15,6 @@ tags:
   - cross-product
 ---
 
-# Coupon redemption
-
 A customer with a basket types in a code. Six steps later the total has moved,
 the money has been taken, the code cannot be used again, and the
 [marketer](srn://acme/actor/marketer) who authored the offer can see what it

@@ -17,8 +17,6 @@ tags:
   - incident-response
 ---
 
-# A revoked session stops authorizing within five seconds
-
 When an [identity-admin](srn://acme/actor/identity-admin) ends a session, the
 question is not whether it stops working but when, and "at token expiry" is not
 an answer during an incident. Five seconds is the number, measured in

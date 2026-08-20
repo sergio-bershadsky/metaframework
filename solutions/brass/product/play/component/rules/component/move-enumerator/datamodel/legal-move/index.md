@@ -13,8 +13,6 @@ tags:
   - rules
 ---
 
-# Legal move
-
 The most important contract in the architecture. `enumerateLegalMoves(G, playerID)`
 returns an array of these, and three independent consumers spend it: the browser
 UI narrows it into clickable affordances, the MCP session offers it to a model as

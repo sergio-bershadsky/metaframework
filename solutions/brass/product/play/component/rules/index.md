@@ -19,8 +19,6 @@ tags:
 x-package: "@brass/rules"
 ---
 
-# Rules engine
-
 `@brass/rules` — a private workspace package with no build step, exported straight
 from `./src/index.ts`, that three separate processes compile into themselves: the
 server, the browser bundle, and the MCP adapter. That single fact is the load-bearing

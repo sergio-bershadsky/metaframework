@@ -16,8 +16,6 @@ tags:
   - design
 ---
 
-# Solution design
-
 `skills/solution-design/` — `SKILL.md` (263 lines) plus
 `references/worked-example.md` (262). One responsibility, statable in a sentence:
 **turn a system described in prose into an agreed SRN tree, and stop at the

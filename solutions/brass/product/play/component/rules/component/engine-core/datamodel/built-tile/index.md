@@ -12,8 +12,6 @@ tags:
   - board-state
 ---
 
-# Built tile
-
 A tile taken from a player's mat and placed in a city slot. Extends
 [owned-piece](srn://brass/product/play/component/rules/component/engine-core/datamodel/owned-piece@1)
 with where it is, what it is, and how far through its life it has got.

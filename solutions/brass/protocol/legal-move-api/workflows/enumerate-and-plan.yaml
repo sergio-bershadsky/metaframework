@@ -8,9 +8,9 @@ steps:
     to: enumerator
     kind: call
     note: >-
-      Called on every render while it is the player's turn. There is no cache and
-      no memo — the state object is replaced wholesale by each broadcast, so a
-      cache would be a staleness bug with no measured benefit.
+      Called on every render while it is the player's turn. No cache and no memo: each
+      broadcast replaces the state object wholesale, so a cache would be a staleness bug
+      with no measured benefit.
 
   - message: legal-moves
     from: enumerator
@@ -28,9 +28,9 @@ steps:
     kind: call
     condition: on get_legal_moves, and again inside make_move
     note: >-
-      The second call is the interesting one: make_move re-enumerates before
-      matching the submitted id, so an id derived from a state that has since
-      changed fails to match instead of resolving to a different move.
+      The second call is the interesting one: make_move re-enumerates before matching
+      the submitted id, so an id from a state that has since changed fails to match
+      instead of resolving elsewhere.
 
   - message: legal-moves
     from: enumerator

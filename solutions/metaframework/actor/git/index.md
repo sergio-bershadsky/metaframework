@@ -16,8 +16,6 @@ tags:
   - external
 ---
 
-# git
-
 A binary the portal invokes and does not ship. It is the storage layer for every
 version of every entity older than the working tree: the catalog keeps only
 current versions on disk, so a `?v=2` page is a `git show` and nothing else.

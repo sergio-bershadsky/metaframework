@@ -20,8 +20,6 @@ tags:
   - routing
 ---
 
-# Commands
-
 `commands/solution-new.md` (38 lines), `commands/entity-new.md` (46) and
 `commands/catalog-check.md` (46). 130 lines total, and every one of them exists
 to send the reader somewhere else.

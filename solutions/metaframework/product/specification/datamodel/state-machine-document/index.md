@@ -17,8 +17,6 @@ tags:
   - protocol
 ---
 
-# State machine document
-
 `states.json` beside a protocol's `index.md`: the state of **one conversation**
 as the protocol sees it, never the internal state of any single participant.
 Specified in `framework/spec/kinds/protocol.md`; validated by

@@ -19,8 +19,6 @@ tags:
   - foundation
 ---
 
-# Seating is a game phase, not server infrastructure
-
 ## Context
 
 Before a game of Brass can start, four things must be true that the board game

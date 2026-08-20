@@ -22,8 +22,6 @@ tags:
   - in-process
 ---
 
-# Legal-move API
-
 There is no wire here. This is a TypeScript module boundary — `import
 { enumerateLegalMoves } from '@brass/rules'` — and it is nevertheless the most
 consequential contract in the solution, because it is the **one place three

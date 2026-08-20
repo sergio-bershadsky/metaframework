@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: product
-version: 3
+version: 4
 status: review
 title: Kind — product
 summary: The product kind — the deliverable and ownership unit in the solution's product/ bucket, its lifecycle and primary-actors fields, and the grammar that fixes its placement.
@@ -227,8 +227,6 @@ tags:
   - customer-facing
 x-cost-center: "4711"
 ---
-
-# Shop
 
 Everything a customer touches between browsing and a confirmed order. Fulfilment
 and settlement happen elsewhere: shop emits

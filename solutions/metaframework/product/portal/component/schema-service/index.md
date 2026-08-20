@@ -22,8 +22,6 @@ tags:
   - interoperability
 ---
 
-# Schema service
-
 `src/app/schemas/[...path]/route.ts`, 139 lines. `GET` and `OPTIONS`, read-only,
 `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`.
 

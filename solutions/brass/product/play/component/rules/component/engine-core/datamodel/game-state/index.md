@@ -13,8 +13,6 @@ tags:
   - board-state
 ---
 
-# Game state
-
 One document, one match. This is boardgame.io's `G` for the Brass game, and it is
 simultaneously the storage record, the wire payload and the input to every rule.
 It has no sub-aggregates and no identity of its own — the match id lives outside

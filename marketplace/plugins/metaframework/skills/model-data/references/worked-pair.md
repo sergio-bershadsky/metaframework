@@ -84,7 +84,7 @@ the schema's `$ref` edges are absent from `relations`:
 ---
 name: order
 kind: datamodel
-version: 3
+version: 4
 title: Order
 summary: Customer order aggregate persisted by the payment component and published on settlement.
 status: approved

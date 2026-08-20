@@ -18,8 +18,6 @@ tags:
   - diagnostics
 ---
 
-# Loading is fail-soft — violations are diagnostics, not exceptions
-
 ## Context
 
 The framework has **no CLI** — an explicit v1 decision — so the only place a

@@ -19,8 +19,6 @@ tags:
   - founding
 ---
 
-# Every SRN segment is a kind bucket plus a name
-
 ## Context
 
 The founding grammar is still printed in `docs/decision-record.md:35`:

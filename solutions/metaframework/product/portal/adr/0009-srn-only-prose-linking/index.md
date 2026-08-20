@@ -19,8 +19,6 @@ tags:
   - navigation
 ---
 
-# Only an SRN becomes a link
-
 ## Context
 
 Entity prose refers to other entities constantly, and a catalog whose references

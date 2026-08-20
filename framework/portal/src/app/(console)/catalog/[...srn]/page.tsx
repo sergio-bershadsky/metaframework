@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EntityLink } from '@/components/entity-link'
 import { CapabilityRealizedBy, CAPABILITY_DERIVED_EDGES } from '@/components/entity/capability-realized-by'
+import { ContentsJump } from '@/components/entity/contents-jump'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
 import { EntityChildren } from '@/components/entity/entity-children'
 import { EntityDetails } from '@/components/entity/entity-details'
@@ -12,6 +13,8 @@ import { EntityGraph } from '@/components/entity/entity-graph'
 import { EntityRelations } from '@/components/entity/entity-relations'
 import { EntityVersionNotice, EntityVersionProblem } from '@/components/entity/entity-version-notice'
 import { METRIC_STAT_FIELDS, MetricStats } from '@/components/entity/metric-stats'
+import { SolutionVision } from '@/components/entity/solution-vision'
+import { HistoryPanel } from '@/components/history/history-panel'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
 import { LifecycleChip } from '@/components/lifecycle-chip'
 import { Markdown } from '@/components/markdown'
@@ -34,7 +37,12 @@ import {
 } from '@/lib/catalog'
 import { srnFromSegments } from '@/lib/catalog/href'
 import { mentionsIn } from '@/lib/catalog/mentions'
-import { type EntityHistory, getEntityHistory, readFileAtRevision } from '@/lib/history/git'
+import {
+  type EntityHistory,
+  explainMissingVersion,
+  getEntityHistory,
+  readFileAtRevision,
+} from '@/lib/history/git'
 import { formatSrn, parseSrn, resolveRef } from '@/lib/srn/srn'
 import { kindStyle } from '@/lib/ui/kind'
 import { lifecycleOf } from '@/lib/ui/lifecycle'
@@ -89,6 +97,15 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
   const requested = requestedVersion(query.v)
   const snapshot = await loadSnapshot(entity, history, requested)
 
+  // Why the asked-for version could not be produced, in the history module's
+  // words. The same distinction — never written, versus written before this
+  // path existed — has to hold here, in the picker and in /api/history, and
+  // three copies of one sentence drift into three different claims.
+  const missed =
+    snapshot === null && requested !== null && requested !== entity.frontmatter.version
+      ? explainMissingVersion(history, requested)
+      : null
+
   // Everything below reads from `view`. At the current version that is the
   // entity the loader built; at a historical one it is the same object with the
   // fields index.md actually carried at that commit.
@@ -127,6 +144,7 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
           version={snapshot.version}
           current={entity.frontmatter.version}
           total={options.length}
+          reach={floorOf(history)}
           date={snapshot.date}
           subject={snapshot.subject}
           short={snapshot.short}
@@ -142,12 +160,12 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
           requested={asked}
           current={entity.frontmatter.version}
           reason={
-            requested === null
+            missed === null
               ? `"${asked}" is not a version number — versions are integers from 1.`
-              : (history.unavailable?.message ??
-                `No commit carries v${requested}; git knows ${describeVersions(options)}.`)
+              : missed.message
           }
-          hint={history.unavailable?.hint ?? null}
+          unreachable={missed?.miss === 'before-reach'}
+          hint={missed?.hint ?? null}
           href={href}
         />
       )}
@@ -182,6 +200,7 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
             selected={view.frontmatter.version}
             current={entity.frontmatter.version}
             options={options}
+            reach={floorOf(history)}
           />
           {view.frontmatter.owner && (
             <span className="inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">
@@ -216,6 +235,19 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
         <CapabilityRealizedBy catalog={catalog} inbound={inbound} />
       )}
 
+      {/* The lede. `vision` is REQUIRED on solution and on no other kind — the
+          spec's own way of saying it outranks everything else the frontmatter
+          carries — and it was rendering as one more row of the Details dump,
+          ~2,000px down. Above the rule, so it is read before the prose rather
+          than after it, and omitted from Details below. */}
+      <SolutionVision entity={view} className="mt-7" />
+
+      {/* A way into the Contents section, not a summary of it: on a container
+          with a long body the section itself starts several screens down, and
+          "reachable" has to mean reachable from where the reader is. Hidden on
+          a historical view, where Contents is hidden too. */}
+      {!historical && <ContentsJump entities={children} descendants={descendants} className="mt-7" />}
+
       <div className="rule-fade my-7" />
 
       {view.body && <Markdown mentions={mentionsIn(catalog, view.srn, view.body)}>{view.body}</Markdown>}
@@ -240,6 +272,23 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
           <EntityChildren srn={srn} entities={children} descendants={descendants} />
         </>
       )}
+
+      {/* Last, and closed. The version picker in the header answers "show me
+          v2"; this answers "what actually changed, and when" — a different and
+          rarer question, which is why it is a disclosure rather than a section
+          that pushes the entity's own prose down the page.
+
+          The log it is seeded with is the one the picker already paid for, so
+          the closed panel costs nothing and can still name its own contents.
+          `entity`, never `view`: this is the history of the entity, and the
+          files it offers are the ones on disk now — the panel's own file list
+          reconciles those against what existed at each revision. */}
+      <HistoryPanel
+        className="mt-10"
+        relDir={entity.relDir}
+        files={entity.artifacts.map((artifact) => artifact.file)}
+        initialHistory={history}
+      />
     </article>
   )
 }
@@ -314,6 +363,9 @@ function detailsOmitted(kind: Entity['kind']): readonly string[] {
   // The lifecycle chip sits in the header beside status, where the contrast
   // between the two is the whole point.
   if (kind === 'product' || kind === 'component') return ['lifecycle']
+  // The vision is the page's lede; repeating it as a definition-list row would
+  // print the solution's whole purpose twice on one page.
+  if (kind === 'solution') return ['vision']
   return []
 }
 
@@ -582,11 +634,17 @@ function versionOptions(history: EntityHistory, current: number): VersionOption[
   return [...options.values()].sort((a, b) => b.version - a.version)
 }
 
-function describeVersions(options: VersionOption[]): string {
-  const versions = options.map((option) => `v${option.version}`)
-  if (versions.length === 0) return 'no versions for this entity'
-  if (versions.length === 1) return `only ${versions[0]}`
-  return `${versions.slice(0, -1).join(', ')} and ${versions[versions.length - 1]}`
+/**
+ * The floor of the version index, for the two components that must admit to it.
+ *
+ * Null when the index reaches v1 — there is nothing below to disclose — and null
+ * when there is no history at all, which the unavailable notices already say in
+ * their own words.
+ */
+function floorOf(history: EntityHistory): { earliest: number; short: string; date: string } | null {
+  const reach = history.reach
+  if (!reach || reach.complete) return null
+  return { earliest: reach.earliestVersion, short: reach.short, date: reach.date }
 }
 
 // --- query parsing -----------------------------------------------------------

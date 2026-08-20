@@ -15,8 +15,6 @@ tags:
   - superseded
 ---
 
-# Split-origin deploy — server on Fly.io, client on Vercel
-
 ## Context
 
 The design spec locked "deployed to the internet" as a fork of its own: an

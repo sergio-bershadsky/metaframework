@@ -20,8 +20,6 @@ tags:
   - orders
 ---
 
-# Event-source the order lifecycle
-
 ## Context
 
 Order state was mutated in place by four components, and reconstructing "what

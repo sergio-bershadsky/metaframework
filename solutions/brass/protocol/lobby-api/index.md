@@ -30,8 +30,6 @@ tags:
   - http
 ---
 
-# Lobby API
-
 Everything that happens before a socket exists. Two calls — `create-match` and
 `join-match` — are the whole entry path into a game, and the second of them is
 the only moment in this solution where a caller receives a secret. After that,

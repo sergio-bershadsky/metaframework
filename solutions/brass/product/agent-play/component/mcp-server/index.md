@@ -30,8 +30,6 @@ tags:
 x-package: "@brass/mcp"
 ---
 
-# MCP server
-
 A Model Context Protocol server over stdio. Underneath the MCP surface it is just
 another boardgame.io client: it joins through the lobby REST API, connects a
 socket.io client for one seat, and exposes that seat's redacted view plus its exact

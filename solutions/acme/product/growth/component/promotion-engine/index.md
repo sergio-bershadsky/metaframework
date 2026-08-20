@@ -35,8 +35,6 @@ tags:
 x-runtime: rust
 ---
 
-# Promotion engine
-
 Answers one question: given this cart and this account, which discounts apply
 and what are they worth. It holds no state of its own, writes nothing, and can
 be scaled to zero and back without anybody noticing except by the latency it was

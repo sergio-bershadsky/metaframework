@@ -18,8 +18,6 @@ tags:
   - founding
 ---
 
-# No CLI in v1 — integrity is enforced at portal load
-
 ## Context
 
 A file-based framework with validation rules naturally wants a command:

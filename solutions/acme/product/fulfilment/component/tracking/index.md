@@ -27,8 +27,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Tracking
-
 The read side of the product. It consumes normalized
 [tracking-event](srn://acme/product/fulfilment/datamodel/tracking-event@1) scans,
 folds them into a per-shipment status, and publishes the *derived* fact — that a

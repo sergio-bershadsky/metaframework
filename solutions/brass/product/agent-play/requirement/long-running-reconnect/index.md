@@ -17,8 +17,6 @@ tags:
   - mcp
 ---
 
-# A dropped agent resumes the same seat mid-game
-
 A game of Brass runs for an hour or more. Sockets drop over that span — a
 suspended laptop, a network change, a host restart — and a browser survives it
 because the seat credential is in `localStorage`

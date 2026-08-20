@@ -8,9 +8,9 @@ steps:
     to: promotion-engine
     kind: call
     note: >-
-      Called with the quote-id the basket has been showing, at the last moment
-      before the cart becomes an order. This is not an optimisation — it is the
-      only point at which the price the customer is charged is decided.
+      Called with the quote-id the basket has been showing, at the last moment before
+      the cart becomes an order. Not an optimisation: it is the only point at which the
+      customer's price is decided.
 
   - alt:
       - when: the quote is still live and its total is unchanged
@@ -42,9 +42,9 @@ steps:
         kind: return
         payload: /product/growth/datamodel/promotion-quote@1
         note: >-
-          Live, but the total moved: a campaign budget ran out, or a promo was
-          paused and the cache has since turned over. The engine answers with
-          what is true now and never with what was true when the basket rendered.
+          Live, but the total moved: a campaign budget ran out, or a promo was paused
+          and the cache has turned over. The engine answers with what is true now, never
+          with what was true at render.
 
       - opt:
           when: the new total is worse for the customer than the one displayed
@@ -54,10 +54,9 @@ steps:
               to: checkout
               kind: call
               note: >-
-                Checkout stops and shows the difference with the reason from the
-                quote's rejected list. It never charges more than was displayed
-                without an explicit second confirmation, which is the whole
-                reason this exchange exists as a separate workflow.
+                Checkout stops and shows the difference, with the reason from the
+                quote's rejected list. It never charges more than was displayed without
+                a second confirmation.
 
   - opt:
       when: the customer confirms and the quote carries a coupon
@@ -77,5 +76,5 @@ steps:
           kind: return
           payload: /product/growth/datamodel/redemption@1
           condition: >-
-            the uses remaining were still positive at burn time, otherwise the
-            coupon is dropped and the order is placed at the undiscounted total
+            uses remaining were still positive at burn time, otherwise the
+            coupon is dropped and the order placed undiscounted

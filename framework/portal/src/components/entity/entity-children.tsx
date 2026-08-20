@@ -1,7 +1,9 @@
 import Link from 'next/link'
+import { contentsAnchor, deeperAnchor } from '@/components/entity/contents-jump'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
 import type { Entity } from '@/lib/catalog'
 import { entityHref } from '@/lib/catalog/href'
+import { ownerTrail } from '@/lib/srn/srn'
 import { kindStyle } from '@/lib/ui/kind'
 
 /**
@@ -36,7 +38,7 @@ export function EntityChildren({
       <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Contents</h2>
 
       <div className="mt-4 space-y-6">
-        <KindGroups entities={entities} />
+        <KindGroups entities={entities} anchor={contentsAnchor} />
       </div>
 
       {descendants.length > 0 && (
@@ -48,7 +50,7 @@ export function EntityChildren({
             </span>
           </div>
           <div className="mt-4 space-y-6">
-            <KindGroups entities={descendants} base={srn} />
+            <KindGroups entities={descendants} base={srn} anchor={deeperAnchor} />
           </div>
         </>
       )}
@@ -61,7 +63,16 @@ export function EntityChildren({
  * buckets, so both the direct and the deep group keep one comparator, the one
  * `childrenOf`/`descendantsOf` state.
  */
-function KindGroups({ entities, base }: { entities: Entity[]; base?: string }) {
+function KindGroups({
+  entities,
+  base,
+  anchor,
+}: {
+  entities: Entity[]
+  base?: string
+  /** Anchor id for this list's groups — what the jump strip at the top links to. */
+  anchor: (kind: string) => string
+}) {
   const groups = new Map<string, Entity[]>()
   for (const entity of entities) {
     const group = groups.get(entity.kind) ?? []
@@ -72,7 +83,9 @@ function KindGroups({ entities, base }: { entities: Entity[]; base?: string }) {
   return [...groups.entries()].map(([kind, group]) => {
     const style = kindStyle(kind as Entity['kind'])
     return (
-      <div key={kind}>
+      // `scroll-mt` so a jump lands with the badge visible rather than flush
+      // against the top of the scrolling main column.
+      <div key={kind} id={anchor(kind)} className="scroll-mt-6">
         <div className="mb-2 flex items-center gap-2">
           <KindBadge kind={kind as Entity['kind']} />
           <span className="font-mono text-[11px] text-muted-foreground">{group.length}</span>
@@ -120,14 +133,13 @@ function KindGroups({ entities, base }: { entities: Entity[]; base?: string }) {
 }
 
 /**
- * The owners between `base` and a descendant, as names — `payment / psp` for
- * an order model two components down. SRN segments below an entity come in
- * kind/name pairs (that is what the loader's directory walk produces), so the
- * odd positions are the names and the final pair is the entity itself.
+ * The owners between `base` and a descendant, as names — `payment / psp` for an
+ * order model two components down.
+ *
+ * The walk itself is {@link ownerTrail}, shared with the capability page's
+ * "Realized by" list, which needs the same context for the same reason: a flat
+ * list of colliding names.
  */
 function owningPath(srn: string, base: string): string {
-  const pairs = srn.slice(base.length + 1).split('/')
-  const names: string[] = []
-  for (let i = 1; i < pairs.length - 2; i += 2) names.push(pairs[i])
-  return names.join(' / ')
+  return ownerTrail(srn, base).join(' / ')
 }

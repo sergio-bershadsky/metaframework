@@ -21,8 +21,6 @@ tags:
   - authoring
 ---
 
-# AI author
-
 A model runtime — in practice a Claude Code session — that writes catalog files
 by invoking the plugin's skills. It is the reason the
 [authoring-kit](srn://metaframework/product/authoring-kit) exists in the shape it

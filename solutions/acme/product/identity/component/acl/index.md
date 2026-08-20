@@ -28,8 +28,6 @@ tags:
 x-runtime: rust
 ---
 
-# ACL
-
 A policy decision point and nothing else. It takes a session reference and an
 asserted [permission](srn://acme/product/identity/datamodel/permission@2), resolves the
 session through

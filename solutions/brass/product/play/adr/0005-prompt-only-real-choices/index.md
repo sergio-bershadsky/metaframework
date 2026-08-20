@@ -18,8 +18,6 @@ tags:
   - interaction
 ---
 
-# Prompt only when the choice is real
-
 ## Context
 
 Brass makes the player source every cube and barrel a move consumes, and the

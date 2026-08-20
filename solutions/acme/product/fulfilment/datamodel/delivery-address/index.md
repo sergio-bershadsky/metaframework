@@ -13,8 +13,6 @@ tags:
   - personal-data
 ---
 
-# Delivery address
-
 A destination as acme records it: a recipient, up to three unstructured street
 lines, and the four structured fields every carrier in every market actually
 agrees on — postal code, city, region, country.

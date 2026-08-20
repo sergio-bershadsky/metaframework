@@ -20,8 +20,6 @@ tags:
   - interoperability
 ---
 
-# Relative-path schema refs, with no $id
-
 ## Context
 
 [0004](srn://metaframework/adr/0004-srn-as-the-json-schema-reference-syntax) made

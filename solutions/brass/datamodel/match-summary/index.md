@@ -13,8 +13,6 @@ tags:
   - framework-shape
 ---
 
-# Match summary
-
 The document `GET /games/brass` and `GET /games/brass/:id` return. It sits at
 solution level because **both** products consume it and **neither** owns it: the
 browser lobby lists and joins rooms with it, and the MCP session discovers open

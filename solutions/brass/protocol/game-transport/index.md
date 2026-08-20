@@ -25,8 +25,6 @@ tags:
   - websocket
 ---
 
-# Game transport
-
 One socket per seat, one authority, and no peer-to-peer anything. A seat sends
 exactly one kind of thing — a [move envelope](srn://brass/datamodel/move-envelope@1)
 on the `update` event — and receives exactly one kind of thing back: a whole

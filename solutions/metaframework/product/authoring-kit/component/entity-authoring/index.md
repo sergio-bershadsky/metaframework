@@ -1,7 +1,7 @@
 ---
 name: entity-authoring
 kind: component
-version: 2
+version: 3
 title: Entity authoring
 summary: One entity at a time — add-entity, model-data and protocol-design, selected by a single dispatch rule stated once in the entity-new command.
 status: review
@@ -16,10 +16,8 @@ tags:
   - kinds
 ---
 
-# Entity authoring
-
-Three skills, one component: `add-entity` (255 lines + `worked-examples.md`,
-612), `model-data` (316 + `worked-pair.md`, 189) and `protocol-design` (239 +
+Three skills, one component: `add-entity` (482 lines + `worked-examples.md`,
+1117), `model-data` (319 + `worked-pair.md`, 189) and `protocol-design` (260 +
 `artifacts.md`, 191 + `worked-protocol.md`, 203).
 
 They write **one entity whose placement is already settled**. Everything before
@@ -62,8 +60,10 @@ reading, wire forward edges only, validate) is identical across all three.
 `model-data` carries one thing neither sibling does: a warning about the
 **retired** schema convention — `schema.json` with no `$id`, reaching neighbours
 by relative file path — with the instruction to read the sibling `schema.json`
-rather than the prose when you want to know what the convention is, because
-catalog prose written under the old form survives in the acme fixture. That is a
+rather than the prose when you want to know what the convention is. The artifacts
+were migrated in one sweep; the *prose* describing them was not, and nothing in
+the loader compares a datamodel's paragraphs against the schema beside it, so a
+page can keep explaining a convention its own sibling file abandoned. That is a
 consequence of the schema decision chain living in this repository's own ADRs.
 
 ## What it refuses

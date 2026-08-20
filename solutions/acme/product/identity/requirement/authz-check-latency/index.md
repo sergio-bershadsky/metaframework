@@ -17,8 +17,6 @@ tags:
   - hot-path
 ---
 
-# Authorization check latency under peak
-
 Every request to every product in this solution waits on a check. That makes this
 number a tax on all of them, and the reason it is a `must` while
 [p99-checkout-latency](srn://acme/product/shop/component/checkout/requirement/p99-checkout-latency)

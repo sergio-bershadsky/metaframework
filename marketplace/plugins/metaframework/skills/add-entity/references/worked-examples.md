@@ -62,8 +62,6 @@ tags:
   - flagship
 ---
 
-# Acme Retail Platform
-
 Acme sells physical goods online. This catalog describes the systems that take an
 order from a customer's cart to a settled payment and a posted ledger entry. It
 is a description, not an implementation: every repository that builds one of
@@ -155,8 +153,6 @@ tags:
 x-cost-center: "4711"
 ---
 
-# Shop
-
 Everything a customer touches between browsing and a confirmed order.
 Fulfilment and settlement happen elsewhere: shop takes the money, publishes the
 fact, and stops there.
@@ -242,8 +238,6 @@ tags:
   - library
 ---
 
-# Tax engine
-
 A build-time artifact with no runtime of its own: it runs inside whatever
 process embeds it, which today is exactly one —
 [checkout](srn://acme/product/shop/component/checkout). It computes tax for a
@@ -320,8 +314,6 @@ tags:
   - external-facing
 ---
 
-# Customer
-
 A customer is any person holding a shop account, authenticated or in a guest
 session. The role says nothing about tenure or spend — segmentation is a concern
 of the analytics stack, not of this description, and a description that tried to
@@ -383,8 +375,6 @@ tags:
   - eu
   - regulated
 ---
-
-# Production
 
 The only target that holds customer data of record. Everything deployed here is
 `status: approved` at the version that is running; a component still in `draft`
@@ -455,8 +445,6 @@ tags:
   - payments
   - reliability
 ---
-
-# Idempotent payment capture
 
 A client that cannot tell whether its capture request arrived must be able to
 retry it safely. Checkout accepts an idempotency key on every capture and
@@ -544,8 +532,6 @@ tags:
   - money
   - foundation
 ---
-
-# One currency per order, three currencies in the catalog
 
 ## Context
 
@@ -642,8 +628,6 @@ tags:
   - commerce
   - customer-facing
 ---
-
-# Fulfil an order
 
 Acme can turn an order into a parcel a customer has taken from a courier's
 hands. It can hold the stock while the payment clears, decide what travels in
@@ -794,8 +778,6 @@ tags:
   - commerce
   - cross-product
 ---
-
-# First purchase
 
 The path acme is judged on. Somebody who has never bought here before arrives at
 the storefront, ends up with an account, an order they have paid for, and a
@@ -1002,8 +984,6 @@ tags:
   - commerce
   - checkout-path
 ---
-
-# Checkout conversion
 
 Of the customers who got as far as submitting a basket, how many ended up with
 an order. It is the front door of

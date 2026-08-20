@@ -13,8 +13,6 @@ tags:
   - projection
 ---
 
-# State view
-
 What `get_state` returns. It is a projection of
 [game-state](srn://brass/product/play/component/rules/component/engine-core/datamodel/game-state@1)
 shaped for a reader that has no memory between calls, cannot run

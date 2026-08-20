@@ -17,8 +17,6 @@ tags:
   - integrity
 ---
 
-# No illegal move is ever accepted
-
 A move is legal or it does not happen. The obligation binds every path: the
 browser's action flow, the MCP seat, the bot validator, and anything else that
 can open a socket and send a frame. There is no privileged client, and no client

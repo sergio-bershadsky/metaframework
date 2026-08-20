@@ -20,8 +20,6 @@ tags:
   - persistence
 ---
 
-# Keep a double-entry ledger rather than a payment log
-
 ## Context
 
 The first version of billing stored one row per payment: amount, order, status.

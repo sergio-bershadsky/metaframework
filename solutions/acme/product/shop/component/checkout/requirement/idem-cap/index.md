@@ -17,8 +17,6 @@ tags:
   - reliability
 ---
 
-# Idempotent payment capture
-
 A client that cannot tell whether its capture request arrived must be able to
 retry it safely. Checkout accepts an idempotency key on every capture and
 guarantees that a replay of the same key produces the same outcome and no

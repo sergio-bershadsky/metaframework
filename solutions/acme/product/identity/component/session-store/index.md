@@ -23,8 +23,6 @@ tags:
 x-runtime: redis-cluster
 ---
 
-# Session store
-
 Holds every live [session](srn://acme/product/identity/datamodel/session@1), keyed by its
 opaque reference, and answers the `resolve-session` operation of
 [authorization-check](srn://acme/product/identity/protocol/authorization-check). It is

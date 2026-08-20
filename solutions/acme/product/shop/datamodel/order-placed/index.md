@@ -13,8 +13,6 @@ tags:
   - event
 ---
 
-# Order placed
-
 Shop's one public fact. It extends
 [base-record](srn://acme/datamodel/base-record@1) so that every published fact
 carries the same identity and creation timestamp as everything else acme writes,

@@ -13,8 +13,6 @@ tags:
   - planning
 ---
 
-# Planned move
-
 What a caller hands `planMoveChoices` to ask "what will this cost me in
 decisions?" — a tagged union on `type`, with only the four actions that consume
 resources. Loan, scout, pass and confirm-turn have no branch here, because they

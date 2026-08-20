@@ -29,12 +29,15 @@ in that case. The bundle exists because an installed plugin cannot see the repo.
 `schema.json` carry **no `$id`** and reach its neighbours by **relative file
 path** (`../../../../datamodel/order-line/schema.json`). It was retired because
 such a reference is not dereferenceable: it resolves only for a tool running
-inside a clone of the repo with the whole catalog on disk. Catalog prose written
-under it survives here and there — the fixture datamodel at
-`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/index.md`
-has carried exactly that stale paragraph. Read the sibling `schema.json`, never
-the prose, when you want to know what the convention is; never author the retired
-form, and never copy prose that explains it.
+inside a clone of the repo with the whole catalog on disk. Every `schema.json`
+under `solutions/` was migrated off it, but **prose was not, and nothing checks
+prose against the artifact beside it** — a paragraph describing the old form
+passes a green catalog check indefinitely, and the acme fixture carried exactly
+such a paragraph for four versions of one datamodel. Read the sibling
+`schema.json`, never the prose, when you want to know what the convention is;
+never author the retired form, and never copy prose that explains it. The grep
+that finds surviving cases, with the hits that are legitimate history, is in
+`validate-catalog`'s `references/diagnostics.md` §4.
 
 ## Procedure
 

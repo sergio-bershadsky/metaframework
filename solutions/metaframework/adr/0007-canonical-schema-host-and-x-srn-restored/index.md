@@ -19,8 +19,6 @@ tags:
   - identity
 ---
 
-# Identity is a canonical constant, and the SRN stays in the file
-
 ## Context
 
 [0006](srn://metaframework/adr/0006-dereferenceable-schema-urls) made `$id` the

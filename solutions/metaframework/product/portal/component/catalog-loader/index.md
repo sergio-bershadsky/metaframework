@@ -20,8 +20,6 @@ tags:
   - validation
 ---
 
-# Catalog loader
-
 `src/lib/catalog/` — `load.ts` (423 lines), `frontmatter.ts` (179), `types.ts`
 (71), `index.ts` (204), `fingerprint.ts` (72), `mentions.ts` (83), `href.ts`
 (14). It is the only reader of `solutions/` in the whole repository, and

@@ -18,8 +18,6 @@ tags:
   - architecture
 ---
 
-# The agent owns the loop; the server is a thin adapter
-
 ## Context
 
 MCP allows the direction of control to run either way. A server can be passive —

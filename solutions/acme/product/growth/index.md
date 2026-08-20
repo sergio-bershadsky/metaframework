@@ -27,8 +27,6 @@ tags:
 x-cost-center: "4820"
 ---
 
-# Growth
-
 Everything acme does to make a basket cheaper on purpose. Growth decides *what*
 a discount is worth; [shop](srn://acme/product/shop) decides what the customer
 is actually charged and takes the money. That split is the product boundary and

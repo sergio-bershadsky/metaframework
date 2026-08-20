@@ -18,8 +18,6 @@ tags:
   - founding
 ---
 
-# The ontology is closed at nine kinds
-
 ## Context
 
 A description framework has to decide how many nouns it admits. Too few and

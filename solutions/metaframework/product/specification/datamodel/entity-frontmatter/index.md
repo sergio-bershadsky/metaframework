@@ -13,8 +13,6 @@ tags:
   - format
 ---
 
-# Entity frontmatter
-
 The one format every entity in every catalog carries. `framework/spec/frontmatter.md`
 (version 4, 277 lines) owns the common half; each of the nine `kinds/*.md`
 documents owns the fields its kind adds on top. Measured 2026-08-19 across

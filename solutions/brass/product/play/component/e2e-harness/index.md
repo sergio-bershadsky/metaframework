@@ -22,8 +22,6 @@ tags:
 x-package: "@brass/e2e"
 ---
 
-# End-to-end harness
-
 Five Playwright specs driving n browser contexts against one server: create a room,
 join from another context, seat and colour up, start, and play real turns. It is the
 only thing in the repository that exercises **multi-actor concurrency**, and it is

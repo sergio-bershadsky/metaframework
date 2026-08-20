@@ -11,8 +11,6 @@ tags:
   - commerce
 ---
 
-# Sell a basket for less, on purpose
-
 Acme can decide that a particular basket, belonging to a particular customer, at
 a particular moment, should cost less than the sum of its list prices — and can
 then actually charge the reduced number, once, without anybody having to explain

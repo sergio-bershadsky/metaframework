@@ -15,8 +15,6 @@ tags:
   - cross-product
 ---
 
-# First purchase
-
 The path acme is judged on. Somebody who has never bought here before arrives at
 the storefront, ends up with an account, an order they have paid for, and a
 parcel they have watched turn into "delivered". It crosses

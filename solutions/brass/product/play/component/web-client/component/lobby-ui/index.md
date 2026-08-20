@@ -23,8 +23,6 @@ tags:
   - onboarding
 ---
 
-# Lobby UI
-
 `Home.tsx`, `PlayPage.tsx` and `Lobby.tsx` — everything between opening a link and
 the host pressing start.
 

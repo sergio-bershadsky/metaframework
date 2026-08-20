@@ -18,8 +18,6 @@ tags:
   - llm
 ---
 
-# The model selects a move id; it never composes a move
-
 ## Context
 
 A language model asked to play a board game will produce plausible-looking moves

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: actor
-version: 3
+version: 4
 status: review
 title: Kind — Actor
 summary: Contract for actor entities — solution-level placement, the actor-type enum, goals, protocol and workflow participation, validation, and derived views.
@@ -329,8 +329,6 @@ tags:
   - external-facing
 ---
 
-# Customer
-
 A customer is any person holding a shop account, authenticated or in a guest
 session. The role says nothing about tenure or spend — segmentation is a
 concern of the analytics product, not of this description.
@@ -372,8 +370,6 @@ relations:
 tags:
   - ci
 ---
-
-# Release bot
 
 The identity, not the pipeline. The pipeline runtime is the `release-pipeline`
 actor (`actor-type: system`); `release-bot` is the credential it assumes, and

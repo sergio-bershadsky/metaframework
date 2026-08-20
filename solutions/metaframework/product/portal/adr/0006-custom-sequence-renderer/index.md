@@ -19,8 +19,6 @@ tags:
   - diagrams
 ---
 
-# Sequence diagrams are hand-rolled SVG, not a graph library
-
 ## Context
 
 A protocol's `workflows/*.yaml` describes an ordered conversation: participants,

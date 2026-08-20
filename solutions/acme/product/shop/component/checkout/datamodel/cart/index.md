@@ -13,8 +13,6 @@ tags:
   - aggregate
 ---
 
-# Cart
-
 The one mutable aggregate in the checkout path. A cart accumulates lines, holds a
 currency fixed at creation, and expires. Everything downstream of it is
 immutable, which is what makes the conversion point — `submit-order` — the only

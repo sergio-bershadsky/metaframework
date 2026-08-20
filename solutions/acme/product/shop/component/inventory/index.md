@@ -21,8 +21,6 @@ tags:
   - checkout-path
 ---
 
-# Inventory
-
 Answers one question — can this basket be fulfilled right now — and holds the
 answer still for 120 seconds while
 [checkout](srn://acme/product/shop/component/checkout) takes payment. It is a projection, not a

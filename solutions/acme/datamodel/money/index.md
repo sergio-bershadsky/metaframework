@@ -13,8 +13,6 @@ tags:
   - vocabulary
 ---
 
-# Money
-
 Every amount in this solution is a `money` document: a decimal **string** and an
 ISO 4217 currency code. Never a float, never a bare integer of minor units
 without the currency next to it.
@@ -29,17 +27,25 @@ euros or a thousand yen, and the bug that follows is discovered by a customer.
 ## Where it appears
 
 Promoted out of `$defs` the moment a second entity needed it, exactly as the
-promotion rule prescribes. It is now referenced by
-[order-line](srn://acme/product/shop/datamodel/order-line@1),
-[order-confirmation](srn://acme/product/shop/datamodel/order-confirmation@1),
-[cart](srn://acme/product/shop/component/checkout/datamodel/cart@1),
-[order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3), and
-[ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1) — five entities, one
-definition, one place to change the currency set.
+promotion rule prescribes. It is now referenced by twelve datamodels in four
+products — every one of
+[shop](srn://acme/product/shop)'s priced shapes, from
+[order-line](srn://acme/product/shop/datamodel/order-line@1) through
+[cart](srn://acme/product/shop/component/checkout/datamodel/cart@1) to
+[order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3);
+[billing](srn://acme/product/billing)'s
+[ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1);
+[fulfilment](srn://acme/product/fulfilment)'s carrier quote and shipment; and all
+four of [growth](srn://acme/product/growth)'s discount shapes. One definition,
+one place to change the currency set.
 
-Those references are not repeated under `relations`: the portal derives the
-schema `$ref` edges from `schema.json` itself, and authoring them twice is the
-kind of double bookkeeping that drifts within a sprint.
+The count is stated and the list is not, deliberately. Those references are not
+repeated under `relations` either: the portal derives the schema `$ref` edges
+from `schema.json` itself, so an enumeration written out here would be a second
+copy of a fact the catalog already holds — and a hand-written list beside a
+number is how a page ends up disagreeing with itself. `grep -rl
+"acme/datamodel/money" solutions/acme --include=schema.json` is the answer that
+cannot go stale.
 
 ## Invariants the schema cannot state
 

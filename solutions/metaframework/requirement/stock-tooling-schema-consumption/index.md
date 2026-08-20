@@ -17,8 +17,6 @@ tags:
   - json-schema
 ---
 
-# A catalog schema is resolvable by tooling that has never heard of this framework
-
 The obligation the entire schema-identity chain was re-decided four times to
 satisfy. A schema in this catalog is a public contract, and a contract that only
 one program can read is not one. The consumer is

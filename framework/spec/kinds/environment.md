@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: environment
-version: 2
+version: 3
 status: review
 title: Kind — Environment
 summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts, membership derivation, validation, and derived views.
@@ -351,8 +351,6 @@ tags:
   - eu
   - regulated
 ---
-
-# Production
 
 The only target that holds customer data of record. Everything deployed here
 is `status: approved` at the version that is running; a component still in

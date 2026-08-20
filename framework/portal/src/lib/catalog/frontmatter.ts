@@ -10,6 +10,17 @@ import { RESERVED_KINDS } from '../srn/srn'
 // RESERVED_KINDS already carries product and component — they became bucket
 // keywords when paths were bucketed. Listing them here as well duplicated both
 // the kind filter and the per-kind counts on solution cards.
+//
+// THE RULE, because there are two orderings of these twelve words and getting
+// them the wrong way round is invisible: this list is ADOPTION order and grows
+// by appending, which is what makes it a faithful record of what the ontology
+// reserved and when. `KIND_ORDER` (./tree) is READING order — containers, then
+// behaviour, participants, intent, paperwork. Anything a reader sees iterates
+// KIND_ORDER; this list is for membership tests, the zod enum, and the reserved
+// vocabulary itself, and is never rendered as a sequence. The two were being
+// shown side by side — the Kind filter menu from here, the Kind lens's buckets
+// from there — which is how one viewport came to hold two different orders of
+// the same twelve kinds.
 export const ENTITY_KINDS = ['solution', ...RESERVED_KINDS] as const
 export type EntityKind = (typeof ENTITY_KINDS)[number]
 

@@ -19,8 +19,6 @@ tags:
   - diagrams
 ---
 
-# State charts render with mermaid, always
-
 ## Context
 
 A protocol's `states.json` is an XState v5 machine config, and the portal drew it

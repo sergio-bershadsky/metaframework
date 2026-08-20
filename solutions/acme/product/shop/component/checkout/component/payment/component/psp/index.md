@@ -17,8 +17,6 @@ tags:
   - third-party
 ---
 
-# Card acquirer (PSP)
-
 A system acme does not own, described here only as far as the boundary requires.
 It tokenizes cards in the customer's browser, authorizes and captures on request
 from [payment](srn://acme/product/shop/component/checkout/component/payment), and reverses on refund.

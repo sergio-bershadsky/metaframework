@@ -199,6 +199,12 @@ async function describe(
       ) : (
         <Undrawable messages={issues.map((issue) => `${issue.code}: ${issue.message}`)} what="drawn" />
       ),
+      // A workflow is parsed best-effort, so an over-long note or an orphan
+      // return leaves `workflow` non-null and the diagram perfectly readable —
+      // and until this footer existed those issues were rendered nowhere at
+      // all, on this page or on /diagnostics. The journey block had solved this
+      // already; the two now say the same thing in the same place.
+      footer: workflow && issues.length > 0 ? <ArtifactFindings issues={issues} /> : undefined,
     }
   }
 
@@ -220,6 +226,23 @@ async function describe(
       ) : (
         <Undrawable messages={diagnostics.map((issue) => `${issue.code}: ${issue.message}`)} what="drawn" />
       ),
+      // Same reason as the workflow block above: a machine whose `id` disagrees
+      // with the protocol name still draws, and the complaint had nowhere to go.
+      //
+      // `path` is dropped: `parseStates` speaks Diagnostic, whose path is the
+      // *file*, and this block is already titled with that file. The workflow
+      // and journey parsers put an in-document position there instead, which is
+      // the thing worth showing.
+      footer:
+        chart && diagnostics.length > 0 ? (
+          <ArtifactFindings
+            issues={diagnostics.map((issue) => ({
+              code: issue.code,
+              severity: issue.severity,
+              message: issue.message,
+            }))}
+          />
+        ) : undefined,
     }
   }
 
@@ -256,7 +279,7 @@ async function describe(
         resolved.length > 0 ? (
           <div className="space-y-3">
             <JourneyLegend steps={resolved.map(({ legend }) => legend)} />
-            <JourneyFindings issues={issues} />
+            <ArtifactFindings issues={issues} />
           </div>
         ) : undefined,
     }
@@ -395,15 +418,24 @@ function Undrawable({ messages, what }: { messages: string[]; what: 'drawn' | 'r
 }
 
 /**
- * What the journey parser found in a file it could still draw.
+ * What a mini-spec parser found in a file it could still draw.
  *
- * `W_JRN_UNDOCUMENTED_INTEGRATION` is the finding this kind exists to produce,
- * so it belongs beside the walk rather than only in /diagnostics. Errors appear
- * here too: a step count outside 2–12 is a real violation of a file that
- * nonetheless renders, and hiding it until the diagnostics page would be the
- * portal knowing something the page it is on does not say.
+ * `W_JRN_UNDOCUMENTED_INTEGRATION` is the finding the journey kind exists to
+ * produce, so it belongs beside the walk rather than only in /diagnostics.
+ * Errors appear here too: a step count outside 2–12, a note past the 200-char
+ * cap, a state machine whose `id` is not the protocol's name — all are real
+ * violations of files that nonetheless render, and hiding them until the
+ * diagnostics page would be the portal knowing something the page it is on does
+ * not say.
+ *
+ * The same list serves all three parsers because it is the same claim in each
+ * case: this drawing is correct, and this file is still wrong.
  */
-function JourneyFindings({ issues }: { issues: ReadonlyArray<{ code: string; severity: string; message: string }> }) {
+function ArtifactFindings({
+  issues,
+}: {
+  issues: ReadonlyArray<{ code: string; severity: string; message: string; path?: string }>
+}) {
   if (issues.length === 0) return null
 
   return (
@@ -418,6 +450,12 @@ function JourneyFindings({ issues }: { issues: ReadonlyArray<{ code: string; sev
           >
             {issue.code}
           </code>
+          {/* The in-document position, where the parser gave one. `steps[3]` is
+              what turns "a note is too long" into a place to look, and the
+              source pane beside this block is addressed the same way. */}
+          {issue.path ? (
+            <code className="shrink-0 font-mono text-[11px] text-muted-foreground">{issue.path}</code>
+          ) : null}
           <span className="text-foreground/75">{issue.message}</span>
         </li>
       ))}

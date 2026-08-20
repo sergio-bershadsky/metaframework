@@ -17,8 +17,6 @@ tags:
   - regression
 ---
 
-# Real multi-browser games are verified on every change
-
 The bot validator proves the *engine* finishes games and accepts every move it
 enumerates. It proves nothing about the interface: whether a slot is clickable,
 whether the card picker offers the right faces, whether the commit button

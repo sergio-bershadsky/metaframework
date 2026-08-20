@@ -13,8 +13,6 @@ tags:
   - static-data
 ---
 
-# Merchant
-
 The five commerce locations on the board edge, extending
 [board-location](srn://brass/product/play/component/rules/component/engine-core/datamodel/board-location@1)
 with what makes them commerce rather than industry.

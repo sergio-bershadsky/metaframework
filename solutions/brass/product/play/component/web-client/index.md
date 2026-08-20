@@ -26,8 +26,6 @@ tags:
 x-package: "@brass/client"
 ---
 
-# Web client
-
 A Vite-built React SPA, shipped as an `nginx:1.27-alpine` image with the built
 `dist/` and a history fallback so `/play/<matchID>` resolves client-side. It is the
 only thing a [player](srn://brass/actor/player) ever touches.

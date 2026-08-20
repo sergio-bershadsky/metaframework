@@ -19,8 +19,6 @@ tags:
   - traefik
 ---
 
-# Edge router
-
 One Kubernetes `Ingress` object, `ingressClassName: traefik`, host
 `brass.bershadsky.dev`, TLS from cert-manager's `letsencrypt-prod` issuer. It owns
 no behaviour — it fronts two components and decides which one answers a request.

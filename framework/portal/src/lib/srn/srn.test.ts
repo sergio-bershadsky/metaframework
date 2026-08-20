@@ -6,6 +6,7 @@ import {
   SrnError,
   dirToSrn,
   formatSrn,
+  ownerTrail,
   parentSrn,
   parseSrn,
   resolveRef,
@@ -496,6 +497,42 @@ describe('parentSrn', () => {
     // The owner of an entity is the container the bucket sits in, so the bucket
     // itself is never a parent — `srn://acme/product/shop/datamodel` is not an SRN.
     expect(parentSrn(parseSrn('srn://acme/product/shop/datamodel/money'))).toBe('srn://acme/product/shop')
+  })
+})
+
+describe('ownerTrail', () => {
+  it('names the owning product of a solution-level list row', () => {
+    // What "Realized by" on a capability needs: `checkout` and `tracking` are
+    // two names in one flat list, and which product each belongs to is the
+    // whole argument for the capability sitting at solution level.
+    expect(ownerTrail('srn://acme/product/shop/component/checkout')).toEqual(['shop'])
+    expect(ownerTrail('srn://acme/product/fulfilment/component/tracking')).toEqual(['fulfilment'])
+  })
+
+  it('carries every container down to the entity, outermost first', () => {
+    expect(
+      ownerTrail('srn://acme/product/fulfilment/component/carrier-gateway/component/parcel-carrier'),
+    ).toEqual(['fulfilment', 'carrier-gateway'])
+    expect(ownerTrail('srn://acme/product/shop/component/checkout/datamodel/cart@1')).toEqual([
+      'shop',
+      'checkout',
+    ])
+  })
+
+  it('is empty for a product and for a solution root — they own themselves', () => {
+    expect(ownerTrail('srn://acme/product/shop')).toEqual([])
+    expect(ownerTrail('srn://acme')).toEqual([])
+  })
+
+  it('is relative to a base, which is what the deep-descendants list passes', () => {
+    const srn = 'srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3'
+    expect(ownerTrail(srn, 'srn://acme/product/shop')).toEqual(['checkout', 'payment'])
+    expect(ownerTrail(srn, 'srn://acme/product/shop/component/checkout')).toEqual(['payment'])
+  })
+
+  it('yields nothing rather than throwing on an SRN it cannot parse', () => {
+    // A list that refuses to render is worse than a row missing its context.
+    expect(ownerTrail('not-an-srn')).toEqual([])
   })
 })
 

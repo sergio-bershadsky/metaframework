@@ -13,8 +13,6 @@ tags:
   - guided-sourcing
 ---
 
-# Move choices
-
 The answers to the questions
 [move-decisions](srn://brass/product/play/component/rules/component/move-enumerator/datamodel/move-decisions@1)
 asked, travelling as the last argument of a build, network, develop or sell move.

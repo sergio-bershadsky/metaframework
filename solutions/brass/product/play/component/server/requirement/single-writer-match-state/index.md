@@ -16,8 +16,6 @@ tags:
   - correctness
 ---
 
-# Exactly one process holds match state
-
 Match state lives in the server pod's heap
 ([0006-in-memory-match-storage](srn://brass/adr/0006-in-memory-match-storage)),
 which turns an ordinary scaling knob into a correctness constraint. A second

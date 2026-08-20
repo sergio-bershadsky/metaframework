@@ -21,8 +21,6 @@ tags:
   - measurement
 ---
 
-# Schema identity is a dereferenceable URL
-
 ## Context
 
 [0005](srn://metaframework/adr/0005-relative-path-schema-refs-without-id) asked

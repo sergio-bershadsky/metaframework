@@ -19,8 +19,6 @@ tags:
   - mcp
 ---
 
-# LLM agent
-
 A model runtime — in practice a Claude Code session driving the `brass-player`
 persona — that connects to one
 [mcp-server](srn://brass/product/agent-play/component/mcp-server) process over

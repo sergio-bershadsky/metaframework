@@ -12,8 +12,6 @@ tags:
   - lobby
 ---
 
-# Seat
-
 The lobby's whole data model. It lives on
 [game-state](srn://brass/product/play/component/rules/component/engine-core/datamodel/game-state@1)
 rather than in any server-side room registry, because

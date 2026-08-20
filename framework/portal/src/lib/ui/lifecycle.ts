@@ -51,6 +51,22 @@ function enumValues(kind: LifecycleKind): readonly string[] {
   return field?.options ?? []
 }
 
+/**
+ * The shared tail — the stages that mean decay rather than delivery.
+ *
+ * Not a guess and not a portal convention: kinds/product.md says it outright,
+ * explaining why the two kinds may share the field name at all — "Only `sunset`
+ * and `retired` mean the same thing on both, and that shared tail is what earns
+ * the shared name". Everything before it is a run-up; these two are the way out.
+ *
+ * The chip needs this because the sequence is NOT monotonic in health, and an
+ * encoding that showed only position would say it is. `lifecycle.test.ts` pins
+ * both kinds' sequences as ending in exactly these two, so a schema that grew a
+ * stage after `retired` — or renamed one of them — fails the build rather than
+ * quietly drawing a component's decay as its last two rungs of progress.
+ */
+export const LIFECYCLE_TAIL: readonly string[] = ['sunset', 'retired']
+
 export interface LifecycleStage {
   /** The value as authored. */
   value: string
@@ -60,6 +76,13 @@ export interface LifecycleStage {
   index: number
   /** How many stages the kind has. */
   total: number
+  /**
+   * Index of the first {@link LIFECYCLE_TAIL} stage — where the sequence stops
+   * being a run-up. Equals `total` if a kind ever has no tail at all.
+   */
+  tailFrom: number
+  /** This stage is one of the tail's. False for an unrecognised value. */
+  inTail: boolean
 }
 
 /**
@@ -78,7 +101,15 @@ export function lifecycleOf(kind: EntityKind, frontmatter: Record<string, unknow
   const value = frontmatter.lifecycle
   if (typeof value !== 'string' || value.length === 0) return null
 
-  return { value, label: humanise(value), index: stages.indexOf(value), total: stages.length }
+  const firstTail = stages.findIndex((stage) => LIFECYCLE_TAIL.includes(stage))
+  return {
+    value,
+    label: humanise(value),
+    index: stages.indexOf(value),
+    total: stages.length,
+    tailFrom: firstTail === -1 ? stages.length : firstTail,
+    inTail: LIFECYCLE_TAIL.includes(value),
+  }
 }
 
 function humanise(value: string): string {

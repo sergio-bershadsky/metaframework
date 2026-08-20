@@ -19,8 +19,6 @@ tags:
   - console
 ---
 
-# Diagnostics report
-
 `src/app/(console)/diagnostics/page.tsx`, 96 lines, plus
 `components/diagnostics-indicator.tsx` which puts the error and warning counts
 in the masthead of every page. Its own docstring states the claim this component

@@ -1,9 +1,9 @@
 ---
 name: green-test-suite
 kind: requirement
-version: 1
+version: 2
 title: The portal's test suite is green
-summary: Every suite passes on demand at the repository root, and the numbers that prove it are recorded here because there is no metric kind.
+summary: Every suite passes on demand at the repository root, and the numbers that prove it are recorded here because a test count is a fact about this repository, not about a described system.
 status: review
 owner: sergio
 requirement-type: non-functional
@@ -16,19 +16,20 @@ tags:
   - measurement
 ---
 
-# The portal's test suite is green
-
 Nothing else in this repository checks the portal. There is no CI, no
 pre-commit hook, no build gate; `npm test` at the root is the entire quality
 apparatus, and this requirement is the statement that it passes.
 
-It is also where the portal's measured numbers live, because the ontology is
-closed at nine kinds and none of them is `metric`. Acceptance criteria are the
-only place in the framework a number can be asserted and later checked.
+It is also where the portal's measured numbers live. The ontology has a `metric`
+kind now (decision-record amendment 2026-08-20-a), but a metric measures
+something the catalog describes, and a test count is a fact about this
+repository rather than about any described system. So the numbers stay here:
+acceptance criteria are the only place in the framework a number can be asserted
+and later checked.
 
 ## Acceptance criteria
 
-- **AC-1** `npm test` at the repository root exits zero. It proxies to `npm --prefix framework/portal exec -- vitest run`.
+- **AC-1** `npm test` at the repository root exits zero. It proxies to `npm --prefix framework/portal run test`, which is `vitest run` **with the portal as the working directory**. That last part is the criterion, not a detail: the script used to be `npm --prefix framework/portal exec -- vitest run`, which finds the same config and the same 28 files but leaves the cwd at the repository root — so every suite that resolves a path from `process.cwd()` (`fixture-check`, `dereference`, `url`, `lineage`) failed, 19 of them, while `npm --prefix framework/portal run test` passed. A gate whose only invocation is red is not a gate, and this one had been red long enough that the difference read as normal.
 - **AC-2** The run reports 16 test files and 395 tests passing, in roughly 1.2s. Measured 2026-08-19; the counts move with the code and a change to them is expected, a failure is not.
 - **AC-3** `npx vitest run src/lib/catalog` reports 4 files and 74 tests, in ~498ms. Measured 2026-08-19.
 - **AC-4** `fixture-check.test.ts` loads the real `solutions/` tree and asserts zero diagnostics of severity `error`.

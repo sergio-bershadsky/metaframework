@@ -13,8 +13,6 @@ tags:
   - security
 ---
 
-# Match credentials
-
 This is the entire authentication model of the product. There are no accounts, no
 sessions and no tokens with an expiry: joining a seat returns an opaque secret,
 and presenting it is what proves you are that seat for the rest of the match.

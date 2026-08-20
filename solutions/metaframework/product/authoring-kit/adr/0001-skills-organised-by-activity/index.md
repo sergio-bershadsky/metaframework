@@ -19,8 +19,6 @@ tags:
   - decomposition
 ---
 
-# Organise the skills by activity, not by entity kind
-
 ## Context
 
 A Claude Code skill is selected by its `description`, which is written as a list

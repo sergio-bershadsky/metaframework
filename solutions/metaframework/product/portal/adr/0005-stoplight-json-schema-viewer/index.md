@@ -1,7 +1,7 @@
 ---
 name: 0005-stoplight-json-schema-viewer
 kind: adr
-version: 1
+version: 2
 title: Render schemas with Stoplight's JsonSchemaViewer
 summary: A datamodel's schema is drawn by a third-party viewer rather than by a hand-written explorer — bought once, paid for three times in the cascade.
 status: review
@@ -18,8 +18,6 @@ tags:
   - portal
   - schemas
 ---
-
-# Render schemas with Stoplight's JsonSchemaViewer
 
 ## Context
 
@@ -84,6 +82,32 @@ further `@stoplight/*` packages come with it — `mosaic`, `mosaic-code-viewer`,
   `buildSchemaBundle`, can no longer reach the diagnostics page by any path.
 - **Four dependencies and a client-only boundary** for a widget that appears on
   datamodel pages alone.
+- **It writes to the console on pages that are not wrong, and half of that is
+  outside our reach.** Two separate faults, measured on
+  `/catalog/metaframework/product/specification/datamodel/entity-frontmatter`:
+  1. *Fixed.* The viewer imports `useUpdateAtom`/`useAtomValue` from
+     `jotai/utils`, which jotai 1.12.0 turned into shims that `console.warn` on
+     every call — 90 to 252 identical `[DEPRECATED]` lines per datamodel page.
+     `overrides: { "jotai": "1.11.2" }` in `framework/portal/package.json` pins
+     the last release before the shim. It is behaviour-preserving and that is
+     checked, not assumed: ignoring comments, jotai's `esm/index.mjs` and
+     `index.js` are byte-identical between 1.11.2 and 1.13.1, and `utils` differs
+     only in the wrapper. Zero warnings after; the viewer renders the same 102
+     rows. Drop the override when the viewer stops importing the deprecated
+     names.
+  2. *Not fixable from outside.* `JsonSchemaViewer` renders a top-level combiner
+     with Mosaic's `Menu`, whose `renderTrigger` callback is invoked with
+     `{ isOpen }`; the viewer's own callback spreads that object straight onto
+     `Pressable`, which merges unknown props into the DOM element it clones. So
+     React logs *"does not recognize the `isOpen` prop on a DOM element"* — a
+     console **error**, which raises the dev overlay's issue badge — on every
+     datamodel whose schema root is a `oneOf`/`anyOf`. That is 7 of the 66
+     schemas in the catalog today, `entity-frontmatter` among them. The offending
+     JSX is inside `@stoplight/json-schema-viewer`, so no wrapper or prop filter
+     of ours sits between it and React, and 4.16.4 is the latest release
+     (published 2025-07-18), so there is no version to bump to. It stands as a
+     known dependency risk: a dev-only console error we do not own, on a widget
+     we chose the same afternoon we adopted it.
 
 ## Alternatives considered
 

@@ -17,8 +17,6 @@ tags:
   - lobby
 ---
 
-# A player joins from a link with no signup
-
 The game is played by friends who were invited in a chat message. Anything
 between that message and the board is friction that costs a session — and a
 registration step in particular, because it arrives before the player has any

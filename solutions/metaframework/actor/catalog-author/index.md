@@ -21,8 +21,6 @@ tags:
   - human
 ---
 
-# Catalog author
-
 Whoever writes the files: `index.md` with its frontmatter, `schema.json` for a
 datamodel, `workflows/*.yaml` and `states.json` for a protocol. Not a role that
 exists elsewhere and happens to touch the catalog — the catalog **is** the

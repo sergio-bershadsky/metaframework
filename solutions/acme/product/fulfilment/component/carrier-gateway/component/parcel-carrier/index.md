@@ -19,8 +19,6 @@ tags:
   - third-party
 ---
 
-# Parcel carrier
-
 The company with the vans. It rates a parcel, accepts or refuses a booking,
 issues a label and a tracking number, moves the parcel, and emits scans along the
 way. Acme describes it only as far as the boundary requires, which is: what it

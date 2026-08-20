@@ -87,10 +87,9 @@ steps:
             to: player
             kind: return
             note: >-
-              The assembled picks ride along with the move as MoveChoices. The
-              engine re-validates each by identity against a freshly replanned
-              candidate set, so a pick made against a stale board is refused, not
-              redirected.
+              The assembled picks ride along with the move as MoveChoices. The engine
+              re-validates each by identity against a freshly replanned candidate set,
+              so a stale pick is refused, not redirected.
       - when: every decision is forced or the build consumes nothing
         steps:
           - message: move-dispatched

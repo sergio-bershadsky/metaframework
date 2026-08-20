@@ -17,8 +17,6 @@ tags:
   - testing
 ---
 
-# The shipped catalog loads with zero error diagnostics
-
 The pass condition every skill and every command in the authoring kit ends on,
 and — with no CLI in v1 — the only mechanical statement this repository makes
 about whether its own content is legal.

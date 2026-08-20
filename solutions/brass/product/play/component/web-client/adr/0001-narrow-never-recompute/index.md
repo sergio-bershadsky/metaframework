@@ -18,8 +18,6 @@ tags:
   - rules
 ---
 
-# The client narrows the engine's move list and never re-derives legality
-
 ## Context
 
 The action bar redesign inverted the order in which a player supplies input.

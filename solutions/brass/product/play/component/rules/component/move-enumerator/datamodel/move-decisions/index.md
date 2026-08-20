@@ -12,8 +12,6 @@ tags:
   - planning
 ---
 
-# Move decisions
-
 The answer `planMoveChoices` gives to "if I commit to this move, what am I going
 to be asked?". Four arrays of
 [decision](srn://brass/product/play/component/rules/component/move-enumerator/datamodel/decision@1),

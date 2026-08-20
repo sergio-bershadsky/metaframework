@@ -13,8 +13,6 @@ tags:
   - aggregate
 ---
 
-# Ledger entry
-
 A single leg. Legs come in balanced sets that sum to zero, posted in one
 transaction, per
 [0001-double-entry](srn://acme/product/billing/adr/0001-double-entry). The schema

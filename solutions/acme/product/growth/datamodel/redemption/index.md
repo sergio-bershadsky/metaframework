@@ -13,8 +13,6 @@ tags:
   - finance
 ---
 
-# Redemption
-
 Growth's public surface. Everything else in this product is internal machinery;
 a redemption is the fact other products and the finance function consume. It
 says that a specific discount was applied to a specific order at a specific

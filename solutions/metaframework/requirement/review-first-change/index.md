@@ -13,8 +13,6 @@ tags:
   - gap
 ---
 
-# A change to a described system is reviewed as a diff before it lands
-
 `framework/spec/index.md` puts review-workflow tooling out of scope on a stated
 ground: "review is git-native: files are the review surface". That is a real
 design position, not an evasion — it is why acceptance criteria are a markdown

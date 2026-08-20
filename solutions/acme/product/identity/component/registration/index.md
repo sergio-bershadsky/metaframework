@@ -29,8 +29,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Registration
-
 Creates an [account](srn://acme/product/identity/datamodel/account@1), verifies the
 handle, and hands over the first
 [credential](srn://acme/product/identity/datamodel/credential@1). It is the only writer

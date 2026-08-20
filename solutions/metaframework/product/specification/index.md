@@ -24,8 +24,6 @@ tags:
   - contract
 ---
 
-# Specification
-
 `framework/spec/` is the normative statement of what a catalog is: 14 markdown
 documents, 7,279 lines, written in the framework's own format — each one carries
 the frontmatter shape it prescribes for solution entities. Five are core

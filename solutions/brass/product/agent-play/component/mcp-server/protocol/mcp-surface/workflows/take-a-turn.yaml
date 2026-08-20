@@ -8,11 +8,9 @@ steps:
     to: agent
     kind: event
     note: >-
-      A resources/updated notification on match://current/state, the one
-      subscribable resource.
-      Fired on every transport update, not only on the agent's turn — the server
-      cannot tell which updates matter to the model. Best-effort: an unsubscribed
-      client silently gets nothing, and the fallback is polling get_state.
+      A resources/updated notification on match://current/state, the one subscribable
+      resource. Fired on every transport update, not only on the agent's turn. Best-
+      effort; the fallback is polling.
 
   - message: get-state
     from: agent

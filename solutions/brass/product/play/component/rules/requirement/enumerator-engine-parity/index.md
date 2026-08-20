@@ -16,8 +16,6 @@ tags:
   - testing
 ---
 
-# Every enumerated move is accepted by the engine
-
 The enumerator and the move handlers are two implementations of the same rules
 read from opposite directions: one asks "what could I do?", the other asks "may
 I do this?". They are written separately, they are maintained separately, and

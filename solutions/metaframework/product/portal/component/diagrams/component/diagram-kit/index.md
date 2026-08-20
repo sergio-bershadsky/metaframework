@@ -1,7 +1,7 @@
 ---
 name: diagram-kit
 kind: component
-version: 2
+version: 3
 title: Diagram kit
 summary: The shared layout, interaction hooks and client boundary the graph diagrams are built on — one ELK module, one polar module, one highlight hook.
 status: review
@@ -13,10 +13,8 @@ tags:
   - layout
 ---
 
-# Diagram kit
-
 `src/lib/diagrams/{layout,polar,use-graph-highlight,use-expandable,use-polar-transition}.ts`
-(1,022 lines) and `src/components/diagrams/{navigable,expand-button,measure-probe}.tsx`
+(890 lines) and `src/components/diagrams/{navigable,expand-button,measure-probe}.tsx`
 (240). It has no runtime of its own; it runs inside the diagrams that import it,
 which is why it declares no environment.
 
@@ -26,8 +24,12 @@ which is why it declares no environment.
 through it "so they come out looking like siblings: same algorithm, same spacing
 rhythm, same canvas chrome. A second set of ELK options living next to a
 component is how two diagrams in one product start to look like two products."
-It also owns `DIAGRAM_SPACING`, `DIAGRAM_CANVAS_VARS`, `DIAGRAM_BACKGROUND`,
-`fitCanvasHeight()` and `spreadEdgeLabels()`.
+It also owns `DIAGRAM_SPACING`, `DIAGRAM_CANVAS_VARS`, `DIAGRAM_BACKGROUND` and
+`fitCanvasHeight()`. It no longer owns a label-collision solver: `spreadEdgeLabels()`
+was written for the React Flow state chart, and when mermaid replaced that chart
+(decision-record amendment `2026-08-19-e`) its last caller went with it. The
+mermaid chart separates its own labels in the SVG it has already drawn, which is
+a different problem solved in a different place.
 
 ELK computes **placement only**. Edge routing is left to React Flow, which
 already knows where the handles are and re-routes for free while a node is

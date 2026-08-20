@@ -19,8 +19,6 @@ tags:
   - design-system
 ---
 
-# Console
-
 The frame everything else in the portal is drawn inside, plus the token layer
 that decides what a colour means. Five files carry it:
 `src/app/(console)/layout.tsx`, `src/components/app-shell.tsx` (57 lines),

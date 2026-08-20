@@ -20,8 +20,6 @@ tags:
   - hud
 ---
 
-# HUD
-
 `ScoreTrack`, `PlayerHud`, `MarketWidget`, `ActionBar`, `PlayerMat`, `PlayedCards`,
 `CardPicker`, `cardFace` and `EraIntro`. Everything on screen that is not the board
 and not an animation.

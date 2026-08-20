@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: metric
-version: 1
+version: 2
 status: draft
 title: Kind — Metric
 summary: Contract for metric entities — owner-scoped placement, metric-type and the typed target literal, window and direction, the required measures edge, and derived coverage.
@@ -372,12 +372,13 @@ portal cross-references them onto the environment's page
 
 ## Body template
 
-**No heading is enforced.** The whole structure of a metric is its frontmatter;
-the prose is one explanation, and the rest is conventional:
+**No heading is enforced**, beyond the one rule every body shares: sections
+start at `##`, because the page already renders `title` as its h1
+([structure.md](../structure.md#the-document-body)). The whole structure of a
+metric is its frontmatter; the prose is one explanation, and the rest is
+conventional:
 
 ```markdown
-# <Title>
-
 <What is observed, and why this number and not a neighbouring one.>
 
 ## Definition          <!-- conventional, and the one section worth writing -->
@@ -487,8 +488,6 @@ tags:
   - reliability
 ---
 
-# Duplicate capture rate
-
 `idem-cap` promises that a capture replayed with the same idempotency key
 charges the card once. This is the number that says whether it holds: the share
 of authorizations the gateway accepted for a key that had already produced one.
@@ -540,8 +539,6 @@ tags:
   - checkout-path
 ---
 
-# Submit-order p99 latency
-
 The 99th percentile of the submit-order request as the customer experiences it:
 at the public edge, TLS termination included, not inside the service.
 
@@ -575,8 +572,6 @@ relations:
 tags:
   - commerce
 ---
-
-# Order conversion
 
 Whether the business can actually take orders, expressed as the share of
 sessions that produce one.

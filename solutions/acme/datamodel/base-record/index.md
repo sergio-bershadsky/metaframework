@@ -12,8 +12,6 @@ tags:
   - foundation
 ---
 
-# Base record
-
 Every record that acme persists or puts on the wire carries a UUID identity and
 a creation timestamp. This model exists only to be extended: it is never stored
 or exchanged on its own, hence `abstract: true`, and the portal keeps it out of

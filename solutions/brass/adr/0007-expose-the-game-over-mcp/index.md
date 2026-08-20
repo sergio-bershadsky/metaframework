@@ -18,8 +18,6 @@ tags:
   - llm
 ---
 
-# Reopen "no AI opponents" from outside, as MCP
-
 ## Context
 
 "AI opponents" was an explicit non-goal of v1, recorded in

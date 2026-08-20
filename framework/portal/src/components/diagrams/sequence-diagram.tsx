@@ -1,6 +1,8 @@
 'use client'
 
 import { useId, useMemo, useState } from 'react'
+import { ExpandButton } from '@/components/diagrams/expand-button'
+import { useExpandable } from '@/lib/diagrams/use-expandable'
 import type { EntityKind } from '@/lib/catalog/frontmatter'
 import type {
   FragmentLayout,
@@ -92,6 +94,7 @@ export function SequenceDiagram({
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
+  const { expanded, toggle: toggleExpanded } = useExpandable()
 
   const lit = useMemo(() => new Set(activeAnchors ?? []), [activeAnchors])
   const linked = Boolean(onAnchorHover || onAnchorSelect)
@@ -135,22 +138,52 @@ export function SequenceDiagram({
   }
 
   return (
-    <figure className={cn('panel overflow-hidden', className)}>
+    <figure
+      data-expanded={expanded || undefined}
+      className={cn(
+        'panel overflow-hidden',
+        expanded && 'fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background',
+        className,
+      )}
+    >
       <figcaption className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border px-4 py-3">
         <h3 className="text-[13px] font-medium text-foreground">{workflow.title}</h3>
         <span className="font-mono text-[11px] tracking-tight text-muted-foreground">{workflow.name}</span>
+        {/* In the caption rather than floating over the drawing, as the two
+            mermaid diagrams do it: this figure has a header bar and they do not,
+            and the corner an overlay would take is where the rightmost lifeline
+            header sits. */}
+        <ExpandButton expanded={expanded} onToggle={toggleExpanded} className="ml-auto self-center" />
         {workflow.summary && (
           <p className="basis-full text-[12.5px] leading-5 text-muted-foreground">{workflow.summary}</p>
         )}
       </figcaption>
 
-      {/* Never squash: the grid keeps its natural width and the frame scrolls. */}
-      <div className="overflow-x-auto overscroll-x-contain">
+      {/*
+        Fit the drawing to the pane, up to its natural size.
+
+        This used to hold the grid at `minWidth: layout.width` and let the frame
+        scroll, on the argument that a squashed diagram is worse than a scrolled
+        one. In the artifact block that argument loses: the drawing gets 1.1fr of
+        a split column — around 570px against a place-order layout of 1120 — so
+        the first thing a reader saw was a drawing sliced down the middle, with
+        the half that names the participants off-screen. Nothing was lost (the
+        pane scrolled), but a cut-off picture reads as a broken one.
+
+        The fit is CSS rather than a measured transform: `width: 100%` against a
+        viewBox scales the whole drawing, text and hit targets alike, and it is
+        already right on the server's first paint — no ResizeObserver, no frame
+        where the untruncated width flashes. `maxWidth` is the natural width, so
+        a pane wider than the drawing draws it at 1:1 rather than blowing it up.
+        Scrolling survives for the case CSS cannot help with: expanded, where the
+        drawing is capped at 1:1 and may be taller than the window.
+      */}
+      <div className={cn('overflow-auto overscroll-x-contain', expanded && 'min-h-0 flex-1')}>
         <svg
           width={layout.width}
           height={layout.height}
           viewBox={`0 0 ${layout.width} ${layout.height}`}
-          style={{ minWidth: layout.width }}
+          style={{ width: '100%', maxWidth: layout.width, height: 'auto' }}
           className="block select-none"
           aria-hidden="true"
           focusable="false"

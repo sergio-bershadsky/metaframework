@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: component
-version: 3
+version: 4
 status: review
 title: Kind — component
 summary: The component kind — the nestable container in a component/ bucket under a product or another component, its component-type and lifecycle enums, environments, and reuse by reference.
@@ -456,8 +456,6 @@ tags:
   - checkout
   - payments
 ---
-
-# Checkout
 
 Owns the cart-to-order transition. Reserves stock through
 [inventory](srn://acme/product/shop/component/inventory), takes payment through

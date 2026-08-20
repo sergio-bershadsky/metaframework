@@ -12,8 +12,6 @@ tags:
   - planning
 ---
 
-# Decision
-
 Exactly one cube, one barrel or one tile-sale, plus the full list of sources that
 could satisfy it. The planners emit an array of these; the UI walks it; and the
 three counts it can take mean three different things:

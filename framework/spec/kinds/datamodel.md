@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: datamodel
-version: 5
+version: 6
 status: review
 title: DataModel kind
 summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
@@ -1007,8 +1007,6 @@ tags:
   - foundation
 ---
 
-# Base record
-
 Every record that acme persists or puts on the wire carries a UUID identity and
 a creation timestamp. This model exists only to be extended: it is never stored
 or exchanged on its own, hence `abstract: true`.
@@ -1067,8 +1065,6 @@ tags:
   - aggregate
 x-jira-epic: SHOP-142
 ---
-
-# Order
 
 The order aggregate as the payment component owns it: one order per checkout
 attempt, immutable once `status` reaches `paid`. Extends

@@ -12,8 +12,6 @@ tags:
   - mcp
 ---
 
-# Move option
-
 The unit `get_legal_moves` returns and `make_move` accepts an id from. It is the
 mechanism behind
 [constrained-move-selection](srn://brass/product/agent-play/requirement/constrained-move-selection):

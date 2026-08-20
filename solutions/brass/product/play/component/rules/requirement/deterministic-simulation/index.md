@@ -16,8 +16,6 @@ tags:
   - determinism
 ---
 
-# A seed and a player count reproduce a game exactly
-
 A rules engine that cannot replay a failure is a rules engine whose failures are
 anecdotes. Brass has a deep state space — two eras, four players, a shuffled
 deck, market prices that move as cubes drain — and a bug that appears once in

@@ -30,8 +30,6 @@ tags:
 x-runtime: go
 ---
 
-# Carrier gateway
-
 Every carrier acme uses has a different API, a different status vocabulary, a
 different idea of what a weight is, and a different opinion about whether a
 booking is idempotent. This component absorbs all of it and offers one shape

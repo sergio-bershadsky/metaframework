@@ -16,8 +16,6 @@ tags:
   - correctness
 ---
 
-# The engine plays Brass: Birmingham as the skills specify
-
 The obligation is the whole reason the project exists: a player who knows the
 physical game must be able to sit down and find that nothing has changed except
 the turn-commit gate, which is a deliberate, documented deviation

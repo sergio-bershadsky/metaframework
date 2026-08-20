@@ -28,8 +28,6 @@ tags:
 x-jira-epic: SHOP-142
 ---
 
-# Payment
-
 The sub-component that talks to money. It authorizes, captures, and refunds
 through [/product/shop/component/checkout/component/payment/component/psp](srn://acme/product/shop/component/checkout/component/payment/component/psp), owns the
 [order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3) aggregate as it

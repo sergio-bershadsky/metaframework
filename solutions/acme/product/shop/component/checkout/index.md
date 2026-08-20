@@ -33,8 +33,6 @@ tags:
 x-runtime: kotlin-jvm
 ---
 
-# Checkout
-
 Owns the cart-to-order transition, and nothing else. It reserves stock through
 [inventory](srn://acme/product/shop/component/inventory), quotes tax in its own process through
 [tax-engine](srn://acme/product/shop/component/checkout/component/tax-engine), takes payment through its

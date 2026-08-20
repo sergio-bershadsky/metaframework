@@ -16,8 +16,6 @@ tags:
   - lifecycle
 ---
 
-# A match runs canal era through rail era to a decided winner
-
 A Brass implementation that plays one era is a demo. The era transition is where
 most of the game's structure lives — it scores, it destroys, it reshuffles, and
 it re-seats the table — and an implementation that stops before it has skipped

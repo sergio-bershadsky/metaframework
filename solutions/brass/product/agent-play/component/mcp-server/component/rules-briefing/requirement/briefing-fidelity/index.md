@@ -13,8 +13,6 @@ tags:
   - rules
 ---
 
-# The served rules text matches this engine
-
 Three static markdown documents — `rules://brass/rulebook`,
 `rules://brass/strategy` and `rules://brass/moves` — are the only thing that
 teaches a model how to play here. They are read once on connect and carried for

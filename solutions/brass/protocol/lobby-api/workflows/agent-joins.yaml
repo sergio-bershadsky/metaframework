@@ -54,11 +54,9 @@ steps:
           to: mcp
           kind: error
           note: >-
-            Decided locally by the session against the metadata it just read, not
-            by a server rejection: a named seat that does not exist, or one that
-            already carries a name, fails before any join is attempted. The tool
-            returns isError instead of throwing, so the model can list again and
-            retry.
+            Decided locally by the session against the metadata it just read, not by a
+            server rejection. The tool returns isError instead of throwing, so the model
+            can list again and retry.
 
   - message: join-match
     from: mcp

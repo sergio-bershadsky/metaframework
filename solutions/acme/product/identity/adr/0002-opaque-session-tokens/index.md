@@ -21,8 +21,6 @@ tags:
   - sessions
 ---
 
-# Opaque session references, resolved on every check
-
 ## Context
 
 [0001-attribute-based-access](srn://acme/product/identity/adr/0001-attribute-based-access)

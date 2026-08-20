@@ -13,8 +13,6 @@ tags:
   - foundation
 ---
 
-# Discount
-
 Every reduction acme can apply to a basket is a discount. The model carries what
 all of them share — a customer-facing label, the total it applies to, the
 currency it is valid in, and whether it may combine with others — and delegates

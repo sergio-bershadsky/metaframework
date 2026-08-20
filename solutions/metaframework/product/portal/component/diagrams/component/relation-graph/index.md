@@ -20,8 +20,6 @@ tags:
   - graph
 ---
 
-# Relation graph
-
 `src/components/diagrams/relation-graph.tsx` (693 lines), React Flow over the
 shared ELK layout, fed by `src/components/entity/entity-graph.tsx` (64 lines).
 It draws the five authored edge types of `frontmatter.md` plus the derived

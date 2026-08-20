@@ -210,6 +210,27 @@ beforeAll(async () => {
   // A protagonist that is not an actor.
   await entity('acme/journey/broken-path', base('broken-path', 'journey', { actor: '/product/shop' }))
 
+  // --- document body ----------------------------------------------------------
+  // The page renders `title` as the h1, so a `#` in the prose is a second one.
+  await entity(
+    'acme/product/shop/component/twice-titled',
+    base('twice-titled', 'component'),
+    '# Twice titled\n\nProse.\n',
+  )
+  // The other spelling of the same heading, which a `#`-only check would miss.
+  await entity(
+    'acme/product/shop/component/underlined',
+    base('underlined', 'component'),
+    'Underlined\n==========\n\nProse.\n',
+  )
+  // A `#` inside a fence is a path comment, not a heading — every spec example
+  // is written that way, and flagging them would make the rule unusable.
+  await entity(
+    'acme/product/shop/component/fenced-hash',
+    base('fenced-hash', 'component'),
+    '## Layout\n\n```text\n# solutions/acme/product/shop\n```\n\nProse.\n',
+  )
+
   catalog = await loadCatalog({ catalogDir })
 })
 
@@ -370,6 +391,22 @@ describe('loadCatalog — diagnostics', () => {
     const missing = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/product/shop/component/legacy')
     expect(missing.map((d) => d.code)).toContain('E_FM_SCHEMA')
     expect(missing.find((d) => d.code === 'E_FM_SCHEMA')?.message).toContain('lifecycle')
+  })
+
+  it('flags a body that opens its own level-1 heading', () => {
+    expect(codesFor('acme/product/shop/component/twice-titled')).toContain('E_STRUCT_BODY_H1')
+  })
+
+  it('flags a setext level-1 heading too — the spelling a "#" check would miss', () => {
+    expect(codesFor('acme/product/shop/component/underlined')).toContain('E_STRUCT_BODY_H1')
+  })
+
+  it('leaves a "#" inside a fence alone — it is a path comment, not a heading', () => {
+    expect(codesFor('acme/product/shop/component/fenced-hash')).not.toContain('E_STRUCT_BODY_H1')
+  })
+
+  it('says nothing about a body that starts its sections at level 2', () => {
+    expect(codesFor('acme/product/shop/component/checkout')).not.toContain('E_STRUCT_BODY_H1')
   })
 
   it('is fail-soft — a broken catalog still yields a usable graph', () => {

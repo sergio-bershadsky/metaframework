@@ -26,8 +26,6 @@ tags:
   - llm
 ---
 
-# MCP surface
-
 The whole boundary between a language model and a game of Brass: six tools, four
 resources, and one notification. Everything the model can do is in that list,
 and the list is short on purpose — this surface is a **narrowing**, not an API.

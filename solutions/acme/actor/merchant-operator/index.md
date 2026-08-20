@@ -20,8 +20,6 @@ tags:
   - catalog
 ---
 
-# Merchant operator
-
 The person who decides what is for sale and at what stock level. They act inside
 acme's ownership boundary through internal tooling, and they never see payment
 instruments — that separation is the whole reason this role exists as its own

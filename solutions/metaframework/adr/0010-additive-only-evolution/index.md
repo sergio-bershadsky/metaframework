@@ -18,8 +18,6 @@ tags:
   - founding
 ---
 
-# Evolution is additive-only — never reduce, only extend or swap
-
 ## Context
 
 Two founding choices, taken before this one, jointly removed every conventional

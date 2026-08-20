@@ -16,8 +16,6 @@ tags:
   - non-goal
 ---
 
-# Per-line currency in a single basket
-
 A customer browsing across acme's three storefronts would, in principle, like to
 put a sterling item and a euro item in one basket and pay once. This requirement
 records that request, its criteria, and the fact that acme has declined it for

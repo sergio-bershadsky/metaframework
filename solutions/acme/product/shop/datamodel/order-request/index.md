@@ -13,8 +13,6 @@ tags:
   - wire
 ---
 
-# Order request
-
 The payload of the `submit-order` step of
 [order-placement](srn://acme/product/shop/protocol/order-placement). It is `usage:
 exchange` and nothing else — nobody stores an order request. What survives the

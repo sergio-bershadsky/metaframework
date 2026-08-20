@@ -33,8 +33,6 @@ tags:
   - synchronous
 ---
 
-# Carrier booking
-
 Acme asks for a parcel to be taken, and waits. It waits because there is nothing
 useful to do until the answer arrives: a booking either yields a label and a
 tracking number or it does not, and a shipment without a label cannot leave the

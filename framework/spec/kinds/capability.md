@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: capability
-version: 1
+version: 2
 status: draft
 title: Kind — Capability
 summary: Contract for capability entities — solution-level placement, the deliberately empty frontmatter, realization via the realizes edge, and the boundary against product, component and requirement.
@@ -348,12 +348,12 @@ the portal links them but does not interpret them.
 
 ## Body template
 
-**No heading is enforced.** The lead paragraph is the capability, and the rest
-is conventional:
+**No heading is enforced**, beyond the one rule every body shares: sections
+start at `##`, because the page already renders `title` as its h1
+([structure.md](../structure.md#the-document-body)). The lead paragraph is the
+capability, and the rest is conventional:
 
 ```markdown
-# <Title — the verb phrase>
-
 <What the business can do, in one or two paragraphs, in the business's words.>
 
 ## Boundaries        <!-- conventional: what this capability stops short of -->
@@ -421,8 +421,6 @@ tags:
   - commerce
   - customer-facing
 ---
-
-# Fulfil an order
 
 Once a customer has paid, acme can get the goods to them: reserve the stock,
 pick and pack it, hand it to a carrier, and keep the customer informed until it
@@ -495,8 +493,6 @@ tags:
   - identity
   - compliance
 ---
-
-# Verify who someone is
 
 acme can raise its confidence in a claimed identity to a level appropriate for
 what is being asked — a password for a basket, a document check for a payout.

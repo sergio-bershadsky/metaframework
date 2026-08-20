@@ -73,7 +73,6 @@ steps:
         kind: error
         payload: /datamodel/problem@1
         note: >-
-          401, not 403. Unknown, expired, evicted, and store-unavailable all land
-          here — the caller must send the principal back to authentication rather
-          than tell them they lack permission. Default deny means the store being
-          down is an outage, deliberately, not an open door.
+          401, not 403. Unknown, expired, evicted and store-unavailable all land here:
+          send the principal back to authentication rather than tell them they lack
+          permission. Default deny is deliberate.

@@ -21,8 +21,6 @@ tags:
   - batch
 ---
 
-# Reconciliation
-
 A scheduled worker with no inbound surface. It reads the acquirer's settlement
 file, replays the [settlement](srn://acme/protocol/settlement) topic for the same
 window, and reports any order where the two disagree.

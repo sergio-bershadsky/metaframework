@@ -13,8 +13,6 @@ tags:
   - board-state
 ---
 
-# Owned piece
-
 Two things are placed on the board by players and by nobody else: industry tiles
 and links. This base carries what they share — a monotonic numeric `id` and an
 `owner`.

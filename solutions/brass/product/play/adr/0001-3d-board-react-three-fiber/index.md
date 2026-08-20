@@ -15,8 +15,6 @@ tags:
   - rendering
 ---
 
-# A low-poly 3D board in React-Three-Fiber
-
 ## Context
 
 The design spec of 2026-07-14 locked four forks at once, and this was the third

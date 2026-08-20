@@ -24,8 +24,6 @@ tags:
   - presentation
 ---
 
-# Animation layer
-
 `anim/gameDeltas.ts` and `anim/AnimationLayer.tsx`. A presentation-only overlay with
 `pointer-events: none` that never dispatches a move and never changes state.
 

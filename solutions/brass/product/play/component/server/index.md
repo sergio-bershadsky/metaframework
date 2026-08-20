@@ -28,8 +28,6 @@ tags:
 x-package: "@brass/server"
 ---
 
-# Game server
-
 Twenty-six lines of TypeScript. It constructs boardgame.io's `Server` with one game
 — `BrassGame` from [rules](srn://brass/product/play/component/rules) — an origin
 allowlist, and a port, and calls `run`. That is the entire component, and the

@@ -11,8 +11,6 @@ tags:
   - development
 ---
 
-# Local
-
 `npm run dev` at the repository root proxies to `next dev` in
 `framework/portal`. That is the entire deployment story. Nothing is shared, no
 data is of record, and anyone may break it at any moment — which is the standard

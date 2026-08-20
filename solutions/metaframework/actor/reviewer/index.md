@@ -20,8 +20,6 @@ tags:
   - review
 ---
 
-# Reviewer
-
 The reader the portal is aimed at. Two reading modes, one person: *what is this
 now*, and *is this change right*. They are folded into one actor deliberately —
 see below — and the goals list carries both.

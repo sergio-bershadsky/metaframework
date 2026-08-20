@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useCallback, useId, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ENTITY_KINDS, type EntityKind, STATUSES, type Status } from '@/lib/catalog/frontmatter'
+import { type EntityKind, STATUSES, type Status } from '@/lib/catalog/frontmatter'
 import { entityHref } from '@/lib/catalog/href'
 import {
   applyLens,
@@ -34,7 +34,7 @@ import {
   filterTree,
   type GroupLens,
   isFiltering,
-  isTreeLens,
+  KIND_ORDER,
   lensNodeId,
   lensNodeKey,
   type LensNode,
@@ -44,113 +44,8 @@ import {
   type TreeNode,
 } from '@/lib/catalog/tree'
 import { kindStyle, STATUS_STYLES } from '@/lib/ui/kind'
+import { settingsSnapshot, solutionOfPath, useRailSettings, writeSettings } from '@/lib/ui/rail-settings'
 import { cn } from '@/lib/utils'
-
-const STORAGE_KEY = 'metaframework.tree'
-
-/* ---------------------------------------------------------- rail settings */
-
-/**
- * Lens, focus and filters are navigation preferences, not page state: they must
- * survive a reload and a full navigation.
- *
- * They are modelled as what they actually are — an external store the rail
- * reads through `useSyncExternalStore` — rather than as component state
- * rehydrated from an effect. That is not ceremony: the effect version renders
- * once with the defaults and then sets state, which is a cascading render React
- * now flags, and it silently disagrees with a second tab. Here the server
- * snapshot is the defaults (so hydration matches), the client snapshot is
- * whatever localStorage holds, and a `storage` event from another tab is just
- * another change to publish.
- */
-interface RailSettings {
-  kinds: EntityKind[]
-  statuses: Status[]
-  focus: string
-  lens: TreeLens
-}
-
-const DEFAULT_SETTINGS: RailSettings = { kinds: [], statuses: [], focus: '', lens: 'hierarchy' }
-
-const listeners = new Set<() => void>()
-/** The last raw string parsed, so a snapshot keeps its identity between writes. */
-let cachedRaw: string | null | undefined
-let cached: RailSettings = DEFAULT_SETTINGS
-
-/**
- * Every value is re-validated on read: a preference written by an older build
- * must not resurrect a kind, a status or a lens this build no longer has.
- */
-function parseSettings(raw: string | null): RailSettings {
-  if (!raw) return DEFAULT_SETTINGS
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    return {
-      kinds: Array.isArray(parsed.kinds)
-        ? parsed.kinds.filter((k): k is EntityKind => ENTITY_KINDS.includes(k as EntityKind))
-        : [],
-      statuses: Array.isArray(parsed.statuses)
-        ? parsed.statuses.filter((s): s is Status => STATUSES.includes(s as Status))
-        : [],
-      focus: typeof parsed.focus === 'string' ? parsed.focus : '',
-      lens: isTreeLens(parsed.lens) ? parsed.lens : 'hierarchy',
-    }
-  } catch {
-    /* a corrupt preference must never break navigation */
-    return DEFAULT_SETTINGS
-  }
-}
-
-function readRaw(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY)
-  } catch {
-    /* storage can be denied outright; the rail still has to work */
-    return null
-  }
-}
-
-function publish() {
-  cachedRaw = undefined
-  for (const listener of listeners) listener()
-}
-
-function onStorage(event: StorageEvent) {
-  if (event.key === null || event.key === STORAGE_KEY) publish()
-}
-
-function subscribeSettings(listener: () => void) {
-  listeners.add(listener)
-  window.addEventListener('storage', onStorage)
-  return () => {
-    listeners.delete(listener)
-    if (listeners.size === 0) window.removeEventListener('storage', onStorage)
-  }
-}
-
-function settingsSnapshot(): RailSettings {
-  const raw = readRaw()
-  if (raw !== cachedRaw) {
-    cachedRaw = raw
-    cached = parseSettings(raw)
-  }
-  return cached
-}
-
-function serverSettingsSnapshot(): RailSettings {
-  return DEFAULT_SETTINGS
-}
-
-function writeSettings(next: RailSettings) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  } catch {
-    /* the choice still applies to this session even if it cannot be stored */
-  }
-  cached = next
-  cachedRaw = readRaw()
-  for (const listener of listeners) listener()
-}
 
 const LENS_LABELS: Record<TreeLens, string> = {
   hierarchy: 'Hierarchy',
@@ -206,11 +101,7 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
   // The text filter is genuinely page state: unlike a lens or a focus, a search
   // term you typed a day ago is noise when you come back.
   const [query, setQuery] = useState('')
-  const { kinds, statuses, focus, lens } = useSyncExternalStore(
-    subscribeSettings,
-    settingsSnapshot,
-    serverSettingsSnapshot,
-  )
+  const { kinds, statuses, focus, lens } = useRailSettings()
   const setKinds = (next: EntityKind[]) => writeSettings({ ...settingsSnapshot(), kinds: next })
   const setStatuses = (next: Status[]) => writeSettings({ ...settingsSnapshot(), statuses: next })
   const setFocus = (next: string) => writeSettings({ ...settingsSnapshot(), focus: next })
@@ -222,6 +113,37 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
   }, [pathname])
 
   const solutions = roots.map((root) => ({ srn: root.srn, name: root.name }))
+
+  /*
+   * Focus follows the entity across a solution boundary.
+   *
+   * A solution is a sealed universe, so a focus on one of them says nothing
+   * about any other — and while the rail kept showing the focused solution's
+   * tree, opening an entity in a different solution left the reader looking at
+   * a tree that could not contain the page they were on. The "you are here"
+   * highlight simply vanished, which is the one thing a rail exists to prevent.
+   *
+   * Of the two honest repairs — drop the focus, or move it — moving it is the
+   * one that keeps the affordance doing its job: the reader still gets one
+   * solution's contents at full width, and the chip still names the scope they
+   * are actually in. Dropping it would answer "where am I" by showing the whole
+   * catalog, which is the view the focus was chosen to escape.
+   *
+   * Written from an effect and not during render because it is a write to a
+   * persisted preference: the rail is reporting where the reader navigated, and
+   * navigation is the event. `focus &&` keeps "All solutions" meaning all
+   * solutions — an unfocused rail is not asking to be focused by a link click.
+   */
+  useEffect(() => {
+    const solution = solutionOfPath(pathname)
+    if (!solution) return
+    const current = settingsSnapshot()
+    if (!current.focus || current.focus === solution) return
+    // Only follow into a solution the rail can actually show; a stale URL must
+    // not park the focus on an SRN with no tree behind it.
+    if (!roots.some((root) => root.srn === solution)) return
+    writeSettings({ ...current, focus: solution })
+  }, [pathname, roots])
 
   // Focusing a solution promotes its children to roots: the solution itself is
   // the context you just chose, so repeating it on every row wastes the width.
@@ -434,7 +356,14 @@ function KindFilter({ kinds, onChange }: { kinds: EntityKind[]; onChange: (kinds
       <DropdownMenuContent align="start" className="w-48">
         <DropdownMenuLabel className="text-[11px] uppercase tracking-wider">Show only</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {ENTITY_KINDS.map((kind) => {
+        {/* KIND_ORDER, not ENTITY_KINDS: this menu and the Kind lens's buckets
+            sit in the same viewport, and they were iterating two different
+            orderings of the same twelve words — the lens in reading order, the
+            menu in adoption order, so capability/journey/metric appeared beside
+            the actors in one and trailing the ADRs in the other. See the note on
+            ENTITY_KINDS for which list is which and why only one of them is ever
+            shown to a reader. */}
+        {KIND_ORDER.map((kind) => {
           const style = kindStyle(kind)
           const Icon = style.icon
           return (

@@ -19,8 +19,6 @@ tags:
   - fixture
 ---
 
-# The second catalog is surveyed from real code, not invented
-
 ## Context
 
 `solutions/acme` was invented. It exists so that every kind, every enum value,

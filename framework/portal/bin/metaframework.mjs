@@ -3,7 +3,7 @@ import { readFileSync, statSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import process from 'node:process'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEFAULT_PORT, helpText, parseCli } from './args.mjs'
 import { CATALOG_DIR_NAME, catalogShape, resolveCatalogDir } from './discover.mjs'
 
@@ -40,7 +40,14 @@ const dim = (text) => (colour ? `\u001B[2m${text}\u001B[22m` : text)
 const red = (text) => (colour ? `\u001B[31m${text}\u001B[39m` : text)
 const yellow = (text) => (colour ? `\u001B[33m${text}\u001B[39m` : text)
 
-const packageRoot = path.resolve(import.meta.dirname, '..')
+/**
+ * Spelled the long way on purpose. `import.meta.dirname` says the same thing in
+ * one identifier, but it landed in Node 20.11 — which would put this package's
+ * floor above Next's own `>=20.9.0` for the sake of a shorthand, and a portal
+ * that refuses to start on a Node the server it wraps runs happily on is a
+ * self-inflicted incompatibility.
+ */
+const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 main().catch((error) => {
   // Nothing below should throw, so anything arriving here is either a bug in
