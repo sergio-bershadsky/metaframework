@@ -80,9 +80,9 @@ export function Markdown({
             return <td>{linkifyChildren(content, mentions)}</td>
           },
           code({ className, children: content }) {
-            if (className) return <code className="font-mono text-[13px]">{content}</code>
+            if (className) return <code className="font-code text-[13px]">{content}</code>
             return (
-              <code className="rounded border border-border bg-surface px-1 py-0.5 font-mono text-[0.88em] text-foreground/90">
+              <code className="rounded border border-border bg-surface px-1 py-0.5 font-code text-[0.88em] text-foreground/90">
                 {content}
               </code>
             )
@@ -95,7 +95,7 @@ export function Markdown({
             const fence = fenceOf(content)
             if (fence) return <CodeBlock code={fence.code} language={fence.language} />
             return (
-              <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-surface p-3.5 text-[13px] leading-6">
+              <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-surface p-3.5 font-code text-[13px] leading-[1.3]">
                 {content}
               </pre>
             )

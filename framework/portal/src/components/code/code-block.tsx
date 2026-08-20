@@ -69,7 +69,16 @@ export function CodeBlock({
   return (
     <pre
       className={cn(
-        'my-4 overflow-x-auto rounded-lg border border-border bg-surface p-3.5 font-mono text-[12.5px] leading-6',
+        // `font-code`, not `font-mono`: Plex Mono has no box-drawing glyphs, so
+        // an ASCII tree drawn in it is rendered on a grid that does not exist.
+        // See --font-code in globals.css for the measurements.
+        //
+        // leading-[1.3] rather than leading-6 (which was 1.92 at this size) so
+        // that `│` connectors actually join. The vertical bar's ink is 15.93px
+        // tall at 12.5px type — it joins at 1.274 — so 1.3 closes the run to
+        // 0.32px while staying readable for ordinary code. leading-6 left an
+        // 8.07px gap and turned every tree into dashes.
+        'my-4 overflow-x-auto rounded-lg border border-border bg-surface p-3.5 font-code text-[12.5px] leading-[1.3]',
         className,
       )}
       data-language={resolved}

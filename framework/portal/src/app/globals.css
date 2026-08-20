@@ -47,6 +47,34 @@
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
   --font-heading: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
+  /*
+   * Code is set in the platform's own monospace, NOT in --font-mono, and the
+   * reason is that IBM Plex Mono cannot render half the characters this catalog
+   * puts in a fenced block.
+   *
+   * Google Fonts serves Plex Mono as unicode-range subsets — latin, latin-ext,
+   * cyrillic, greek, vietnamese — and box drawing (U+2500-257F) is in none of
+   * them, so `├`, `└` and `─` fall through to next/font's metric fallback,
+   * which is derived from a *proportional* system face. Measured on the tree
+   * diagram in repo-sync at 12.5px: ASCII 7.5px, `│` 10.512px, `─├└` 11.917px,
+   * `→` 16.82px — nine distinct advance widths across one block, which is why
+   * every ASCII diagram in the catalog was drawn on a grid that does not exist.
+   *
+   * The stack below is deliberately whole rather than metric-matched. Every
+   * entry has box drawing, arrows and geometric shapes natively — SF Mono and
+   * Menlo on macOS, Consolas on Windows, DejaVu/Liberation on Linux — so one
+   * font renders the entire block and alignment is the font's property instead
+   * of a coincidence between two fonts. Re-measured over 38 characters of box
+   * drawing, arrows, blocks and marks: 37 land on one 7.526px grid, against
+   * nine widths before. (The one exception is `⎯` U+23AF, which is genuinely
+   * double-width and is not a tree-drawing character.)
+   *
+   * Plex Mono keeps every other monospaced surface — SRNs, badges, the rail —
+   * where a box-drawing glyph never appears.
+   */
+  --font-code: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono',
+    'Liberation Mono', monospace;
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -180,6 +208,21 @@
 @layer base {
   * {
     border-color: var(--border);
+  }
+
+  /*
+   * Tailwind's preflight sets `code, kbd, samp, pre` to the mono family, which
+   * means a `<code>` inside a `<pre>` takes Plex Mono from preflight rather
+   * than inheriting the block's font — so setting the class on the `<pre>`
+   * alone silently did nothing to the element actually holding the text.
+   * Redirecting the same selector at --font-code is what makes the fix reach
+   * every code surface, including markdown output nobody put a class on.
+   */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-code);
   }
 
   body {
@@ -472,6 +515,35 @@
 :root {
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Restated here for the same reason as the two above: these declarations are
+     outside @layer and must be the final word. See @theme inline for why code
+     does not use --font-mono. */
+  --font-code: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono',
+    'Liberation Mono', monospace;
+}
+
+/*
+ * Code surfaces, unlayered for the same reason as the block above, and it took
+ * three attempts to find out why the layered version did nothing.
+ *
+ * Three rules in the built stylesheet target `code, kbd, samp, pre`: Tailwind's
+ * preflight, ours in @layer base, and — last, and therefore the winner —
+ * `code, kbd, pre, samp { font-family: var(--font-mono) }` from the unlayered
+ * `@import "shadcn/tailwind.css"`. Layered declarations rank below unlayered
+ * ones whatever the import order, so setting the class on the <pre> moved the
+ * <pre> and the shadcn rule kept the <code> inside it on Plex — which is the
+ * element that actually holds the text. The measurement said "still three
+ * distinct advance widths" long after the fix looked applied.
+ *
+ * Not scoped to a component class on purpose: markdown output is generated,
+ * nobody puts a class on it, and the next code surface added should inherit
+ * this rather than rediscover the problem.
+ */
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-code);
 }
 
 /*
