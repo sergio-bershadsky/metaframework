@@ -38,12 +38,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The floor the package declares, not the newest Node: CI is the one
-      # environment that should prove the engines field is honest, because
-      # every developer machine here runs far ahead of it.
+      # The DEV TOOLCHAIN's Node, which is not the same question as the floor
+      # the published package declares. Vitest 4 bundles through rolldown,
+      # which imports `styleText` from node:util — added in 20.12 — so the test
+      # runner cannot even start on the declared 20.9 floor. Pinning CI to that
+      # floor tested the wrong thing: what a CONTRIBUTOR needs to build and
+      # test, versus what a USER needs to run the installed CLI. The floor is
+      # verified separately, at the end, against the packaged artifact.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.9.0
+          node-version: 22
           cache: npm
           cache-dependency-path: framework/portal/package-lock.json
 
@@ -82,6 +86,28 @@ jobs:
       - name: metaframework check
         run: node bin/metaframework.mjs check
         working-directory: .
+
+      # The `engines` floor is a promise made to whoever installs the CLI, and
+      # nothing was checking it. The dev toolchain cannot run down there
+      # (vitest needs 20.12+), but the packaged artifact is the only thing the
+      # promise covers — and it is already assembled and standalone by now, so
+      # it can be run under the floor exactly as a user on old Node would.
+      # If this step goes red, either the floor moves up or the code that
+      # raised it comes back out; it must not be answered by deleting the step.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.9.0
+      - name: the declared engines floor actually runs the packaged CLI
+        run: |
+          node --version
+          node bin/metaframework.mjs check
+        working-directory: .
+
+      # Back to the toolchain's Node for the packaging audit, which shells out
+      # to npm against the dev dependency tree.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       # A publish must never ship sources, tests, the spec, or this
       # repository's own solutions into every install. The dry run lists what
