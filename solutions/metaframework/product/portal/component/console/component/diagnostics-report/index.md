@@ -1,12 +1,13 @@
 ---
 name: diagnostics-report
 kind: component
-version: 1
+version: 2
 title: Diagnostics report
 summary: The /diagnostics page — with no CLI in v1, this is the integrity gate, and it can only show what the loader and the schema registry found.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   depends-on:
     - /product/portal/component/catalog-loader

@@ -4,19 +4,23 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EntityLink } from '@/components/entity-link'
+import { CapabilityRealizedBy, CAPABILITY_DERIVED_EDGES } from '@/components/entity/capability-realized-by'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
 import { EntityChildren } from '@/components/entity/entity-children'
 import { EntityDetails } from '@/components/entity/entity-details'
 import { EntityGraph } from '@/components/entity/entity-graph'
 import { EntityRelations } from '@/components/entity/entity-relations'
 import { EntityVersionNotice, EntityVersionProblem } from '@/components/entity/entity-version-notice'
+import { METRIC_STAT_FIELDS, MetricStats } from '@/components/entity/metric-stats'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
+import { LifecycleChip } from '@/components/lifecycle-chip'
 import { Markdown } from '@/components/markdown'
 import { SrnAddress } from '@/components/srn-address'
 import { VersionPicker, type VersionOption } from '@/components/version-picker'
 import {
   type Catalog,
   type CommonFrontmatter,
+  type Diagnostic,
   EDGE_TYPES,
   type EdgeType,
   type Entity,
@@ -33,6 +37,7 @@ import { mentionsIn } from '@/lib/catalog/mentions'
 import { type EntityHistory, getEntityHistory, readFileAtRevision } from '@/lib/history/git'
 import { formatSrn, parseSrn, resolveRef } from '@/lib/srn/srn'
 import { kindStyle } from '@/lib/ui/kind'
+import { lifecycleOf } from '@/lib/ui/lifecycle'
 
 /**
  * One entity, at whichever version the URL asks for.
@@ -96,6 +101,9 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
   const diagnostics = catalog.diagnostics.filter((d) => d.srn === srn)
   const style = kindStyle(entity.kind)
   const Icon = style.icon
+  // Read from `view`, not from `entity`: a revision written before the field
+  // existed has no lifecycle, and inheriting today's would date-mix.
+  const lifecycle = lifecycleOf(entity.kind, view.frontmatter as Record<string, unknown>)
 
   return (
     <article className="px-8 py-8">
@@ -164,6 +172,11 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
         <div className="mt-4 flex flex-wrap items-center gap-1.5">
           <KindBadge kind={entity.kind} />
           <StatusBadge status={view.frontmatter.status} />
+          {/* Immediately beside status, because the pair is the point: this
+              says the review state of the description, that says the delivery
+              state of the thing. Two chips that looked alike would undo the
+              distinction the spec works hardest to draw — see LifecycleChip. */}
+          {lifecycle && <LifecycleChip stage={lifecycle} />}
           <VersionPicker
             href={href}
             selected={view.frontmatter.version}
@@ -189,28 +202,25 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
       {/* Diagnostics are the loader's verdict on what is on disk. Repeating them
           over a historical snapshot would attribute today's defects to an old
           revision, so they belong to the current view only. */}
-      {!historical && diagnostics.length > 0 && (
-        <section className="mt-6 rounded-lg border border-destructive/35 bg-destructive/[0.07] p-4">
-          <h2 className="flex items-center gap-2 text-sm font-medium text-destructive">
-            <FileWarning className="size-4" aria-hidden />
-            {diagnostics.length} problem{diagnostics.length === 1 ? '' : 's'} in this entity
-          </h2>
-          <ul className="mt-2.5 space-y-1.5">
-            {diagnostics.map((diagnostic, index) => (
-              <li key={index} className="flex gap-2 text-[13px] leading-relaxed">
-                <code className="shrink-0 font-mono text-[11.5px] text-destructive/90">{diagnostic.code}</code>
-                <span className="text-foreground/80">{diagnostic.message}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {!historical && diagnostics.length > 0 && <Diagnostics diagnostics={diagnostics} />}
+
+      {/* A metric's numbers are the substance of its page, not a detail of it,
+          so they sit above the prose in the shape a number belongs in. The
+          fields are then omitted from Details, so each appears exactly once. */}
+      {entity.kind === 'metric' && <MetricStats entity={view} />}
+
+      {/* Same argument, one kind over: a capability adds no frontmatter of its
+          own, so what realizes it IS the page. Derived, and hidden on a
+          historical view along with every other cross-entity derivation. */}
+      {entity.kind === 'capability' && !historical && (
+        <CapabilityRealizedBy catalog={catalog} inbound={inbound} />
       )}
 
       <div className="rule-fade my-7" />
 
       {view.body && <Markdown mentions={mentionsIn(catalog, view.srn, view.body)}>{view.body}</Markdown>}
 
-      <EntityDetails entity={view} catalog={catalog} />
+      <EntityDetails entity={view} catalog={catalog} omit={detailsOmitted(entity.kind)} />
 
       {historical ? (
         <HistoricalRelations entity={view} catalog={catalog} />
@@ -221,12 +231,90 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
               rather than being echoed by a raw list further down. */}
           <EntityArtifacts entity={view} catalog={catalog} />
           <EntityGraph entity={view} catalog={catalog} />
-          <EntityRelations entity={view} catalog={catalog} inbound={inbound} />
+          <EntityRelations
+            entity={view}
+            catalog={catalog}
+            inbound={inbound}
+            omitIncoming={entity.kind === 'capability' ? CAPABILITY_DERIVED_EDGES : undefined}
+          />
           <EntityChildren srn={srn} entities={children} descendants={descendants} />
         </>
       )}
     </article>
   )
+}
+
+/**
+ * The loader's verdict on this entity, in the register its severity earns.
+ *
+ * Until the three conceptual kinds landed, an entity's diagnostics were errors
+ * in practice, and one destructive-red box was an honest summary. It is not any
+ * more: capability, journey and metric each ship a *warning* that is a true
+ * statement about a system still being built — nothing realizes this yet, this
+ * hop crosses a product boundary nobody wrote a protocol for, this number is
+ * filed away from what it measures. Painting "no product realizes this
+ * capability" in the same red as a schema violation tells a reader to go and
+ * fix a design-first catalog for being design-first.
+ *
+ * So the box takes the register of the WORST severity present, and each row
+ * keeps its own — a page with one of each shows the error's red frame and still
+ * marks which line is only a warning. /diagnostics has always split them; this
+ * is the entity page catching up.
+ */
+function Diagnostics({ diagnostics }: { diagnostics: Diagnostic[] }) {
+  const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length
+  const worst = errors > 0 ? 'error' : 'warning'
+  const total = diagnostics.length
+
+  return (
+    <section
+      className={
+        worst === 'error'
+          ? 'mt-6 rounded-lg border border-destructive/35 bg-destructive/[0.07] p-4'
+          : 'mt-6 rounded-lg border border-warning/35 bg-warning/[0.06] p-4'
+      }
+    >
+      <h2
+        className={`flex items-center gap-2 text-sm font-medium ${
+          worst === 'error' ? 'text-destructive' : 'text-warning'
+        }`}
+      >
+        <FileWarning className="size-4" aria-hidden />
+        {errors > 0
+          ? `${total} problem${total === 1 ? '' : 's'} in this entity`
+          : `${total} warning${total === 1 ? '' : 's'} on this entity`}
+      </h2>
+      <ul className="mt-2.5 space-y-1.5">
+        {diagnostics.map((diagnostic, index) => (
+          <li key={index} className="flex gap-2 text-[13px] leading-relaxed">
+            <code
+              className={`shrink-0 font-mono text-[11.5px] ${
+                diagnostic.severity === 'error' ? 'text-destructive/90' : 'text-warning/90'
+              }`}
+            >
+              {diagnostic.code}
+            </code>
+            <span className="text-foreground/80">{diagnostic.message}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * Kind fields this page draws somewhere better than a definition list.
+ *
+ * Stated as one function rather than inline at each call site, because the
+ * property being kept is global — every kind field appears exactly once on the
+ * page — and a property nobody can read in one place is a property that decays.
+ */
+function detailsOmitted(kind: Entity['kind']): readonly string[] {
+  if (kind === 'metric') return METRIC_STAT_FIELDS
+  // The lifecycle chip sits in the header beside status, where the contrast
+  // between the two is the whole point.
+  if (kind === 'product' || kind === 'component') return ['lifecycle']
+  return []
 }
 
 // --- historical rendering ----------------------------------------------------
@@ -259,6 +347,8 @@ const OUTGOING_LABELS: Record<EdgeType, string> = {
   'depends-on': 'Depends on',
   implements: 'Implements',
   supersedes: 'Supersedes',
+  realizes: 'Realizes',
+  measures: 'Measures',
 }
 
 /**

@@ -1,12 +1,13 @@
 ---
 name: history-service
 kind: component
-version: 1
+version: 2
 title: History service
 summary: Four read-only git operations behind /api/history — live, reachable, and with zero callers inside the application today.
 status: review
 owner: sergio
 component-type: service
+lifecycle: released
 relations:
   exposes:
     - /product/portal/protocol/catalog-history

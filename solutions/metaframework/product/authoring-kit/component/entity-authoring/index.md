@@ -1,12 +1,13 @@
 ---
 name: entity-authoring
 kind: component
-version: 1
+version: 2
 title: Entity authoring
 summary: One entity at a time — add-entity, model-data and protocol-design, selected by a single dispatch rule stated once in the entity-new command.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   uses:
     - ../reference-bundle

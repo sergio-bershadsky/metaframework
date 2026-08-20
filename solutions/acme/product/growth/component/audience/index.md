@@ -1,12 +1,13 @@
 ---
 name: audience
 kind: component
-version: 1
+version: 2
 title: Audience
 summary: Materialized segment membership — rebuilt nightly, read on the checkout path, never enumerable by a human.
 status: draft
 owner: team-growth
 component-type: datastore
+lifecycle: in-development
 relations:
   uses:
     - /environment/staging

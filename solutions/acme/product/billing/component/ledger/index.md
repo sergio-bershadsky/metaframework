@@ -1,12 +1,13 @@
 ---
 name: ledger
 kind: component
-version: 3
+version: 4
 title: Ledger
 summary: The double-entry store — the only writer of accounting truth in the solution.
 status: approved
 owner: team-billing
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production

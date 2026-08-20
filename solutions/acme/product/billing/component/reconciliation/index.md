@@ -1,12 +1,13 @@
 ---
 name: reconciliation
 kind: component
-version: 1
+version: 2
 title: Reconciliation
 summary: Nightly job proving that the ledger agrees with the acquirer's settlement file.
 status: draft
 owner: team-billing
 component-type: job
+lifecycle: in-development
 relations:
   uses:
     - /environment/staging

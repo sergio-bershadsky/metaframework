@@ -1,12 +1,13 @@
 ---
 name: diagram-kit
 kind: component
-version: 1
+version: 2
 title: Diagram kit
 summary: The shared layout, interaction hooks and client boundary the graph diagrams are built on — one ELK module, one polar module, one highlight hook.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 tags:
   - diagrams
   - layout

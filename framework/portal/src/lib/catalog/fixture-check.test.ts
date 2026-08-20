@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { CANONICAL_SCHEMA_HOST, schemaServingUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
+import { ENTITY_KINDS } from './frontmatter'
 import { withSchemaRegistry } from './index'
 import { loadCatalog } from './load'
 import type { Catalog, Diagnostic } from './types'
@@ -63,17 +64,10 @@ describe('shipped catalog', () => {
 
   it('carries every ontology kind, so the portal has something of each to render', () => {
     const kinds = new Set([...catalog.entities.values()].map((entity) => entity.kind))
-    expect([...kinds].sort()).toEqual([
-      'actor',
-      'adr',
-      'component',
-      'datamodel',
-      'environment',
-      'product',
-      'protocol',
-      'requirement',
-      'solution',
-    ])
+    // Read out of ENTITY_KINDS rather than restated, so the ontology growing is
+    // not a red test on its own — but a kind nobody wrote a fixture entity for
+    // still is, which is the whole point of this assertion.
+    expect([...kinds].sort()).toEqual([...ENTITY_KINDS].sort())
   })
 
   it('nests components at least two levels below a product', () => {

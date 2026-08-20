@@ -1,12 +1,13 @@
 ---
 name: solution-map
 kind: component
-version: 1
+version: 2
 title: Solution map
 summary: A whole solution as structure only, laid out in polar coordinates around a focus that the reader moves by clicking.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

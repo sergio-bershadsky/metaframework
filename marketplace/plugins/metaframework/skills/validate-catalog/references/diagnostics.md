@@ -22,8 +22,8 @@ paths and on `relations` references) and the schema registry (on `$ref` URLs).
 
 | Code                   | Raised when                                                                                                            |
 |------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| `E_SRN_SYNTAX`         | Bad segment; missing `srn://` scheme; query, fragment or percent-encoding; empty SRN; odd path tail; a first-of-pair that is not one of the eight kinds; `@version` off the final segment or repeated; `..` climbing above the solution root. |
-| `E_SRN_PLACEMENT`      | P1 a non-container owning something; P2 a `product` pair that is not first; P3 a `component` pair that is first; P4 `actor` or `environment` not first. Messages read literally: `a datamodel cannot own a component`, `a product must be a direct child of the solution`, `a component must live inside a product`, `actor may only live at solution level`. |
+| `E_SRN_SYNTAX`         | Bad segment; missing `srn://` scheme; query, fragment or percent-encoding; empty SRN; odd path tail; a first-of-pair that is not one of the eleven kinds; `@version` off the final segment or repeated; `..` climbing above the solution root. |
+| `E_SRN_PLACEMENT`      | P1 a non-container owning something; P2 a `product` pair that is not first; P3 a `component` pair that is first; P4 a solution-level kind (`actor`, `environment`, `capability`, `journey`) not first. Messages read literally: `a datamodel cannot own a component`, `a product must be a direct child of the solution`, `a component must live inside a product`, `actor may only live at solution level`. |
 | `E_SRN_RESERVED`       | A reserved kind used as the solution name or as an entity name.                                                          |
 | `E_SRN_CROSS_SOLUTION` | A network-path reference (`//other/…`) that changes the solution.                                                        |
 
@@ -45,6 +45,27 @@ What `npx vitest run src/lib/catalog` asserts to be empty of errors.
 | `E_STRUCT_MISSING_INDEX` | error    | An entity's computed parent SRN has no entity behind it.                                            |
 | `E_STRUCT_DUPLICATE_SRN` | error    | A second directory resolving to an already-registered SRN.                                          |
 | `W_REF_DEPRECATED`       | warning  | The relation target has `status: deprecated`.                                                       |
+
+Graph-shape checks the loader gained with the `capability`, `journey` and
+`metric` kinds (`checkGraphShape` in the same module; `E_MET_TARGET` and
+`E_MET_WINDOW` come from `lib/catalog/frontmatter.ts`, which carries the literal
+grammars because everything a zod schema rejects would otherwise be
+`E_FM_SCHEMA`):
+
+| Code                     | Severity | Raised when                                                                                                                  |
+|--------------------------|----------|--------------------------------------------------------------------------------------------------------------------------|
+| `E_MET_NO_SUBJECT`       | error    | A `kind: metric` entity has no `measures` relation. The only relation edge any kind requires.                               |
+| `E_MET_TARGET`           | error    | `target` does not match the grammar its `metric-type` selects. Checked only when `metric-type` is itself a valid enum value — a bad enum is already `E_FM_SCHEMA` and saying so twice helps nobody. |
+| `E_MET_WINDOW`           | error    | `window` is neither `instant` nor `decimal + ms/s/m/h/d`.                                                                   |
+| `E_JRN_ACTOR_KIND`       | error    | A journey's frontmatter `actor` resolves to an entity whose kind is not `actor`. (A dangling one is `E_SRN_DANGLING`; the reference is a plain frontmatter field, not a relation, so nothing else resolves it.) |
+| `W_MET_SUBJECT_SCOPE`    | warning  | The metric's owning container is neither the subject's owner nor an ancestor of it. A `capability` subject is exempt — it is solution-level and owned by nobody, so the rule would say nothing. |
+| `W_CAP_UNREALIZED`       | warning  | No inbound `realizes` edge on a `kind: capability` entity.                                                                  |
+| `W_CAP_REALIZATION_EDGE` | warning  | A capability authors `uses` toward a `component` — the inverse of `realizes` written by hand.                               |
+
+Edge legality for the two new edge types is ordinary `E_FM_EDGE_SOURCE` /
+`E_FM_EDGE_TARGET`: `realizes` may be authored only by a product or component and
+may point only at a capability; `measures` may be authored only by a metric and
+may point at a capability, component, protocol or requirement.
 
 Loader behaviours worth knowing:
 
@@ -113,6 +134,32 @@ Exercised when the portal renders a protocol page. Not run by the catalog suite.
 | `E_PROTO_WF_DEPTH`            | error    | `workflows/*.yaml` — nesting past the limit    |
 | `W_PROTO_WF_ORPHAN_RETURN`    | warning  | `workflows/*.yaml` — a return with no request  |
 
+### `lib/journey/journey.ts` — the `journey.yaml` parser
+
+Same posture as the protocol validators: exercised when the portal **renders** a
+journey entity, never by the catalog loader. The loader does read `journey.yaml`
+— as a generic artifact, so a YAML syntax error in it surfaces — but it never
+validates it against the mini-spec. A green catalog check therefore says nothing
+about a journey's steps.
+
+The module deliberately owns the rules checkable from the file alone, plus the
+two that need only the SRN *grammar* — `W_JRN_ACTOR_ABSENT` compares two resolved
+SRNs, and `W_JRN_UNDOCUMENTED_INTEGRATION` needs each `touches` target's owning
+product, which is the `product/{name}` pair at the head of its pair chain.
+Everything that needs the resolved catalog is left out (see section 2).
+
+| Code                             | Severity | Raised when                                                                          |
+|----------------------------------|----------|------------------------------------------------------------------------------------|
+| `E_JRN_SCHEMA`                   | error    | Shape or type violation; an unknown top-level or step key without an `x-` prefix.   |
+| `E_JRN_NAME`                     | error    | `name` ≠ the entity's directory name.                                               |
+| `E_JRN_STEP_COUNT`               | error    | Fewer than 2 or more than 12 steps. Both bounds are errors, deliberately.           |
+| `E_JRN_BRANCH`                   | error    | A step key of `alt`, `opt`, `loop`, `when`, `otherwise`, `branches`, `parallel`.    |
+| `W_JRN_ACTOR_ABSENT`             | warning  | The frontmatter protagonist is the `actor` of no step.                              |
+| `W_JRN_UNDOCUMENTED_INTEGRATION` | warning  | Consecutive steps whose owning products differ, and the later names no `protocol`.  |
+
+A step reference that fails to parse is re-raised as the SRN parser's own code
+(`E_SRN_SYNTAX`, `E_SRN_PLACEMENT`, …), exactly as elsewhere.
+
 ### `lib/history/git.ts` — version history
 
 Needs unshallow git history at the portal's location; degrades gracefully.
@@ -174,6 +221,20 @@ a component that has not declared this environment), `W_ENV_CONFIG_ORPHAN`.
 swap, not a version bump), `W_DM_ABSTRACT_USE`, `W_DM_USAGE_MISMATCH`.
 (`W_DM_UNPINNED_REF` is retired, not merely unimplemented — see section 3.)
 
+**Journeys**
+
+| Code                       | Rule that goes unchecked                                                                                             |
+|----------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `E_JRN_ARTIFACT_MISSING`   | A journey entity directory contains a `journey.yaml`. Nothing checks it: the loader does not look for the file, and the renderer only reports on a file it found. |
+| `W_JRN_ARTIFACT_UNKNOWN`   | No unrecognised file beside `index.md` and `journey.yaml`.                                                           |
+| `E_JRN_TOUCHES_KIND`       | Every step's `touches` resolves to a `component` or a `product`. Needs the resolved catalog; no module runs it yet.   |
+| `E_JRN_PROTOCOL_KIND`      | Every step's `protocol` is the literal `none` or resolves to a `protocol`. Same reason.                              |
+| `W_JRN_PROTOCOL_UNRELATED` | A step's named protocol lists this or the previous step's `touches` among its `participants`.                        |
+
+`E_JRN_ACTOR_KIND` is the exception in this group: it **is** implemented, for the
+frontmatter protagonist, in the loader's graph checks. The per-step version is
+not.
+
 **Graph-level warnings**
 
 `W_ACTOR_ORPHAN` (an actor in no protocol participant list and no workflow step),
@@ -211,6 +272,12 @@ Never emit or cite these; a mention in older prose is stale.
   current version is not fatal, because historic versions resolve from git);
   `lib/history/git.ts` emits it as an error when the commit genuinely does not
   exist. A green catalog check therefore does not mean every pin is current.
+- **A metric with no subject is `E_MET_NO_SUBJECT`, an error** — the one
+  required relation edge in the whole contract. An earlier draft of
+  `framework/spec/frontmatter.md` also called it `W_METRIC_UNATTACHED` and
+  classed it a warning alongside `W_CAP_UNREALIZED`; that name is now gone from
+  the spec and is emitted by nothing. If it turns up in an older checkout, the
+  kind document wins.
 - **ADR `date`.** `framework/spec/kinds/adr.md` says both the quoted string and
   the native YAML timestamp are accepted. The loader parses frontmatter with
   gray-matter, so an unquoted `2026-02-03` arrives as a JS `Date` and the zod

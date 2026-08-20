@@ -1,12 +1,13 @@
 ---
 name: diagrams
 kind: component
-version: 1
+version: 2
 title: Diagrams
 summary: The derived-drawing subsystem — four renderers over one shared kit, every drawing computed from catalog data and none hand-authored.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

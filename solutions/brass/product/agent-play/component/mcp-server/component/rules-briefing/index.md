@@ -1,12 +1,13 @@
 ---
 name: rules-briefing
 kind: component
-version: 1
+version: 2
 title: Rules briefing
 summary: The engine-specific rulebook, strategy primer, and move guide served to the model over rules:// resources.
 status: review
 owner: sergio-bershadsky
 component-type: library
+lifecycle: released
 relations:
   depends-on:
     - /product/play/component/rules

@@ -150,12 +150,222 @@ duplication. If nothing implements it and nothing will, the honest fix is
 
 ---
 
+## R_CAP_UNREALIZED — a capability nothing realizes
+
+**Symptom.** A capability with no incoming `realizes` edge from any product or
+component. The portal raises `W_CAP_UNREALIZED` for the same thing.
+
+**Confirm.** Read the capability, then grep the catalog for a component that
+plainly does it. Two different findings hide under one symptom, and they have
+opposite fixes: **the edge is missing** (something realizes it and never said
+so — common, because `realizes` is authored on the realizer and nobody is
+prompted for it), or **nothing realizes it** (the capability is aspiration).
+
+**Read it against `status` before writing anything.** `draft` and `review`
+capabilities with no realizer are the design-first order of work and are not
+findings. `approved` with no realizer is the sharp one: an agreed description
+of something the business cannot actually do. `deprecated` is fine.
+
+**False positives.** A capability realized by a product whose components have
+not been written yet — the product's own edge is the claim and it is enough.
+A capability deliberately staked out ahead of the work, which is why the check
+is a warning in the spec and a question here.
+
+**Fix.** Add `realizes` on the realizer, never a back-edge on the capability
+(`realized-by` is derived; authoring it is `E_FM_SCHEMA`). If nothing realizes
+it and nothing will, the honest move is prose in `## Boundaries`, not
+deprecation — losing every realizer is not an evolution event, and deprecating
+deletes the signal along with the sentence.
+
+**Cost.** In place, one version bump per realizer that gains an edge.
+
+---
+
+## R_CAP_UNMEASURED — a capability with no number
+
+**Symptom.** No metric `measures` the capability.
+
+**Confirm.** Barely worth confirming individually. Count them instead: the
+useful output is "four of six capabilities have no metric", not four findings.
+
+**False positives.** Nearly all of them on a catalog that has just adopted the
+kind. The spec deliberately defines **no** `W_CAP_UNMEASURED` warning for
+exactly this reason — a warning that fires on everything on day one is a warning
+nobody reads.
+
+**Fix.** Usually none. Press on the specific capability where the absence is
+surprising: the one the business already reports on in a deck, or the one whose
+`must` requirements are also unmeasured (`R_REQ_UNMEASURED`) — that pair means
+a commitment, a business reason, and no way to check either.
+
+**Cost.** One new metric entity. No swap, nothing else moves.
+
+---
+
+## R_CAP_SPREAD — one doing, four or more products
+
+**Symptom.** Four or more distinct owning products appear among the realizers
+of one capability.
+
+**Confirm.** Look at what each product contributes. Four products each owning a
+genuine slice of one business sentence means every change to that sentence is a
+four-way negotiation, and that is the finding. Four products where three merely
+touch the edges of it means the `realizes` edges are being used as "is involved
+in", which is a different and cheaper problem.
+
+**False positives.** A cross-cutting capability that every product legitimately
+participates in — identity verification is the standing case, and a solution
+where five products each verify identity at their own boundary is correctly
+modelled. Read the capability's `## Boundaries` before treating spread as a
+decomposition defect.
+
+**Fix.** Report it as an observation with the count and the product list, next
+to `R_PROTOCOL_NCA`: both are the shape a catalog takes when products were
+drawn along teams and the business runs across them. Actually redrawing product
+boundaries is the most expensive change in the framework — every entity below
+moves, and moving is a swap — so propose it only with the co-change evidence
+below and never on this count alone.
+
+---
+
+## R_MET_NO_SUBJECT — a number with no subject
+
+**Symptom.** A metric with no `measures` edge, or an empty one.
+
+**Confirm.** Nothing to confirm; it is mechanical. The portal raises
+`E_MET_NO_SUBJECT` for the same thing, so this is a **legality** finding that
+belongs to `validate-catalog` — the collector reports it because a review run
+against a catalog whose portal predates the check would otherwise miss it.
+
+**A second reading is a real review finding.** A metric whose only subject is
+`deprecated` measures something the catalog has retired; that surfaces as
+`R_DEPRECATED_LIVE_REF` on the subject, and the two findings are one story.
+
+**Fix.** Add `measures`. Prefer one subject — two subjects on one metric are
+legal only when the same observation, computed the same way, measures each; two
+definitions in one entity is two metrics.
+
+---
+
+## R_REQ_UNMEASURED — a promise nobody can check
+
+**Symptom.** A `must` requirement with no incoming `measures` edge.
+
+**Confirm.** Read the requirement's `## Acceptance criteria`. Criteria that are
+already decidable by inspection — "guest checkout does not require an account"
+— need no metric and are a false positive. Criteria stated as a threshold —
+latency, rate, share, duration — are precisely the ones a metric checks, and
+their absence is the finding.
+
+**False positives.** A `must` on a component with `lifecycle: planned`: nothing
+is running, so nothing can be observed yet. Note it and move on. A `must`
+covered by a metric on the *capability* the component realizes rather than on
+the requirement itself — the number exists, the edge points one level up. Look
+before reporting.
+
+**Fix.** One metric entity in the bucket of whoever is accountable, with
+`measures` pointing at the requirement. If no number could exist, the honest
+finding is that the `must` is a `should` — a commitment that cannot be checked
+is a preference with a strong adjective.
+
+**Cost.** One new entity per requirement. Nothing moves; no swap.
+
+---
+
+## R_JRN_INTEGRATION_GAP — a crossing nobody wrote down
+
+**Symptom.** Consecutive journey steps whose owning products differ, where the
+later step names no `protocol`. The portal raises
+`W_JRN_UNDOCUMENTED_INTEGRATION`.
+
+**This is the highest-value finding the journey kind produces.** It finds
+integrations that exist in production and in nobody's description — the class of
+thing that is true in each product's page and false between them.
+
+**Confirm.** Read the two steps and ask what actually carries the hop. Three
+answers, three different findings: a protocol exists and the step just does not
+name it (metadata fix, bump the journey's `version`); no protocol entity exists
+and something does carry it (**the real finding** — write the protocol); or
+nothing carries it because the actor does, retyping a number or following a link
+from an email.
+
+**False positives.** The third case above, written as an omission instead of
+`protocol: none`. That is still worth reporting once, because `none` is a claim
+a reviewer can grep for and an omission is indistinguishable from forgetfulness
+— but the fix is one word in the journey, not a protocol entity.
+
+**Fix.** A new protocol entity at the nearest common ancestor of the two ends,
+then name it on the step. Adding a `protocol` to an existing step is metadata
+under `evolution.md`: bump the journey's `version`, no swap.
+
+**Cost.** One protocol entity plus its artifacts, one version bump on the
+journey. The protocol is the expensive half and it is exactly the work the
+finding exists to justify.
+
+---
+
+## R_LIFECYCLE_UNDOCUMENTED — undocumented running software
+
+**Symptom.** A component with `lifecycle: released` (or `sunset`) whose
+directly-owned protocols and datamodels are **all** `status: draft`.
+
+**Confirm.** The crossing of the two axes is legal in every cell — a `draft`
+description of a `released` component is explicitly the "nobody finished
+writing it down" case, and one such entity is ordinary. What makes this a
+finding is *all of them*: shipped software whose entire described surface is
+provisional, which means consumers are integrating against pages that nobody
+has agreed to.
+
+**False positives.** A component released last week whose docs are in review
+this week. Check the git dates before writing it up. A component that owns no
+protocol or datamodel at all does **not** trip this — it makes no claim to
+be provisional about; that entity is an `R_ORPHAN` or a surface-less component,
+a different finding.
+
+**Fix.** Approve the descriptions, or state in the review why shipped software
+is still described in draft. Never the reverse: moving `lifecycle` backwards to
+match the docs is falsifying the field.
+
+**Cost.** One version bump per entity promoted out of `draft`.
+
+---
+
+## R_LIFECYCLE_RISK — released software resting on the unbuilt
+
+**Symptom.** A component with `lifecycle: planned` with an inbound `depends-on`
+from a component that is `released` or `sunset`.
+
+**Confirm.** One of the two values is usually wrong, and which one changes the
+finding completely. Either the dependant is not really released (it ships but
+the code path is dark), or the dependency is not really planned (it exists and
+nobody updated the field). If both are accurate, the catalog is stating a
+delivery risk before any plan does — running software depends on something
+nobody has started building — and that is worth reporting to whoever owns the
+release, not just to whoever owns the catalog.
+
+**False positives.** A planned successor already wired up during a swap:
+referrers migrate one at a time, so an inbound edge from a released component
+during the migration window is the swap working as designed. Check for a
+`supersedes` edge before treating it as a risk.
+
+**Fix.** Not a catalog fix in the interesting case. Report the pair, name both
+`lifecycle` values, and say which one the review believes. The catalog change,
+if any, is one field and a version bump.
+
+---
+
 ## R_ENV_UNUSED / R_ACTOR_UNWIRED — the description stops short
 
 **Symptom.** An `environment` no component declares `uses` toward (the
 deployment roster is derived from those edges, so nothing runs there), or an
-`actor` named by no protocol `participants` entry and no product
-`primary-actors`.
+`actor` named by no protocol `participants` entry, no product `primary-actors`,
+and no journey step.
+
+Journey steps count as interaction here: an actor that takes a step in a
+`journey.yaml`, or is a journey's frontmatter protagonist, is described — it is
+reached by a path the solution promises even if no protocol names it. The
+collector reads `journey.yaml` for exactly this reason, so an actor still
+reported unwired is reached by nothing at all.
 
 **Confirm.** For the actor, check whether its `goals` are served anywhere at all.
 A goal no protocol, workflow or requirement serves is a hole in the description

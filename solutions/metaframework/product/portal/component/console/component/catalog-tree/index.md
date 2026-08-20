@@ -1,12 +1,13 @@
 ---
 name: catalog-tree
 kind: component
-version: 1
+version: 2
 title: Catalog tree
 summary: The navigation rail — four lenses over the same tree, text and facet filters, focus, and preferences read through an external store.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

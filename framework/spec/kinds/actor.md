@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: actor
-version: 2
+version: 3
 status: review
 title: Kind — Actor
 summary: Contract for actor entities — solution-level placement, the actor-type enum, goals, protocol and workflow participation, validation, and derived views.
@@ -40,16 +40,18 @@ topology. Apply in order; the first `yes` wins:
 | - | ----------------------------------------------------------------- | ------------------------------------------------------------------------                                                      |
 | 1 | Does it originate requests or receive outcomes?                   | Continue. If **no**, it is not an actor at all — probably a datamodel, or a sentence of prose.                                |
 | 2 | Do we own and describe its internals in *this* solution?          | It is a **component** ([component.md](component.md)), not an actor.                                                           |
-| 3 | Must anything name it in a `uses`, `exposes`, `depends-on`, or `implements` edge? | It is an **`external` component** — an actor is not a legal target of those four edges ([frontmatter.md](../frontmatter.md)). |
+| 3 | Must anything name it in a `uses`, `exposes`, `depends-on`, or `implements` edge? | It is an **`external` component** — no forward edge in the table accepts an actor target ([frontmatter.md](../frontmatter.md)). |
 | 4 | Otherwise                                                         | **Actor**.                                                                                                                    |
 
 Question 3 is the mechanical part, and it is what separates an `external-system`
 actor from an `external` component ([component.md](component.md)) — the two
 descriptions that most obviously compete:
 
-- The legal targets of `uses`, `exposes`, `depends-on`, and `implements` are
-  datamodels, protocols, environments, components, products, and requirements.
-  **An actor is not among them.** So the moment a component must declare
+- The legal targets of the forward edges — `uses`, `exposes`, `depends-on`,
+  `implements`, `realizes`, `measures` — are datamodels, protocols,
+  environments, components, products, requirements, and capabilities.
+  **An actor is not among them, and never has been** — the set grew by two edges
+  and still does not include one. So the moment a component must declare
   `depends-on` or `uses` toward a third party, that third party has to be an
   `external` component; describing it as an actor would leave the edge
   unwriteable. (The one edge that *does* accept an actor target is
@@ -215,11 +217,12 @@ the portal does not attempt to match them to protocols.
 
 Actors use the common `relations` map with no additions. In practice:
 
-| Edge                                  | From an actor                                                                                                                                      |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `uses`                                | Legal and useful toward a **component** (the surface the actor touches) and toward an **environment** (where a service account holds credentials). |
-| `supersedes`                          | Legal, toward another actor — a role that was split or renamed ([evolution.md](../evolution.md)).                                                  |
-| `exposes`, `depends-on`, `implements` | Not available: their legal source kinds are component/product only ([frontmatter.md](../frontmatter.md)).                                          |
+| Edge                                              | From an actor                                                                                                                                      |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `uses`                                            | Legal and useful toward a **component** (the surface the actor touches) and toward an **environment** (where a service account holds credentials). |
+| `supersedes`                                      | Legal, toward another actor — a role that was split or renamed ([evolution.md](../evolution.md)).                                                  |
+| `exposes`, `depends-on`, `implements`, `realizes` | Not available: their legal source kinds are component/product only ([frontmatter.md](../frontmatter.md)).                                          |
+| `measures`                                        | Not available: only a metric measures ([frontmatter.md](../frontmatter.md)).                                                                       |
 
 ```yaml
 relations:

@@ -462,3 +462,213 @@ this diagram kind.
   does not survive is reported, not faked.
 
 Recorded rather than rewritten, per this file's additive-only principle.
+
+---
+
+## Amendment 2026-08-20-a — the ontology opens: capability, journey, metric
+
+The founding record above calls the ontology **closed, v1** and lists an
+extensible ontology under Portal → Deferred.
+`solutions/metaframework/adr/0003-closed-ontology-of-nine-kinds` argues each of
+these three kinds away by name. Neither is rewritten. This amendment records
+that the owner reopened the set on 2026-08-20 and admitted exactly three kinds.
+
+### The decision
+
+`capability`, `journey` and `metric` become reserved kind buckets, taking the
+SRN grammar from eight to eleven. Their placement classes are the ones that
+already existed:
+
+| Kind         | Class          | May sit                                        |
+| ------------ | -------------- | ---------------------------------------------- |
+| `capability` | solution-level | only directly under the solution, like `actor` |
+| `journey`    | solution-level | only directly under the solution, like `actor` |
+| `metric`     | owner-scoped   | under any owning entity, like `requirement`    |
+
+**No placement rule was added.** P4 was already written over a *set* of
+solution-level kinds, so `capability` and `journey` joined the set and P4
+covered them unchanged; `metric` is owner-scoped, which is precisely a kind no
+rule after P1 mentions. Placement therefore stays a property of the grammar and
+still fails as `E_SRN_PLACEMENT` while the path is being read, which is the
+reason bucketed paths were adopted (2026-08-19, ADR 0008).
+
+### The cost, and the check that had to precede it
+
+Adopting a bucket word takes it out of circulation as a **name**, everywhere, at
+once — and worse than a rejection, an existing entity named after it silently
+changes what its path means: `…/datamodel/metric` stops being a datamodel called
+"metric" and becomes an unparseable half-pair. So the collision check ran first,
+over all three solutions:
+
+```bash
+$ find solutions -type d \( -name capability -o -name journey -o -name metric \)
+$ find solutions -name index.md | sed 's|/index.md||' | awk -F/ '{print $NF}' \
+    | grep -cE '^(capability|journey|metric)$'
+0
+```
+
+Nothing collided — 0 hits across 280 entities in `acme`, `brass` and
+`metaframework`. Had one existed, the kind could not have been adopted under
+that name without a swap first (evolution.md), because renaming a published
+entity is exactly what the additive-only rule forbids doing in place.
+
+### How the reserved set grows
+
+By **appending**. `RESERVED_KINDS` in `framework/portal/src/lib/srn/srn.ts` is
+adoption order, not alphabetical order, so a kind adopted later never displaces
+one adopted earlier and a diff of the list reads as a history. The same holds
+for `KIND_ORDER` in the portal, where the three were *inserted* where they read
+— capability and journey beside the participants they involve, metric beside the
+requirement it puts a number on — without moving any pair of the original nine
+relative to each other.
+
+### What this amendment does not settle
+
+Recorded here so the gaps are visible rather than assumed closed: the
+frontmatter contract of each new kind (the portal's kind schemas are
+deliberately empty layers until `framework/spec/kinds/` states them, so any
+kind-specific field is a loud `E_FM_UNKNOWN_FIELD` in the meantime), the
+`journey.yaml` step format, the `realizes` and `measures` edges, the component
+`lifecycle` field, and the catalog's own self-description — ADR 0003, the portal
+and srn component entities, which still say there is no such kind and are now
+describing a framework that has moved.
+
+## Amendment 2026-08-20-b — the loader enforces the three new kinds, and component `lifecycle` lands
+
+Amendment 2026-08-20-a opened the ontology and left the frontmatter contracts,
+the two new edges and the component `lifecycle` field explicitly unsettled. The
+kind documents `framework/spec/kinds/capability.md`, `journey.md` and
+`metric.md` now state them, and `component.md` states `lifecycle`. This
+amendment records what the **portal's loader** enforces, and — where the loader
+had to make a call the specs do not — which call it made and why. It rewrites
+nothing.
+
+### The loader is the executable copy of the kind documents
+
+The codes and severities below are the kind documents', not the loader's
+invention. What is worth recording is that the severity split across all three
+documents reduces to one rule, and the loader implements it as one rule:
+
+> A violation is an **error** when the entity is meaningless without the fix,
+> and a **warning** when it is a true statement about a system still being
+> built, or a judgement call about who owns something.
+
+That is why a metric with no subject is `E_MET_NO_SUBJECT` (a number with no
+subject is a figure, not an observation) while a capability nothing realizes is
+`W_CAP_UNREALIZED` (describing before building is this framework's intended
+order of work), and why a metric filed away from its subject's owner is
+`W_MET_SUBJECT_SCOPE` rather than an error — responsibility placement is a
+judgement, and a team genuinely tracking someone else's number should be
+visible rather than blocked.
+
+| Code                     | Severity | Raised when                                                    |
+| ------------------------ | -------- | -------------------------------------------------------------- |
+| `E_MET_TARGET`           | error    | `target` is not a literal of the grammar `metric-type` selects |
+| `E_MET_WINDOW`           | error    | `window` is neither `instant` nor a rolling duration           |
+| `E_MET_NO_SUBJECT`       | error    | a metric authors no `measures` edge                            |
+| `W_MET_SUBJECT_SCOPE`    | warning  | the metric is filed outside its subject's ownership line       |
+| `E_JRN_ACTOR_KIND`       | error    | the frontmatter `actor` resolves to something else             |
+| `W_CAP_UNREALIZED`       | warning  | no product or component `realizes` the capability              |
+| `W_CAP_REALIZATION_EDGE` | warning  | a capability `uses` a component to state its own realization   |
+
+### Where a kind rule needed its own code, the schema could not carry it
+
+Everything a zod kind schema rejects is reported as `E_FM_SCHEMA`, and
+`metric.md` gives `target` and `window` violations codes of their own. So the
+loader gained a second, narrower hook beside the schemas —
+`kindDiagnostics(kind, raw)` in `catalog/frontmatter.ts` — for rules that are
+checkable from the document alone but must be reported under a specific code.
+Anything needing the resolved catalog stays a graph check in `load.ts`.
+
+This is the split worth keeping: **schema** for shape, **kindDiagnostics** for
+document-local rules with their own codes, **graph checks** for anything that
+needs another entity. A rule in the wrong one of the three either loses its code
+or fires before the catalog exists.
+
+`target` and `window` are therefore plain strings in the schema. That has a
+second benefit the spec names: an unquoted `target: 1200` is turned into an
+integer by YAML before validation sees it, and a string schema catches it as
+`E_FM_SCHEMA` — the one case quoting is load-bearing for.
+
+### Two new edges, appended to the type list, inserted into the legend
+
+| Edge       | Legal sources      | Legal targets                                |
+| ---------- | ------------------ | -------------------------------------------- |
+| `realizes` | product, component | capability                                   |
+| `measures` | metric             | capability, component, protocol, requirement |
+
+`EDGE_TYPES` grows by **appending**, for the reason `RESERVED_KINDS` does: the
+order is adoption order and a diff of the list reads as a history. The relation
+graph's legend does **not** follow it — `EDGE_STYLES` places `realizes` beside
+`implements` and keeps `supersedes` last, matching frontmatter.md's table.
+
+That split is the same one 2026-08-20-a drew for kinds, and it generalizes:
+**identity lists append, display lists insert where they read.** Adoption order
+is a fact about the framework's history and must not be reordered; legend order
+is a fact about the reader and must not be a history lesson.
+
+Inverse edges (`realized-by`, `measured-by`) are derived. The loader's existing
+inbound index needed no change to produce them, which is the property worth
+recording: adding an edge type is a table entry, not a graph pass.
+
+### Component `lifecycle` — the same field name, a different value set
+
+`lifecycle` becomes **required** on `component`, joining `product`, which has
+had it since v1.
+
+    component: planned | in-development | released | sunset | retired
+    product:   concept | incubating | active | maintenance | sunset | retired
+
+The **name** is shared deliberately, so one word means "where is this in the
+real world" on every kind that has a real world. The **values** are not:
+
+- A product is *positioned in a portfolio*. `concept` and `incubating` are
+  investment states answering "is this a committed bet?" — a component inside a
+  funded product is not a bet, so it has neither.
+- A component is *built and shipped*. Its states answer "does this exist yet,
+  and is it still running?" — hence `planned` and `in-development`, which a
+  portfolio does not track because a product's development is the sum of its
+  components'.
+- `active` has no component equivalent: on a product it is a positioning claim,
+  and the delivery fact underneath it is `released`.
+- `maintenance` is absent. On a product it is an investment statement; on a
+  component it would be one delivery state spelled two ways, because a component
+  under maintenance is still released.
+- `sunset` and `retired` keep product's exact meaning. That shared tail is what
+  earns the shared field name.
+
+**`lifecycle` is not an extension of `status`, and the two never merge.**
+`status` is the review state of the *description*; `lifecycle` is the delivery
+state of the *thing described*. The axes cross, and an `approved` description of
+a `planned` component is the design-first normal case this framework is built
+around. The enums are kept disjoint so neither can be read as the other.
+
+Deliberately coarse and global: released-in-staging-but-not-production is a
+per-environment fact and stays in environment declarations and `topology.yaml`.
+Folding environments into the enum would make the field unanswerable for any
+component that ships to more than one.
+
+### Consequences
+
+Making `lifecycle` required invalidates every component in the shipped catalog
+at once — 67 entities, one `E_FM_SCHEMA` each, and nothing else:
+
+```bash
+$ npx vitest run src/lib/catalog/fixture-check.test.ts   # in framework/portal
+  67 E_FM_SCHEMA … lifecycle: Invalid option
+```
+
+That red is intended within this batch. The field is left required and the
+migration follows, because a required field cannot be introduced any other way
+under additive-only evolution: the alternative, optional-then-required, is
+exactly the tightening the rule forbids.
+
+### What this amendment does not settle
+
+The `journey.yaml` step format and its `E_JRN_*` codes beyond
+`E_JRN_ACTOR_KIND`, which is a frontmatter field and therefore the loader's;
+`W_REQ_UNIMPLEMENTED` and `W_REQ_WONT_IMPLEMENTED`, specified in
+`kinds/requirement.md` since v1 and still not implemented — now conspicuous,
+because the capability warning beside them is the same check; the migration of
+the 67 components; and the catalog's own self-description, still listed as open
+in 2026-08-20-a.

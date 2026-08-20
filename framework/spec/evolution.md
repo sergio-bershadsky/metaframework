@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: evolution
-version: 4
+version: 5
 status: review
 title: Evolution and history
-summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples, the swap procedure, the git-backed history contract, and the status lifecycle.
+summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, and the status states.
 ---
 
 # Evolution and history
@@ -140,12 +140,56 @@ unknown enum values in instances of a *later* version than they pinned.
 
 The same shape, stated per artifact:
 
-| Entity kind         | Legal at `N+1` (examples)                              | ILLEGAL at `N+1` (examples)                       |
-| ------------------- | ------------------------------------------------------ | ------------------------------------------------- |
-| protocol            | add an operation; add an optional message field; add a workflow; add a state + transitions | remove/rename an operation; remove a state; change a message's datamodel ref to an incompatible one |
-| requirement / adr   | clarify wording; append consequences; add relations    | reverse or narrow the decision/requirement — that is a new entity (swap) |
-| actor / environment | extend description; add relations                      | repurpose the name to mean something else         |
-| container           | add child entities; extend prose                       | remove or rename children (children swap individually) |
+| Entity kind         | Legal at `N+1` (examples)                                                                  | ILLEGAL at `N+1` (examples)                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| protocol            | add an operation; add an optional message field; add a workflow; add a state + transitions | remove/rename an operation; remove a state; change a message's datamodel ref to an incompatible one      |
+| requirement / adr   | clarify wording; append consequences; add relations                                        | reverse or narrow the decision/requirement — that is a new entity (swap)                                 |
+| actor / environment | extend description; add relations                                                          | repurpose the name to mean something else                                                                |
+| capability          | sharpen the description without narrowing it; add relations                                | narrow or re-scope what the business can do — a different ability is a different entity                  |
+| journey             | append a step at the end within the 12-step cap; extend a step's note                      | remove, reorder, or re-point existing steps; introduce a branch (that is a second journey)               |
+| metric              | move `target`; extend the description; add relations                                       | change `metric-type`, `direction`, or what `measures` points at — the number stops meaning what it meant |
+| container           | add child entities; extend prose                                                           | remove or rename children (children swap individually)                                                   |
+
+### The three newest kinds are governed by exactly these rules
+
+`capability`, `journey` and `metric` were adopted after the ontology was
+reopened (decision-record amendment 2026-08-20-a), and adoption bought them no
+special treatment: they carry the same integer `version`, bump it on any content
+change, extend rather than reduce, and swap when extension is not enough. Two
+consequences are worth stating outright, because they are the ones an author
+will reach for first.
+
+**A capability rename is a swap, like every other rename.** The SRN is the path,
+so `srn://acme/capability/order-fulfilment` cannot become
+`srn://acme/capability/fulfilment` in place — the version→commit index does not
+follow a move, and every `realizes` edge pointing at the old name would resolve
+to nothing. Create the successor, point it at its predecessor with `supersedes`,
+migrate the realizers one at a time, then deprecate:
+
+```yaml
+# solutions/acme/capability/fulfilment/index.md
+kind: capability
+version: 1
+status: draft
+relations:
+  supersedes:
+    - ../order-fulfilment      # sibling in the same capability/ bucket
+```
+
+The same procedure, unchanged, covers a journey that grows a branch (it becomes
+two journeys, and the second one is a new entity) and a metric that starts
+counting a different thing (a new number is a new entity, so the history of the
+old one stays readable).
+
+**A `lifecycle` move is an ordinary content change, not a swap.** A component
+going `planned` → `in-development` → `released`, or a product going `active` →
+`sunset`, bumps `version` like any other edit and nothing else
+([kinds/component.md](kinds/component.md),
+[kinds/product.md](kinds/product.md)). It is not the `status`-only exception
+above either: `status` is workflow state on the document and is exempt from the
+bump; `lifecycle` is content, and content bumps. Adding the now-REQUIRED
+`lifecycle` field to a component that predates it is likewise an ordinary
+additive change on that component — add the field, bump its `version`.
 
 An illegal change MUST NOT be made in place at any version number. The escape
 hatch is the swap.
@@ -241,9 +285,15 @@ rewritten in every historical commit for the old snapshots to stay true, and the
 version→commit index does not follow a move in any case. Renaming is done by the
 swap procedure above.
 
-## Status lifecycle
+## The `status` states
 
-`status` is REQUIRED in every entity's frontmatter:
+`status` is REQUIRED in every entity's frontmatter. It is the review state of
+**the document** and nothing else — not the stage of the thing the document
+describes, which is `lifecycle` on a product or a component
+([frontmatter.md](frontmatter.md#status-and-lifecycle-are-different-axes)). The
+two axes cross freely: `status: approved` with `lifecycle: planned` is a
+reviewed description of something not yet built, and it is the case this catalog
+exists for.
 
 | Status       | Meaning                                                          |
 | ------------ | ---------------------------------------------------------------- |

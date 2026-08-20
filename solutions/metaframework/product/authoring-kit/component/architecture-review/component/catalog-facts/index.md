@@ -1,12 +1,13 @@
 ---
 name: catalog-facts
 kind: component
-version: 1
+version: 2
 title: Catalog facts
 summary: 609 lines of stdlib-only Python that resolve a catalog into a graph and print fifteen R_-coded candidates — the kit's only executable artifact.
 status: review
 owner: sergio
 component-type: job
+lifecycle: released
 relations:
   uses:
     - /environment/local

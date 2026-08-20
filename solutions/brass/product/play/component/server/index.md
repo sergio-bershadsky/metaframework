@@ -1,12 +1,13 @@
 ---
 name: server
 kind: component
-version: 1
+version: 2
 title: Game server
 summary: The authoritative boardgame.io server — lobby REST and socket transport on one port, adjudicating every move.
 status: review
 owner: sergio-bershadsky
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production

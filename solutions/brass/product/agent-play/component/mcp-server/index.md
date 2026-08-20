@@ -1,12 +1,13 @@
 ---
 name: mcp-server
 kind: component
-version: 1
+version: 2
 title: MCP server
 summary: One stdio MCP process holding exactly one seat in one match — a state-in, move-out adapter with no game logic.
 status: review
 owner: sergio-bershadsky
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/local

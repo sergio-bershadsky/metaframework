@@ -192,6 +192,27 @@ if something is. Path-absolute removes the only case the grammar cannot catch.
 
 `states.json` carries no SRN references at all — it names events and states only.
 
+## Journeys name protocols
+
+One reference surface outside this kind points at protocols: a **journey** step
+may carry `protocol: <SRN of a protocol>`, saying how that step reaches what it
+touches. Nothing changes here — a protocol is authored the same way whether or
+not a journey names it — but two consequences are worth knowing while you decide
+whether a protocol is needed at all:
+
+- A journey step that **crosses a product boundary** and names no protocol is
+  `W_JRN_UNDOCUMENTED_INTEGRATION`: the catalog has found an integration nobody
+  wrote down. The fix is a new protocol entity, authored by this skill. The
+  integration-gap panel on the solution dashboard is therefore a queue of
+  protocols worth writing.
+- A step's named protocol SHOULD list either end of the hop among its
+  `participants` (`W_JRN_PROTOCOL_UNRELATED`) — a protocol documenting neither
+  end is not documenting the hop.
+
+The `journey.yaml` format itself is not this skill's business: it is in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/journeys.md`, and journey
+entities are authored with `add-entity`.
+
 ## Worked example
 
 `references/worked-protocol.md` reproduces `srn://acme/protocol/settlement`

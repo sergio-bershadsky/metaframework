@@ -1,12 +1,13 @@
 ---
 name: solution-design
 kind: component
-version: 1
+version: 2
 title: Solution design
 summary: The skill that runs before any file exists — interview, decomposition heuristics, a proposed SRN tree, and a sign-off gate.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   uses:
     - ../reference-bundle

@@ -27,9 +27,10 @@ Report, in this order:
 3. **What was not covered.** A green run proves the tree *loads* — and, since
    the datamodel schema registry is folded into the catalog load, that every
    `schema.json` identity and `$ref` checks out too. It does **not** run the
-   protocol validators (`E_PROTO_*` appears only when the portal renders the
-   protocol page), and several specified rules — the ADR's four headings, the
-   requirement's `## Acceptance criteria`, protocol NCA placement — are
+   protocol validators or the `journey.yaml` parser (`E_PROTO_*` and `E_JRN_*`
+   appear only when the portal renders that entity's page), and several specified
+   rules — the ADR's four headings, the requirement's `## Acceptance criteria`,
+   protocol NCA placement, a journey entity's missing `journey.yaml` — are
    implemented nowhere. The skill has the full list; say which of them apply to
    what was just touched.
 

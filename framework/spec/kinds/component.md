@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: component
-version: 2
+version: 3
 status: review
 title: Kind — component
-summary: The component kind — the nestable container that lives in a component/ bucket under a product or another component, its component-type enum, how it declares environments, and how reuse within a solution is expressed by reference.
+summary: The component kind — the nestable container in a component/ bucket under a product or another component, its component-type and lifecycle enums, environments, and reuse by reference.
 ---
 
 # Kind — component
@@ -42,8 +42,9 @@ solutions/acme/product/shop/                    # product  srn://acme/product/sh
 - Nesting is a **composition** statement: `payment` is part of `checkout`. It is
   not a dependency statement — dependencies are edges, and they may point
   anywhere in the solution.
-- A component MAY own `datamodel/`, `protocol/`, `adr/`, `requirement/`, and
-  further `component/` buckets; never `actor/`, `environment/`, or `product/`.
+- A component MAY own `datamodel/`, `protocol/`, `adr/`, `requirement/`,
+  `metric/`, and further `component/` buckets; never `actor/`, `environment/`,
+  `capability/`, `journey/`, or `product/`.
 
 ### Placement is grammar, not a loader check
 
@@ -71,12 +72,13 @@ kind: product        # E_FM_KIND_LOCATION — the bucket says component
 
 ## Frontmatter additions
 
-On top of [frontmatter.md](../frontmatter.md); nothing there is redefined. One
-field.
+On top of [frontmatter.md](../frontmatter.md); nothing there is redefined. Two
+fields.
 
-| Field            | Type                                                                              | Required | Rule                                  |
-| ---------------- | --------------------------------------------------------------------------------- | -------- | -------------------------------------- |
-| `component-type` | enum: `service \| library \| ui \| job \| datastore \| gateway \| external`        | yes      | The component's character; drives derived diagrams and rules T1–T3. |
+| Field            | Type                                                                        | Required | Rule                                                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `component-type` | enum: `service \| library \| ui \| job \| datastore \| gateway \| external` | yes      | The component's character; drives derived diagrams and rules T1–T3.                                                                       |
+| `lifecycle`      | enum: `planned \| in-development \| released \| sunset \| retired`          | yes      | Delivery state of the component itself. Never the review state of this document — that is `status` ([frontmatter.md](../frontmatter.md)). |
 
 ### The `component-type` set
 
@@ -114,6 +116,125 @@ component-type: worker      # E_FM_SCHEMA — not in the enum ("job" is meant)
 solution boundary forbids referencing it directly
 ([solution.md](solution.md)), so it is described here, at the fidelity this
 solution needs.
+
+### `lifecycle` — the delivery state, and why it is not `status`
+
+`status` (common, every kind) describes **this document**: is the description
+drafted, reviewed, approved, or retired as a description. `lifecycle` describes
+**the component in the world**: has the thing been built, and is it running.
+
+> `status` is the review state of the DESCRIPTION.
+> `lifecycle` is the delivery state of the THING DESCRIBED.
+
+The two axes cross, every cell is legal, and the crossing is the reason both
+fields exist. An **approved description of an unbuilt component** is the
+design-first normal case this catalog is for:
+
+```yaml
+status: approved          # written, reviewed, binding
+lifecycle: planned        # not one line of it built yet
+```
+
+```yaml
+status: draft             # nobody finished writing it down
+lifecycle: released       # it has been in production for two years
+```
+
+Five stages, closed. Any other value is `E_FM_SCHEMA` (CV9); a team-local nuance
+goes in an `x-` field, never in a sixth value.
+
+| `lifecycle`      | Means                                                 | The honest test                                      |
+| ---------------- | ----------------------------------------------------- | ---------------------------------------------------- |
+| `planned`        | Described and agreed; not being built yet.            | No code exists.                                      |
+| `in-development` | Being built; nothing has shipped.                     | Code exists; no consumer can call it for real.       |
+| `released`       | Shipped at least once and available to its consumers. | Someone outside the building team depends on it now. |
+| `sunset`         | Still running, but being replaced; no new consumers.  | A successor exists and migration is underway.        |
+| `retired`        | No longer running anywhere; the description is kept.  | Nothing calls it and nothing deploys it.             |
+
+#### Why the field name is product's and the value set is not
+
+A product also carries `lifecycle` ([product.md](product.md)), with a different
+enum: `concept | incubating | active | maintenance | sunset | retired`. The
+**name** is shared deliberately — one word for "what stage is the thing in?"
+across the two kinds that name a thing built and shipped apart from the document
+describing it, so a reader never has to learn a second vocabulary for the same
+question. The **values** are not shared, because the two kinds are staged
+against different things:
+
+| Axis            | Product                                               | Component                                                |
+| --------------- | ----------------------------------------------------- | -------------------------------------------------------- |
+| What is staged  | a funded position in a portfolio                      | an artifact that gets built and shipped                  |
+| Who moves it    | whoever decides investment                            | whoever ships the code                                   |
+| The early half  | `concept` → `incubating` — is this worth funding?     | `planned` → `in-development` → `released` — is it built? |
+| The middle      | `active` vs `maintenance` — how much investment flows | *(absent by design — see below)*                         |
+| The shared tail | `sunset` → `retired`                                  | `sunset` → `retired`, identical meaning                  |
+
+The one deliberate omission is the `active` / `maintenance` split. It is an
+**investment** distinction — how much money keeps flowing — and investment is
+decided at the product line ([product.md](product.md)). Copying it down to the
+component would create a second, finer-grained investment ledger with no
+independent source of truth, and it would drift against the product's within a
+quarter. A component in a product on `maintenance` is still simply `released`.
+
+Conversely `released` is not product's `active` renamed. `released` is a fact
+about an artifact — it shipped, someone depends on it — and it stays true when
+investment stops. `active` is a fact about a budget. Neither answers the other's
+question, which is exactly why neither set is reused for the other kind.
+
+Adding a value to either set is an additive spec change to that kind's document
+(bump its `version`); the sets are never merged, and a value is never removed.
+
+#### Reading it for the awkward types
+
+- A **`library`** has no runtime of its own (T1), so "running" is the wrong test.
+  For a library, `released` means *a version is published and consumers can
+  depend on it*; `retired` means *no consumer builds against it any more*.
+- An **`external`** component describes a system this solution does not own. Its
+  `lifecycle` is that system as *we* see it — normally `released`, and
+  `planned` while an integration is only agreed. It is never a claim about the
+  vendor's internal roadmap.
+- A **`datastore`** follows the same reading as a service: `released` once it
+  holds real data anyone reads.
+
+#### Deliberately coarse, and deliberately global
+
+`lifecycle` is one value for the whole component, with no per-environment
+dimension. Release state *per environment* already has a home: the component's
+`uses` edges to environment entities, and the environment's own `topology.yaml`
+([environment.md](environment.md)). A component live in staging and not yet in
+production is:
+
+```yaml
+component-type: service
+lifecycle: in-development         # not shipped to its consumers yet
+relations:
+  uses:
+    - /environment/staging        # …but it does run here
+```
+
+and never a value like `released-in-staging`. Folding environments into the enum
+would multiply it by the number of environments and make every component's stage
+unanswerable without reading the whole environment set.
+
+#### Existing components must add it
+
+`lifecycle` is REQUIRED, so every component entity already in a catalog needs
+the field — 67 of them at the time this was written:
+
+```bash
+$ grep -rl "^kind: component$" solutions --include=index.md | wc -l
+      67
+```
+
+Until each has one its frontmatter fails validation with `E_FM_SCHEMA` naming
+`lifecycle` — loudly, at load, rather than silently defaulting to a stage nobody
+chose. Adding it is an ordinary additive change on each component (add the
+field, bump that entity's `version`); there is no back-fill default, because
+guessing between `planned` and `released` on someone's behalf is exactly the
+error the field exists to prevent. A required field cannot be introduced any
+other way: the gentler-looking optional-then-required path is the tightening
+additive-only forbids, so it is one loud migration rather than a quiet one
+(decision-record amendment 2026-08-20-b).
 
 ## Declaring environments
 
@@ -272,13 +393,13 @@ they are a deliberate choice rather than an accident.
 
 ## What may nest inside
 
-| Child                                                     | Allowed | Note                                                     |
-| --------------------------------------------------------- | ------- | --------------------------------------------------------- |
-| a `component/` bucket                                      | yes     | Arbitrary depth; unless `component-type: external` (T3).  |
-| `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets   | yes     | Protocol only if this component is the NCA of its participants. |
-| `actor/`, `environment/` buckets                            | no      | Solution-level only — `E_SRN_PLACEMENT`.                  |
-| a `product/` bucket                                         | no      | A product pair may only be the first — `E_SRN_PLACEMENT`. |
-| an entity directory not inside a bucket                     | no      | The path would have an odd segment count — `E_SRN_SYNTAX`.|
+| Child                                                                | Allowed | Note                                                            |
+| -------------------------------------------------------------------- | ------- | --------------------------------------------------------------- |
+| a `component/` bucket                                                | yes     | Arbitrary depth; unless `component-type: external` (T3).        |
+| `datamodel/`, `protocol/`, `adr/`, `requirement/`, `metric/` buckets | yes     | Protocol only if this component is the NCA of its participants. |
+| `actor/`, `environment/`, `capability/`, `journey/` buckets          | no      | Solution-level only — `E_SRN_PLACEMENT`.                        |
+| a `product/` bucket                                                  | no      | A product pair may only be the first — `E_SRN_PLACEMENT`.       |
+| an entity directory not inside a bucket                              | no      | The path would have an odd segment count — `E_SRN_SYNTAX`.      |
 
 ## Validation rules
 
@@ -295,9 +416,10 @@ Numbered `CV*` to avoid collision with the container rules C1–C7
 | CV6 | T2 — runtime-bearing component declares ≥ 1 environment.                  | `W_COMP_NO_ENVIRONMENT`      |
 | CV7 | `depends-on` graph among components is acyclic.                           | `W_COMP_DEP_CYCLE`           |
 | CV8 | Frontmatter `kind: component` matches the `component/` bucket holding it. | `E_FM_KIND_LOCATION`         |
+| CV9 | `lifecycle` present and in the closed enum.                               | `E_FM_SCHEMA`                |
 
 CV1 is a grammar rule ([srn.md](../srn.md)): the directory path fails to parse,
-so a misplaced component never reaches CV2–CV8.
+so a misplaced component never reaches CV2–CV9.
 
 ## Worked example
 
@@ -313,6 +435,8 @@ summary: Converts a cart into a paid order — pricing, reservation, and payment
 status: approved
 owner: team-checkout
 component-type: service
+lifecycle: released                    # the thing is shipped; `status` above is
+                                       # about this document, not about the thing
 relations:
   uses:
     - /environment/production            # runs here
@@ -326,6 +450,8 @@ relations:
     - /product/billing/component/ledger  # reuse: owned by the billing product
   implements:
     - requirement/idem-cap               # this component's own requirement
+  realizes:
+    - /capability/order-fulfilment       # solution-level: an ability it contributes to
 tags:
   - checkout
   - payments
@@ -366,6 +492,16 @@ one that is also unambiguous:
 
 - **Node shape and colour** from `component-type` in every graph; `external`
   nodes are drawn at the boundary, `library` nodes without a runtime lane.
+- **Two independent badges** — `lifecycle` (the thing) and `status` (the
+  document), rendered side by side and never collapsed into one. A
+  `lifecycle: planned` component is drawn as a real node, not a ghost: it is
+  described, agreed, and part of the graph before it is built.
+- **Capability panel** — outgoing `realizes` edges; the inverse `realized-by`
+  fan-in is shown on the capability's own page
+  ([frontmatter.md](../frontmatter.md)).
+- **Metrics panel** — the derived `measured-by` set: every metric whose
+  `measures` edge points at this component, wherever in the tree that metric is
+  owned.
 - **Deployment chips** — the environment subset of `uses`, and the reverse
   ("components running here") on each environment page.
 - **Contract panels** — `exposes` (provided) and the protocol/datamodel subset

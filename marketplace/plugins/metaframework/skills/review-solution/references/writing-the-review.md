@@ -18,7 +18,7 @@ plainly. A clean audit is a real result.>
 
 ## Findings
 
-### 1. <one-line claim> — <Structural | Graph | Modelling | Scope | Hygiene>
+### 1. <one-line claim> — <Scope | Structural | Graph | Modelling | Coverage | Hygiene>
 **Entity:** srn://acme/...
 **Symptom:** <what is in the files, with paths and lines>
 **Why it matters:** <what a reader of this catalog gets wrong because of it>
@@ -33,8 +33,34 @@ unavailable>
 ```
 
 Ranking, in this order: **scope and truth**, then **structural**, then **graph**,
-then **modelling**, then **hygiene**. Within a band, order by how much a reader
-is misled.
+then **modelling**, then **coverage**, then **hygiene**. Within a band, order by
+how much a reader is misled.
+
+**Coverage is a table, not a band of findings.** Capabilities with no metric,
+`must` requirements with no metric, journeys covering no actor goal — on a
+catalog that has just adopted the business layer, nearly everything is
+uncovered, and a hundred entries say less than one row does:
+
+```markdown
+## Coverage
+
+| Question                             | Covered | Total |
+|--------------------------------------|---------|-------|
+| Capabilities with ≥ 1 realizer       | 3       | 3     |
+| Capabilities with ≥ 1 metric         | 1       | 3     |
+| `must` requirements with ≥ 1 metric  | 1       | 8     |
+| Journey product crossings documented | 6       | 6     |
+```
+
+Those four rows are a real run against the shipped acme fixture, not an
+illustration. They also show what the table is for: fully realized, fully
+documented at the seams, and almost entirely unmeasured — one sentence of
+verdict that eleven separate findings would have buried.
+
+Promote a single row **out** of the table and into the ranked findings when it
+is a truth claim rather than a gap: an `approved` capability nothing realizes
+belongs in band 1, because the catalog is asserting the business can do
+something it cannot.
 
 Always state the **mechanism**, because the cost is the decision. "Promote
 `order-line` to the solution bucket" reads like a five-minute edit and is
@@ -85,8 +111,9 @@ fixture — the register to aim for:
 
 > ### 3. `actor/release-bot` is named by no protocol — Graph
 > **Entity:** `srn://acme/actor/release-bot`
-> **Symptom:** appears in no `participants` list and no `primary-actors`; its
-> `goals` name promotion between environments, which no protocol describes.
+> **Symptom:** appears in no `participants` list, no `primary-actors`, and no
+> journey step; its `goals` name promotion between environments, which no
+> protocol describes.
 > **Why it matters:** the actor asserts a capability the catalog never shows
 > anyone exercising — a hole, not a contradiction.
 > **Fix:** either describe the promotion interaction as a protocol, or state in

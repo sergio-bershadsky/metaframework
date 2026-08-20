@@ -42,8 +42,24 @@ KINDS = {
     "environment",
     "adr",
     "requirement",
+    "capability",
+    "journey",
+    "metric",
 }
-EDGE_TYPES = ("uses", "exposes", "depends-on", "implements", "supersedes")
+EDGE_TYPES = (
+    "uses",
+    "exposes",
+    "depends-on",
+    "implements",
+    "supersedes",
+    "realizes",
+    "measures",
+)
+
+# Component delivery states, in the order the spec lists them. `lifecycle` is
+# the state of the THING; `status` is the state of its description. The two
+# cross, so neither is derivable from the other and both are read here.
+COMPONENT_SHIPPED = {"released", "sunset"}
 
 
 # --------------------------------------------------------------------------
@@ -156,6 +172,11 @@ class Entity:
         self.name = str(fm.get("name", "?"))
         self.status = str(fm.get("status", "?"))
         self.owner = fm.get("owner")
+        # Delivery state of the thing described, not of this document. Only
+        # product and component carry one; "?" means the field is absent, which
+        # on a component is itself a finding the portal raises as E_FM_SCHEMA.
+        self.lifecycle = str(fm.get("lifecycle", "?"))
+        self.steps: list[dict] = []       # journeys only; filled by journey_edges
 
     @property
     def srn(self) -> str:
@@ -231,6 +252,13 @@ def collect_refs(fm: dict, srn_path: str, solution: str):
             target = resolve_ref(p["ref"], srn_path, solution)
             if target:
                 yield "participants", target, None
+    # A journey's protagonist is a bare scalar, not a relation edge — but it is
+    # the entity's defining reference, and an actor that stars in a journey is
+    # not an unwired actor.
+    if str(fm.get("kind")) == "journey" and isinstance(fm.get("actor"), str):
+        target = resolve_ref(fm["actor"], srn_path, solution)
+        if target:
+            yield "journey-actor", target, None
 
 
 def load(solution_dir: str):
@@ -256,6 +284,104 @@ def build_graph(solution: str, entities: dict[str, Entity]):
             out[src].append((edge, target, pin))
             inc[target].append((edge, src, pin))
     return out, inc
+
+
+JOURNEY_STEP_KEYS = ("actor", "touches", "protocol", "note")
+
+
+def parse_journey_steps(text: str) -> list[dict]:
+    """The ordered steps out of a `journey.yaml`.
+
+    PyYAML when it is importable. The fallback is a scanner rather than
+    `_mini_yaml`, because a step's `note` may wrap onto continuation lines and
+    the frontmatter parser would stop the step list at the first one — losing
+    every later step, which is exactly the data the crossing check needs.
+    """
+    try:
+        import yaml  # type: ignore
+
+        doc = yaml.safe_load(text)
+        if isinstance(doc, dict) and isinstance(doc.get("steps"), list):
+            return [s for s in doc["steps"] if isinstance(s, dict)]
+        return []
+    except Exception:
+        pass
+    steps: list[dict] = []
+    cur: dict | None = None
+    in_steps = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if not in_steps:
+            if re.match(r"^steps\s*:", line):
+                in_steps = True
+            continue
+        if line.startswith("- "):
+            if cur is not None:
+                steps.append(cur)
+            cur = {}
+            line = line[2:].strip()
+        if cur is None:
+            continue
+        key, sep, val = line.partition(":")
+        if sep and key.strip() in JOURNEY_STEP_KEYS:
+            cur[key.strip()] = _unquote(val)
+    if cur is not None:
+        steps.append(cur)
+    return steps
+
+
+def journey_edges(solution: str, entities: dict[str, Entity], out, inc):
+    """Read every `journey.yaml` and hang its steps on the entity.
+
+    The steps are stored on the journey (`ent.steps`) for the crossing check,
+    and their references are added to the graph so that a component a journey
+    walks through is not reported as an orphan. They are recorded under their
+    own edge names — a journey step is not a `uses` edge and must never be
+    counted as one.
+    """
+    for src, ent in entities.items():
+        ent.steps = []
+        if ent.kind != "journey":
+            continue
+        afile = os.path.join(ent.path, "journey.yaml")
+        if not os.path.exists(afile):
+            continue
+        try:
+            with open(afile, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError:
+            continue
+        for step in parse_journey_steps(text):
+            resolved = {}
+            for key in ("actor", "touches", "protocol"):
+                val = step.get(key)
+                if not isinstance(val, str) or not val.strip():
+                    continue
+                if key == "protocol" and val.strip() == "none":
+                    resolved["protocol"] = "none"      # the documented negative
+                    continue
+                target = resolve_ref(val, src, solution)
+                if not target:
+                    continue
+                resolved[key] = target
+                out[src].append(("step-" + key, target, None))
+                inc[target].append(("step-" + key, src, None))
+            ent.steps.append(resolved)
+
+
+def owning_product(srn_path: str) -> str | None:
+    """The `product/{name}` pair at the head of an SRN path's pair chain.
+
+    Every component's chain begins with a product — a `component` bucket may
+    not sit at solution level — so this is total over legal `touches` targets.
+    Compared over whole pairs, never raw segments.
+    """
+    seg = srn_path.split("/")[1:]
+    if len(seg) < 2 or seg[0] != "product":
+        return None
+    return "product/" + seg[1]
 
 
 # The canonical schema host. A constant, deliberately not an environment
@@ -347,7 +473,14 @@ def run_checks(solution, entities, out, inc):
         kids = children_of(entities, path)
 
         # --- orphan -------------------------------------------------------
-        connective = real_edges | {"participants", "primary-actors"}
+        connective = real_edges | {
+            "participants",
+            "primary-actors",
+            "journey-actor",
+            "step-actor",
+            "step-touches",
+            "step-protocol",
+        }
         has_out = any(e in connective for e, _, _ in outgoing)
         has_in = bool(incoming)
         if not has_out and not has_in and not kids:
@@ -426,20 +559,107 @@ def run_checks(solution, entities, out, inc):
                     )
 
         if ent.kind == "requirement":
+            pr = str(ent.fm.get("priority", "?"))
             if not any(e == "implements" for e, _, _ in incoming):
-                pr = str(ent.fm.get("priority", "?"))
                 if pr in ("must", "should"):
                     add("R_REQ_UNIMPLEMENTED", path, f"priority {pr}, nothing `implements` it")
+            # A commitment with no observation is a promise nobody can check.
+            # Only `must` — a `should` without a number is an ordinary trade-off.
+            if pr == "must" and not any(e == "measures" for e, _, _ in incoming):
+                add("R_REQ_UNMEASURED", path, "priority must, but no metric `measures` it")
 
         if ent.kind == "environment":
             if not any(e == "uses" for e, _, _ in incoming):
                 add("R_ENV_UNUSED", path, "no component declares `uses` toward it — nothing runs here")
 
         if ent.kind == "actor":
+            # A journey the actor stars in, or takes a step in, is a real
+            # interaction — an actor reachable only that way is described, not
+            # unwired, so those edges count here.
             if ent.status != "deprecated" and not any(
-                e in ("participants", "primary-actors") for e, _, _ in incoming
+                e in ("participants", "primary-actors", "journey-actor", "step-actor")
+                for e, _, _ in incoming
             ):
-                add("R_ACTOR_UNWIRED", path, "named by no protocol participant and no product primary-actors")
+                add("R_ACTOR_UNWIRED", path, "named by no protocol participant, no product primary-actors, no journey step")
+
+        if ent.kind == "capability":
+            if not any(e == "realizes" for e, _, _ in incoming):
+                add(
+                    "R_CAP_UNREALIZED",
+                    path,
+                    f"status {ent.status}, nothing `realizes` it — aspiration, not architecture",
+                )
+            else:
+                # How far the doing is spread. Compared over whole pairs.
+                prods = {
+                    owning_product(s)
+                    for e, s, _ in incoming
+                    if e == "realizes" and owning_product(s)
+                }
+                if len(prods) >= 4:
+                    add(
+                        "R_CAP_SPREAD",
+                        path,
+                        f"realized from {len(prods)} products: " + ", ".join(sorted(prods)),
+                    )
+            if not any(e == "measures" for e, _, _ in incoming):
+                add("R_CAP_UNMEASURED", path, "no metric `measures` it — a claim nobody can check")
+
+        if ent.kind == "metric":
+            subjects = [t for e, t, _ in outgoing if e == "measures"]
+            if not subjects:
+                add("R_MET_NO_SUBJECT", path, "no `measures` edge — a number with no subject")
+
+        if ent.kind == "journey":
+            for i in range(1, len(ent.steps)):
+                prev_p = owning_product(ent.steps[i - 1].get("touches", ""))
+                cur_p = owning_product(ent.steps[i].get("touches", ""))
+                if not prev_p or not cur_p or prev_p == cur_p:
+                    continue
+                if not ent.steps[i].get("protocol"):
+                    add(
+                        "R_JRN_INTEGRATION_GAP",
+                        path,
+                        f"steps[{i - 1}] -> steps[{i}] crosses {prev_p} -> {cur_p} "
+                        "and names no protocol",
+                    )
+
+        if ent.kind == "component":
+            # Undocumented running software: it ships, and everything it says
+            # about itself is still a draft. Only what the component owns
+            # DIRECTLY counts, so a parent does not inherit its child's finding.
+            if ent.lifecycle in COMPONENT_SHIPPED:
+                surface = [
+                    entities[k]
+                    for k in kids
+                    if entities[k].kind in ("protocol", "datamodel")
+                    and entities[k].owner_path == path
+                ]
+                if surface and all(s.status == "draft" for s in surface):
+                    add(
+                        "R_LIFECYCLE_UNDOCUMENTED",
+                        path,
+                        f"lifecycle {ent.lifecycle}, but all {len(surface)} of its protocols "
+                        "and datamodels are still `draft`",
+                    )
+            # Delivery risk: shipped software resting on something unbuilt.
+            if ent.lifecycle == "planned":
+                waiting = sorted(
+                    {
+                        s
+                        for e, s, _ in incoming
+                        if e == "depends-on"
+                        and entities[s].kind == "component"
+                        and entities[s].lifecycle in COMPONENT_SHIPPED
+                    }
+                )
+                if waiting:
+                    add(
+                        "R_LIFECYCLE_RISK",
+                        path,
+                        "lifecycle planned, but released components already `depends-on` it: "
+                        + ", ".join(waiting),
+                    )
 
         if ent.kind == "datamodel":
             # Only structural referrers say anything about scope. A requirement
@@ -534,6 +754,14 @@ EXPLAIN = {
     "R_DM_OVER_PROMOTED": "Solution-level vocabulary used by one owner only.",
     "R_DM_UNDER_PROMOTED": "Vocabulary owned by one container but relied on outside it.",
     "R_DM_NEAR_DUPLICATE": "Two models describe nearly the same thing.",
+    "R_CAP_UNREALIZED": "A capability nothing realizes is aspiration, not architecture.",
+    "R_CAP_UNMEASURED": "A capability with no metric is a claim nobody can check.",
+    "R_CAP_SPREAD": "One business doing split across four or more products — the boundaries may cut across the business.",
+    "R_MET_NO_SUBJECT": "A metric measuring nothing is a figure, not an observation.",
+    "R_REQ_UNMEASURED": "A `must` with no metric is a promise nobody can check.",
+    "R_JRN_INTEGRATION_GAP": "A journey crosses a product boundary and no protocol says how.",
+    "R_LIFECYCLE_UNDOCUMENTED": "Released software whose whole described surface is still draft.",
+    "R_LIFECYCLE_RISK": "Released components depend on something nobody has started building.",
 }
 
 
@@ -557,6 +785,7 @@ def main() -> int:
 
     solution, solution_dir, entities = load(target)
     out, inc = build_graph(solution, entities)
+    journey_edges(solution, entities, out, inc)
     schema_edges(solution, entities, inc)
     prose_mentions(solution, solution_dir, entities, inc)
     findings = run_checks(solution, entities, out, inc)

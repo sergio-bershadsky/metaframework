@@ -12,8 +12,23 @@ import { mentionsInValue } from '@/lib/catalog/mentions'
  * the difference between "references are linked" as a property of the system
  * and as a list someone has to maintain.
  */
-export function EntityDetails({ entity, catalog }: { entity: Entity; catalog: Catalog }) {
+export function EntityDetails({
+  entity,
+  catalog,
+  omit = [],
+}: {
+  entity: Entity
+  catalog: Catalog
+  /**
+   * Fields the page has already drawn somewhere better — a metric's stat block,
+   * a component's lifecycle chip. Omitted here rather than never promoted,
+   * because "every kind field appears exactly once" is the property worth
+   * keeping, and this list is the only place that can be checked.
+   */
+  omit?: readonly string[]
+}) {
   const fields = kindFieldNames(entity.kind)
+    .filter((field) => !omit.includes(field))
     .map((field) => [field, (entity.frontmatter as Record<string, unknown>)[field]] as const)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
 

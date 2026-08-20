@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: srn
-version: 5
+version: 6
 status: review
 title: SRN — Solution Resource Name
-summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
+summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
 ---
 
 # SRN — Solution Resource Name
@@ -36,6 +36,9 @@ srn://acme/product/shop/component/checkout/datamodel/cart@1   # component-owned 
 srn://acme/product/shop/protocol/order-placement@2            # product-level protocol
 srn://acme/actor/customer                                     # solution-level actor
 srn://acme/datamodel/money@1                                  # solution-level datamodel
+srn://acme/capability/order-fulfilment                        # solution-level capability
+srn://acme/journey/place-an-order                             # solution-level journey
+srn://acme/product/shop/metric/checkout-conversion            # product-owned metric
 ```
 
 ## The consolidating principle
@@ -144,7 +147,9 @@ body          = "/" ( "component"    "/" name [ body ]
                     / scoped-kind    "/" name )
 
 solution-kind = "actor" / "environment"           ; describe the whole solution
-scoped-kind   = "datamodel" / "protocol" / "adr" / "requirement"
+              / "capability" / "journey"
+scoped-kind   = "datamodel" / "protocol" / "adr"  ; hang under whatever owns them
+              / "requirement" / "metric"
 
 segment       = word *( "-" word )                ; kebab-case, 1–64 chars total
 word          = 1*( lower / digit )
@@ -159,7 +164,7 @@ Constraints beyond the ABNF:
 
 - A reserved kind keyword MUST NOT be used as a `solution` or a `name`
   (`E_SRN_RESERVED`, [below](#reserved-kinds)). ABNF cannot express "any
-  segment except these eight literals" without unreadable noise, so the rule is
+  segment except these eleven literals" without unreadable noise, so the rule is
   stated rather than encoded.
 - The `@version` suffix MAY appear only on the **final** segment.
   `srn://acme/product/shop@2/component/checkout` is `E_SRN_SYNTAX`.
@@ -182,11 +187,12 @@ A reference that does not match is classified by **where** it fails, because one
 
 ## Reserved kinds
 
-There are **eight** kind buckets, and they are the only words that may stand in
+There are **eleven** kind buckets, and they are the only words that may stand in
 a `kind` position:
 
 ```text
 product  component  datamodel  protocol  actor  environment  adr  requirement
+capability  journey  metric
 ```
 
 They MUST NOT be used as a solution or entity **name** (`E_SRN_RESERVED`) — they
@@ -198,17 +204,44 @@ srn://acme/product/shop/datamodel/order-line   # legal — every odd segment is 
 srn://protocol/product/shop                    # ILLEGAL — solution named "protocol"
 srn://acme/product/shop/adr/adr                # ILLEGAL — entity named "adr"
 srn://acme/product/component                   # ILLEGAL — entity named "component"
+srn://acme/product/shop/datamodel/metric       # ILLEGAL — entity named "metric"
 ```
 
-Two of the eight are **containers** — they may own further entities:
+The second line of the bucket list is the later arrival, and the split is worth keeping
+visible: the set grows by **appending**, never by re-sorting or re-cutting, so a
+word that was a bucket stays a bucket and a word that was free for naming may
+stop being free. That last direction is the one with a cost — adopting a bucket
+takes its word out of circulation everywhere at once, and any existing entity
+named after it does not merely become illegal, it silently changes what its path
+means. None existed when these three were adopted, which is why they could be
+adopted at all ([evolution.md](evolution.md), decision-record amendment
+2026-08-20-a).
+
+Two of the eleven are **containers** — they may own further entities:
 
 ```text
 product  component
 ```
 
-The other six are leaves. `actor` and `environment` are additionally
-**solution-level**: they describe the solution as a whole and may only be the
-first pair. Both facts are enforced by the grammar, not by convention
+The other nine are leaves, and they divide by *what they are about*:
+
+```text
+solution-level   actor  environment  capability  journey
+owner-scoped     datamodel  protocol  adr  requirement  metric
+```
+
+A **solution-level** kind describes the solution as a whole and may only be the
+first pair: an actor and an environment sit outside any one product, a
+capability is something the business can do rather than something a component
+happens to contain, and a journey crosses the solution by definition — a product
+owning one would be claiming a path it cannot see the ends of.
+
+An **owner-scoped** kind hangs under whatever it belongs to, from the solution
+down to the deepest component. `metric` is scoped exactly as `requirement` is,
+and for the same reason: a number is only meaningful about *something*, so it
+lives with the thing it measures rather than in one solution-wide pile.
+
+All of this is enforced by the grammar, not by convention
 ([below](#placement-is-grammar)).
 
 ## Parsing algorithm
@@ -228,9 +261,13 @@ executable copy:
 import re
 
 RESERVED_KINDS  = {"product", "component", "datamodel", "protocol",
-                   "actor", "environment", "adr", "requirement"}
+                   "actor", "environment", "adr", "requirement",
+                   "capability", "journey", "metric"}
 CONTAINER_KINDS = {"product", "component"}          # may own further entities
-SOLUTION_KINDS  = {"actor", "environment"}          # may only be the first pair
+SOLUTION_KINDS  = {"actor", "environment",          # may only be the first pair
+                   "capability", "journey"}
+# Everything else is owner-scoped and needs no rule of its own: the container
+# check below is already the whole of its placement.
 
 SEGMENT = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 VERSION = re.compile(r"[1-9][0-9]*")
@@ -297,7 +334,7 @@ def split_version(body: str):
 def assert_placement(path):
     """Ownership is positional, so it is decided here rather than by the loader:
     a product hangs off the solution, a component off a product or component,
-    actors and environments describe the solution as a whole, and a leaf kind
+    the solution-level kinds describe the solution as a whole, and a leaf kind
     owns nothing at all."""
     for index, segment in enumerate(path):
         parent = None if index == 0 else path[index - 1].kind
@@ -326,6 +363,11 @@ Notes pinned by tests (`framework/portal/src/lib/srn/srn.test.ts`):
   alternate").
 - `srn://acme/shop/checkout` → `E_SRN_SYNTAX` (`"shop" is not a kind bucket`).
   The pre-bucket flat form does not parse; there is no compatibility mode.
+- `srn://acme/metric/order-conversion` → `path` `[(metric, order-conversion)]`.
+  The same string was `E_SRN_SYNTAX` before `metric` became a bucket, which is
+  the reinterpretation a new reserved word buys: the word is read as a kind now,
+  never as a name. `srn://acme/product/shop/datamodel/metric` is therefore
+  `E_SRN_RESERVED`, not a datamodel called "metric".
 
 ## Placement is grammar
 
@@ -339,7 +381,13 @@ after building the graph.
 | P1  | Only a `product` or a `component` may own anything.             | `srn://acme/datamodel/money/datamodel/currency` |
 | P2  | A `product` pair may only be the **first** pair.                | `srn://acme/product/shop/product/billing`       |
 | P3  | A `component` pair may never be first — it follows a container. | `srn://acme/component/checkout`                 |
-| P4  | `actor` and `environment` may only be the **first** pair.       | `srn://acme/product/shop/actor/operator`        |
+| P4  | A solution-level kind may only be the **first** pair.           | `srn://acme/product/shop/actor/operator`        |
+
+P4 reads over the set, not over a pair of literals, which is why admitting
+`capability` and `journey` added no rule: they joined `actor` and `environment`
+in `SOLUTION_KINDS` and P4 covered them the same day. `metric` added none
+either, for the opposite reason — an owner-scoped kind is exactly a kind no rule
+after P1 mentions.
 
 More than one rule can apply to the same reference, so the order is fixed: P1
 first, then P2, P3, P4. An entity under a leaf kind is therefore reported as an
@@ -355,6 +403,8 @@ srn://acme/product/shop/component/checkout/product/billing
                                                      #      a product is never nested
 srn://acme/product/shop/component/checkout/environment/production
                                                      # P4 — environments are solution-level
+srn://acme/product/shop/capability/order-fulfilment  # P4 — so are capabilities
+srn://acme/journey/place-an-order/metric/drop-off    # P1 — "a journey cannot own a metric"
 ```
 
 The placements these rules exist to permit, all of them real entities in the
@@ -371,6 +421,17 @@ srn://acme/datamodel/money
 srn://acme/adr/0001-single-currency
 srn://acme/requirement/gdpr-erasure
 srn://acme/protocol/settlement
+```
+
+The three newest kinds have no fixture entity yet, so their legal shapes are
+stated rather than pointed at:
+
+```text
+srn://acme/capability/order-fulfilment                          # P4 satisfied
+srn://acme/journey/place-an-order                               # P4 satisfied
+srn://acme/metric/order-conversion                              # owner-scoped: the solution
+srn://acme/product/shop/metric/checkout-conversion              # …or a product
+srn://acme/product/shop/component/checkout/metric/p99-latency   # …or a component
 ```
 
 Because SRN ≡ path, placement is also a *directory* rule; see
@@ -746,7 +807,7 @@ V6–V8 require the resolved catalog.
 | #   | Rule                                                                                     | Error class            |
 | --- | ---------------------------------------------------------------------------------------- | ---------------------- |
 | V1  | Reference parses under the ABNF + constraints (incl. `..` depth).                        | `E_SRN_SYNTAX`         |
-| V2  | Path alternates `{kind}/{name}`: every kind is one of the eight, every pair is complete. | `E_SRN_SYNTAX`         |
+| V2  | Path alternates `{kind}/{name}`: every kind is one of the eleven, every pair complete.   | `E_SRN_SYNTAX`         |
 | V3  | No reserved kind keyword as a solution or entity **name**.                               | `E_SRN_RESERVED`       |
 | V4  | Placement is legal — rules P1–P4 above.                                                  | `E_SRN_PLACEMENT`      |
 | V5  | Reference does not name a foreign solution (authority ≠ own solution).                   | `E_SRN_CROSS_SOLUTION` |

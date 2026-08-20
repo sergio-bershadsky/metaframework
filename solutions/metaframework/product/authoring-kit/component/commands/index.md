@@ -1,12 +1,13 @@
 ---
 name: commands
 kind: component
-version: 1
+version: 2
 title: Commands
 summary: Three slash commands, 130 lines that route and nothing else — each one says do not improvise from this file.
 status: review
 owner: sergio
 component-type: gateway
+lifecycle: released
 relations:
   uses:
     - /environment/local

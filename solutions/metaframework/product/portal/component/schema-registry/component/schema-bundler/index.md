@@ -1,12 +1,13 @@
 ---
 name: schema-bundler
 kind: component
-version: 1
+version: 2
 title: Schema bundler
 summary: json-schema-ref-parser with a catalog resolver ordered ahead of the http one, so a canonical $ref is satisfied from disk and the no-network claim is test-enforced.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 tags:
   - json-schema
   - offline

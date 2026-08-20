@@ -21,7 +21,7 @@ Before writing anything:
    never let a reference cross from one solution into another.
 3. Settle the **name** before creating any directory. The name is the SRN
    authority and the path; it can never be renamed later without a full swap.
-   It must be kebab-case and must not be one of the eight reserved kinds.
+   It must be kebab-case and must not be one of the eleven reserved kinds.
 
 The minimum viable solution is `solutions/<name>/index.md` with `kind:
 solution`, `version: 1`, and a real `vision` — plus at least one product, the

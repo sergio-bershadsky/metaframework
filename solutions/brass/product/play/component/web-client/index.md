@@ -1,12 +1,13 @@
 ---
 name: web-client
 kind: component
-version: 1
+version: 2
 title: Web client
 summary: The React SPA served by nginx — routing, lobby, board, HUD and interaction; the human's whole interface.
 status: review
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/production

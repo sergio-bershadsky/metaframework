@@ -20,7 +20,7 @@ You are read-only. Never edit files. Produce findings and recommendations.
 1. `framework/spec/` if present — authoritative. Otherwise the distilled
    reference at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`
    (`srn.md`, `structure.md`, `frontmatter.md`, `schemas.md`, `protocols.md`,
-   `environments.md`, `evolution.md`).
+   `journeys.md`, `environments.md`, `evolution.md`).
    For each symptom below — how to confirm it, the false positives that look
    identical, and what the fix costs — read
    `${CLAUDE_PLUGIN_ROOT}/skills/review-solution/references/review-checklist.md`

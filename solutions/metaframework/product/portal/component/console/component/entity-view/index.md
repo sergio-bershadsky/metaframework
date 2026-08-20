@@ -1,12 +1,13 @@
 ---
 name: entity-view
 kind: component
-version: 1
+version: 2
 title: Entity view
 summary: One entity, at whichever version the URL asks for — header, prose, kind fields, relations, contents, artifacts, and the ?v=N historical path.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

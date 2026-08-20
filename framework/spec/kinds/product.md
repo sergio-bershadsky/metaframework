@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: product
-version: 2
+version: 3
 status: review
 title: Kind — product
 summary: The product kind — the deliverable and ownership unit in the solution's product/ bucket, its lifecycle and primary-actors fields, and the grammar that fixes its placement.
@@ -97,7 +97,7 @@ one of the two unreadable.
 | `concept`     | Described before it is built; nothing runs yet.                     |
 | `incubating`  | Being built; contracts still moving.                                |
 | `active`      | In production and invested in.                                      |
-| `maintenance` | In production, no new capability; fixes and compliance only.        |
+| `maintenance` | In production, no new features; fixes and compliance only.          |
 | `sunset`      | Migration away is underway; new consumers are refused.              |
 | `retired`     | No longer running. The description is kept (nothing is ever deleted).|
 
@@ -116,13 +116,28 @@ Six stages, closed. Adding a stage is an additive spec change (bump this
 document's `version`); a team-local nuance goes in an `x-` field, never in a
 seventh value.
 
+A **component** carries a `lifecycle` too, and it is a different enum:
+`planned | in-development | released | sunset | retired`
+([component.md](component.md)). The field name is shared on purpose — one word
+for "where is this in the real world" on both kinds that name a thing built
+apart from the document describing it — and the values are not, because a
+product is *positioned in a portfolio* while a component is *built and
+shipped*. `concept` and `incubating` are investment states, which a component
+inside a funded product is not in; `active` and `maintenance` are investment
+states too, and the delivery fact underneath both is simply `released`. Only
+`sunset` and `retired` mean the same thing on both, and that shared tail is what
+earns the shared name (decision-record amendment 2026-08-20-b). The two are
+validated per kind — `lifecycle: released` on a product is `E_FM_SCHEMA`, and so
+is `lifecycle: incubating` on a component.
+
 ### `primary-actors` — and why it is not a relation edge
 
-The v1 relation edge set ([frontmatter.md](../frontmatter.md)) has **no edge
-whose legal target kind is `actor`** — `uses` targets datamodel, protocol,
-environment, and component. So actor attachment cannot be expressed as a
-relation without redefining the common contract, which kind documents MUST NOT
-do. Hence a kind field.
+The relation edge set ([frontmatter.md](../frontmatter.md)) has **no edge whose
+legal target kind is `actor`** — `uses` targets datamodel, protocol,
+environment, and component, and the two edges added later did not change that
+(`realizes` targets a capability, `measures` targets what a number is about). So
+actor attachment cannot be expressed as a relation without redefining the common
+contract, which kind documents MUST NOT do. Hence a kind field.
 
 `primary-actors` carries the same SRN semantics as a relation list: absolute or
 relative refs, optional `@` pin, validated by the reference rules in
@@ -151,13 +166,13 @@ are derived, not listed here.
 
 ## What may nest inside
 
-| Child                                                     | Allowed | Note                                                  |
-| --------------------------------------------------------- | ------- | ------------------------------------------------------ |
-| `component/` bucket                                        | yes     | Any number of components, nesting to any depth ([component.md](component.md)). |
-| `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets   | yes     | Product-owned entities; protocol only at the NCA of its participants. |
-| `actor/`, `environment/` buckets                            | no      | Solution-level only — `E_SRN_PLACEMENT`.               |
-| a `product/` bucket                                         | no      | Products do not nest — `E_SRN_PLACEMENT`.              |
-| an entity directory not inside a bucket                     | no      | The path would have an odd segment count — `E_SRN_SYNTAX`. |
+| Child                                                                | Allowed | Note                                                                           |
+| -------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `component/` bucket                                                  | yes     | Any number of components, nesting to any depth ([component.md](component.md)). |
+| `datamodel/`, `protocol/`, `adr/`, `requirement/`, `metric/` buckets | yes     | Product-owned entities; protocol only at the NCA of its participants.          |
+| `actor/`, `environment/`, `capability/`, `journey/` buckets          | no      | Solution-level only — `E_SRN_PLACEMENT`.                                       |
+| a `product/` bucket                                                  | no      | Products do not nest — `E_SRN_PLACEMENT`.                                      |
+| an entity directory not inside a bucket                              | no      | The path would have an odd segment count — `E_SRN_SYNTAX`.                     |
 
 ## Validation rules
 
@@ -202,6 +217,9 @@ relations:
     - /product/billing/component/ledger     # component owned by billing
   implements:
     - requirement/pci-scope
+  realizes:
+    - /capability/order-fulfilment          # solution-level: an ability this
+                                            # product is part of delivering
   uses:
     - /datamodel/money@1
 tags:

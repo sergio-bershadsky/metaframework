@@ -1,12 +1,13 @@
 ---
 name: lobby-ui
 kind: component
-version: 1
+version: 2
 title: Lobby UI
 summary: Routing, room creation, seat claiming, credential storage, and the pre-game seating screen.
 status: review
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/production

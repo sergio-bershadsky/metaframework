@@ -1,12 +1,13 @@
 ---
 name: artifact-viewer
 kind: component
-version: 1
+version: 2
 title: Artifact viewer
 summary: Monaco source panes and the JSON Schema view, joined to their drawings by a line index built from the file's own parse tree.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

@@ -1,12 +1,13 @@
 ---
 name: parcel-carrier
 kind: component
-version: 1
+version: 2
 title: Parcel carrier
 summary: The third-party carrier network that actually moves parcels — booked, tracked, and never operated by acme.
 status: approved
 owner: team-fulfilment
 component-type: external
+lifecycle: released
 relations:
   uses:
     - /environment/production

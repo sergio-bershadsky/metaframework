@@ -1,12 +1,13 @@
 ---
 name: bgio-game
 kind: component
-version: 1
+version: 2
 title: boardgame.io game binding
 summary: The Game object — moves, phases, turn order, playerView and endIf; the only file that imports the framework.
 status: review
 owner: sergio-bershadsky
 component-type: library
+lifecycle: released
 relations:
   exposes:
     - /product/play/component/rules/component/bgio-game/datamodel/move-choices@1

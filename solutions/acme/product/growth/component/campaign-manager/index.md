@@ -1,12 +1,13 @@
 ---
 name: campaign-manager
 kind: component
-version: 1
+version: 2
 title: Campaign manager
 summary: The authoring surface — where a marketer writes campaigns, promos, and segment rules, and only there.
 status: review
 owner: team-growth
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production

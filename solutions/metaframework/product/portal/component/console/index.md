@@ -1,12 +1,13 @@
 ---
 name: console
 kind: component
-version: 1
+version: 2
 title: Console
 summary: The console chrome and the design tokens every other surface reads — shell, masthead, ontology hues, and the one hex mirror of the palette.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

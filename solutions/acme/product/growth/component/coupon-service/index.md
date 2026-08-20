@@ -1,12 +1,13 @@
 ---
 name: coupon-service
 kind: component
-version: 1
+version: 2
 title: Coupon service
 summary: Mints, validates, and burns coupon codes — the only component in growth holding a lock a customer can race.
 status: review
 owner: team-growth
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -20,6 +21,8 @@ relations:
   implements:
     - /product/growth/requirement/stackable-promotions
     - /requirement/gdpr-erasure
+  realizes:
+    - /capability/promotion-pricing
 tags:
   - coupons
   - stateful

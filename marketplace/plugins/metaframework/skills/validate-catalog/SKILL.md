@@ -1,6 +1,6 @@
 ---
 name: validate-catalog
-description: This skill should be used when the user asks to "validate the catalog", "check the catalog", "run the catalog check", "why is the catalog failing", "the vitest catalog suite is red", "what does E_SRN_DANGLING mean", "fix these diagnostics", or names any metaframework diagnostic code (E_SRN_*, E_FM_*, E_STRUCT_*, E_DM_*, E_VER_*, E_PROTO_*, W_*). It should also be used immediately after any skill or command creates or edits an entity, since the catalog check is the pass condition for that work. It covers running the check, reading its output, mapping each code family to its usual cause and fix, which warnings matter, and what the check deliberately does not cover. This is legality only — for whether the decomposition, placement and relation graph are any GOOD, use `review-solution`.
+description: This skill should be used when the user asks to "validate the catalog", "check the catalog", "run the catalog check", "why is the catalog failing", "the vitest catalog suite is red", "what does E_SRN_DANGLING mean", "fix these diagnostics", or names any metaframework diagnostic code (E_SRN_*, E_FM_*, E_STRUCT_*, E_DM_*, E_VER_*, E_PROTO_*, E_JRN_*, E_MET_*, W_CAP_*, W_*). It should also be used immediately after any skill or command creates or edits an entity, since the catalog check is the pass condition for that work. It covers running the check, reading its output, mapping each code family to its usual cause and fix, which warnings matter, and what the check deliberately does not cover. This is legality only — for whether the decomposition, placement and relation graph are any GOOD, use `review-solution`.
 ---
 
 # Validate a metaframework catalog
@@ -76,7 +76,7 @@ actually show.
 |--------------------------|----------|------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
 | `E_SRN_SYNTAX`           | error    | Miscounted `..` in a relative reference; an odd path tail (a bucket with no name); a non-kebab segment; `@version` not on the final segment. | Rewrite the reference solution-absolute (`/product/shop/datamodel/money@1`) instead of recounting dots. |
 | `E_SRN_PLACEMENT`        | error    | A directory in a bucket its kind may not occupy — a `component` at solution level, a `product` under a product, an `actor` under a product, a leaf kind owning children. | Correct placement **before publishing**. On a published entity this is a swap, never a `git mv`. |
-| `E_SRN_RESERVED`         | error    | One of the eight kinds used as a solution or entity *name*.                              | Rename the directory (unpublished) or swap (published). Kinds are bucket names only.     |
+| `E_SRN_RESERVED`         | error    | One of the eleven kinds used as a solution or entity *name*.                             | Rename the directory (unpublished) or swap (published). Kinds are bucket names only.     |
 | `E_SRN_CROSS_SOLUTION`   | error    | A network-path reference (`//other-solution/…`) leaving the solution.                    | Solutions are sealed. Model the foreign thing as an `external` component instead.        |
 | `E_SRN_DANGLING`         | error    | The reference resolves to an SRN with no entity behind it — typo, entity not created yet, or the target failed to load at stage 2. | Check the target exists **and loads**; fix the target's own diagnostics first.            |
 | `E_SRN_VERSION`          | **warning** | A `@N` pin that does not match the target's current `version`.                        | Bump the pin, or leave it if the pin is deliberate — historic versions resolve from git.  |
@@ -90,6 +90,31 @@ actually show.
 | `E_STRUCT_MISSING_INDEX` | error    | An entity exists below a directory that has no `index.md`.                               | Create the missing parent `index.md` — or fix the parent's `E_FM_SCHEMA`, which is the usual real cause. |
 | `E_STRUCT_DUPLICATE_SRN` | error    | Two directories resolving to one SRN — a symlink, or a case-insensitive filesystem.      | Remove the duplicate. Symlinks are never a legitimate reuse mechanism (rule C5).           |
 | `W_REF_DEPRECATED`       | warning  | The reference target has `status: deprecated`.                                            | Migrate to the successor named by the target's derived `superseded-by`, or accept it.      |
+
+Codes the loader gained with the `capability`, `journey` and `metric` kinds. The
+severity split is one rule worth reading as a rule: a violation is an **error**
+when the entity is meaningless without the fix, and a **warning** when it is a
+true statement about a system still being built, or a judgement call about who
+owns a number.
+
+| Code                     | Severity | Usual cause                                                                              | Fix                                                                                     |
+|--------------------------|----------|------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `E_MET_NO_SUBJECT`       | error    | A metric with no `measures` edge, or an empty one. It is the only relation edge any kind requires. | Add the subject — a capability, component, protocol or requirement. A number with no subject is a figure, not an observation. |
+| `E_MET_TARGET`           | error    | `target` is not a literal of the grammar its `metric-type` selects: a ratio without `%`, an unknown duration unit, a lowercase or missing currency code, a negative value on a non-`count`. | Fix the literal, not the enum. The unit lives inside the string on purpose.               |
+| `E_MET_WINDOW`           | error    | `window` is neither `instant` nor a rolling duration — usually a calendar period (`"1 month"`) or free text. | Pick the rolling window closest to it; calendar alignment is the reporting tool's job.    |
+| `E_JRN_ACTOR_KIND`       | error    | A journey's frontmatter `actor` resolves to something that is not an actor.               | Point it at a solution-level actor. A component is not a protagonist.                     |
+| `W_MET_SUBJECT_SCOPE`    | warning  | The metric is filed outside its subject's ownership line — typically a component filing a number about a sibling it does not own. | Move it up to the container that owns both, or the subject is wrong. Capability subjects never raise it: a capability has no owner. |
+| `W_CAP_UNREALIZED`       | warning  | No product or component `realizes` the capability.                                        | Read it against `status`. On `draft` it is the to-do list; on **`approved`** it means an agreed description of something the business cannot do. |
+| `W_CAP_REALIZATION_EDGE` | warning  | A capability authors `uses` toward a component — the inverse of `realizes` written by hand. | Delete it and write `realizes` on the component. The portal already derives `realized-by`. |
+
+**Journey artifact codes are not in this table, and that is the point.**
+`E_JRN_SCHEMA`, `E_JRN_NAME`, `E_JRN_STEP_COUNT`, `E_JRN_BRANCH`,
+`W_JRN_ACTOR_ABSENT` and `W_JRN_UNDOCUMENTED_INTEGRATION` come from the
+`journey.yaml` parser, which runs when the portal **renders** the journey entity
+— exactly like `E_PROTO_*`. The catalog loader reads `journey.yaml` only as a
+generic artifact (so a YAML *syntax* error surfaces) and never validates it
+against the mini-spec, so a green check says nothing about a journey's steps.
+Open the entity's page after writing or editing one.
 
 `E_STRUCT_KIND_PLACEMENT` is **retired** and must never be emitted or cited —
 every placement violation is `E_SRN_PLACEMENT` now, raised while the path is
@@ -116,6 +141,17 @@ Which warnings matter:
   migration; only the author knows which, so ask rather than bumping silently.
 - **`W_DM_CONTRADICTION`, `W_DM_UNION_TAG`** — schema-quality signals from the
   datamodel registry; act on them when touching the schema anyway.
+- **`W_CAP_UNREALIZED`** — matters *read against `status`*, and not otherwise. On
+  a `draft` capability it is the expected state of design in flight; on an
+  `approved` one it is the catalog's sharpest single number, an agreed
+  description of something the business cannot actually do. Never "fix" it by
+  deprecating the capability: `status` describes the document, never the world,
+  and a business that has stopped being able to do something still needs that
+  fact written down.
+- **`W_CAP_REALIZATION_EDGE`, `W_MET_SUBJECT_SCOPE`** — both mean the authoring
+  is in the wrong file rather than wrong in substance. The first is an inverse
+  edge written by hand; the second is a judgement about accountability that
+  should be visible rather than blocked.
 
 ## What this check does not cover
 
@@ -124,13 +160,15 @@ available here. The catalog suite proves the tree *loads*. It does not prove
 the tree is *right*, and several specified rules are not machine-checked at all.
 
 - **Not exercised by this suite** — the protocol `states.json` and workflow
-  validators (`E_PROTO_*`) and the git version-history check
+  validators (`E_PROTO_*`), the `journey.yaml` parser (`E_JRN_SCHEMA`,
+  `E_JRN_NAME`, `E_JRN_STEP_COUNT`, `E_JRN_BRANCH`, `W_JRN_ACTOR_ABSENT`,
+  `W_JRN_UNDOCUMENTED_INTEGRATION`) and the git version-history check
   (`E_VER_REGRESSION`) live in separate modules whose test suites use their own
   hermetic fixtures. Running the whole suite (`npx vitest run`) proves those
-  validators work; it does **not** run them over `solutions/`. `E_PROTO_*` meets
-  real content only when the portal *renders* a protocol page, and it does not
-  reach `/diagnostics`. After touching a `states.json` or a workflow, open that
-  entity's page.
+  validators work; it does **not** run them over `solutions/`. `E_PROTO_*` and
+  `E_JRN_*` meet real content only when the portal *renders* the protocol or
+  journey page, and they do not reach `/diagnostics`. After touching a
+  `states.json`, a workflow or a `journey.yaml`, open that entity's page.
 
   Two things that used to sit in this list no longer do:
 
@@ -154,8 +192,13 @@ the tree is *right*, and several specified rules are not machine-checked at all.
   (`E_PROTO_PARTICIPANT_KIND`, `E_PROTO_ALIAS_DUP`), protocol NCA placement
   (`W_STRUCT_PROTOCOL_NCA`), unimplemented `must` requirements
   (`W_REQ_UNIMPLEMENTED`), a `library` declaring an environment
-  (`E_COMP_LIBRARY_ENVIRONMENT`). These are author discipline. Verify them by
-  reading. The full list is in `references/diagnostics.md`.
+  (`E_COMP_LIBRARY_ENVIRONMENT`), a journey entity with no `journey.yaml`
+  (`E_JRN_ARTIFACT_MISSING`) or with an unrecognised file beside it
+  (`W_JRN_ARTIFACT_UNKNOWN`), and the kind checks on a journey step's own
+  references (`E_JRN_TOUCHES_KIND`, `E_JRN_PROTOCOL_KIND`,
+  `W_JRN_PROTOCOL_UNRELATED` — these need the resolved catalog and no module
+  runs them yet). These are author discipline. Verify them by reading. The full
+  list is in `references/diagnostics.md`.
 - **Not a modelling review.** Whether the decomposition, placement and relation
   graph make sense is the `catalog-reviewer` agent's job, not this check's.
 
@@ -191,8 +234,9 @@ after every edit and report the new result, including the count that changed.
   portal emits and which module emits it, every code the specification defines
   that nothing implements, and the retired codes.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the contracts behind
-  the codes: `srn.md` (`E_SRN_*`), `frontmatter.md` (`E_FM_*`), `structure.md`
-  (`E_STRUCT_*`), `schemas.md` (`E_DM_*`), `protocols.md` (`E_PROTO_*`),
+  the codes: `srn.md` (`E_SRN_*`), `frontmatter.md` (`E_FM_*`, `E_MET_*`,
+  `W_CAP_*`), `structure.md` (`E_STRUCT_*`), `schemas.md` (`E_DM_*`),
+  `protocols.md` (`E_PROTO_*`), `journeys.md` (`E_JRN_*`, `W_JRN_*`),
   `environments.md` (`E_ENV_*`, `E_ADR_*`, `E_REQ_*`, `W_ACTOR_*`, `E_COMP_*`),
   `evolution.md` (`E_VER_*`, the swap).
   When `framework/spec/` is present in the repository it is authoritative and

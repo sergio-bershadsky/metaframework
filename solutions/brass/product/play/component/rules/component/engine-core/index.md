@@ -1,12 +1,13 @@
 ---
 name: engine-core
 kind: component
-version: 1
+version: 2
 title: Engine core
 summary: Board graph, tile tables, markets, income, network reachability, deck, scoring, and the mutating mechanics.
 status: review
 owner: sergio-bershadsky
 component-type: library
+lifecycle: released
 relations:
   exposes:
     - /product/play/component/rules/component/engine-core/datamodel/game-state@1

@@ -1,12 +1,13 @@
 ---
 name: board-view
 kind: component
-version: 1
+version: 2
 title: Board view
 summary: The live flat SVG board, projected from the engine's board graph rather than drawn as an image.
 status: review
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/production

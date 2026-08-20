@@ -1,0 +1,40 @@
+name: coupon-redemption
+steps:
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout
+    note: Types the code against a basket that is already priced. Checkout is the
+      only component in shop a browser reaches.
+
+  - actor: /actor/customer
+    touches: /product/growth/component/coupon-service
+    protocol: /product/growth/protocol/promotion-evaluation
+    # shop -> growth, documented: promotion-evaluation lists both ends.
+    note: Is the code real, unspent, and theirs? The one lock in growth a customer
+      can race is taken here.
+
+  - actor: /actor/customer
+    touches: /product/growth/component/promotion-engine
+    protocol: /product/growth/protocol/promotion-evaluation
+    note: What the basket is worth with the code applied, answered inside a budget
+      and returned as a short-lived quote.
+
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout
+    protocol: /product/growth/protocol/promotion-evaluation
+    # growth -> shop, documented: the same request-response, read from its
+    # other end. Growth says what an offer is worth; shop says what is charged.
+    note: The quote becomes the price. Nothing growth returned was a charge until
+      this step.
+
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout/component/payment
+    protocol: /product/shop/protocol/order-placement
+    note: Pays the discounted total. The capture is what makes the redemption
+      real, and it is the customer's last step on this path.
+
+  - actor: /actor/marketer
+    touches: /product/growth/component/campaign-manager
+    protocol: /product/growth/protocol/redemption-events
+    # shop -> growth, documented: the burn arrives as an event, not as a call.
+    note: Sees the spend land against the campaign, minutes later and without
+      having asked anyone.

@@ -1,12 +1,13 @@
 ---
 name: edge-router
 kind: component
-version: 1
+version: 2
 title: Edge router
 summary: The Traefik ingress that puts client and server behind one origin, split by path prefix.
 status: review
 owner: sergio-bershadsky
 component-type: gateway
+lifecycle: released
 relations:
   uses:
     - /environment/production

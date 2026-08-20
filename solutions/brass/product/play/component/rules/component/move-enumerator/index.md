@@ -1,12 +1,13 @@
 ---
 name: move-enumerator
 kind: component
-version: 1
+version: 2
 title: Move enumerator
 summary: The shared legal-move enumerator and the read-only resource planners every client narrows against.
 status: review
 owner: sergio-bershadsky
 component-type: library
+lifecycle: released
 relations:
   exposes:
     - /protocol/legal-move-api

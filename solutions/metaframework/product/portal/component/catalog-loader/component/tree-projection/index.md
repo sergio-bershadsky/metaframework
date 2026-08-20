@@ -1,12 +1,13 @@
 ---
 name: tree-projection
 kind: component
-version: 1
+version: 2
 title: Tree projection
 summary: The serialisable TreeNode view of the entity graph and its four lenses — a component because it exists to cross the RSC boundary, not to load anything.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 tags:
   - rsc
   - navigation

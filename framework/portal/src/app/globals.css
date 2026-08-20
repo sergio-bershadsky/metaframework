@@ -27,10 +27,14 @@
  * metaframework portal — "architect's console".
  *
  * Dark-only by decision (docs/decision-record.md). The palette is built on one
- * idea: COLOR IS ONTOLOGY. Each of the nine entity kinds owns exactly one hue at
- * a fixed lightness/chroma, and that hue is used identically in the tree, in
+ * idea: COLOR IS ONTOLOGY. Each of the twelve entity kinds owns exactly one hue
+ * at a fixed lightness/chroma, and that hue is used identically in the tree, in
  * badges, and in diagram nodes — so a datamodel is the same emerald everywhere
  * it appears. Nothing else in the UI is allowed to be colourful.
+ *
+ * The kinds sit in two tiers, and the tier is carried by CHROMA: nine
+ * structural kinds at C 0.14–0.15, three conceptual ones at C 0.08. See the
+ * --kind-* block below.
  */
 
 @theme inline {
@@ -63,7 +67,7 @@
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
 
-  /* Ontology hues — evenly spaced around the wheel at matched L/C. */
+  /* Ontology hues — spread around the wheel at matched L/C, one per kind. */
   --color-kind-solution: var(--kind-solution);
   --color-kind-product: var(--kind-product);
   --color-kind-component: var(--kind-component);
@@ -73,6 +77,9 @@
   --color-kind-actor: var(--kind-actor);
   --color-kind-requirement: var(--kind-requirement);
   --color-kind-adr: var(--kind-adr);
+  --color-kind-capability: var(--kind-capability);
+  --color-kind-journey: var(--kind-journey);
+  --color-kind-metric: var(--kind-metric);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -127,6 +134,28 @@
   --kind-actor: oklch(0.78 0.14 65);
   --kind-requirement: oklch(0.74 0.15 30);
   --kind-adr: oklch(0.72 0.15 350);
+
+  /*
+   * The CONCEPTUAL tier. Nine hues at ~35° already sat on the distinguishability
+   * floor, so three more at full chroma would have collided — hue alone had run
+   * out. These three drop to C 0.08 (a little over half the structural 0.14–0.15)
+   * and rise to L 0.80 (just above the structural 0.72–0.78 band), so SATURATION
+   * reads as "concept vs structure" before hue resolves at all: capability,
+   * journey and metric describe intent, the other nine describe the built thing.
+   * Within the tier only three hues have to be told apart, and they take the
+   * three real gaps left on the wheel — journey between actor and environment,
+   * metric between solution and adr, capability between adr and requirement.
+   *
+   * Measured in oklab (ΔE = √(ΔL²+Δa²+Δb²)), against the console's own floor —
+   * the closest existing pair, environment/datamodel at 0.0725:
+   *   within the tier   metric↔capability 0.0763   (the tightest of the three)
+   *   tier ↔ structural journey↔environment 0.0828 (the tightest of 27 pairs)
+   * Both clear the floor, which is what makes this a tier rather than a crowd.
+   * Hue means "which kind", never "how important".
+   */
+  --kind-capability: oklch(0.8 0.08 12);
+  --kind-journey: oklch(0.8 0.08 115);
+  --kind-metric: oklch(0.8 0.08 315);
 }
 
 @layer base {
@@ -329,6 +358,58 @@
     stroke: var(--kind-protocol);
     stroke-width: 1.25;
   }
+
+  /*
+   * Mermaid journey walks (journey-diagram.tsx). Same two rules the state chart
+   * needs, for the same two reasons: flex plus auto margins centres the SVG both
+   * ways while keeping overflow reachable by scroll, and a step that navigates
+   * has to say so under the pointer. Each step's border hue is set by the
+   * component from `--kind-*`, because it depends on what the step touches.
+   */
+  .jny-host {
+    display: flex;
+  }
+
+  .jny-host svg.jny-svg {
+    display: block;
+    margin: auto;
+    height: auto;
+  }
+
+  .jny-hit {
+    cursor: pointer;
+  }
+
+  /*
+   * A band's title sits ON its top border, and the chain enters the band from
+   * exactly there — so the arrow is drawn straight through the product's name.
+   * Mermaid offers no control over either position, and both are right; what is
+   * wrong is only that the text has nothing behind it.
+   *
+   * A halo rather than a background box: mermaid sizes the label's
+   * foreignObject from the text alone, so anything that widens the content —
+   * padding, a border — is clipped, and the title disappears entirely
+   * (measured: `padding: 0 6px` erased every band name). A text-shadow changes
+   * no layout at all.
+   */
+  .jny-svg .cluster-label {
+    text-shadow:
+      0 0 3px var(--background),
+      0 0 3px var(--background),
+      0 0 5px var(--background);
+  }
+
+  /*
+   * A product boundary nobody wrote a protocol for — the finding the journey
+   * kind exists to produce. The colour itself is applied inline by the
+   * component (mermaid scopes its edge styles by render id, which outranks any
+   * rule written here); this class is what names the arrow for anyone reading
+   * the DOM, and the hook for a future rule that does not fight an id.
+   */
+  .jny-hop-gap {
+    stroke-linecap: round;
+  }
+
 
   /* Focus ring consistent across custom controls. */
   .focusable:focus-visible {

@@ -9,6 +9,7 @@ import {
   type EntityKind,
   KIND_FRONTMATTER,
   commonFrontmatterSchema,
+  kindDiagnostics,
   unknownFields,
 } from './frontmatter'
 import type { Artifact, Catalog, Diagnostic, Entity, Relation } from './types'
@@ -48,6 +49,7 @@ export async function loadCatalog({ catalogDir }: LoadOptions): Promise<Catalog>
 
   linkHierarchy(entities, diagnostics)
   const inbound = resolveRelations(entities, diagnostics)
+  checkGraphShape(entities, inbound, diagnostics)
 
   return { entities, solutions, diagnostics, inbound }
 }
@@ -157,6 +159,18 @@ async function readEntity(
         srn,
       })
     }
+  }
+
+  // Kind rules the schema cannot express, because the spec gives them codes of
+  // their own — a metric's target and window literals are the v1 cases.
+  for (const issue of kindDiagnostics(expectedKind, data as Record<string, unknown>)) {
+    diagnostics.push({
+      code: issue.code,
+      severity: 'error',
+      message: issue.message,
+      path: docPath,
+      srn,
+    })
   }
 
   for (const field of unknownFields(data as Record<string, unknown>, expectedKind)) {
@@ -420,4 +434,109 @@ function resolveRelations(
     }
   }
   return inbound
+}
+
+/**
+ * Checks that need the whole resolved graph rather than one document.
+ *
+ * Codes and severities are the kind documents': kinds/capability.md,
+ * kinds/journey.md and kinds/metric.md. The severity split there is consistent
+ * and worth reading as one rule — a violation is an *error* when the entity is
+ * meaningless without the fix (a metric with no subject is a figure, not an
+ * observation) and a *warning* when it is a true statement about a system still
+ * being built (a capability nothing realizes yet) or a judgement call about who
+ * owns a number.
+ */
+function checkGraphShape(
+  entities: Map<string, Entity>,
+  inbound: Map<string, Array<{ edge: EdgeType; from: string }>>,
+  diagnostics: Diagnostic[],
+): void {
+  for (const entity of entities.values()) {
+    const docPath = path.join(entity.relDir, ENTITY_DOCUMENT)
+    const at = (code: string, severity: Diagnostic['severity'], message: string) =>
+      diagnostics.push({ code, severity, message, path: docPath, srn: entity.srn })
+
+    if (entity.kind === 'capability') {
+      // The gap between capabilities described and capabilities realized is the
+      // roadmap; on an `approved` capability it is the number a solution
+      // dashboard leads with.
+      if (!(inbound.get(entity.srn) ?? []).some((edge) => edge.edge === 'realizes')) {
+        at('W_CAP_UNREALIZED', 'warning', 'no product or component realizes this capability')
+      }
+      // Realization is stated once, by the realizer. A capability reaching down
+      // to a component says the same thing in the direction that drifts.
+      for (const relation of entity.relations) {
+        if (relation.edge !== 'uses' || !relation.target) continue
+        if (entities.get(relation.target)?.kind !== 'component') continue
+        at(
+          'W_CAP_REALIZATION_EDGE',
+          'warning',
+          `"uses" toward component ${relation.target} — realization is the component's "realizes" edge`,
+        )
+      }
+    }
+
+    if (entity.kind === 'journey') {
+      // The protagonist is a frontmatter reference rather than a relation, so
+      // nothing above resolved it; a journey without a named actor is a list of
+      // touches.
+      const ref = (entity.frontmatter as { actor?: unknown }).actor
+      if (typeof ref === 'string') {
+        let target: string | null = null
+        try {
+          target = formatSrn({ ...parseSrn(resolveRef(entity.srn, ref)), version: null })
+        } catch (error) {
+          at(
+            error instanceof SrnError ? error.code : 'E_SRN_SYNTAX',
+            'error',
+            error instanceof Error ? error.message : String(error),
+          )
+        }
+        const actor = target ? entities.get(target) : null
+        if (target && !actor) {
+          at('E_SRN_DANGLING', 'error', `actor "${ref}" resolves to ${target}, which does not exist`)
+        } else if (actor && actor.kind !== 'actor') {
+          at('E_JRN_ACTOR_KIND', 'error', `actor "${ref}" resolves to a ${actor.kind}, not an actor`)
+        }
+      }
+    }
+
+    if (entity.kind === 'metric') {
+      const subjects = entity.relations.filter((relation) => relation.edge === 'measures')
+      if (subjects.length === 0) {
+        // The one required edge in the ontology. A number with no subject is not
+        // an observation, and the kind's whole derived value is reading the edge
+        // backwards, from the thing measured to the numbers that measure it.
+        at('E_MET_NO_SUBJECT', 'error', 'a metric with no "measures" edge is a figure, not an observation')
+      }
+
+      for (const relation of subjects) {
+        const subject = relation.target ? entities.get(relation.target) : null
+        if (!subject) continue
+        // Placement says whose number this is; `measures` says what it is about.
+        // They only have to agree where the subject sits in the containment tree
+        // at all — a capability is solution-level and owned by nobody, so it
+        // constrains nothing.
+        const subjectOwner = subject.kind === 'component' ? subject.srn : subject.parent
+        if (subject.kind === 'capability' || !subjectOwner || !entity.parent) continue
+        if (entity.parent === subjectOwner || isAncestor(entities, entity.parent, subjectOwner)) continue
+        at(
+          'W_MET_SUBJECT_SCOPE',
+          'warning',
+          `filed under ${entity.parent}, which neither owns nor contains the owner of ${relation.target}`,
+        )
+      }
+    }
+  }
+}
+
+/** Whether `candidate` sits somewhere above `srn` on the containment chain. */
+function isAncestor(entities: Map<string, Entity>, candidate: string, srn: string): boolean {
+  let cursor = entities.get(srn)?.parent ?? null
+  while (cursor) {
+    if (cursor === candidate) return true
+    cursor = entities.get(cursor)?.parent ?? null
+  }
+  return false
 }

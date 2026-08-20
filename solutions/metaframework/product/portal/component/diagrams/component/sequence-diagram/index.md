@@ -1,12 +1,13 @@
 ---
 name: sequence-diagram
 kind: component
-version: 1
+version: 2
 title: Sequence diagram
 summary: Hand-rolled SVG over a pure layout pass — lifelines as columns, steps as ordered rows, fragments as nested boxes, and an ordered list that is the diagram in words.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

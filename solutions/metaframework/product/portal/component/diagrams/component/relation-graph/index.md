@@ -1,12 +1,13 @@
 ---
 name: relation-graph
 kind: component
-version: 1
+version: 2
 title: Relation graph
 summary: The frontmatter relation edges of one entity drawn as a graph, scoped to one hop, with edge types told apart by line rather than by colour.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

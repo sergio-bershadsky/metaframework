@@ -1,12 +1,13 @@
 ---
 name: protocol-model
 kind: component
-version: 1
+version: 2
 title: Protocol model
 summary: The workflow mini-spec parser, the XState-subset validator, and the pure mermaid compiler — three files answering one question, and none of their diagnostics reaches /diagnostics.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   depends-on:
     - ../srn

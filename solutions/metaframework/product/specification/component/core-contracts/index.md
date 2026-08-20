@@ -1,12 +1,13 @@
 ---
 name: core-contracts
 kind: component
-version: 1
+version: 2
 title: Core contracts
 summary: The five spec documents binding on every kind — index, structure, srn, frontmatter, evolution; 2,018 lines that no kind document may relax.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   exposes:
     - /product/specification/datamodel/entity-frontmatter

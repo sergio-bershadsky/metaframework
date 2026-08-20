@@ -1,12 +1,13 @@
 ---
 name: architecture-review
 kind: component
-version: 1
+version: 2
 title: Architecture review
 summary: One question — is this a good description of this system? — delivered through two surfaces, an inline skill and a read-only agent, that are not equivalent.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   uses:
     - ../reference-bundle

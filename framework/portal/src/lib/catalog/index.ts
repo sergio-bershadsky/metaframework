@@ -3,6 +3,7 @@ import { cache } from 'react'
 import { type SchemaRegistry, buildSchemaRegistry } from '../schema/registry'
 import { catalogFingerprint } from './fingerprint'
 import { loadCatalog } from './load'
+import { KIND_ORDER } from './tree'
 import type { Catalog, Entity } from './types'
 
 export * from './types'
@@ -133,17 +134,17 @@ export async function getEntity(srn: string): Promise<Entity | null> {
   return catalog.entities.get(srn) ?? null
 }
 
-/** Sibling order below a container: sub-containers first, then owned kinds. */
-const CONTAINED_KIND_ORDER = [
-  'product',
-  'component',
-  'protocol',
-  'datamodel',
-  'actor',
-  'environment',
-  'requirement',
-  'adr',
-]
+/**
+ * Sibling order below a container: sub-containers first, then owned kinds.
+ *
+ * Derived from the rail's {@link KIND_ORDER} rather than restated, because it
+ * was the same sequence minus `solution` — and a second copy is a second place
+ * to forget a kind. It had already been forgotten once: capability, journey and
+ * metric were missing here while the rail knew all three, and `indexOf` answers
+ * -1 for a kind it does not know, which sorted them *above* products. A list
+ * whose failure mode is silent misordering is a list worth deriving.
+ */
+const CONTAINED_KIND_ORDER: readonly string[] = KIND_ORDER.filter((kind) => kind !== 'solution')
 
 /** Entities directly beneath `srn`, containers first, then owned kinds. */
 export function childrenOf(catalog: Catalog, srn: string): Entity[] {

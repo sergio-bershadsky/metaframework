@@ -1,12 +1,13 @@
 ---
 name: hud
 kind: component
-version: 1
+version: 2
 title: HUD
 summary: Score track, player strip, markets, action bar, player mat, and card faces — everything around the board.
 status: review
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/production

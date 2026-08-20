@@ -64,6 +64,9 @@ srn://acme/product/shop/component/checkout/datamodel/cart@1   # component-owned 
 srn://acme/product/shop/protocol/order-placement@2            # product-level protocol
 srn://acme/actor/customer                                     # solution-level actor
 srn://acme/datamodel/money@1                                  # solution-level datamodel
+srn://acme/capability/order-fulfilment                        # solution-level capability
+srn://acme/journey/first-purchase                             # solution-level journey
+srn://acme/product/shop/metric/checkout-conversion            # product-owned metric
 ```
 
 Segments are kebab-case, 1–64 chars: `^[a-z0-9]+(-[a-z0-9]+)*$`. No trailing
@@ -76,20 +79,42 @@ In RFC 3986 terms the **solution occupies the authority position**; everything
 after it is path. That is why a relative reference can never leave the solution:
 sealed universes fall out of the URI grammar.
 
-## The eight reserved kinds
+## The eleven reserved kinds
 
 ```text
 product  component  datamodel  protocol  actor  environment  adr  requirement
+capability  journey  metric
 ```
 
 They may stand only in a **kind** position. Using one as a solution name or an
 entity name is `E_SRN_RESERVED`.
 
-| Property             | Kinds                                         |
-|----------------------|-----------------------------------------------|
-| Containers (may own) | `product`, `component`                        |
-| Solution-level only  | `actor`, `environment`                        |
-| Owner-scoped leaves  | `datamodel`, `protocol`, `adr`, `requirement` |
+| Property             | Kinds                                                   |
+|----------------------|---------------------------------------------------------|
+| Containers (may own) | `product`, `component`                                  |
+| Solution-level only  | `actor`, `environment`, `capability`, `journey`         |
+| Owner-scoped leaves  | `datamodel`, `protocol`, `adr`, `requirement`, `metric` |
+
+A **solution-level** kind describes the solution as a whole and may only be the
+first pair: an actor and an environment sit outside any one product, a
+capability is something the business can do rather than something a component
+happens to contain, and a journey crosses the solution by definition — a product
+owning one would be claiming a path whose ends it cannot see.
+
+An **owner-scoped** kind hangs under whatever it belongs to, from the solution
+down to the deepest component. `metric` is scoped exactly as `requirement` is,
+and for the same reason: a number is only meaningful about *something*, so it
+lives with whatever is accountable for it rather than in one solution-wide pile.
+What it *measures* is an edge, not its placement.
+
+The second line of the bucket list is the later arrival. The set grows by
+**appending**, never by re-sorting or re-cutting, so a word that was a bucket
+stays a bucket — and a word that was free for naming may stop being free. That
+last direction has a cost: adopting a bucket takes its word out of circulation
+everywhere at once, and any entity already named after it does not merely become
+illegal, its path silently changes meaning. `srn://acme/product/shop/metric/checkout-conversion` was `E_SRN_SYNTAX` before
+`metric` became a bucket and is now a legal metric address; `srn://acme/product/shop/datamodel/metric` is `E_SRN_RESERVED`, not a
+datamodel called "metric".
 
 ## Parsing is a pair walk
 
@@ -98,7 +123,7 @@ time**: first is the kind, second is the name. No lookahead, no backtracking.
 
 - An odd tail is `E_SRN_SYNTAX` — a bucket on its own is a directory, not an
   entity. `srn://acme/product/shop/datamodel` and `srn://acme/product` both fail.
-- A first-of-pair that is not one of the eight is `E_SRN_SYNTAX`
+- A first-of-pair that is not one of the eleven is `E_SRN_SYNTAX`
   (`srn://acme/shop/checkout` → `"shop" is not a kind bucket`). The pre-bucket
   flat form does not parse; there is no compatibility mode.
 - The SRN's kind is the kind of the last pair. `srn://acme` has no pairs and no
@@ -113,7 +138,20 @@ Enforced by the parser in this fixed order, reported as `E_SRN_PLACEMENT`:
 | P1  | Only a `product` or a `component` may own anything.             | `srn://acme/datamodel/money/datamodel/currency` |
 | P2  | A `product` pair may only be the **first** pair.                | `srn://acme/product/shop/product/billing`       |
 | P3  | A `component` pair may never be first — it follows a container. | `srn://acme/component/checkout`                 |
-| P4  | `actor` and `environment` may only be the **first** pair.       | `srn://acme/product/shop/actor/operator`        |
+| P4  | A **solution-level** kind may only be the **first** pair.       | `srn://acme/product/shop/actor/operator`        |
+
+P4 reads over the set, not over a pair of literals, which is why admitting
+`capability` and `journey` added no rule — they joined `actor` and `environment`
+in it. `metric` added none either, for the opposite reason: an owner-scoped kind
+is exactly a kind that no rule after P1 mentions.
+
+```text
+srn://acme/product/shop/capability/order-fulfilment  # P4 — capabilities are solution-level
+srn://acme/product/shop/journey/checkout-flow        # P4 — so are journeys
+srn://acme/journey/first-purchase/metric/drop-off    # P1 — a journey owns nothing
+srn://acme/capability/order-fulfilment/metric/lead-time
+                                                     # P1 — nor does a capability
+```
 
 A misplaced entity therefore has **no SRN at all** — the loader reports it while
 reading the directory, before any graph is built.
@@ -198,6 +236,7 @@ references *out* of it. A relative `$ref` is `E_DM_REF_TARGET` (`schemas.md`).
 |-----------------------------------------------|---------------------------------------------------------------------|
 | Frontmatter `relations`, kind fields          | absolute / solution-absolute / relative — prefer absolute-from-root |
 | Protocol `participants[].ref`, step `payload` | same; solution-absolute recommended                                 |
+| `journey.yaml` `actor` / `touches` / `protocol` | same; solution-absolute is the readable form (`journeys.md`)      |
 | Prose markdown links                          | **MUST** be the full `srn://…` form                                 |
 | `schema.json` `$id` / `$ref`                  | the canonical schema URL — the SRN's projection (`schemas.md`)      |
 | `schema.json` `x-srn`                         | **required**: the entity's own SRN, unversioned, no relative form   |

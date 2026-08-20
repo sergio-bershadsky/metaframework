@@ -1,12 +1,13 @@
 ---
 name: srn
 kind: component
-version: 1
+version: 2
 title: SRN parser and resolver
 summary: The zero-dependency implementation of the framework's identity syntax, where placement is enforced as grammar and the sealed universe is enforced at all.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 tags:
   - identity
   - grammar

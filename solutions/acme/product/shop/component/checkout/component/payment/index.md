@@ -1,12 +1,13 @@
 ---
 name: payment
 kind: component
-version: 5
+version: 6
 title: Payment
 summary: Orchestrates authorization, capture, and refund against the card acquirer, and publishes settlement facts.
 status: approved
 owner: team-payments
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production

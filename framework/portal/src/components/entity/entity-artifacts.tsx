@@ -1,8 +1,10 @@
 import { AlertTriangle, Link2 } from 'lucide-react'
 import Link from 'next/link'
 import { ArtifactBlock } from '@/components/code/artifact-block'
+import { JourneyDiagram, type JourneyStepTarget } from '@/components/diagrams/journey-diagram'
 import { LinkedStateChart, NavigableSequenceDiagram } from '@/components/diagrams/navigable'
 import type { SequenceParticipant } from '@/components/diagrams/sequence-diagram'
+import { JourneyLegend, type JourneyLegendStep } from '@/components/entity/journey-legend'
 import { SchemaLineage } from '@/components/schema/schema-lineage'
 import { StoplightSchemaView } from '@/components/schema/stoplight-schema-view'
 import { stateChartAnchors, workflowAnchors } from '@/lib/artifacts/anchors'
@@ -10,11 +12,14 @@ import { monacoLanguage } from '@/lib/artifacts/language'
 import type { AnchorPaths } from '@/lib/artifacts/source-map'
 import { catalogDir, entityHref, getSchemaRegistry } from '@/lib/catalog'
 import type { Artifact, Catalog, Entity } from '@/lib/catalog'
+import { resolveMention } from '@/lib/catalog/mentions'
+import { journeySummary, parseJourney, type JourneyStep } from '@/lib/journey/journey'
 import { parseStates } from '@/lib/protocol/states'
 import { parseWorkflow } from '@/lib/protocol/workflow'
 import { bundleSchema } from '@/lib/schema/dereference'
 import { buildLineage } from '@/lib/schema/lineage'
 import { resolveRef } from '@/lib/srn/srn'
+import { cn } from '@/lib/utils'
 
 /**
  * Every artifact of an entity, one block each.
@@ -33,7 +38,8 @@ import { resolveRef } from '@/lib/srn/srn'
  * most needs to see.
  *
  * The kind's primary artifact is promoted to the top and opened: a datamodel is
- * its schema, a protocol is its workflows. Everything else arrives collapsed,
+ * its schema, a protocol is its workflows, a journey is its walk. Everything
+ * else arrives collapsed,
  * because a page that opens twelve editors is a page that opens slowly.
  */
 export async function EntityArtifacts({ entity, catalog }: { entity: Entity; catalog: Catalog }) {
@@ -41,7 +47,7 @@ export async function EntityArtifacts({ entity, catalog }: { entity: Entity; cat
 
   const participants = protocolParticipants(entity, catalog)
   const blocks = await Promise.all(
-    entity.artifacts.map((artifact) => describe(entity, artifact, participants)),
+    entity.artifacts.map((artifact) => describe(entity, artifact, participants, catalog)),
   )
 
   // Promoted first, otherwise the loader's order (alphabetical by path).
@@ -128,6 +134,7 @@ async function describe(
   entity: Entity,
   artifact: Artifact,
   participants: Record<string, SequenceParticipant>,
+  catalog: Catalog,
 ): Promise<DescribedArtifact> {
   const base: DescribedArtifact = {
     file: artifact.file,
@@ -216,11 +223,102 @@ async function describe(
     }
   }
 
+  if (entity.kind === 'journey' && artifact.file === JOURNEY_FILE) {
+    const { journey, issues } = parseJourney(artifact.data, {
+      entityName: entity.frontmatter.name,
+      journeySrn: entity.srn,
+      protagonist: typeof entity.frontmatter.actor === 'string' ? entity.frontmatter.actor : undefined,
+    })
+    const resolved = journey ? journey.steps.map((step) => resolveStep(catalog, entity.srn, step)) : []
+
+    return {
+      ...base,
+      role: 'Path',
+      primary: true,
+      visual:
+        journey && journey.steps.length > 0 ? (
+          // No frame of its own: the block is the frame, and a panel inside a
+          // panel reads as two things rather than one artifact.
+          <JourneyDiagram
+            steps={resolved.map(({ draw }) => draw)}
+            summary={journeySummary(journey)}
+            className="rounded-none border-0"
+          />
+        ) : (
+          <Undrawable messages={issues.map((issue) => `${issue.code}: ${issue.message}`)} what="drawn" />
+        ),
+      // The ladder is a footer rather than part of the drawing: it belongs to
+      // the artifact but to neither pane, exactly like a schema's sources. The
+      // findings sit with it rather than in the block's `error` banner — that
+      // banner means "unparsed, nothing derived", and a journey that crosses an
+      // undocumented boundary parsed perfectly well and is drawn.
+      footer:
+        resolved.length > 0 ? (
+          <div className="space-y-3">
+            <JourneyLegend steps={resolved.map(({ legend }) => legend)} />
+            <JourneyFindings issues={issues} />
+          </div>
+        ) : undefined,
+    }
+  }
+
   return { ...base, primary: primaryFor(entity, artifact) }
 }
 
 const SCHEMA_FILE = 'schema.json'
 const STATES_FILE = 'states.json'
+const JOURNEY_FILE = 'journey.yaml'
+
+/**
+ * One parsed step, resolved against the catalog twice over: once for the
+ * drawing (labels and a hue) and once for the legend (real link targets).
+ *
+ * Both halves come from the same {@link resolveMention} call, so the badge under
+ * the picture and the box in it can never disagree about what a reference
+ * points at.
+ */
+function resolveStep(
+  catalog: Catalog,
+  baseSrn: string,
+  step: JourneyStep,
+): { draw: JourneyStepTarget; legend: JourneyLegendStep } {
+  const actor = resolveMention(catalog, baseSrn, step.actor)
+  const touches = resolveMention(catalog, baseSrn, step.touches)
+  const protocol = step.protocol ? resolveMention(catalog, baseSrn, step.protocol) : null
+
+  return {
+    draw: {
+      ordinal: step.ordinal,
+      // The resolved name where there is one, the raw reference's tail where
+      // there is not — a drawing that silently dropped an unresolved step would
+      // hide the one thing worth seeing.
+      actor: actor.target?.name ?? step.actorLabel,
+      touches: touches.target?.name ?? step.touchesLabel,
+      ...(step.protocol ? { via: protocol?.target?.name ?? step.protocolLabel } : {}),
+      actorCarried: step.protocolNone,
+      // The band is the owning product's name, which is what the reader knows
+      // it by — `product/shop` is the pair, `shop` is the word on the tab.
+      band: step.owningProduct?.replace(/^product\//, '') ?? null,
+      crossing: step.crossing,
+      handoff: step.handoff,
+      kind: touches.target?.kind ?? null,
+      srn: touches.target?.srn ?? null,
+    },
+    legend: {
+      ordinal: step.ordinal,
+      actor: actor.target,
+      actorRef: step.actor,
+      handoff: step.handoff,
+      touches: touches.target,
+      touchesRef: step.touches,
+      crossing: step.crossing,
+      protocol: protocol?.target ?? null,
+      ...(step.protocol ? { protocolRef: step.protocol } : {}),
+      actorCarried: step.protocolNone,
+      ...(step.note ? { note: step.note } : {}),
+    },
+  }
+}
 
 /**
  * Which artifact leads.
@@ -293,6 +391,37 @@ function Undrawable({ messages, what }: { messages: string[]; what: 'drawn' | 'r
         ))}
       </ul>
     </div>
+  )
+}
+
+/**
+ * What the journey parser found in a file it could still draw.
+ *
+ * `W_JRN_UNDOCUMENTED_INTEGRATION` is the finding this kind exists to produce,
+ * so it belongs beside the walk rather than only in /diagnostics. Errors appear
+ * here too: a step count outside 2–12 is a real violation of a file that
+ * nonetheless renders, and hiding it until the diagnostics page would be the
+ * portal knowing something the page it is on does not say.
+ */
+function JourneyFindings({ issues }: { issues: ReadonlyArray<{ code: string; severity: string; message: string }> }) {
+  if (issues.length === 0) return null
+
+  return (
+    <ul className="space-y-1">
+      {issues.map((issue, index) => (
+        <li key={index} className="flex gap-2 text-[12.5px] leading-relaxed">
+          <code
+            className={cn(
+              'shrink-0 font-mono text-[11px]',
+              issue.severity === 'error' ? 'text-destructive' : 'text-warning',
+            )}
+          >
+            {issue.code}
+          </code>
+          <span className="text-foreground/75">{issue.message}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 

@@ -1,12 +1,13 @@
 ---
 name: animation
 kind: component
-version: 1
+version: 2
 title: Animation layer
 summary: Reconstructs what happened between two consecutive states and plays it, without ever touching game state.
 status: review
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/production

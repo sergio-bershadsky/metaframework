@@ -15,21 +15,31 @@ const EDGE_LABELS: Record<EdgeType, { out: string; in: string }> = {
   'depends-on': { out: 'Depends on', in: 'Depended on by' },
   implements: { out: 'Implements', in: 'Implemented by' },
   supersedes: { out: 'Supersedes', in: 'Superseded by' },
+  realizes: { out: 'Realizes', in: 'Realized by' },
+  measures: { out: 'Measures', in: 'Measured by' },
 }
 
 export function EntityRelations({
   entity,
   catalog,
   inbound,
+  omitIncoming = [],
 }: {
   entity: Entity
   catalog: Catalog
   inbound: Array<{ edge: EdgeType; from: string }>
+  /**
+   * Inverse edges the page has already given a section of their own — a
+   * capability's `realizes`. Listing them twice would make the page look like
+   * it holds two different answers to the same question.
+   */
+  omitIncoming?: readonly EdgeType[]
 }) {
-  if (entity.relations.length === 0 && inbound.length === 0) return null
+  const shown = inbound.filter((edge) => !omitIncoming.includes(edge.edge))
+  if (entity.relations.length === 0 && shown.length === 0) return null
 
   const outgoing = groupBy(entity.relations, (relation) => relation.edge)
-  const incoming = groupBy(inbound, (edge) => edge.edge)
+  const incoming = groupBy(shown, (edge) => edge.edge)
 
   return (
     <section className="mt-10">
@@ -93,7 +103,7 @@ export function EntityRelations({
             Incoming
             <span className="font-normal text-muted-foreground">— derived, never authored</span>
           </h3>
-          {inbound.length === 0 ? (
+          {shown.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">Nothing references this entity.</p>
           ) : (
             <div className="space-y-3.5">

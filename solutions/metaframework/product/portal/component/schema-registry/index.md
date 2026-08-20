@@ -1,12 +1,13 @@
 ---
 name: schema-registry
 kind: component
-version: 1
+version: 2
 title: Schema registry
 summary: Identity and validation for every schema.json — the canonical host constant, the E_DM_* profile validator, one ajv instance keyed by $id, and the allOf inheritance DAG.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   depends-on:
     - ../srn

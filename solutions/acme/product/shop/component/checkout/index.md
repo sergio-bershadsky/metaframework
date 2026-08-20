@@ -1,12 +1,13 @@
 ---
 name: checkout
 kind: component
-version: 7
+version: 8
 title: Checkout
 summary: Converts a cart into a paid order — pricing, tax, stock reservation, and payment orchestration.
 status: approved
 owner: team-checkout
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -23,6 +24,9 @@ relations:
     - /product/shop/component/checkout/requirement/idem-cap
     - /product/shop/component/checkout/requirement/p99-checkout-latency
     - /requirement/gdpr-erasure
+  realizes:
+    - /capability/order-fulfilment
+    - /capability/promotion-pricing
 tags:
   - checkout
   - payments

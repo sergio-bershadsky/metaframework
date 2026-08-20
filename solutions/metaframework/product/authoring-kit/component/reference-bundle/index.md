@@ -1,12 +1,13 @@
 ---
 name: reference-bundle
 kind: component
-version: 1
+version: 2
 title: Reference bundle
 summary: Seven distilled spec files carried inside the plugin, because an installed plugin cannot see framework/spec on disk.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   uses:
     - /product/specification/component/core-contracts

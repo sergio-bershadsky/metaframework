@@ -1,12 +1,13 @@
 ---
 name: registration
 kind: component
-version: 1
+version: 2
 title: Registration
 summary: Creates accounts and their first credential — the only writer of the account record.
 status: approved
 owner: team-identity
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -20,6 +21,8 @@ relations:
   implements:
     - /product/identity/requirement/self-service-registration
     - /requirement/gdpr-erasure
+  realizes:
+    - /capability/identity-verification
 tags:
   - identity
   - onboarding

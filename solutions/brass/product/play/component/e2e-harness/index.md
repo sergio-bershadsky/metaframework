@@ -1,12 +1,13 @@
 ---
 name: e2e-harness
 kind: component
-version: 1
+version: 2
 title: End-to-end harness
 summary: Playwright multi-browser harness — owns the local runtime composition, and is currently largely stale.
 status: draft
 owner: sergio-bershadsky
 component-type: job
+lifecycle: released
 relations:
   uses:
     - /environment/local

@@ -25,9 +25,15 @@ export interface TreeNode {
  *
  * Containers first, then the things they own in the order an architect reads
  * them: behaviour (protocol, datamodel), participants (actor, environment),
- * then the paperwork (requirement, adr). `solution` only ever appears at the
- * root of the hierarchy, but the root is a level like any other and the Kind
- * lens buckets it too, so the order is exhaustive over the ontology.
+ * intent (capability, journey), then the paperwork (requirement, metric, adr).
+ * `solution` only ever appears at the root of the hierarchy, but the root is a
+ * level like any other and the Kind lens buckets it too, so the order is
+ * exhaustive over the ontology.
+ *
+ * The three newest kinds are inserted where they read rather than appended:
+ * a capability and a journey belong beside the participants they involve, and a
+ * metric belongs beside the requirement it puts a number on. No pair of the
+ * original nine changed places.
  */
 export const KIND_ORDER: readonly EntityKind[] = [
   'solution',
@@ -37,7 +43,10 @@ export const KIND_ORDER: readonly EntityKind[] = [
   'datamodel',
   'actor',
   'environment',
+  'capability',
+  'journey',
   'requirement',
+  'metric',
   'adr',
 ]
 

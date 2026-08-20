@@ -1,18 +1,21 @@
 ---
 name: inventory
 kind: component
-version: 3
+version: 4
 title: Inventory
 summary: Stock availability projection and the short-lived reservations that hold it during checkout.
 status: approved
 owner: team-shop
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
     - /environment/staging
   exposes:
     - /product/shop/protocol/order-placement
+  realizes:
+    - /capability/order-fulfilment
 tags:
   - stock
   - checkout-path

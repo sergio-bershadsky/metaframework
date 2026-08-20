@@ -1,12 +1,13 @@
 ---
 name: session-store
 kind: component
-version: 1
+version: 2
 title: Session store
 summary: The store of record for live sessions, and the reason a revocation is measured in seconds.
 status: approved
 owner: team-identity
 component-type: datastore
+lifecycle: released
 relations:
   uses:
     - /environment/production

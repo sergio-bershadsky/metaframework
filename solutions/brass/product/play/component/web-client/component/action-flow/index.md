@@ -1,12 +1,13 @@
 ---
 name: action-flow
 kind: component
-version: 1
+version: 2
 title: Action flow
 summary: The interaction machinery that narrows the engine's legal-move list down to exactly one dispatch.
 status: review
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/production

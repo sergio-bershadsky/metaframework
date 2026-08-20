@@ -1,12 +1,13 @@
 ---
 name: state-chart
 kind: component
-version: 1
+version: 2
 title: State chart
 summary: A protocol's states.json drawn by mermaid, always, with interactivity recovered from the generated SVG only where it can be verified.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: released
 relations:
   uses:
     - /environment/local

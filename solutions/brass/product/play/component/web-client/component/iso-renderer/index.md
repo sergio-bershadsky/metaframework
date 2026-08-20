@@ -1,12 +1,13 @@
 ---
 name: iso-renderer
 kind: component
-version: 1
+version: 2
 title: Isometric renderer
 summary: The dormant PixiJS isometric board — bundled into every production build and unreachable from the UI.
 status: draft
 owner: sergio-bershadsky
 component-type: ui
+lifecycle: sunset
 relations:
   uses:
     - /environment/production

@@ -1,12 +1,13 @@
 ---
 name: entity-evolution
 kind: component
-version: 1
+version: 2
 title: Entity evolution
 summary: The only part of the kit permitted near a published entity — it decides additive edit versus swap, then carries out whichever it is.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   uses:
     - ../reference-bundle

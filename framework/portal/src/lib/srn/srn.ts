@@ -19,7 +19,13 @@
  * entity whose directory holds it, which {@link dirToSrn} derives.
  */
 
-/** Buckets that may hold entities. */
+/**
+ * Buckets that may hold entities.
+ *
+ * The list grows by appending, never by interleaving: additive-only evolution
+ * means a kind adopted later never displaces one adopted earlier, and reading
+ * the tail tells you what the framework learned it was missing.
+ */
 export const RESERVED_KINDS = [
   'product',
   'component',
@@ -29,6 +35,9 @@ export const RESERVED_KINDS = [
   'environment',
   'adr',
   'requirement',
+  'capability',
+  'journey',
+  'metric',
 ] as const
 
 export type ReservedKind = (typeof RESERVED_KINDS)[number]
@@ -39,8 +48,17 @@ const RESERVED = new Set<string>(RESERVED_KINDS)
 export const CONTAINER_KINDS = ['product', 'component'] as const
 const CONTAINERS = new Set<string>(CONTAINER_KINDS)
 
-/** Kinds describing the solution as a whole; they may only sit at its root. */
-export const SOLUTION_LEVEL_KINDS = ['actor', 'environment'] as const
+/**
+ * Kinds describing the solution as a whole; they may only sit at its root.
+ *
+ * A capability is what the business can *do* and a journey is a path *across*
+ * the solution — both are statements about the whole, so a product owning one
+ * would be claiming something it cannot see the edges of. `metric` is
+ * deliberately absent: it is owner-scoped like `requirement`, measuring
+ * whatever entity it hangs under, so it needs no entry here at all — the
+ * container rule below is the only constraint on where it may sit.
+ */
+export const SOLUTION_LEVEL_KINDS = ['actor', 'environment', 'capability', 'journey'] as const
 const SOLUTION_LEVEL = new Set<string>(SOLUTION_LEVEL_KINDS)
 
 export type SrnErrorCode =
@@ -116,8 +134,14 @@ function splitVersion(body: string, ref: string): { body: string; version: numbe
 /**
  * Structural placement, enforced by the grammar rather than by the loader: a
  * product is always a direct child of the solution, components nest only inside
- * products or components, and actors and environments describe the solution as
- * a whole so nothing smaller may own them.
+ * products or components, and the solution-level kinds — actor, environment,
+ * capability, journey — describe the solution as a whole so nothing smaller may
+ * own them.
+ *
+ * Owner-scoped kinds (datamodel, protocol, adr, requirement, metric) have no
+ * rule of their own, and that absence is the design: they may hang under the
+ * solution or under any container, so the first check — only a container owns
+ * anything — is already the whole of their placement.
  */
 function assertPlacement(path: SrnSegment[], ref: string): void {
   path.forEach((segment, index) => {

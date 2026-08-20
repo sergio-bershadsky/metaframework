@@ -88,6 +88,15 @@ const EDGE_STYLES = {
   exposes: { label: 'exposes', width: 2, dash: undefined, marker: MarkerType.ArrowClosed },
   'depends-on': { label: 'depends on', width: 1.25, dash: '7 4', marker: MarkerType.ArrowClosed },
   implements: { label: 'implements', width: 1.25, dash: '1.5 3.5', marker: MarkerType.ArrowClosed },
+  // A delivery claim, like `implements` one level up — hence a dash-dot that
+  // reads as a relative of it, and a place in the legend beside it. This map's
+  // key order is the legend order, and it follows frontmatter.md's table
+  // rather than EDGE_TYPES: that list is adoption order and grows by
+  // appending, which is the wrong thing for a reader to see first.
+  realizes: { label: 'realizes', width: 1.25, dash: '5 3 1.5 3', marker: MarkerType.ArrowClosed },
+  // An observation, not a dependency: the open arrowhead says nothing flows
+  // along this edge, the same distinction `supersedes` draws.
+  measures: { label: 'measures', width: 1, dash: '2 3', marker: MarkerType.Arrow },
   supersedes: { label: 'supersedes', width: 1.25, dash: '11 4', marker: MarkerType.Arrow },
 } satisfies Record<EdgeType, { label: string; width: number; dash: string | undefined; marker: MarkerType }>
 

@@ -40,7 +40,7 @@ async function entity(relDir: string, frontmatter: Record<string, unknown>, body
 const KIND_DEFAULTS: Record<string, Record<string, unknown>> = {
   solution: { vision: 'Sell things reliably.' },
   product: { lifecycle: 'active' },
-  component: { 'component-type': 'service' },
+  component: { 'component-type': 'service', lifecycle: 'released' },
   datamodel: { usage: 'both' },
   protocol: {
     style: 'point-to-point',
@@ -53,6 +53,11 @@ const KIND_DEFAULTS: Record<string, Record<string, unknown>> = {
   environment: { 'environment-type': 'production' },
   adr: { 'decision-status': 'proposed', date: '2026-01-01' },
   requirement: { 'requirement-type': 'functional', priority: 'must' },
+  // A capability adds nothing to the common contract; a journey adds exactly
+  // its protagonist (kinds/capability.md, kinds/journey.md).
+  capability: {},
+  journey: { actor: '/actor/customer' },
+  metric: { 'metric-type': 'ratio', target: '99.9%', window: '30d', direction: 'higher-is-better' },
 }
 
 const base = (name: string, kind: string, extra: Record<string, unknown> = {}) => ({
@@ -83,6 +88,34 @@ beforeAll(async () => {
   await entity('acme/product/shop/component/checkout/component/payment', base('payment', 'component'))
   await entity('acme/product/shop/component/inventory', base('warehouse', 'component')) // name mismatch
 
+  // The three kinds admitted with the grammar's eleventh bucket. capability and
+  // journey are solution-level like actor and environment; metric is
+  // owner-scoped like requirement, so one sits at the solution root and one
+  // hangs off a nested component.
+  await entity('acme/capability/fulfil-orders', base('fulfil-orders', 'capability'))
+  await entity(
+    'acme/capability/forecast-demand',
+    // Nothing realizes it, and it reaches down to a component to say what does —
+    // the direction that drifts.
+    base('forecast-demand', 'capability', { relations: { uses: ['/product/shop/component/inventory'] } }),
+  )
+  await entity('acme/journey/first-purchase', base('first-purchase', 'journey'))
+  await entity(
+    'acme/metric/order-conversion',
+    base('order-conversion', 'metric', { relations: { measures: ['/capability/fulfil-orders'] } }),
+  )
+  await entity(
+    'acme/product/shop/component/checkout/metric/authorization-success',
+    base('authorization-success', 'metric', {
+      // `../..` pops the name and its bucket, landing on the component that owns
+      // this metric — the shape an owner-scoped kind measures most often.
+      relations: { measures: ['../..'] },
+      'metric-type': 'ratio',
+      target: '99.5%',
+      window: '1h',
+    }),
+  )
+
   // A well-formed component exercising every legal edge type, and both reference
   // styles: solution-absolute, and relative arithmetic where `../..` pops a name
   // and its bucket to reach the owning product.
@@ -94,6 +127,7 @@ beforeAll(async () => {
         exposes: ['../../protocol/order-events', 'datamodel/cart@1'],
         'depends-on': ['../inventory'],
         implements: ['requirement/idem-cap'],
+        realizes: ['/capability/fulfil-orders'],
       },
       tags: ['commerce'],
     }),
@@ -130,6 +164,51 @@ beforeAll(async () => {
   // An entity directory sitting straight inside a datamodel: it is both nested in
   // a non-container and, being unbucketed, no longer a parseable SRN.
   await entity('acme/product/shop/datamodel/money/nested', base('nested', 'datamodel'))
+
+  // --- violations specific to the new kinds and edges --------------------------
+  // A component is a built thing now, so it must say what state it is built in.
+  await entity('acme/product/shop/component/legacy', {
+    name: 'legacy',
+    kind: 'component',
+    version: 1,
+    title: 'legacy',
+    summary: 'A component written before lifecycle was required.',
+    status: 'approved',
+    'component-type': 'service',
+  })
+  // A journey is a path, not a thing anyone delivers.
+  await entity(
+    'acme/product/shop/component/telemetry',
+    base('telemetry', 'component', { relations: { realizes: ['/journey/first-purchase'] } }),
+  )
+  // Only the built kinds may claim to realize; a datamodel ships nothing.
+  await entity(
+    'acme/datamodel/receipt',
+    base('receipt', 'datamodel', { relations: { realizes: ['/capability/fulfil-orders'] } }),
+  )
+  // Measuring an actor is measuring a person, not the system.
+  await entity(
+    'acme/metric/staff-happiness',
+    base('staff-happiness', 'metric', { relations: { measures: ['/actor/customer'] } }),
+  )
+  // A metric that names nothing it measures.
+  await entity('acme/metric/floating', base('floating', 'metric'))
+  // Literals that do not match the grammar their metric-type selects.
+  await entity(
+    'acme/metric/bad-literals',
+    base('bad-literals', 'metric', {
+      relations: { measures: ['/capability/fulfil-orders'] },
+      target: '99.9', // a ratio without its %
+      window: 'monthly', // a cadence, not a rolling window
+    }),
+  )
+  // Filed under a component that neither is nor contains the subject's owner.
+  await entity(
+    'acme/product/shop/component/returns/metric/stock-accuracy',
+    base('stock-accuracy', 'metric', { relations: { measures: ['/product/shop/component/inventory'] } }),
+  )
+  // A protagonist that is not an actor.
+  await entity('acme/journey/broken-path', base('broken-path', 'journey', { actor: '/product/shop' }))
 
   catalog = await loadCatalog({ catalogDir })
 })
@@ -287,8 +366,134 @@ describe('loadCatalog — diagnostics', () => {
     expect(catalog.entities.has('srn://acme/product/shop/datamodel/money/nested')).toBe(false)
   })
 
+  it('flags a component that does not say what state it is built in', () => {
+    const missing = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/product/shop/component/legacy')
+    expect(missing.map((d) => d.code)).toContain('E_FM_SCHEMA')
+    expect(missing.find((d) => d.code === 'E_FM_SCHEMA')?.message).toContain('lifecycle')
+  })
+
   it('is fail-soft — a broken catalog still yields a usable graph', () => {
     expect(catalog.diagnostics.some((d) => d.severity === 'error')).toBe(true)
     expect(catalog.entities.size).toBeGreaterThan(5)
+  })
+})
+
+describe('loadCatalog — capability, journey and metric', () => {
+  it('loads each of the three new kinds at the position its grammar allows', () => {
+    expect(catalog.entities.get('srn://acme/capability/fulfil-orders')?.kind).toBe('capability')
+    expect(catalog.entities.get('srn://acme/journey/first-purchase')?.kind).toBe('journey')
+    expect(catalog.entities.get('srn://acme/metric/order-conversion')?.kind).toBe('metric')
+    expect(catalog.entities.get('srn://acme/product/shop/component/checkout/metric/authorization-success')?.kind).toBe(
+      'metric',
+    )
+  })
+
+  it('scopes a metric to its owner, exactly as it scopes a requirement', () => {
+    expect(catalog.entities.get('srn://acme/metric/order-conversion')?.parent).toBe('srn://acme')
+    expect(
+      catalog.entities.get('srn://acme/product/shop/component/checkout/metric/authorization-success')?.parent,
+    ).toBe('srn://acme/product/shop/component/checkout')
+  })
+
+  it('derives realized-by and measured-by the same way it derives every other inverse', () => {
+    // Nothing authors a back-edge: both of these come from the forward edge on
+    // the other document, which is what keeps the two directions from drifting.
+    // Compared as a set: inbound order follows catalog walk order, which is a
+    // fact about the filesystem rather than about the graph.
+    expect(catalog.inbound.get('srn://acme/capability/fulfil-orders')).toEqual(
+      expect.arrayContaining([
+        { edge: 'realizes', from: 'srn://acme/product/shop/component/checkout' },
+        { edge: 'measures', from: 'srn://acme/metric/order-conversion' },
+      ]),
+    )
+    const realizers = (catalog.inbound.get('srn://acme/capability/fulfil-orders') ?? []).filter(
+      (edge) => edge.edge === 'realizes',
+    )
+    expect(realizers).toHaveLength(1)
+    expect(catalog.inbound.get('srn://acme/product/shop/component/checkout')).toContainEqual({
+      edge: 'measures',
+      from: 'srn://acme/product/shop/component/checkout/metric/authorization-success',
+    })
+  })
+
+  it('refuses "realizes" from a kind that ships nothing', () => {
+    const codes = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/datamodel/receipt').map((d) => d.code)
+    expect(codes).toContain('E_FM_EDGE_SOURCE')
+  })
+
+  it('refuses "realizes" toward anything but a capability', () => {
+    const codes = codesFor('acme/product/shop/component/telemetry')
+    expect(codes).toContain('E_FM_EDGE_TARGET')
+  })
+
+  it('refuses "measures" toward a kind outside the measurable set', () => {
+    const codes = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/metric/staff-happiness').map((d) => d.code)
+    expect(codes).toContain('E_FM_EDGE_TARGET')
+  })
+
+  it('warns about a capability nothing realizes, and only about that one', () => {
+    const unrealized = catalog.diagnostics.filter((d) => d.code === 'W_CAP_UNREALIZED')
+    expect(unrealized.map((d) => d.srn)).toEqual(['srn://acme/capability/forecast-demand'])
+    expect(unrealized[0].severity).toBe('warning')
+  })
+
+  it('warns when a capability reaches down to a component to state its own realization', () => {
+    const codes = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/capability/forecast-demand')
+    expect(codes.map((d) => d.code)).toContain('W_CAP_REALIZATION_EDGE')
+    expect(codes.find((d) => d.code === 'W_CAP_REALIZATION_EDGE')?.severity).toBe('warning')
+  })
+
+  it('errors on a metric that names nothing it measures', () => {
+    // The one required edge in the ontology: a number with no subject is a
+    // figure, so this is an error where the capability warning is not.
+    const orphan = catalog.diagnostics.filter((d) => d.code === 'E_MET_NO_SUBJECT')
+    expect(orphan.map((d) => d.srn)).toEqual(['srn://acme/metric/floating'])
+    expect(orphan[0].severity).toBe('error')
+  })
+
+  it('does not call a metric subject-less merely because its target kind is wrong', () => {
+    // Two separate complaints about two separate mistakes: staff-happiness says
+    // what it measures, it just may not measure that.
+    const codes = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/metric/staff-happiness').map((d) => d.code)
+    expect(codes).not.toContain('E_MET_NO_SUBJECT')
+  })
+
+  it('reports a target and a window that miss their grammars, each under its own code', () => {
+    const codes = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/metric/bad-literals').map((d) => d.code)
+    expect(codes).toContain('E_MET_TARGET')
+    expect(codes).toContain('E_MET_WINDOW')
+  })
+
+  it('warns about a metric filed outside its subject’s ownership line', () => {
+    const scope = catalog.diagnostics.filter((d) => d.code === 'W_MET_SUBJECT_SCOPE')
+    expect(scope.map((d) => d.srn)).toEqual(['srn://acme/product/shop/component/returns/metric/stock-accuracy'])
+    expect(scope[0].severity).toBe('warning')
+  })
+
+  it('lets a metric sit on its subject or anywhere above it', () => {
+    // On the subject itself, and — for a capability, which nothing owns — at
+    // any depth at all. Neither is a scope complaint.
+    for (const srn of [
+      'srn://acme/product/shop/component/checkout/metric/authorization-success',
+      'srn://acme/metric/order-conversion',
+    ]) {
+      expect(catalog.diagnostics.filter((d) => d.srn === srn).map((d) => d.code)).not.toContain('W_MET_SUBJECT_SCOPE')
+    }
+  })
+
+  it('resolves a journey’s protagonist and insists it is an actor', () => {
+    expect(catalog.diagnostics.filter((d) => d.srn === 'srn://acme/journey/first-purchase')).toEqual([])
+    const codes = catalog.diagnostics.filter((d) => d.srn === 'srn://acme/journey/broken-path').map((d) => d.code)
+    expect(codes).toContain('E_JRN_ACTOR_KIND')
+  })
+
+  it('splits severity where the kind documents split it', () => {
+    // Error when the entity is meaningless without the fix; warning when it is
+    // a true statement about a system still being built, or a judgement call.
+    const severity = (code: string) => catalog.diagnostics.find((d) => d.code === code)?.severity
+    expect(severity('E_MET_NO_SUBJECT')).toBe('error')
+    expect(severity('E_JRN_ACTOR_KIND')).toBe('error')
+    expect(severity('W_CAP_UNREALIZED')).toBe('warning')
+    expect(severity('W_MET_SUBJECT_SCOPE')).toBe('warning')
   })
 })

@@ -1,20 +1,20 @@
 ---
 kind: spec
 name: index
-version: 5
+version: 6
 status: review
 title: Specification overview
-summary: Entry point of the metaframework specification — purpose, core principles, document map, and reading order.
+summary: Entry point of the metaframework specification — purpose, core principles, the twelve kinds, document map, and reading order.
 ---
 
 # Metaframework specification
 
 The metaframework is a file-based framework for describing software solutions in a
 reviewable way. A **solution** is a catalog of markdown and JSON/YAML files —
-products, components, protocols, data models, actors, environments, ADRs, and
-requirements — every entity addressable by a stable **SRN** (Solution Resource
-Name), every artifact versioned additively, the whole tree readable by humans, AI
-agents, and the portal alike.
+products, components, protocols, data models, actors, environments, ADRs,
+requirements, capabilities, journeys, and metrics — every entity addressable by
+a stable **SRN** (Solution Resource Name), every artifact versioned additively,
+the whole tree readable by humans, AI agents, and the portal alike.
 
 This directory (`framework/spec/`) is the normative specification. It is written
 in the framework's own format: every document carries the same frontmatter shape
@@ -56,13 +56,15 @@ example. A rule without an example is an incomplete rule and a spec defect.
    →  solutions/acme/product/shop/component/checkout/datamodel/cart/
    ```
 
-   The eight kind buckets are `product`, `component`, `datamodel`, `protocol`,
-   `actor`, `environment`, `adr`, and `requirement`; they are reserved words and
-   may never be an entity's name. `ls` of any catalog directory therefore lists
-   buckets only, and parsing is a pair walk with no lookahead. Which pair may
-   follow which is part of the grammar — a `product` pair only at solution
-   level, a `component` pair only under a product or component — so a misplaced
-   entity is `E_SRN_PLACEMENT` before any loader rule runs.
+   The eleven kind buckets are `product`, `component`, `datamodel`, `protocol`,
+   `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`, and
+   `metric`; they are reserved words and may never be an entity's name. `ls` of
+   any catalog directory therefore lists buckets only, and parsing is a pair
+   walk with no lookahead. Which pair may follow which is part of the grammar —
+   a `product` pair only at solution level, a `component` pair only under a
+   product or component, a `capability` or `journey` pair only at solution
+   level — so a misplaced entity is `E_SRN_PLACEMENT` before any loader rule
+   runs.
 
    One reference syntax is used everywhere the framework owns the format —
    frontmatter relations, workflow YAML, and prose markdown links. Because
@@ -137,24 +139,52 @@ example. A rule without an example is an incomplete rule and a spec defect.
 fields, sibling artifacts, and validation rules *on top of* the core contracts,
 never overriding them:
 
-| Document                                     | Status | Contents                                                                               |
-| -------------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
-| [kinds/solution.md](kinds/solution.md)       | review | Sealed universe and catalog root; `vision`/`scope`/`contacts`; container rules C1–C7.  |
-| [kinds/product.md](kinds/product.md)         | review | The `product/` bucket at solution level; `lifecycle`, `primary-actors`.                |
-| [kinds/component.md](kinds/component.md)     | review | The `component/` bucket under a product or component; `component-type`; reuse.         |
-| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), canonical `$id`/`$ref`, `x-srn`, registry.        |
-| [kinds/protocol.md](kinds/protocol.md)       | review | `participants`/`style`, `transport.yaml`, `workflows/*.yaml`, `states.json`.           |
-| [kinds/actor.md](kinds/actor.md)             | review | Solution-level counterparts; `actor-type`, `goals`, protocol participation.            |
-| [kinds/environment.md](kinds/environment.md) | review | Solution-level deployment targets; `environment-type`, `topology.yaml`, `config.yaml`. |
-| [kinds/adr.md](kinds/adr.md)                 | review | Decision records; `decision-status` vs `status`, `date`, `deciders`, body template.    |
-| [kinds/requirement.md](kinds/requirement.md) | review | Obligations; `requirement-type`, `priority`, the `## Acceptance criteria` section.     |
+| Document                                     | Status | Contents                                                                                        |
+| -------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
+| [kinds/solution.md](kinds/solution.md)       | review | Sealed universe and catalog root; `vision`/`scope`/`contacts`; container rules C1–C7.           |
+| [kinds/product.md](kinds/product.md)         | review | The `product/` bucket at solution level; `lifecycle`, `primary-actors`.                         |
+| [kinds/component.md](kinds/component.md)     | review | The `component/` bucket under a product or component; `component-type`, `lifecycle`; reuse.     |
+| [kinds/datamodel.md](kinds/datamodel.md)     | review | `schema.json` (JSON Schema 2020-12), canonical `$id`/`$ref`, `x-srn`, registry.                 |
+| [kinds/protocol.md](kinds/protocol.md)       | review | `participants`/`style`, `transport.yaml`, `workflows/*.yaml`, `states.json`.                    |
+| [kinds/actor.md](kinds/actor.md)             | review | Solution-level counterparts; `actor-type`, `goals`, protocol participation.                     |
+| [kinds/environment.md](kinds/environment.md) | review | Solution-level deployment targets; `environment-type`, `topology.yaml`, `config.yaml`.          |
+| [kinds/adr.md](kinds/adr.md)                 | review | Decision records; `decision-status` vs `status`, `date`, `deciders`, body template.             |
+| [kinds/requirement.md](kinds/requirement.md) | review | Obligations; `requirement-type`, `priority`, the `## Acceptance criteria` section.              |
+| [kinds/capability.md](kinds/capability.md)   | draft  | Solution-level abilities of the business; the target of `realizes`.                             |
+| [kinds/journey.md](kinds/journey.md)         | review | Solution-level actor paths; the ordered, unbranched `journey.yaml` steps.                       |
+| [kinds/metric.md](kinds/metric.md)           | draft  | Owner-scoped numbers; `metric-type`, `target`, `window`, `direction`; the source of `measures`. |
 
-The closed v1 ontology (from the decision record) is: **Solution, Product,
-Component** (nestable) as containers, and **Protocol, DataModel, Actor,
-Environment, ADR, Requirement** as owned entity kinds. Every kind except
-`solution` is also a bucket name in the path grammar, which is why the reserved
-word list and the kind list are the same eight words. Extending the ontology is
-deferred, so the nine kind documents above are the complete set.
+## The ontology
+
+**Twelve kinds.** Three are containers — **Solution**, **Product**,
+**Component** (the last two nestable, solution always the root) — and nine are
+leaves. The leaves divide by *what they are about*:
+
+```text
+containers       solution  product  component
+solution-level   actor  environment  capability  journey
+owner-scoped     datamodel  protocol  adr  requirement  metric
+```
+
+A **solution-level** kind describes the solution as a whole and may only be the
+first pair after the solution: an actor and an environment sit outside any one
+product, a capability is something the business can do rather than something a
+component happens to contain, and a journey crosses the solution by definition.
+An **owner-scoped** kind hangs under whatever it belongs to, from the solution
+down to the deepest component — `metric` exactly as `requirement`.
+
+Every kind except `solution` is also a bucket name in the path grammar, which is
+why the reserved word list and the kind list are the same eleven words
+([srn.md](srn.md)).
+
+**The set was opened, and it grows by appending.** The founding decision record
+called the ontology closed at nine kinds; amendment **2026-08-20-a** reopened it
+and adopted `capability`, `journey`, and `metric` after checking that no entity
+anywhere in the catalog was named after one of them — an adoption takes a word
+out of circulation as a *name* everywhere at once, so the check comes first. The
+original eight bucket words keep their order and their meanings; nothing was
+re-cut, and no later kind ever displaces an earlier one
+([evolution.md](evolution.md)).
 
 ## Reading order
 
@@ -164,10 +194,12 @@ deferred, so the nine kind documents above are the complete set.
 4. [evolution.md](evolution.md) — how anything is allowed to change.
 5. The kind documents, outermost container first:
    [solution](kinds/solution.md) → [product](kinds/product.md) →
-   [component](kinds/component.md), then the owned kinds
-   [datamodel](kinds/datamodel.md), [protocol](kinds/protocol.md),
+   [component](kinds/component.md), then the solution-level kinds
    [actor](kinds/actor.md), [environment](kinds/environment.md),
-   [adr](kinds/adr.md), [requirement](kinds/requirement.md).
+   [capability](kinds/capability.md), [journey](kinds/journey.md), then the
+   owner-scoped kinds [datamodel](kinds/datamodel.md),
+   [protocol](kinds/protocol.md), [adr](kinds/adr.md),
+   [requirement](kinds/requirement.md), [metric](kinds/metric.md).
 
 A portal implementer reads all of the above in order. An author adding a single
 entity can read structure.md, frontmatter.md, and the relevant kind document,

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: solution
-version: 3
+version: 4
 status: review
 title: Kind — solution
 summary: The solution kind — the sealed universe and catalog root, its frontmatter additions, the shared container rules C1–C7, and the no-cross-solution boundary.
@@ -39,21 +39,27 @@ solutions/{solution}/                     ← this kind
   solutions/acme/component/shop/     # E_SRN_PLACEMENT — no product owns it
   ```
 
-- **Actors and environments live only here.** `actor/` and `environment/`
-  buckets below solution level are `E_SRN_PLACEMENT` — the grammar admits those
-  two pairs only as the first pair after the authority. Products and components
-  *reference* them; they never own them, because both describe the universe the
-  whole solution shares.
+- **The solution-level kinds live only here.** `actor/`, `environment/`,
+  `capability/` and `journey/` buckets below solution level are
+  `E_SRN_PLACEMENT` — the grammar admits those four pairs only as the first pair
+  after the authority. Products and components *reference* them; they never own
+  them, because all four describe the universe the whole solution shares: who
+  pushes on it, where it runs, what the business can do, and the paths taken
+  across it.
 
   ```text
   solutions/acme/actor/customer/                    # legal
   solutions/acme/environment/production/            # legal
+  solutions/acme/capability/order-fulfilment/       # legal
+  solutions/acme/journey/place-an-order/            # legal
   solutions/acme/product/shop/actor/customer/       # E_SRN_PLACEMENT
+  solutions/acme/product/shop/capability/pricing/   # E_SRN_PLACEMENT
   ```
 
-- A solution MAY also own `datamodel/`, `protocol/`, `adr/`, and `requirement/`
-  buckets — for entities whose owner is the solution itself (a protocol whose
-  participants span two products, a solution-wide `money` datamodel).
+- A solution MAY also own `datamodel/`, `protocol/`, `adr/`, `requirement/`, and
+  `metric/` buckets — for entities whose owner is the solution itself (a
+  protocol whose participants span two products, a solution-wide `money`
+  datamodel, a conversion number no single product is accountable for).
 
 ### The only path-less SRN
 
@@ -209,14 +215,14 @@ On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 
 ## What may nest inside
 
-| Child                                       | Allowed | Note                                                  |
-| ------------------------------------------- | ------- | ------------------------------------------------------ |
-| `product/` bucket                           | yes     | Any number of products; the only container bucket here.|
-| `actor/`, `environment/` buckets            | yes     | **Only** here (`E_SRN_PLACEMENT` elsewhere).           |
-| `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets | yes | For solution-owned entities.               |
-| another solution                            | no      | Solutions never nest.                                  |
-| a `component/` bucket                       | no      | A component needs a product ancestor — `E_SRN_PLACEMENT`. |
-| an entity directory not inside a bucket     | no      | Every child of a solution is a bucket; the path would not parse (`E_SRN_SYNTAX`). |
+| Child                                                                | Allowed | Note                                                                              |
+| -------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `product/` bucket                                                    | yes     | Any number of products; the only container bucket here.                           |
+| `actor/`, `environment/`, `capability/`, `journey/` buckets          | yes     | **Only** here (`E_SRN_PLACEMENT` elsewhere).                                      |
+| `datamodel/`, `protocol/`, `adr/`, `requirement/`, `metric/` buckets | yes     | For solution-owned entities.                                                      |
+| another solution                                                     | no      | Solutions never nest.                                                             |
+| a `component/` bucket                                                | no      | A component needs a product ancestor — `E_SRN_PLACEMENT`.                         |
+| an entity directory not inside a bucket                              | no      | Every child of a solution is a bucket; the path would not parse (`E_SRN_SYNTAX`). |
 
 ## Validation rules
 

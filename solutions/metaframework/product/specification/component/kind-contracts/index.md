@@ -1,12 +1,13 @@
 ---
 name: kind-contracts
 kind: component
-version: 1
+version: 2
 title: Kind contracts
 summary: One document per ontology kind — nine files, 5,261 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   depends-on:
     - ../core-contracts

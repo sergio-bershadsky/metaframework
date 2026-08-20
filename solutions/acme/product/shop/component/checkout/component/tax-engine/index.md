@@ -1,12 +1,13 @@
 ---
 name: tax-engine
 kind: component
-version: 2
+version: 3
 title: Tax engine
 summary: Library computing tax for a cart from a versioned rate table; runs inside checkout's process.
 status: approved
 owner: team-checkout
 component-type: library
+lifecycle: released
 relations:
   uses:
     - /datamodel/money@1

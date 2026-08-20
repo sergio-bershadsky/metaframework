@@ -1,12 +1,13 @@
 ---
 name: rules
 kind: component
-version: 1
+version: 2
 title: Rules engine
 summary: The pure TypeScript engine — the whole game, framework-free except for one file, compiled into three processes.
 status: review
 owner: sergio-bershadsky
 component-type: library
+lifecycle: released
 relations:
   depends-on:
     - /product/play/component/boardgame-io

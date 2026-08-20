@@ -1,12 +1,13 @@
 ---
 name: history-panel
 kind: component
-version: 1
+version: 2
 title: History panel
 summary: The commit list, file picker and diff view over /api/history — complete, the endpoint's only client, and rendered by nothing.
 status: review
 owner: sergio
 component-type: ui
+lifecycle: in-development
 relations:
   uses:
     - /product/portal/protocol/catalog-history

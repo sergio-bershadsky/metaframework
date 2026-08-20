@@ -104,7 +104,9 @@ An illegal change MUST NOT be made in place. The escape hatch is the swap.
 
 ## Entities are never moved or renamed
 
-**The SRN is the path.** A move is a delete plus an unrelated create, and the
+**The SRN is the identity, and the disk path is that identity's storage**
+(`srn.md`) — so moving the directory changes the identity. A move is therefore a
+delete plus an unrelated create, and the
 version→commit index does not follow it — the history is lost. Renaming is a
 **swap** like any other breaking change: new entity, `supersedes` edge, migrate
 referrers, deprecate the old one.

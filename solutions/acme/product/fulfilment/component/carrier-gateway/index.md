@@ -1,12 +1,13 @@
 ---
 name: carrier-gateway
 kind: component
-version: 3
+version: 4
 title: Carrier gateway
 summary: One normalized surface in front of every carrier — rating, booking, label retrieval, and scan ingest.
 status: approved
 owner: team-fulfilment
 component-type: gateway
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -21,6 +22,8 @@ relations:
   implements:
     - /product/fulfilment/requirement/carrier-failover
     - /product/fulfilment/requirement/tracking-freshness
+  realizes:
+    - /capability/order-fulfilment
 tags:
   - logistics
   - third-party

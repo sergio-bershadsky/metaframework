@@ -1,12 +1,13 @@
 ---
 name: schema-service
 kind: component
-version: 1
+version: 2
 title: Schema service
 summary: The /schemas route handler — a three-layer path whitelist, a sha256 ETag, and CORS, so a tool that has never heard of this framework can fetch a schema.
 status: review
 owner: sergio
 component-type: service
+lifecycle: released
 relations:
   exposes:
     - protocol/schema-serving

@@ -1,12 +1,13 @@
 ---
 name: catalog-validation
 kind: component
-version: 1
+version: 2
 title: Catalog validation
 summary: Legality — how to run the portal's check, the cascade order to read it in, the code-to-fix table, and an explicit inventory of what it does not cover.
 status: review
 owner: sergio
 component-type: library
+lifecycle: released
 relations:
   uses:
     - ../reference-bundle

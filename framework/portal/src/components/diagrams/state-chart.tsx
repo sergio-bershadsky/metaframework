@@ -5,7 +5,7 @@ import { ExpandButton } from '@/components/diagrams/expand-button'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
 import { compileStates } from '@/lib/protocol/mermaid'
 import { stateChartSummary, type StateChart } from '@/lib/protocol/states'
-import { CONSOLE_TOKEN as TOKEN } from '@/lib/ui/console-tokens'
+import { renderMermaid } from '@/lib/ui/mermaid'
 import { cn } from '@/lib/utils'
 
 /**
@@ -18,11 +18,9 @@ import { cn } from '@/lib/utils'
  * model, `statesToMermaid` (a pure, tested function) decides every word on the
  * drawing, and this component only renders that text and dresses the SVG.
  *
- * Mermaid is heavy, so it follows the Monaco discipline in
- * `@/components/code/monaco.ts`: dynamically imported behind a module-level
- * singleton, so no page pays for it before a state chart is actually on
- * screen, and it is initialised exactly once — `initialize` is global, and the
- * console theme never changes between charts.
+ * Mermaid itself is loaded and themed by `@/lib/ui/mermaid` — one loader for
+ * every derived diagram, so the state chart and the journey walk cannot drift
+ * onto two theming paths.
  *
  * Interactivity is SVG post-processing, and each piece guards itself:
  *
@@ -56,62 +54,6 @@ export interface StateChartDiagramProps {
   className?: string
 }
 
-type MermaidModule = typeof import('mermaid').default
-
-let instance: Promise<MermaidModule> | null = null
-
-/**
- * One mermaid, loaded once, themed here. `theme: 'base'` is the one theme
- * built to be recoloured; every variable it exposes is mapped onto the console
- * tokens — the same hex conversions Monaco's theme reads — so the chart sits
- * on the same ramp as every other panel. Font families go through the CSS
- * custom properties instead: the SVG lives in the document, so `var()`
- * resolves against the console's own font tokens.
- */
-function loadMermaid(): Promise<MermaidModule> {
-  if (instance) return instance
-  instance = import('mermaid').then(({ default: mermaid }) => {
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: 'base',
-      fontFamily: 'var(--font-mono)',
-      themeVariables: {
-        fontSize: '13px',
-        background: TOKEN.background,
-        // States: the raised-panel surface every other node in the console has.
-        mainBkg: TOKEN.raised,
-        primaryColor: TOKEN.raised,
-        primaryTextColor: TOKEN.foreground,
-        primaryBorderColor: TOKEN.borderStrong,
-        textColor: TOKEN.foreground,
-        stateLabelColor: TOKEN.foreground,
-        // Transitions and their labels.
-        lineColor: TOKEN.borderStrong,
-        transitionColor: TOKEN.borderStrong,
-        transitionLabelColor: TOKEN.foreground,
-        labelBackgroundColor: TOKEN.background,
-        edgeLabelBackground: TOKEN.background,
-        // Compound regions: page-level background so the nested surface reads
-        // as a region, with the title bar on the raised step.
-        compositeBackground: TOKEN.background,
-        compositeTitleBackground: TOKEN.raised,
-        compositeBorder: TOKEN.borderStrong,
-        altBackground: TOKEN.background,
-        // The [*] pseudostates take the accent, like the old entry dot.
-        specialStateColor: TOKEN.primary,
-        innerEndBackground: TOKEN.raised,
-        // Notes carry compound-state entry/exit actions; muted, not shouting.
-        noteBkgColor: TOKEN.raised,
-        noteTextColor: TOKEN.muted,
-        noteBorderColor: TOKEN.border,
-      },
-    })
-    return mermaid
-  })
-  return instance
-}
-
 export function StateChartDiagram({
   chart,
   activeAnchors,
@@ -142,22 +84,10 @@ export function StateChartDiagram({
     if (!host || chart.nodes.length === 0) return
     let cancelled = false
 
-    loadMermaid()
-      .then(async (mermaid) => {
-        const { svg } = await mermaid.render(renderId, compiled.text)
+    renderMermaid(renderId, compiled.text)
+      .then((root) => {
         if (cancelled) return
-        // Mermaid serialises its HTML labels as HTML, so the one tag the
-        // generator writes into a label (`<br/>` between merged self-loop
-        // lines) comes back unclosed — legal HTML, fatal XML. Closing it here
-        // is what lets the parse below stay strict. Label *text* cannot smuggle
-        // one in: `<` survives only entity-escaped.
-        const xml = svg.replace(/<br>/g, '<br/>')
-        // DOMParser rather than innerHTML: the string is mermaid's own
-        // DOMPurify-sanitised output, but parsing it as a document and
-        // adopting the root element makes that trust boundary explicit.
-        const parsed = new DOMParser().parseFromString(xml, 'image/svg+xml')
-        if (parsed.querySelector('parsererror')) throw new Error('mermaid produced unparseable SVG')
-        host.replaceChildren(document.adoptNode(parsed.documentElement))
+        host.replaceChildren(root)
         joinRef.current = decorate(host, chart, compiled, renderId, callbacks.current)
         setFailure(null)
         setRendered(true)
