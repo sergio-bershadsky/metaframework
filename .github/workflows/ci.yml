@@ -1,0 +1,96 @@
+# The gates every workflow in this repository has been held to, now held
+# automatically. The catalog is the product here: an edit to an index.md is a
+# change to the contract, so catalog edits get the same gate as code.
+#
+# One job on purpose. The steps share one checkout, one npm ci and one Next
+# build; splitting them into parallel jobs would repeat the expensive parts to
+# save nothing, since vitest is the only step that takes real time after the
+# build and it needs the same install.
+#
+# No workflow step interpolates event-controlled text (titles, bodies, branch
+# names) into a shell — the only expression used is github.ref, for the
+# concurrency group.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # A superseded push's run is dead weight; cancel it. Grouped per ref so
+  # parallel PRs never cancel each other.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: framework/portal
+    steps:
+      # Full history, not a shallow clone: the portal resolves entity versions
+      # through git (see framework/spec/evolution.md — "`.git` MUST be present
+      # where the portal runs, with unshallow history"), and a shallow checkout
+      # would make history-dependent behaviour silently untestable here.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The floor the package declares, not the newest Node: CI is the one
+      # environment that should prove the engines field is honest, because
+      # every developer machine here runs far ahead of it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.9.0
+          cache: npm
+          cache-dependency-path: framework/portal/package-lock.json
+
+      - run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: lint
+        run: npx eslint src bin scripts
+
+      # The suite includes fixture-check, which loads the real catalog under
+      # solutions/ through the full pipeline (loader + schema registry) and
+      # fails on any error diagnostic — so every catalog edit is gated by this
+      # step, not only code.
+      - name: test
+        run: npm test
+
+      - name: build and assemble the CLI package
+        run: npm run package
+
+      # The same command a user of the published CLI runs, against the
+      # repository's own catalog: boots the assembled standalone server on a
+      # throwaway port and reads /api/status. This is the end-to-end proof —
+      # loader, registry, and the packaged server all agree the catalog is
+      # clean — and its output is the line a reviewer of a catalog PR wants
+      # to read in the log.
+      - name: metaframework check
+        run: node bin/metaframework.mjs check
+        working-directory: .
+
+      # A publish must never ship sources, tests, the spec, or this
+      # repository's own solutions into every install. The dry run lists what
+      # the tarball would carry; the grep turns a quiet leak into a red build.
+      # --ignore-scripts because prepack would otherwise rebuild what the
+      # package step just built — the on-disk state IS the packaged state here.
+      - name: pack audit
+        run: |
+          npm pack --dry-run --ignore-scripts --json > /tmp/pack.json
+          node -e '
+            const files = require("/tmp/pack.json")[0].files.map((f) => f.path)
+            const leaks = files.filter((p) =>
+              p.startsWith("src/") || p.includes(".test.") ||
+              p.startsWith("solutions/") || p.startsWith("framework/spec/"))
+            if (leaks.length) {
+              console.error("tarball leaks:", leaks.join(", "))
+              process.exit(1)
+            }
+            console.log(files.length, "files, no leaks")
+          '
