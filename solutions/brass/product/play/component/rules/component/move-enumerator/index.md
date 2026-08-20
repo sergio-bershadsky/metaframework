@@ -1,7 +1,7 @@
 ---
 name: move-enumerator
 kind: component
-version: 2
+version: 3
 title: Move enumerator
 summary: The shared legal-move enumerator and the read-only resource planners every client narrows against.
 status: review
@@ -17,6 +17,8 @@ relations:
   implements:
     - /requirement/legal-move-enforcement
     - /product/play/component/rules/requirement/enumerator-engine-parity
+  realizes:
+    - /capability/legal-move-offering
 tags:
   - engine
   - contract

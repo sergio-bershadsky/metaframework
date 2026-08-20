@@ -405,13 +405,41 @@ export function RelationGraph({
 
   const flowNodes = useMemo<EntityFlowNode[]>(() => {
     if (!layout) return []
+    // What the browser drew, once the probe has reported it — and nothing
+    // before that. See the `measured` note below.
+    const sizes = measured?.key === layoutKey ? measured.geometry.nodes : null
     return nodes.map((node) => {
       const box = layout.placed.get(node.srn)
       const sides = anchored.get(node.srn)
+      const size = sizes?.get(node.srn)
       return {
         id: node.srn,
         type: 'entity',
         position: { x: box?.x ?? 0, y: box?.y ?? 0 },
+        /**
+         * State the size once it is known — the same rule `solution-map.tsx`
+         * documents, reached the other way round because these boxes are
+         * content-sized rather than fixed.
+         *
+         * React Flow reads `measured` off the USER node object. Highlighting
+         * rebuilds those objects on every hover (`decorate` returns `{...node,
+         * className, zIndex}`), and `adoptUserNodes` treats a node that says
+         * nothing about its size as one that has never been sized: it renders
+         * it `visibility: hidden` and discards its handle bounds until a
+         * ResizeObserver reports again. Hidden boxes take no pointer events, so
+         * the pointer immediately "leaves" the node it is sitting on, the hover
+         * clears, the objects are rebuilt again, and the graph oscillates —
+         * measured here at 3240 style mutations over 8.5s from one hover, with
+         * every node hidden for the duration. That is both the blink the reader
+         * sees and the blank canvas it settles into.
+         *
+         * Only AFTER the probe reports, though. Handing React Flow the first
+         * pass's estimate would make the probe read that estimate back out of
+         * the store, and the second pass would lay out on the guess it exists
+         * to replace — restoring the clipped text the two passes were built to
+         * fix.
+         */
+        ...(size ? { measured: size } : {}),
         data: {
           srn: node.srn,
           name: node.name,
@@ -425,7 +453,7 @@ export function RelationGraph({
         },
       }
     })
-  }, [nodes, layout, focus, direction, anchored, onNavigate])
+  }, [nodes, layout, focus, direction, anchored, onNavigate, measured, layoutKey])
 
   // Visibility is a filter on drawn edges only: toggling a type must never
   // reshuffle the graph, or the reader loses the map they had just learned.
@@ -476,8 +504,12 @@ export function RelationGraph({
   // Same rule as the state chart: hovering an entity lights its relations and
   // whatever sits at the far end, and lifts them clear of everything else.
   const highlight = useGraphHighlight(flowNodes, flowEdges)
-  const litNodes = useMemo(() => flowNodes.map(highlight.decorate), [flowNodes, highlight])
-  const litEdges = useMemo(() => flowEdges.map(highlight.decorate), [flowEdges, highlight])
+  // Keyed on `decorate`, not on the hook's return value: that is a fresh object
+  // literal every render, so depending on it rebuilt every node object on every
+  // render — a re-adoption per keystroke of unrelated state, for no change.
+  const { decorate } = highlight
+  const litNodes = useMemo(() => flowNodes.map(decorate), [flowNodes, decorate])
+  const litEdges = useMemo(() => flowEdges.map(decorate), [flowEdges, decorate])
 
   if (nodes.length === 0) {
     return (

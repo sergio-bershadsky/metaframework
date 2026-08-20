@@ -1,7 +1,7 @@
 ---
 name: git-history
 kind: component
-version: 2
+version: 3
 title: Git history
 summary: Every historical read in the portal, shelled out to git through an argv array, classified into four failure reasons, and never permitted to throw.
 status: review
@@ -13,6 +13,8 @@ relations:
     - ../catalog-loader
   implements:
     - /product/portal/requirement/catalog-renders-without-git
+  realizes:
+    - /capability/solution-description
 tags:
   - git
   - history

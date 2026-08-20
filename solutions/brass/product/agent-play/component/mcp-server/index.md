@@ -1,7 +1,7 @@
 ---
 name: mcp-server
 kind: component
-version: 2
+version: 3
 title: MCP server
 summary: One stdio MCP process holding exactly one seat in one match — a state-in, move-out adapter with no game logic.
 status: review
@@ -24,6 +24,10 @@ relations:
   implements:
     - /product/agent-play/requirement/constrained-move-selection
     - /product/agent-play/requirement/agent-cannot-cheat
+  realizes:
+    - /capability/table-formation
+    - /capability/legal-move-offering
+    - /capability/unattended-play
 tags:
   - mcp
   - adapter

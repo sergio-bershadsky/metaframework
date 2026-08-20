@@ -1,7 +1,7 @@
 ---
 name: authoring-kit
 kind: product
-version: 1
+version: 2
 title: Authoring kit
 summary: The Claude Code plugin that teaches a model to author and evolve a catalog — seven skills, three commands, one agent, and a distilled copy of the spec.
 status: review
@@ -15,6 +15,8 @@ relations:
     - /product/specification
   implements:
     - requirement/kit-works-without-the-spec
+  realizes:
+    - /capability/guided-authoring
 tags:
   - plugin
   - claude-code

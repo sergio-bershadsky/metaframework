@@ -1,0 +1,34 @@
+name: audit-a-catalog
+steps:
+  - actor: /actor/reviewer
+    touches: /product/portal/component/console/component/catalog-tree
+    note: Arrives at the rail and picks a lens. Four lenses over one tree, plus a
+      text filter and a focus that narrows everything below it.
+
+  - actor: /actor/reviewer
+    touches: /product/portal/component/console/component/entity-view
+    note: One entity — header, prose, kind fields, relations, contents,
+      artifacts. Every reference on the page navigates.
+
+  - actor: /actor/reviewer
+    touches: /product/portal/component/diagrams
+    note: What this touches and what touches it, at one hop. The drawing is
+      decorative; the sr-only text beneath it is the canonical reading.
+
+  - actor: /actor/reviewer
+    touches: /product/portal/component/console/component/entity-view
+    note: Asks for ?v=N. The past is a git show and nothing else, and the URL is
+      shareable because the version lives in it rather than in state.
+
+  - actor: /actor/reviewer
+    touches: /product/portal/component/console/component/diagnostics-report
+    note: Every rule the catalog breaks, with the file. They have to remember to
+      open it — nothing in the flow above brings them here.
+
+  - actor: /actor/reviewer
+    touches: /product/authoring-kit/component/architecture-review
+    protocol: none
+    # portal -> authoring-kit, carried by the person: they leave the browser and
+    # ask a model. The portal has no surface for this question at all.
+    note: Legality is answered; is it any good is not. Asking it means leaving
+      the portal and running a skill that returns candidates, not a verdict.

@@ -1,7 +1,7 @@
 ---
 name: boardgame-io
 kind: component
-version: 2
+version: 3
 title: boardgame.io
 summary: The turn-based game framework this solution does not own — lobby REST, socket transport, storage, authority.
 status: review
@@ -12,6 +12,8 @@ relations:
   exposes:
     - /protocol/lobby-api
     - /protocol/game-transport
+  realizes:
+    - /capability/table-formation
 tags:
   - third-party
   - framework

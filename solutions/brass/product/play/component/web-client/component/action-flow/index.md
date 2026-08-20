@@ -1,7 +1,7 @@
 ---
 name: action-flow
 kind: component
-version: 2
+version: 3
 title: Action flow
 summary: The interaction machinery that narrows the engine's legal-move list down to exactly one dispatch.
 status: review
@@ -20,6 +20,8 @@ relations:
     - /product/play/component/rules/component/move-enumerator
   implements:
     - /requirement/legal-move-enforcement
+  realizes:
+    - /capability/legal-move-offering
 tags:
   - interaction
 ---

@@ -1,9 +1,9 @@
 ---
 name: kind-contracts
 kind: component
-version: 2
+version: 3
 title: Kind contracts
-summary: One document per ontology kind — nine files, 5,261 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
+summary: One document per ontology kind — twelve files, 7,323 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
 status: review
 owner: sergio
 component-type: library
@@ -16,30 +16,44 @@ relations:
     - /product/specification/datamodel/workflow-document
     - /product/specification/datamodel/state-machine-document
     - /product/specification/datamodel/transport-document
+  realizes:
+    - /capability/schema-interoperability
 tags:
   - spec
   - kinds
 ---
 
-`framework/spec/kinds/` — nine documents, 5,261 lines, one per ontology kind:
+`framework/spec/kinds/` — twelve documents, 7,323 lines, one per ontology kind.
+Versions and line counts measured 2026-08-20:
 
-| Document         | Version | Lines | Adds                                                      |
-| ---------------- | ------- | ----- | ---------------------------------------------------------- |
-| `solution.md`    | 3       | 324   | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7. |
-| `product.md`     | 2       | 270   | `lifecycle`, `primary-actors`.                             |
-| `component.md`   | 2       | 392   | `component-type`, environment declaration, reuse rules.    |
-| `datamodel.md`   | 5       | 1220  | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.  |
-| `protocol.md`    | 3       | 1244  | `participants`/`style`, `transport.yaml`, workflows, states. |
-| `actor.md`       | 2       | 447   | `actor-type`, `goals`, protocol participation.             |
-| `environment.md` | 2       | 450   | `environment-type`, `topology.yaml`, `config.yaml`.        |
-| `adr.md`         | 2       | 418   | `decision-status`, `date`, `deciders`, the body template.  |
-| `requirement.md` | 2       | 496   | `requirement-type`, `priority`, `## Acceptance criteria`.  |
+| Document         | Version | Lines | Adds                                                         |
+| ---------------- | ------- | ----- | ------------------------------------------------------------ |
+| `solution.md`    | 5       | 328   | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7.   |
+| `product.md`     | 4       | 286   | `lifecycle`, `primary-actors`.                               |
+| `component.md`   | 4       | 526   | `component-type`, `lifecycle`, environment declaration.      |
+| `datamodel.md`   | 6       | 1216  | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.    |
+| `protocol.md`    | 4       | 1242  | `participants`/`style`, `transport.yaml`, workflows, states. |
+| `actor.md`       | 4       | 446   | `actor-type`, `goals`, protocol participation.               |
+| `environment.md` | 3       | 448   | `environment-type`, `topology.yaml`, `config.yaml`.          |
+| `adr.md`         | 3       | 418   | `decision-status`, `date`, `deciders`, the body template.    |
+| `requirement.md` | 3       | 493   | `requirement-type`, `priority`, `## Acceptance criteria`.    |
+| `capability.md`  | 2       | 584   | Nothing — zero kind fields, deliberately; target of `realizes`. |
+| `journey.md`     | 2       | 686   | `actor`, and the ordered unbranched `journey.yaml`.          |
+| `metric.md`      | 2       | 650   | `metric-type`, `target`, `window`, `direction`; `measures`.  |
 
-The set is **closed**. `index.md`: "Extending the ontology is deferred, so the
-nine kind documents above are the complete set." The eight kind buckets plus
-`solution` are the same words as the reserved-word list in the path grammar,
-which is why adding a tenth kind is not a documentation change but a grammar
-change.
+The last three arrived together in decision-record amendment `2026-08-20-a`.
+They are 1,920 of these 7,323 lines — a quarter of the component, written in a
+day — and two of them, `capability.md` and `metric.md`, are the only documents
+anywhere in `framework/spec/` that still carry `status: draft`.
+
+The set is **closed but no longer fixed**, and `index.md` now says so in its own
+words: "The set was opened, and it grows by appending. The founding decision
+record called the ontology closed at nine kinds; amendment **2026-08-20-a**
+reopened it." The eleven kind buckets plus `solution` are the same words as the
+reserved-word list in the path grammar, which is why adding a thirteenth kind is
+not a documentation change but a grammar change — and why an adoption has to
+check first that no entity anywhere in any catalog is already named after the
+word.
 
 ## The one-way edge to the core
 
@@ -70,7 +84,18 @@ is why two of these documents are twice the size of the rest:
   §"`transport.yaml`" is
   [transport-document](srn://metaframework/product/specification/datamodel/transport-document).
 
-The remaining five kinds define no sibling artifact at all. `adr.md` says so
+**A fifth format is specified here and has no datamodel entity.**
+`journey.md` §"The journey.yaml mini-spec" defines a required artifact with its
+own top-level fields, step schema, `x-` escape hatch and twelve error codes —
+the same weight as the workflow mini-spec next to it — and there is no
+`datamodel/journey-document` in this product's bucket to match
+[workflow-document](srn://metaframework/product/specification/datamodel/workflow-document).
+The gap arrived with amendment `2026-08-20-a` and is stated here rather than
+closed, because adding the datamodel is a decision about what this product
+exposes and not a correction to this page. The portal parses the format anyway:
+`framework/portal/src/lib/journey/journey.ts` is its only implementation.
+
+Eight of the twelve kinds define no sibling artifact at all. `adr.md` says so
 outright — "The ADR kind defines no sibling artifacts. An ADR is `index.md`" —
 because "an ADR's substance is argument, and argument does not have a
 machine-readable form".
@@ -79,7 +104,7 @@ machine-readable form".
 
 This is the honest asymmetry between the two components. The core contracts are
 largely enforced by the portal loader; the kind contracts largely are not. Codes
-these nine documents specify that appear nowhere in `framework/portal/src`
+these twelve documents specify that appear nowhere in `framework/portal/src`
 include `E_ADR_SECTIONS` (the ADR's four required headings), `E_REQ_CRITERIA`
 (the requirement's `## Acceptance criteria` shape), `E_PROD_ACTOR_TARGET`,
 `E_PROTO_PARTICIPANT_KIND`, `E_PROTO_ALIAS_DUP`, `E_ENV_TOPOLOGY_SCHEMA`,

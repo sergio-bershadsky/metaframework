@@ -1,7 +1,7 @@
 ---
 name: catalog-loader
 kind: component
-version: 3
+version: 4
 title: Catalog loader
 summary: The fail-soft walk from filesystem to entity graph — the zod frontmatter contract, relation resolution, the derived inverse index, and the dev fingerprint cache.
 status: review
@@ -15,6 +15,8 @@ relations:
     - /product/specification/datamodel/entity-frontmatter@1
   implements:
     - /requirement/zero-error-catalog-load
+  realizes:
+    - /capability/solution-description
 tags:
   - loader
   - validation

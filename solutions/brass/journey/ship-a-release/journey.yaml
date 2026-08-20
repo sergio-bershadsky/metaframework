@@ -1,0 +1,41 @@
+name: ship-a-release
+steps:
+  - actor: /actor/ci-runner
+    touches: /product/play/component/rules
+    note: pnpm -r typecheck and the engine suite, which is where the bot validator
+      plays complete 2-, 3- and 4-player games from fixed seeds.
+
+  - actor: /actor/ci-runner
+    touches: /product/agent-play/component/mcp-server
+    protocol: none
+    # play -> agent-play, carried by the build tool: pnpm walks the workspace.
+    note: Swept by the recursive typecheck and by nothing else — no unit suite, no
+      image, no deployment. The second product's whole CI story is one flag.
+
+  - actor: /actor/ci-runner
+    touches: /product/play/component/web-client
+    protocol: none
+    # agent-play -> play, same sweep, read from its other end.
+    note: The client suite runs, then brass-client is built for linux/amd64 — the
+      k3s node's architecture — and pushed to GHCR.
+
+  - actor: /actor/ci-runner
+    touches: /product/play/component/server
+    note: brass-server, from the same job, which runs only after test passes and
+      only when the event is not a pull_request. No fork PR ever holds the token.
+
+  - actor: /actor/maintainer
+    touches: /product/play/component/server
+    note: helm upgrade --install, by hand, from the machine holding the kubeconfig.
+      Recreate means the old pod is gone before the new one starts, and so is
+      every match in it.
+
+  - actor: /actor/maintainer
+    touches: /product/play/component/edge-router
+    note: Pods and certificate ready. The ingress is what puts client and server on
+      one origin, so a broken path split looks like a working site with wrong JSON.
+
+  - actor: /actor/maintainer
+    touches: /product/play/component/server
+    note: curl https://brass.bershadsky.dev/games, the same path both probes use.
+      Its answer is the entire end-to-end verification a release receives.

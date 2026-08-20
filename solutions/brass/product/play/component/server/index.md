@@ -1,7 +1,7 @@
 ---
 name: server
 kind: component
-version: 2
+version: 3
 title: Game server
 summary: The authoritative boardgame.io server — lobby REST and socket transport on one port, adjudicating every move.
 status: review
@@ -22,6 +22,9 @@ relations:
     - /requirement/legal-move-enforcement
     - /requirement/hidden-hands
     - /product/play/component/server/requirement/single-writer-match-state
+  realizes:
+    - /capability/rule-adjudication
+    - /capability/table-formation
 tags:
   - authority
   - node

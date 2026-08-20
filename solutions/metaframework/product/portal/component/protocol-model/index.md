@@ -1,7 +1,7 @@
 ---
 name: protocol-model
 kind: component
-version: 2
+version: 3
 title: Protocol model
 summary: The workflow mini-spec parser, the XState-subset validator, and the pure mermaid compiler — three files answering one question, and none of their diagnostics reaches /diagnostics.
 status: review
@@ -14,6 +14,8 @@ relations:
   uses:
     - /product/specification/datamodel/workflow-document@1
     - /product/specification/datamodel/state-machine-document@1
+  realizes:
+    - /capability/derived-visualization
 tags:
   - protocol
   - diagrams

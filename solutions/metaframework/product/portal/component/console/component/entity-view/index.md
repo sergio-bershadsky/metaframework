@@ -1,7 +1,7 @@
 ---
 name: entity-view
 kind: component
-version: 2
+version: 3
 title: Entity view
 summary: One entity, at whichever version the URL asks for — header, prose, kind fields, relations, contents, artifacts, and the ?v=N historical path.
 status: review
@@ -21,6 +21,8 @@ relations:
     - /product/portal/component/diagrams
   implements:
     - /product/portal/requirement/catalog-renders-without-git
+  realizes:
+    - /capability/solution-description
 tags:
   - ui
   - entity-page

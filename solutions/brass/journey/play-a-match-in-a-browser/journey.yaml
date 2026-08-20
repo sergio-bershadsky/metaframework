@@ -1,0 +1,48 @@
+name: play-a-match-in-a-browser
+steps:
+  - actor: /actor/host
+    touches: /product/play/component/web-client/component/lobby-ui
+    protocol: /protocol/lobby-api
+    note: Creates the room and takes seat 0, which is hostID. What comes back is one
+      URL; there is no server-side invitation, so the link is the invitation.
+
+  - actor: /actor/player
+    touches: /product/play/component/web-client/component/lobby-ui
+    protocol: /protocol/lobby-api
+    note: Opens the link and types a name into the first seat carrying none. The
+      credential returned is cached under brass:creds:<matchID> before navigation.
+
+  - actor: /actor/player
+    touches: /product/play/component/server
+    protocol: /protocol/game-transport
+    note: The sync is where the seat is authenticated — the join only minted the
+      credential. Sitting down, colour, avatar and ready are ordinary lobby moves.
+
+  - actor: /actor/host
+    touches: /product/play/component/server
+    protocol: /protocol/game-transport
+    note: hostStart, refused for anyone but seat 0 and until two seats are joined,
+      coloured and ready. The deck is built for the seated count, not for four.
+
+  - actor: /actor/player
+    touches: /product/play/component/web-client/component/action-flow
+    protocol: /product/play/component/web-client/component/action-flow/protocol/action-composition
+    note: Builds, by narrowing — slot, then card, then industry only if the card is
+      ambiguous, and a source prompt only where a cube has more than one source.
+
+  - actor: /actor/player
+    touches: /product/play/component/server
+    protocol: /protocol/game-transport
+    note: The envelope carries a stateID. The engine adjudicates and broadcasts a
+      whole state to every seat, each copy already filtered by playerView.
+
+  - actor: /actor/player
+    touches: /product/play/component/server
+    protocol: /protocol/game-transport
+    note: confirmTurn. The engine never ends a turn by itself, and until this lands
+      every action taken this turn can still be reverted.
+
+  - actor: /actor/player
+    touches: /product/play/component/web-client/component/hud
+    note: Reads the final score track. Victory is VP, then income level, then money,
+      and a tie after all three is shared between every tied seat.

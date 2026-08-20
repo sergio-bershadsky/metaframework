@@ -1,7 +1,7 @@
 ---
 name: bgio-game
 kind: component
-version: 2
+version: 3
 title: boardgame.io game binding
 summary: The Game object — moves, phases, turn order, playerView and endIf; the only file that imports the framework.
 status: review
@@ -18,6 +18,8 @@ relations:
   implements:
     - /requirement/legal-move-enforcement
     - /requirement/hidden-hands
+  realizes:
+    - /capability/rule-adjudication
 tags:
   - engine
   - framework-binding

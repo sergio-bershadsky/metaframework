@@ -1,9 +1,9 @@
 ---
 name: specification
 kind: product
-version: 1
+version: 2
 title: Specification
-summary: The normative contract under framework/spec — 14 documents, 7,279 lines, that the portal implements and the authoring kit distils.
+summary: The normative contract under framework/spec — 17 documents, 9,832 lines, that the portal implements and the authoring kit distils.
 status: review
 owner: sergio
 lifecycle: incubating
@@ -19,15 +19,21 @@ relations:
     - datamodel/transport-document
   implements:
     - requirement/every-rule-has-an-example
+  realizes:
+    - /capability/solution-description
+    - /capability/guided-authoring
 tags:
   - spec
   - contract
 ---
 
-`framework/spec/` is the normative statement of what a catalog is: 14 markdown
-documents, 7,279 lines, written in the framework's own format — each one carries
+`framework/spec/` is the normative statement of what a catalog is: 17 markdown
+documents, 9,832 lines, written in the framework's own format — each one carries
 the frontmatter shape it prescribes for solution entities. Five are core
-contracts binding on every kind; nine are kind contracts, one per ontology kind.
+contracts binding on every kind; twelve are kind contracts, one per ontology
+kind. Measured 2026-08-20 with `wc -l`; the count was 14 documents and 7,279
+lines until decision-record amendment `2026-08-20-a` added `kinds/capability.md`,
+`kinds/journey.md` and `kinds/metric.md`.
 
 It is modelled as a product rather than as a paragraph in this solution's
 `index.md` for one reason, and the reason is structural rather than stylistic: a
@@ -36,7 +42,7 @@ prose and the two most load-bearing statements in this catalog become
 unstateable — that
 [portal](srn://metaframework/product/portal) implements it, and that
 [authoring-kit](srn://metaframework/product/authoring-kit) distils it. Both are
-facts with evidence: twelve source files under `framework/portal/src` cite
+facts with evidence: eighteen source files under `framework/portal/src` cite
 `framework/spec` by path, and commit 6a1b1f1 is titled "SRN parser, resolver and
 disk mapping with **spec-derived** tests"; every file in
 `marketplace/plugins/metaframework/skills/_shared/references/` opens by naming
@@ -49,9 +55,9 @@ Two, and the seam between them is a precedence rule the spec states about itself
 
 - [core-contracts](srn://metaframework/product/specification/component/core-contracts)
   — `index.md`, `structure.md`, `srn.md`, `frontmatter.md`, `evolution.md`.
-  2,018 lines. Binding on every kind.
+  2,509 lines. Binding on every kind.
 - [kind-contracts](srn://metaframework/product/specification/component/kind-contracts)
-  — `kinds/*.md`, nine documents, 5,261 lines. Each adds fields, artifacts and
+  — `kinds/*.md`, twelve documents, 7,323 lines. Each adds fields, artifacts and
   rules *on top of* the core, never overriding them.
 
 `index.md` fixes the direction: "Where two documents appear to disagree, the
@@ -88,16 +94,28 @@ frontmatter (197), `schema.json` (61), `workflows/*.yaml` (22), `transport.yaml`
 `openapi.yaml` (2), `examples/` (3) — below the threshold, and the spec's own v1
 intent is to treat a linked spec as an opaque attachment.
 
+**A sixth format now clears that threshold and has no datamodel here.**
+`kinds/journey.md` specifies `journey.yaml` normatively — required rather than
+optional, with its own top-level fields, step schema, `x-` escape hatch and
+twelve error codes — and `find solutions -name journey.yaml | wc -l` returns 8 as
+of 2026-08-20, exactly the bar the paragraph above sets. It is stated rather than
+closed: adding
+`datamodel/journey-document` changes what this product `exposes`, which is a
+decision about the product and not a correction to this page. The format is
+parsed today by `framework/portal/src/lib/journey/journey.ts`, and that parser is
+its only implementation anywhere.
+
 ## What this product is not
 
 **It is not in the catalog it specifies.** Every spec document carries
-`kind: spec`, which is not one of the nine ontology kinds, and lives under
+`kind: spec`, which is not one of the twelve ontology kinds, and lives under
 `framework/spec/` rather than `solutions/`. The loader reads `solutions/` and
 `.git/` only, so no diagnostic ever fires on the specification — the contract
 holds itself to no mechanical check.
 
-**Not one of its 14 documents is approved.** All carry `status: review`, at
-versions between 2 and 5. The thing that actually wins on conflict is
+**Not one of its 17 documents is approved.** Fifteen carry `status: review` and
+two — `kinds/capability.md` and `kinds/metric.md` — carry `status: draft`, at
+versions between 2 and 6. The thing that actually wins on conflict is
 `docs/decision-record.md`, which `index.md` names in its opening paragraph. This
 product is `lifecycle: incubating` for exactly that reason: it is in use and
 load-bearing, and its contracts are still moving — five amendments and two spec

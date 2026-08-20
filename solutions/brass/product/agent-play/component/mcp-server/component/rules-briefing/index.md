@@ -1,7 +1,7 @@
 ---
 name: rules-briefing
 kind: component
-version: 2
+version: 3
 title: Rules briefing
 summary: The engine-specific rulebook, strategy primer, and move guide served to the model over rules:// resources.
 status: review
@@ -13,6 +13,8 @@ relations:
     - /product/play/component/rules
   implements:
     - /product/agent-play/component/mcp-server/component/rules-briefing/requirement/briefing-fidelity
+  realizes:
+    - /capability/unattended-play
 tags:
   - content
   - llm

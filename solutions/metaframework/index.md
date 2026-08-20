@@ -1,7 +1,7 @@
 ---
 name: metaframework
 kind: solution
-version: 1
+version: 2
 title: Metaframework
 summary: The repository that describes itself — the catalog specification, the portal that renders a catalog, and the plugin that teaches an author to write one.
 status: review
@@ -58,20 +58,45 @@ that claim held consistently: an entity is a directory holding `index.md`
 ([0002-filesystem-is-the-database](srn://metaframework/adr/0002-filesystem-is-the-database)),
 its identity is its path
 ([0001-sealed-solution-universes](srn://metaframework/adr/0001-sealed-solution-universes)
-for the boundary that path may never cross), the ontology it may use is closed at
-nine kinds
-([0003-closed-ontology-of-nine-kinds](srn://metaframework/adr/0003-closed-ontology-of-nine-kinds)),
-and the only gate on any of it is the portal's own diagnostics page
+for the boundary that path may never cross), the ontology it may use is closed —
+at twelve kinds today, eleven of them buckets
+([0003-closed-ontology-of-nine-kinds](srn://metaframework/adr/0003-closed-ontology-of-nine-kinds)
+fixed it at nine, and decision-record amendment `2026-08-20-a` appended
+`capability`, `journey` and `metric`) — and the only gate on any of it is the
+portal's own diagnostics page
 ([0011-no-cli-in-v1](srn://metaframework/adr/0011-no-cli-in-v1)).
 
-Twenty-five of this catalog's eighty-three entities are ADRs — thirteen
+Twenty-five of this catalog's ninety-three entities are ADRs — thirteen
 constitutional ones in this bucket, eleven binding only the portal, one binding
-only the kit. `find solutions/metaframework -name index.md | wc -l` returns 83
-and the same command narrowed with `-path '*/adr/*'` returns 25, so almost
-exactly three in ten of the pages here are a decision rather than a description.
+only the kit. `find solutions/metaframework -name index.md | wc -l` returns 93
+and the same command narrowed with `-path '*/adr/*'` returns 25, so a little over
+a quarter of the pages here are a decision rather than a description.
 That proportion is deliberate and is the directive this solution was written to:
 the decisions are as prominent as the structure, filed in the bucket of the
 container each one binds rather than collected in one chronological pile.
+
+## Three of its buckets contradict one of its ADRs, and the ADR stands
+
+`capability/`, `journey/` and `metric/` exist in this catalog, and
+[0003-closed-ontology-of-nine-kinds](srn://metaframework/adr/0003-closed-ontology-of-nine-kinds)
+says under Consequences that there is no `metric` kind and no `capability` or
+`journey` kind either. Both statements are in the repository and both are on the
+record.
+
+The ADR is not wrong; it is dated. It records what was decided when the ontology
+was fixed, and its reasoning — that each candidate overlapped something already
+present, and that overlapping kinds produce catalogs where the same fact is filed
+in two places — is exactly the reasoning amendment `2026-08-20-a` had to answer
+before the three were admitted. An ADR is a decision at a moment, and rewriting
+one to agree with the present is how a decision record turns into a description
+of the current state, which is what the rest of this catalog is for.
+
+What is genuinely missing is the ADR that supersedes it. Nothing in
+`solutions/metaframework/adr/` records the reversal; the argument lives in
+`docs/decision-record.md`, which outranks the spec on conflict but is not an
+entity and cannot be the target of a `supersedes` edge. Until somebody writes
+that ADR, a reader arriving at 0003 from the graph has no forward pointer, and
+this paragraph is the only thing that says so.
 
 ## Reading order
 
@@ -105,9 +130,10 @@ organised lives in the kit's.
   `SCHEMA_BASE_URL`, default `http://localhost:3000`. A consumer that wants to
   fetch rather than trust a cache maps one host onto the other in resolver
   config.
-- **The spec is unratified.** All fourteen documents under `framework/spec/`
-  carry `status: review`. Not one is `approved`, and on conflict
-  `docs/decision-record.md` wins anyway.
+- **The spec is unratified.** Of the seventeen documents under `framework/spec/`,
+  fifteen carry `status: review` and two — `kinds/capability.md` and
+  `kinds/metric.md` — carry `status: draft`. Not one is `approved`, and on
+  conflict `docs/decision-record.md` wins anyway.
 - **Roughly fifty specified diagnostic codes are implemented nowhere**,
   concentrated in protocol, environment, ADR and requirement validation —
   including `E_ADR_SECTIONS` and `E_REQ_CRITERIA`. This solution's own ADRs and

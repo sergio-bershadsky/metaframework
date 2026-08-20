@@ -1,7 +1,7 @@
 ---
 name: engine-core
 kind: component
-version: 2
+version: 3
 title: Engine core
 summary: Board graph, tile tables, markets, income, network reachability, deck, scoring, and the mutating mechanics.
 status: review
@@ -17,6 +17,8 @@ relations:
     - /requirement/rule-correctness
     - /requirement/seat-count-2-to-4
     - /requirement/full-two-era-game
+  realizes:
+    - /capability/rule-adjudication
 tags:
   - engine
   - domain

@@ -1,0 +1,37 @@
+name: document-a-solution
+steps:
+  - actor: /actor/catalog-author
+    touches: /product/specification/component/core-contracts
+    note: Reads structure.md and srn.md first, because placement is permanent and
+      a wrong bucket is a swap rather than a move.
+
+  - actor: /actor/catalog-author
+    touches: /product/authoring-kit/component/commands
+    protocol: none
+    # specification -> authoring-kit, carried by the person: they type a slash
+    # command. Nothing passes from the spec to the plugin.
+    note: Types /solution-new. The command routes and nothing else, and ends by
+      telling the model not to improvise from the command file.
+
+  - actor: /actor/catalog-author
+    touches: /product/authoring-kit/component/solution-design
+    note: The interview, the decomposition heuristics, a proposed SRN tree, and
+      the sign-off gate that runs before any file exists.
+
+  - actor: /actor/ai-author
+    touches: /product/authoring-kit/component/entity-authoring
+    note: The hand-off. The model writes index.md and any sibling artifact; the
+      person has approved a tree, not a document.
+
+  - actor: /actor/catalog-author
+    touches: /product/portal/component/console/component/diagnostics-report
+    protocol: none
+    # authoring-kit -> portal, carried by the person: they remember to open
+    # /diagnostics, or they do not. Nothing tells them.
+    note: With no CLI in v1 this page is the integrity gate, and opening it is
+      the whole mechanical feedback loop for this actor.
+
+  - actor: /actor/catalog-author
+    touches: /product/portal/component/console/component/entity-view
+    note: Reads back what was written, as a page rather than as a file. The
+      journey ends whether or not the description is any good.

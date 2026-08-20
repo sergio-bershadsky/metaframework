@@ -1,7 +1,7 @@
 ---
 name: diagrams
 kind: component
-version: 2
+version: 3
 title: Diagrams
 summary: The derived-drawing subsystem — four renderers over one shared kit, every drawing computed from catalog data and none hand-authored.
 status: review
@@ -13,6 +13,8 @@ relations:
     - /environment/local
   implements:
     - /product/portal/requirement/every-diagram-has-a-text-equivalent
+  realizes:
+    - /capability/derived-visualization
 tags:
   - ui
   - diagrams

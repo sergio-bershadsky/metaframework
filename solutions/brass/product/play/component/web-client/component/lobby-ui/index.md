@@ -1,7 +1,7 @@
 ---
 name: lobby-ui
 kind: component
-version: 2
+version: 3
 title: Lobby UI
 summary: Routing, room creation, seat claiming, credential storage, and the pre-game seating screen.
 status: review
@@ -18,6 +18,8 @@ relations:
     - /product/play/component/boardgame-io
   implements:
     - /requirement/no-account-play
+  realizes:
+    - /capability/table-formation
 tags:
   - lobby
   - onboarding

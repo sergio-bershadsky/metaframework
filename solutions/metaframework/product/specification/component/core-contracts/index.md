@@ -1,9 +1,9 @@
 ---
 name: core-contracts
 kind: component
-version: 2
+version: 3
 title: Core contracts
-summary: The five spec documents binding on every kind — index, structure, srn, frontmatter, evolution; 2,018 lines that no kind document may relax.
+summary: The five spec documents binding on every kind — index, structure, srn, frontmatter, evolution; 2,509 lines that no kind document may relax.
 status: review
 owner: sergio
 component-type: library
@@ -16,20 +16,25 @@ tags:
   - core
 ---
 
-Five documents, 2,018 lines, at the root of `framework/spec/`:
+Five documents, 2,509 lines, at the root of `framework/spec/`. Versions and
+line counts measured 2026-08-20:
 
-| Document         | Version | Lines | What it fixes                                                        |
-| ---------------- | ------- | ----- | -------------------------------------------------------------------- |
-| `index.md`       | 5       | 186   | Purpose, five core principles, document map, reading order, precedence. |
-| `structure.md`   | 2       | 429   | Monorepo layout, kind buckets, entity directories, naming.           |
-| `srn.md`         | 5       | 801   | SRN grammar, parsing, disk mapping, relative refs, placement.        |
-| `frontmatter.md` | 4       | 277   | The common frontmatter contract and the closed edge vocabulary.      |
-| `evolution.md`   | 4       | 325   | Versioning, the additive-only rule, the swap procedure, git history. |
+| Document         | Version | Lines | What it fixes                                                           |
+| ---------------- | ------- | ----- | ------------------------------------------------------------------------ |
+| `index.md`       | 6       | 218   | Purpose, five core principles, document map, reading order, precedence. |
+| `structure.md`   | 4       | 558   | Monorepo layout, kind buckets, entity directories, naming.              |
+| `srn.md`         | 6       | 873   | SRN grammar, parsing, disk mapping, relative refs, placement.           |
+| `frontmatter.md` | 6       | 475   | The common frontmatter contract and the closed edge vocabulary.         |
+| `evolution.md`   | 5       | 385   | Versioning, the additive-only rule, the swap procedure, git history.    |
 
 The spec's own document map calls them "Core contracts — binding on every kind".
-Their versions move independently and on their own commits — `structure.md` has
-not been touched since 36d504c on 2026-08-19 at 13:42, while `srn.md` reached
-version 5 nine hours later.
+Their versions move independently and on their own commits: every one of the five
+was last touched on 2026-08-20 rather than on the day it was written, because
+opening the ontology reached into all of them — the kind list in `index.md`, the
+solution-level set in `srn.md`, the `realizes`/`measures` edges in
+`frontmatter.md`, the buckets in `structure.md`, the contract surfaces in
+`evolution.md`. A group that moves together under one amendment is the evidence
+that it is one component.
 
 ## Why this is a component and not a chapter list
 
