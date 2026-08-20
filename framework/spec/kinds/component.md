@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: component
-version: 4
+version: 5
 status: review
 title: Kind — component
-summary: The component kind — the nestable container in a component/ bucket under a product or another component, its component-type and lifecycle enums, environments, and reuse by reference.
+summary: The component kind — the nestable container in a component/ bucket under a product or another component, its component-type and lifecycle enums, per-type disciplines, criticality, environments, and reuse by reference.
 ---
 
 # Kind — component
@@ -72,37 +72,52 @@ kind: product        # E_FM_KIND_LOCATION — the bucket says component
 
 ## Frontmatter additions
 
-On top of [frontmatter.md](../frontmatter.md); nothing there is redefined. Two
+On top of [frontmatter.md](../frontmatter.md); nothing there is redefined. Three
 fields.
 
-| Field            | Type                                                                        | Required | Rule                                                                                                                                      |
-| ---------------- | --------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `component-type` | enum: `service \| library \| ui \| job \| datastore \| gateway \| external` | yes      | The component's character; drives derived diagrams and rules T1–T3.                                                                       |
-| `lifecycle`      | enum: `planned \| in-development \| released \| sunset \| retired`          | yes      | Delivery state of the component itself. Never the review state of this document — that is `status` ([frontmatter.md](../frontmatter.md)). |
+| Field            | Type                                                                                                                   | Required | Rule                                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `component-type` | enum: `service \| library \| ui \| job \| datastore \| gateway \| external \| content \| application \| specification` | yes      | The component's character; drives derived diagrams, rules T1–T3, and the per-type disciplines below.                                      |
+| `lifecycle`      | enum: `planned \| in-development \| released \| sunset \| retired`                                                     | yes      | Delivery state of the component itself. Never the review state of this document — that is `status` ([frontmatter.md](../frontmatter.md)). |
+| `criticality`    | integer `1..4`                                                                                                         | no       | Blast radius and review priority, never an SLA ([below](#criticality--review-priority-not-an-sla)). Absent means "not assessed", never 4. |
 
 ### The `component-type` set
 
-| Value       | Means                                                                              | Example                          |
-| ----------- | ---------------------------------------------------------------------------------- | -------------------------------- |
-| `service`   | Independently deployed process with an inbound surface it exposes.                 | checkout API                     |
-| `library`   | Build-time artifact with no runtime of its own; it runs inside its consumers.      | shared money/tax package         |
-| `ui`        | Human-facing client — web, mobile, desktop, CLI.                                   | storefront web app               |
-| `job`       | Scheduled or event-triggered worker with no inbound surface.                       | nightly settlement reconciler    |
-| `datastore` | Holder of persistent state, addressed as infrastructure.                           | orders Postgres, events topic    |
-| `gateway`   | Edge component that fronts, routes, or adapts others rather than owning behaviour. | API gateway, BFF, egress proxy   |
-| `external`  | A system this solution does not own, described locally so edges can point at it.   | payment processor, carrier API   |
+| Value           | Means                                                                                                                                                                       | Example                          |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `service`       | Independently deployed process with an inbound surface it exposes.                                                                                                          | checkout API                     |
+| `library`       | Build-time artifact with no runtime of its own; it runs inside its consumers.                                                                                               | shared money/tax package         |
+| `ui`            | Human-facing client — web, mobile, desktop, CLI.                                                                                                                            | storefront web app               |
+| `job`           | Scheduled or event-triggered worker with no inbound surface.                                                                                                                | nightly settlement reconciler    |
+| `datastore`     | Holder of persistent state, addressed as infrastructure.                                                                                                                    | orders Postgres, events topic    |
+| `gateway`       | Edge component that fronts, routes, or adapts others rather than owning behaviour.                                                                                          | API gateway, BFF, egress proxy   |
+| `external`      | A system this solution does not own, described locally so edges can point at it.                                                                                            | payment processor, carrier API   |
+| `content`       | A versioned content artifact — instructions, briefings, skills — consumed by being read by a person or a model, shipped into or served from a host runtime it does not own. | a Claude Code plugin's skill set |
+| `application`   | A fully-packaged program a user installs and runs as one unit — the shipped distribution, not the surfaces or services inside it.                                           | an npm CLI, a desktop app        |
+| `specification` | A set of normative documents whose contract surface is the text itself, consumed by reference and never executed.                                                           | a framework's spec corpus        |
 
-Why a **closed** set of seven: the type is not documentation, it is an input.
+Why a **closed** set of ten: the type is not documentation, it is an input.
 The portal shapes graph nodes by it, and rules T1–T3 below depend on it — so an
 open vocabulary would immediately produce nodes no rule can check. The axes the
 set covers are exactly the ones the portal must distinguish: has a runtime
-(`service`, `ui`, `job`, `datastore`, `gateway`) vs. has none (`library`); owns
-behaviour (`service`, `ui`, `job`) vs. fronts it (`gateway`) vs. holds state
-(`datastore`); ours (all others) vs. not ours (`external`). Nothing finer
-changes how the catalog validates or draws.
+(`service`, `ui`, `job`, `datastore`, `gateway`) vs. has none (`library`,
+`content`, `specification`) vs. runs where its user installs it
+(`application`); owns behaviour (`service`, `ui`, `job`) vs. fronts it
+(`gateway`) vs. holds state (`datastore`); executed (`library`) vs. read
+(`content`, `specification`); ours (all others) vs. not ours (`external`).
+Nothing finer changes how the catalog validates or draws.
+
+The set was seven; `content`, `application`, and `specification` were appended
+on 2026-08-20 (decision-record amendment 2026-08-20-g). Each names a strain the
+catalogs had already recorded in prose against a nearest-fit value — a
+distributable content bundle carrying `library`, normative document sets
+carrying `library`, an installable CLI with no honest value at all. No existing
+value changed meaning; the eleven other Compass component types were examined
+and rejected there, each for the same reason — no entity in any shipped catalog
+would carry them today.
 
 If no value fits, pick the nearest and record the nuance in an `x-` field —
-never invent an eighth value (`E_FM_SCHEMA`, C6). Extending the set is an
+never invent an eleventh value (`E_FM_SCHEMA`, C6). Extending the set is an
 additive spec change to this document.
 
 ```yaml
@@ -195,6 +210,12 @@ Adding a value to either set is an additive spec change to that kind's document
   vendor's internal roadmap.
 - A **`datastore`** follows the same reading as a service: `released` once it
   holds real data anyone reads.
+- An **`application`** is staged against its install channel: `released` means a
+  version is installable outside this repository — an absolute local path is
+  not a channel.
+- A **`content`** or **`specification`** component is read, not run, so the
+  library reading applies: `released` means a version consumers can read and
+  rely on; `retired` means nothing reads or references it any more.
 
 #### Deliberately coarse, and deliberately global
 
@@ -236,6 +257,126 @@ other way: the gentler-looking optional-then-required path is the tightening
 additive-only forbids, so it is one loud migration rather than a quiet one
 (decision-record amendment 2026-08-20-b).
 
+### `criticality` — review priority, not an SLA
+
+`criticality` is an OPTIONAL integer, `1` (highest) to `4`, with **no default**:
+absent means *"not assessed"*, never tier 4. It states **blast radius and
+review priority** — how badly the solution degrades if this component fails or
+regresses — and nothing else. It is adapted from Compass's tier model, which
+answers a question reviewers do ask ("which components could seriously hurt if
+they failed?"), but the SLA semantics and the default-to-4 are deliberately not
+imported: both shipped catalogs that declare environments state in writing that
+no SLO exists, and a default or an SLA reading would stamp an operational
+promise nobody made onto every entity. review-solution MAY rank findings by
+`criticality` and MAY flag a criticality-1 or -2 component that declares no
+requirement and no metric; it MUST NOT flag a missing SLO — declaring one is a
+decision this field does not make. A value outside `1..4`, a non-integer, or a
+string is `E_FM_SCHEMA`.
+
+```yaml
+component-type: service
+criticality: 1          # if this fails, the solution stops working
+# (no criticality)      # not assessed — never read as tier 4
+criticality: "2"        # E_FM_SCHEMA — integer, not a string
+criticality: 5          # E_FM_SCHEMA — the scale is closed at 4
+```
+
+## Type disciplines
+
+Each `component-type` carries a discipline: what an entity of that type MUST
+say, and what review-solution flags when it does not. The disciplines are
+normative for authors and for review; the ones backed by a loader rule name its
+code, the rest are review checks — a discipline stated here without a code is
+enforced by review-solution, not by the loader.
+
+### `service`
+
+Independently deployed process with an inbound surface. MUST expose at least
+one protocol, or state in prose why none. SHOULD declare at least one
+environment (`W_COMP_NO_ENVIRONMENT`, T2). `depends-on` MUST name every runtime
+dependency. review-solution flags: a service nothing calls; a service with no
+inbound surface (probably a `job`); a route handler inside another component's
+process claiming `service` — record the strain or split honestly.
+
+### `library`
+
+Build-time artifact; runs inside its consumers. MUST NOT declare an environment
+(`E_COMP_LIBRARY_ENVIRONMENT`, T1). Exposes no protocol. MUST be depended on by
+at least one component. `lifecycle: released` means a version is consumable,
+not running. review-solution flags: a library with zero consumers; a library
+whose body is normative text or installable content — `specification` or
+`content` is meant.
+
+### `ui`
+
+Human-facing surface — web, mobile, desktop, TUI. MUST name the actor or
+journey that reaches it, and `depends-on` the components it reads or calls.
+SHOULD declare an environment (T2). review-solution flags: a ui no actor or
+journey reaches; a ui that owns domain state a service should hold.
+
+### `job`
+
+Scheduled or event-triggered worker. MUST NOT expose a protocol — no inbound
+surface is the definition. MUST name its trigger (schedule or event) and its
+effect (what it writes or calls), in prose or edges. SHOULD declare an
+environment (T2). review-solution flags: a job with an inbound surface (it is a
+service); a job whose trigger is unstated.
+
+### `datastore`
+
+Holder of persistent state, addressed as infrastructure. Its datamodels carry
+`usage: storage`. MUST hold no business logic — logic in a datastore is a
+review flag. Names its engine (`x-runtime` or prose). SHOULD declare an
+environment (T2). review-solution flags: a datastore no component depends on;
+schemas it holds that no datamodel entity models.
+
+### `gateway`
+
+Edge component that fronts, routes, or adapts. MUST name what it fronts —
+`depends-on` to every fronted component. Owns no business behaviour; behaviour
+in a gateway is a review flag. Exposes or adapts the protocols at its edge,
+named explicitly. SHOULD declare an environment (T2). review-solution flags: a
+gateway fronting nothing; domain logic at the edge.
+
+### `external`
+
+A system this solution does not own, described locally so edges can point at
+it. MUST NOT contain child components (`E_COMP_EXTERNAL_CHILD`, T3). MUST
+document the boundary — the protocol or contract at the seam. Carries no
+delivery obligation: no environment expected, no tests expected, `lifecycle`
+describes the relationship, not a release. review-solution never flags it for
+missing environments or coverage.
+
+### `content`
+
+Versioned content consumed by being read, by a person or a model. MUST name its
+host runtime and how the content reaches it — installed, compiled in, or
+served. Lists its documents as artifacts on disk, the way a datamodel lists
+`schema.json`. MUST state its fidelity story: what keeps the text true of the
+system it describes, or the requirement recording that nothing does. Declares
+no environment of its own. review-solution flags: content with no named host;
+content with no fidelity statement.
+
+### `application`
+
+A fully-packaged installable unit. MUST name its package identity, the source
+of truth for its version, and its install/run channel — registry, marketplace,
+binary. Contains or `depends-on` the components packaged inside it.
+`lifecycle: released` means a version is installable outside this repository —
+an absolute local path is not a channel. review-solution flags: an application
+with no install path; a version with no single source of truth.
+
+### `specification`
+
+Normative documents; the text is the contract surface. MUST enumerate what it
+makes checkable — error codes, schemas, invariants — and what it leaves
+unenforced, admitted in writing. Consumed by reference: expects incoming
+`depends-on`/`implements` edges, exposes no protocol, declares no environment.
+Evolution is additive-only — never narrow a published contract; a narrowing
+lands only as a swap ([evolution.md](../evolution.md)). review-solution flags:
+a normative claim with neither an implementing check nor a recorded admission;
+a spec nothing implements.
+
 ## Declaring environments
 
 A component declares where it runs with the **existing** `uses` edge pointing at
@@ -261,11 +402,11 @@ relations:
 
 Rules:
 
-| #  | Rule                                                                                              | Class                      |
-| -- | -------------------------------------------------------------------------------------------------- | -------------------------- |
-| T1 | A `library` MUST NOT declare an environment — it has no runtime of its own.                        | `E_COMP_LIBRARY_ENVIRONMENT` |
-| T2 | A `service`, `ui`, `job`, `datastore`, or `gateway` SHOULD declare at least one environment.        | `W_COMP_NO_ENVIRONMENT`    |
-| T3 | An `external` component MUST NOT contain child component entities — we do not describe its insides.| `E_COMP_EXTERNAL_CHILD`    |
+| #   | Rule                                                                                                | Class                        |
+| --- | --------------------------------------------------------------------------------------------------- | ---------------------------- |
+| T1  | A `library` MUST NOT declare an environment — it has no runtime of its own.                         | `E_COMP_LIBRARY_ENVIRONMENT` |
+| T2  | A `service`, `ui`, `job`, `datastore`, or `gateway` SHOULD declare at least one environment.        | `W_COMP_NO_ENVIRONMENT`      |
+| T3  | An `external` component MUST NOT contain child component entities — we do not describe its insides. | `E_COMP_EXTERNAL_CHILD`      |
 
 ```yaml
 # solutions/acme/product/shop/component/money-kit/index.md
@@ -294,10 +435,10 @@ A component is owned by exactly one product and sits at exactly one path (C5).
 When another product or component needs it, that need is **authored once, on the
 reusing side, as a `depends-on` edge**:
 
-| Side          | Authored                                       | Derived                                     |
-| ------------- | ---------------------------------------------- | -------------------------------------------- |
-| reusing       | `relations.depends-on: [<srn of the reused>]`  | —                                            |
-| owning/reused | nothing                                        | `depended-on-by` (inverse, [frontmatter.md](../frontmatter.md)) |
+| Side          | Authored                                      | Derived                                                         |
+| ------------- | --------------------------------------------- | --------------------------------------------------------------- |
+| reusing       | `relations.depends-on: [<srn of the reused>]` | —                                                               |
+| owning/reused | nothing                                       | `depended-on-by` (inverse, [frontmatter.md](../frontmatter.md)) |
 
 ```yaml
 # solutions/acme/product/shop/component/checkout/index.md — the reusing side
@@ -406,20 +547,21 @@ they are a deliberate choice rather than an accident.
 Numbered `CV*` to avoid collision with the container rules C1–C7
 ([solution.md](solution.md)), which also bind here.
 
-| #   | Rule                                                                     | Error class                  |
-| --- | ------------------------------------------------------------------------- | ---------------------------- |
-| CV1 | The `component/` bucket sits inside a product or another component.       | `E_SRN_PLACEMENT`            |
-| CV2 | `component-type` present and in the closed enum.                          | `E_FM_SCHEMA`                |
-| CV3 | T1 — `library` declares no environment.                                   | `E_COMP_LIBRARY_ENVIRONMENT` |
-| CV4 | T3 — `external` has no child component entities.                          | `E_COMP_EXTERNAL_CHILD`      |
-| CV5 | Component directory is a real directory, not a symlink.                   | `E_COMP_SYMLINK`             |
-| CV6 | T2 — runtime-bearing component declares ≥ 1 environment.                  | `W_COMP_NO_ENVIRONMENT`      |
-| CV7 | `depends-on` graph among components is acyclic.                           | `W_COMP_DEP_CYCLE`           |
-| CV8 | Frontmatter `kind: component` matches the `component/` bucket holding it. | `E_FM_KIND_LOCATION`         |
-| CV9 | `lifecycle` present and in the closed enum.                               | `E_FM_SCHEMA`                |
+| #    | Rule                                                                      | Error class                  |
+| ---- | ------------------------------------------------------------------------- | ---------------------------- |
+| CV1  | The `component/` bucket sits inside a product or another component.       | `E_SRN_PLACEMENT`            |
+| CV2  | `component-type` present and in the closed enum.                          | `E_FM_SCHEMA`                |
+| CV3  | T1 — `library` declares no environment.                                   | `E_COMP_LIBRARY_ENVIRONMENT` |
+| CV4  | T3 — `external` has no child component entities.                          | `E_COMP_EXTERNAL_CHILD`      |
+| CV5  | Component directory is a real directory, not a symlink.                   | `E_COMP_SYMLINK`             |
+| CV6  | T2 — runtime-bearing component declares ≥ 1 environment.                  | `W_COMP_NO_ENVIRONMENT`      |
+| CV7  | `depends-on` graph among components is acyclic.                           | `W_COMP_DEP_CYCLE`           |
+| CV8  | Frontmatter `kind: component` matches the `component/` bucket holding it. | `E_FM_KIND_LOCATION`         |
+| CV9  | `lifecycle` present and in the closed enum.                               | `E_FM_SCHEMA`                |
+| CV10 | `criticality`, when present, is an integer in `1..4`.                     | `E_FM_SCHEMA`                |
 
 CV1 is a grammar rule ([srn.md](../srn.md)): the directory path fails to parse,
-so a misplaced component never reaches CV2–CV9.
+so a misplaced component never reaches CV2–CV10.
 
 ## Worked example
 
@@ -480,11 +622,11 @@ product's subtree and is never copied here.
 Three reference forms appear in that `relations` block, and each is the shortest
 one that is also unambiguous:
 
-| Ref                                   | Resolves to                                                | Why this form                                       |
-| ------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
-| `requirement/idem-cap`                | `srn://acme/product/shop/component/checkout/requirement/idem-cap` | Own bucket: appended to this entity's path. |
-| `../inventory`                        | `srn://acme/product/shop/component/inventory`               | Sibling in the same `component/` bucket: one `..`.  |
-| `/product/billing/component/ledger`   | `srn://acme/product/billing/component/ledger`                | Leaves the subtree; absolute beats counting `..`.   |
+| Ref                                 | Resolves to                                                       | Why this form                                      |
+| ----------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------- |
+| `requirement/idem-cap`              | `srn://acme/product/shop/component/checkout/requirement/idem-cap` | Own bucket: appended to this entity's path.        |
+| `../inventory`                      | `srn://acme/product/shop/component/inventory`                     | Sibling in the same `component/` bucket: one `..`. |
+| `/product/billing/component/ledger` | `srn://acme/product/billing/component/ledger`                     | Leaves the subtree; absolute beats counting `..`.  |
 
 ## What the portal derives
 
@@ -517,10 +659,10 @@ one that is also unambiguous:
 
 ## Component error classes
 
-| Code                         | Meaning                                                             |
-| ---------------------------- | -------------------------------------------------------------------- |
-| `E_COMP_LIBRARY_ENVIRONMENT` | A `library` component declares an environment via `uses`.            |
-| `E_COMP_EXTERNAL_CHILD`      | An `external` component contains child component entities.           |
+| Code                         | Meaning                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `E_COMP_LIBRARY_ENVIRONMENT` | A `library` component declares an environment via `uses`.                |
+| `E_COMP_EXTERNAL_CHILD`      | An `external` component contains child component entities.               |
 | `E_COMP_SYMLINK`             | A component directory is a symlink — reuse by linking, not by reference. |
-| `W_COMP_NO_ENVIRONMENT`      | Runtime-bearing component declares no environment.                   |
-| `W_COMP_DEP_CYCLE`           | Cycle in the `depends-on` graph among components.                    |
+| `W_COMP_NO_ENVIRONMENT`      | Runtime-bearing component declares no environment.                       |
+| `W_COMP_DEP_CYCLE`           | Cycle in the `depends-on` graph among components.                        |

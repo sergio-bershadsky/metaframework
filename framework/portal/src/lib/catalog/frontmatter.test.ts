@@ -105,6 +105,75 @@ describe('component lifecycle', () => {
   })
 })
 
+describe('component type', () => {
+  const parse = (value: unknown) =>
+    KIND_FRONTMATTER.component.safeParse({ 'component-type': value, lifecycle: 'released' })
+
+  it('accepts the ten values in adoption order — the original seven, then the 2026-08-20-g arrivals', () => {
+    for (const value of [
+      'service',
+      'library',
+      'ui',
+      'job',
+      'datastore',
+      'gateway',
+      'external',
+      'content',
+      'application',
+      'specification',
+    ]) {
+      expect(parse(value).success, value).toBe(true)
+    }
+  })
+
+  it('rejects the Compass types the decision record turned down', () => {
+    // Each failed the same test: no entity in any shipped catalog would carry
+    // it today. `capability` in particular is already a solution-level KIND
+    // with realizes edges — re-importing it as a type tag would give one
+    // concept two homes.
+    for (const value of ['capability', 'cloud-resource', 'website', 'dashboard', 'custom', 'other']) {
+      expect(parse(value).success, value).toBe(false)
+    }
+  })
+
+  it('still rejects near-miss spellings — the enum stays closed', () => {
+    for (const value of ['worker', 'plugin', 'spec', 'app']) {
+      expect(parse(value).success, value).toBe(false)
+    }
+  })
+})
+
+describe('component criticality', () => {
+  const parse = (criticality: unknown) =>
+    KIND_FRONTMATTER.component.safeParse({
+      'component-type': 'service',
+      lifecycle: 'released',
+      ...(criticality === undefined ? {} : { criticality }),
+    })
+
+  it('is optional, and absent means "not assessed" — never a defaulted tier 4', () => {
+    const result = parse(undefined)
+    expect(result.success).toBe(true)
+    expect(result.success && result.data.criticality).toBe(undefined)
+  })
+
+  it('accepts the four tiers', () => {
+    for (const value of [1, 2, 3, 4]) {
+      expect(parse(value).success, String(value)).toBe(true)
+    }
+  })
+
+  it('rejects everything outside 1–4, non-integers, and strings', () => {
+    for (const value of [0, 5, -1, 2.5, '2', 'high']) {
+      expect(parse(value).success, String(value)).toBe(false)
+    }
+  })
+
+  it('is a known component field, so it never reads as E_FM_UNKNOWN_FIELD', () => {
+    expect(kindFieldNames('component')).toContain('criticality')
+  })
+})
+
 describe('capability and journey frontmatter', () => {
   it('gives a capability nothing on top of the common contract', () => {
     // kinds/capability.md rejects every candidate by one test: does some portal

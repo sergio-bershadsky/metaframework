@@ -152,7 +152,32 @@ export const KIND_FRONTMATTER = {
   }),
 
   component: z.object({
-    'component-type': z.enum(['service', 'library', 'ui', 'job', 'datastore', 'gateway', 'external']),
+    // ADOPTION order, grown by appending like every closed enum here: the
+    // original seven, then `content`/`application`/`specification`
+    // (kinds/component.md v5, decision-record amendment 2026-08-20-g). The
+    // three arrivals are the recorded strains, not Compass's completeness —
+    // each names a thing an entity in a shipped catalog already is and the
+    // old seven could only approximate with the mismatch parked in prose.
+    'component-type': z.enum([
+      'service',
+      'library',
+      'ui',
+      'job',
+      'datastore',
+      'gateway',
+      'external',
+      'content',
+      'application',
+      'specification',
+    ]),
+    // OPTIONAL and deliberately defaultless: absent means "not assessed",
+    // never tier 4. The value is blast radius and review priority — how badly
+    // the solution degrades if this component fails or regresses — and carries
+    // NO SLA semantics: both shipped catalogs state in writing that no SLO
+    // exists, and a default would stamp an operational promise nobody made on
+    // every entity. Out-of-range or non-integer values fail here as
+    // E_FM_SCHEMA like any other kind-field violation.
+    criticality: z.number().int().min(1).max(4).optional(),
     // Delivery state of the thing described, never the review state of the
     // description — that is `status`, and the two axes cross: an approved
     // description of a `planned` component is the design-first normal case.

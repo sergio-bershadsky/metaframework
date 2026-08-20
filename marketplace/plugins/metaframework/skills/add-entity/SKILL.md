@@ -233,6 +233,18 @@ anything outside them is `E_FM_SCHEMA`. See `_shared/references/frontmatter.md`
 for the value sets and the shapes of `vision`, `scope`, `contacts`,
 `primary-actors`, `goals`, and the metric target grammars.
 
+`component-type` has ten values. The three newest, one line each:
+
+- `content` — a versioned content artifact, consumed by being read by a person
+  or a model, shipped into or served from a host runtime it does not own.
+- `application` — a fully-packaged program a user installs and runs as one
+  unit; the shipped distribution, not the surfaces or services inside it.
+- `specification` — a set of normative documents whose contract surface is the
+  text itself, consumed by reference and never executed.
+
+Every value carries obligations and review flags — the per-type disciplines
+table in `_shared/references/decomposition.md`.
+
 **`status` is the review state of the DESCRIPTION; `lifecycle` is the delivery
 state of the THING DESCRIBED.** Four fields answer four different questions and
 never substitute for each other: `status` is this document's, `lifecycle` on a

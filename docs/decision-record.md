@@ -1001,3 +1001,118 @@ in its own prose: the enum fits the mechanics (read, not run) and misses the
 distribution half, which `plugin.json`'s version field carries. No other entity
 in the three shipped catalogs needs the missing value yet, and an enum widened for
 one entity is the kind of change the spec should make for two.
+
+## Amendment 2026-08-20-g — the component-type enum grows three values, and criticality lands without an SLA
+
+The `component-type` enum was seven values; it is now ten. `content`,
+`application` and `specification` were appended, every existing value keeps its
+meaning, and every type — old and new — gains a written discipline in
+`kinds/component.md` v5. An optional `criticality` field (integer 1–4, no
+default) lands beside it. `frontmatter.md` moves to v7 for the delegation line;
+the loader's zod schema follows both changes exactly.
+
+### Where the comparison came from
+
+The occasion was Atlassian Compass's component model (its official docs,
+verified 2026-08-20): fourteen component types, four universal tiers with SLA
+expectations and a default of 4, and two dependency edge pairs. The dependency
+edges import nothing — `depends-on`/`uses` and containment already exist here.
+The types and tiers were each examined against one test, stated up front and
+applied uniformly: **would an entity in a shipped catalog carry this today?**
+The decision derives from the inventory — 62 components across three catalogs
+using all seven existing values — not from Compass's completeness.
+
+### The three admitted types, each carried by recorded strain
+
+- **`content`** — a versioned content artifact (instructions, briefings,
+  skills) consumed by being read by a person or a model, shipped into or served
+  from a host runtime it does not own. The strain is recorded twice:
+  `metaframework/product/authoring-kit/component/plugin` states verbatim that
+  "the enum has no value for a distributable content artifact — a versioned
+  bundle of instructions installed into someone else's tool" (amendment
+  2026-08-20-f left exactly this question open), and brass's `rules-briefing` —
+  three markdown documents served over `rules://` — already tags itself
+  `content` in an `x-` field.
+- **`application`** — a fully-packaged program a user installs and runs as one
+  unit: the shipped distribution, not the surfaces or services inside it. The
+  evidence is new and uncommitted: `framework/portal/package.json` now ships
+  `@bershadsky/metaframework` 0.1.0 with a `bin` entry — an installable npm CLI
+  that neither `service` (not independently deployed per surface) nor `ui`
+  (names the interaction mode, not the installable unit) describes. Adopted
+  with this packaging-centric definition, not Compass's verbatim one.
+- **`specification`** — a set of normative documents whose contract surface is
+  the text itself, consumed by reference and never executed. Both components of
+  the specification product carry `library` with the mismatch in prose;
+  `core-contracts` states outright that "there is no value for 'a set of
+  normative documents', and inventing an eighth would be E_FM_SCHEMA". Those
+  two entities are scoped OUT of this change — the owner will review them item
+  by item — but the type lands now so they can adopt it during that review.
+
+A fourth signal — brass and metaframework independently reaching for an
+`x-` field naming a component's package or runtime — is evidence the enum
+under-described what a component IS, and the new types absorb the packaging
+half of what `x-package` was reaching for. `x-runtime` stays an `x-` field:
+promotion-engine's prose says the framework has no opinion on runtimes, and
+that abstention is deliberate.
+
+### The eleven rejected Compass types, each with its reason
+
+- **capability** — already a solution-level KIND with `realizes` edges,
+  deliberately richer than a type tag; re-importing it as a type gives one
+  concept two homes.
+- **cloud-resource** — infrastructure is owned by environment entities and
+  `topology.yaml`; no component in any catalog is a cloud resource.
+- **data-pipeline** — the only batch mover (acme billing/reconciliation) is
+  honestly a `job`; no pipeline exists.
+- **machine-learning-model** — nothing in the three catalogs trains, serves,
+  or embeds a model.
+- **ui-element** — nested ui components (hud, board-view, catalog-tree)
+  already carry `ui`; a finer grain adds a distinction no review question uses.
+- **website** — every web surface in the catalogs is an application surface
+  already typed `ui`; no standalone site exists.
+- **dataset** — data shapes are the datamodel kind and state holders are
+  `datastore`; no published dataset exists.
+- **dashboard** — the portal console is `ui`; no BI dashboard exists anywhere.
+- **data-product** — nothing ships data as a product; adopting it is
+  speculation.
+- **custom / other** — an escape-hatch value teaches authors to stop deciding;
+  this framework's move is nearest-value-plus-strain-in-prose, and the strains
+  that recurred just earned real types.
+- **service, library, application as Compass defines them** — `service` and
+  `library` already exist with our definitions kept; `application` is adopted
+  with our packaging-centric definition.
+
+One recorded strain deliberately did NOT become a type: schema-service /
+history-service's "service is not the true one" is about co-deployment, not a
+missing value. The `service` discipline now tells reviewers to surface that
+strain rather than letting a new value paper over it.
+
+### Tiers: adapted, not imported
+
+Compass tiers answer a question our reviewers do ask — which components could
+seriously hurt if they failed — and the catalog could not answer it. But
+Compass tiers carry SLA semantics and a default of 4, and both
+`brass/environment/production` and `metaframework/environment/local` state in
+writing that no SLO exists; importing SLA semantics or a default would stamp an
+operational promise nobody made onto every entity. So: an OPTIONAL
+`criticality: 1 | 2 | 3 | 4` frontmatter field with NO default — absent means
+"not assessed", never tier 4. Here a tier means blast radius and review
+priority — how badly the solution degrades if this component fails or
+regresses — and nothing else. review-solution may rank findings by it and may
+flag a criticality-1/2 component that declares no requirement and no metric; it
+must never flag a missing SLO, because declaring one is a decision this field
+does not make.
+
+### What landed, and what deliberately did not
+
+`kinds/component.md` v5 carries the extended set, the criticality contract, and
+a normative per-type discipline section — the seven old values gain disciplines
+they previously implied but never stated. `frontmatter.md` v7 updates the
+delegation line. The portal loader extends its enum and validates `criticality`
+(bad values are `E_FM_SCHEMA`, an existing code — no new diagnostic was minted,
+because none of the disciplines demands a loader check that exists today, and a
+code emitted but undocumented, or documented but unemitted, is the drift this
+project keeps finding). No catalog entity was edited: the plugin,
+rules-briefing, portal-console and specification components adopt their new
+types during the owner's item-by-item review, not before it. Everything is
+additive; nothing that was legal yesterday is illegal today.

@@ -1,12 +1,12 @@
 ---
 name: plugin
 kind: component
-version: 1
+version: 2
 title: Claude Code plugin
 summary: The deliverable itself — seven skills, three commands, one read-only agent and a manifest, shipped and versioned as one Claude Code plugin whose only runtime is Claude.
 status: review
 owner: sergio
-component-type: library
+component-type: content
 lifecycle: released
 relations:
   uses:
@@ -142,13 +142,14 @@ stopped being true, which is the point of
   released` is true of the thing existing and being used from this repository;
   distribution beyond it has never happened.
 
-## The `component-type` strain, named
+## The `component-type`
 
-`library` is the nearest honest value and it strains: the enum
-(`service | library | ui | job | datastore | gateway | external`) has no value
-for a distributable content artifact — a versioned bundle of instructions
-installed into someone else's tool. `library` fits the mechanics (consumed by
-being read, no process of its own, runs inside its consumer's context, declares
-no environment) and misses the distribution half, which `plugin.json`'s own
-version field carries. Recording the miss here is cheaper than inventing an
-enum value the spec does not have.
+`content`: a versioned content artifact, consumed by being read — by a person
+or a model — and shipped into a host runtime it does not own. That is this
+component exactly. The host is Claude Code; the content reaches it by
+`/plugin marketplace add` then `/plugin install`, versioned by `plugin.json`'s
+own `0.1.0`; its documents are the `SKILL.md`, command and agent files listed
+above as artifacts; and its fidelity story is
+[kit-works-without-the-spec](srn://metaframework/product/authoring-kit/requirement/kit-works-without-the-spec)
+— nothing automatic keeps the prose true of the system it describes, and that
+requirement is where the miss is recorded.

@@ -74,20 +74,20 @@ fields above, and never overrides them.
 
 Value sets, all closed — anything outside is `E_FM_SCHEMA`:
 
-| Field                    | Values                                                                          |
-|--------------------------|---------------------------------------------------------------------------------|
-| `lifecycle` (product)    | `concept`, `incubating`, `active`, `maintenance`, `sunset`, `retired`           |
-| `lifecycle` (component)  | `planned`, `in-development`, `released`, `sunset`, `retired`                     |
-| `component-type`         | `service`, `library`, `ui`, `job`, `datastore`, `gateway`, `external`           |
-| `usage`                  | `storage`, `exchange`, `both`                                                   |
-| `style`                  | `point-to-point`, `bus`, `request-response`                                     |
-| `actor-type`             | `human`, `system`, `external-system`, `service-account`                         |
-| `environment-type`       | `dev`, `staging`, `production`, `edge`, `local`                                 |
-| `decision-status`        | `proposed`, `accepted`, `rejected`, `superseded`                                |
-| `requirement-type`       | `functional`, `non-functional`                                                  |
-| `priority`               | `must`, `should`, `could`, `wont` — `wont` has no apostrophe                    |
-| `metric-type`            | `ratio`, `duration`, `count`, `amount`                                          |
-| `direction`              | `higher-is-better`, `lower-is-better` — spelled out; `higher` alone is `E_FM_SCHEMA` |
+| Field                   | Values                                                                                                           |
+|-------------------------|------------------------------------------------------------------------------------------------------------------|
+| `lifecycle` (product)   | `concept`, `incubating`, `active`, `maintenance`, `sunset`, `retired`                                            |
+| `lifecycle` (component) | `planned`, `in-development`, `released`, `sunset`, `retired`                                                     |
+| `component-type`        | `service`, `library`, `ui`, `job`, `datastore`, `gateway`, `external`, `content`, `application`, `specification` |
+| `usage`                 | `storage`, `exchange`, `both`                                                                                    |
+| `style`                 | `point-to-point`, `bus`, `request-response`                                                                      |
+| `actor-type`            | `human`, `system`, `external-system`, `service-account`                                                          |
+| `environment-type`      | `dev`, `staging`, `production`, `edge`, `local`                                                                  |
+| `decision-status`       | `proposed`, `accepted`, `rejected`, `superseded`                                                                 |
+| `requirement-type`      | `functional`, `non-functional`                                                                                   |
+| `priority`              | `must`, `should`, `could`, `wont` — `wont` has no apostrophe                                                     |
+| `metric-type`           | `ratio`, `duration`, `count`, `amount`                                                                           |
+| `direction`             | `higher-is-better`, `lower-is-better` — spelled out; `higher` alone is `E_FM_SCHEMA`                             |
 
 **A shared field name does not mean a shared enum.** `lifecycle` is one name on
 two kinds because both answer "what stage is the thing in?", but the value sets

@@ -142,6 +142,28 @@ referrers — so confirm against the tests before proposing it, and remember the
 asymmetry: a missing split is cheap to add later, a wrong boundary costs a
 swap to remove.
 
+**Per-type discipline flags.** Each `component-type` value carries obligations
+— the disciplines table in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`. Read every
+component against its type's row. The flags, by type:
+
+- `service` — nothing calls it; no inbound surface (probably a `job`); a route
+  handler inside another component's process claiming `service` — record the
+  strain or split honestly.
+- `library` — zero consumers; a body that is normative text or installable
+  content (`specification` or `content` was meant).
+- `ui` — no actor or journey reaches it; domain state a service should hold.
+- `job` — an inbound surface (it is a `service`); an unstated trigger.
+- `datastore` — no component depends on it; business logic in the store;
+  schemas it holds that no datamodel entity models.
+- `gateway` — fronting nothing; domain logic at the edge.
+- `external` — never flag missing environments or coverage; do flag child
+  components (`E_COMP_EXTERNAL_CHILD`) or an undocumented boundary.
+- `content` — no named host runtime; no fidelity statement.
+- `application` — no install path; a version with no single source of truth.
+- `specification` — a normative claim with neither an implementing check nor a
+  recorded admission; a spec nothing implements.
+
 **Decisions with no ADR.** Any of these without a record is a hole: the split of
 one product into components, a persistence or messaging choice visible in the
 protocols, an external dependency (`component-type: external`), a

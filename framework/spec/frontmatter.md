@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: frontmatter
-version: 6
+version: 7
 status: review
 title: Common frontmatter
 summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges over the eleven kinds, the status-versus-lifecycle split, and validation.
@@ -431,8 +431,9 @@ transport artifacts ([kinds/protocol.md](kinds/protocol.md)); an environment's
 `environment-type` and topology artifact
 ([kinds/environment.md](kinds/environment.md)); a requirement's acceptance
 criteria ([kinds/requirement.md](kinds/requirement.md)); a component's
-`component-type` and REQUIRED `lifecycle`
-([kinds/component.md](kinds/component.md)); a journey's `actor` and its
+`component-type` (ten values, grown by appending — `content`, `application` and
+`specification` arrived 2026-08-20), REQUIRED `lifecycle`, and optional
+`criticality` ([kinds/component.md](kinds/component.md)); a journey's `actor` and its
 ordered steps, which live in a `journey.yaml` artifact rather than in
 frontmatter ([kinds/journey.md](kinds/journey.md)); a metric's `metric-type`, `target`,
 `window` and `direction` ([kinds/metric.md](kinds/metric.md)); and so on for
