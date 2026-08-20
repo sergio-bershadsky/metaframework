@@ -1,9 +1,9 @@
 ---
 name: acme
 kind: solution
-version: 3
+version: 4
 title: Acme Retail Platform
-summary: The retail platform describing acme's storefront, checkout, and billing systems as one reviewable catalog.
+summary: The retail platform describing acme's storefront, checkout, fulfilment, promotions, identity and billing systems as one reviewable catalog.
 status: approved
 owner: team-platform
 vision: |
@@ -39,21 +39,32 @@ tags:
   - flagship
 ---
 
-# Acme Retail Platform
-
 Acme sells physical goods online. This catalog describes the systems that take an
 order from a customer's cart to a settled payment and a posted ledger entry. It
 is a description, not an implementation: every repository that builds one of
 these components is expected to match what is written here, and a divergence is
 a defect in one of the two.
 
-Two products divide the universe. [shop](srn://acme/product/shop) owns everything a
-customer touches — cart, checkout, payment orchestration, stock availability.
-[billing](srn://acme/product/billing) owns everything that happens after the money moves
-— the double-entry ledger and the reconciliation job that proves it balances.
-The two meet on exactly one surface, the solution-level
+Five products divide the universe, and they divide it along the order's own
+path. [shop](srn://acme/product/shop) owns everything a customer touches — cart,
+checkout, payment orchestration, stock availability.
+[billing](srn://acme/product/billing) owns everything that happens after the
+money moves — the double-entry ledger and the reconciliation job that proves it
+balances. Those two meet on exactly one surface, the solution-level
 [settlement](srn://acme/protocol/settlement) bus, which is why that protocol
 lives at the solution root rather than inside either product.
+
+Three more sit across that line rather than on it.
+[fulfilment](srn://acme/product/fulfilment) takes a paid order to a parcel in
+somebody's hands; [growth](srn://acme/product/growth) decides what an offer is
+worth before shop decides what is charged; and
+[identity](srn://acme/product/identity) is the horizontal every other product
+leans on to know who it is talking to. The three solution-level capabilities —
+[order-fulfilment](srn://acme/capability/order-fulfilment),
+[promotion-pricing](srn://acme/capability/promotion-pricing) and
+[identity-verification](srn://acme/capability/identity-verification) — are where
+those crossings are stated as one doing rather than five products' worth of
+parts, and each one's realizers are derived rather than listed here.
 
 ## Reading order
 

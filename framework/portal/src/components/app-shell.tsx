@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { CatalogTree } from '@/components/catalog-tree'
 import { DiagnosticsIndicator } from '@/components/diagnostics-indicator'
+import { MapLink } from '@/components/map-link'
 import { getCatalog } from '@/lib/catalog'
 import { buildTree } from '@/lib/catalog/tree'
 
@@ -29,7 +30,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
           {catalog.entities.size} {catalog.entities.size === 1 ? 'entity' : 'entities'} in{' '}
           {catalog.solutions.length} {catalog.solutions.length === 1 ? 'solution' : 'solutions'}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          {/* A client component for one reason: the target depends on where the
+              reader is, and both halves of that — the open route and the rail's
+              focus — only exist in the browser. See map-link.tsx. */}
+          <MapLink />
+          <span className="h-4 w-px bg-border" aria-hidden />
           <DiagnosticsIndicator errors={errors} warnings={warnings} />
         </div>
       </header>

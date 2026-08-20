@@ -22,8 +22,6 @@ tags:
   - access-control
 ---
 
-# Decide on attributes, not on roles alone
-
 ## Context
 
 The first access model was roles only: a principal held a set of role names and

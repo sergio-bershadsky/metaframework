@@ -1,0 +1,59 @@
+name: read-history
+title: Open the history panel and compare two revisions
+summary: The sequence the built panel would run if anything mounted it — log first, then a diff, then a file at a revision.
+participants: [history-panel, history-service]
+steps:
+  - message: history-log
+    from: history-panel
+    to: history-service
+    kind: call
+    condition: on first open of the panel
+    note: >-
+      An entity page renders without touching git. The first subprocess is
+      spawned here, by a reader who asked — which is why the panel is a client
+      component and not part of the server render.
+
+  - message: revisions
+    from: history-service
+    to: history-panel
+    kind: return
+    note: >-
+      Revisions oldest-to-newest with the version-to-commit index already built,
+      so the last commit carrying a version is the one a pinned @N resolves to.
+
+  - alt:
+      - when: git is available and the entity has been committed
+        steps:
+          - message: history-diff
+            from: history-panel
+            to: history-service
+            kind: call
+            condition: reader selects a revision
+          - message: diff-hunks
+            from: history-service
+            to: history-panel
+            kind: return
+            note: >-
+              against=parent for one commit, against=worktree for "compare to
+              now", or another hex object name for two revisions. Capped at 4000
+              rendered lines.
+          - opt:
+              when: the reader opens one file rather than the whole diff
+              steps:
+                - message: history-show
+                  from: history-panel
+                  to: history-service
+                  kind: call
+                - message: file-revision
+                  from: history-service
+                  to: history-panel
+                  kind: return
+    otherwise:
+      - message: history-unavailable
+        from: history-service
+        to: history-panel
+        kind: return
+        note: >-
+          Not an error status. The reason is one of no-git-binary,
+          not-a-repository, not-committed or git-error, and a tarball must still
+          render the catalog and explain the absence.

@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/game-state",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/game-state",
+  "title": "Game state",
+  "description": "The complete match document: lobby, turn state, board, players, markets, deck and log. Broadcast in full on every update, after per-recipient hand redaction.",
+  "type": "object",
+  "properties": {
+    "seats": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/player-id"
+      },
+      "additionalProperties": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/seat"
+      },
+      "description": "Player id to seat. Present from match creation, before anyone joins."
+    },
+    "host-id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Player id of the seat that may start the game. Null until the first player sits down."
+    },
+    "started": {
+      "type": "boolean",
+      "description": "Set by the host-start move. Before it, the match is in the lobby phase."
+    },
+    "seat-count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Seated players at the moment the game started. Fixes the deck config and the active merchant set; 0 while still in the lobby."
+    },
+    "era": {
+      "type": "string",
+      "enum": [
+        "canal",
+        "rail"
+      ],
+      "description": "Current era. The transition purges level-1 tiles, clears every link, resets merchant barrels, reshuffles discards and redeals to 8."
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Rounds completed plus one; starts at 1. Incremented at end of round, after income is collected and turn order is rebuilt. Round 1 of the canal era is the one-action round."
+    },
+    "actions-this-turn": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2,
+      "description": "Actions taken in the current turn. One in the first round of the canal era, two thereafter."
+    },
+    "awaiting-commit": {
+      "type": "boolean",
+      "description": "Action budget spent. While set, the ONLY legal move is confirmTurn; an action never ends a turn on its own."
+    },
+    "order": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/player-id"
+      },
+      "description": "Turn order for the current round. Rebuilt at end of round ascending by each player's spend."
+    },
+    "players": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/player-id"
+      },
+      "additionalProperties": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/player-state"
+      },
+      "description": "Player id to player state. Rebuilt per recipient by playerView, which redacts every other seat's hand."
+    },
+    "tiles": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/built-tile"
+      },
+      "description": "Every industry tile on the board, all owners."
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/built-link"
+      },
+      "description": "Every canal or rail token on the board. Emptied entirely at the era transition."
+    },
+    "coal-market": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 14,
+      "description": "Cubes on the coal market. 14 spaces priced 1..7, two per price; setup 13; an empty market sells at 8 without limit."
+    },
+    "iron-market": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Cubes on the iron market. 10 spaces priced 1..5, two per price; setup 8; an empty market sells at 6 without limit."
+    },
+    "merchants": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/merchant-tile-state"
+      },
+      "description": "Merchant tiles in the active commerce slots: 5 at 2 seats, 7 at 3, 9 at 4."
+    },
+    "deck": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/card"
+      },
+      "description": "Draw pile, in order. Not redacted: order is visible to any client that reads it."
+    },
+    "wild-location": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Wild Location cards left in the shared pool. Starts at 4 at every seat count; Scout takes one, a discard returns one."
+    },
+    "wild-industry": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Wild Industry cards left in the shared pool. Starts at 4 at every seat count."
+    },
+    "next-tile-id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Counter for built-tile ids. Also read (without being incremented) when Scout mints wild card ids."
+    },
+    "next-link-id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Counter for built-link ids. Independent of next-tile-id."
+    },
+    "ended": {
+      "type": "boolean",
+      "description": "Set when the rail era finishes and final scoring has run."
+    },
+    "winner": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "winners[0], for single-winner consumers. Reading it alone silently discards a shared victory."
+    },
+    "winners": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/player-id"
+      },
+      "description": "Authoritative winner list. Ranked by victory points, then income LEVEL, then money; every player tying the leader on all three shares the win."
+    },
+    "log": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Human-readable event log, append-only for the match. The MCP state view publishes only the last 15 entries."
+    }
+  },
+  "required": [
+    "seats",
+    "host-id",
+    "started",
+    "seat-count",
+    "era",
+    "round",
+    "actions-this-turn",
+    "order",
+    "players",
+    "tiles",
+    "links",
+    "coal-market",
+    "iron-market",
+    "merchants",
+    "deck",
+    "wild-location",
+    "wild-industry",
+    "next-tile-id",
+    "next-link-id",
+    "ended",
+    "winner",
+    "log"
+  ],
+  "$defs": {
+    "player-id": {
+      "type": "string",
+      "pattern": "^[0-3]$",
+      "description": "Seat key, \"0\" through \"3\"."
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "id": "game-transport",
+  "initial": "lobby",
+  "description": "The life of one match as the transport sees it: the in-game lobby, the two eras, and the turn machine repeated inside each. Not the internal state of any participant.",
+  "states": {
+    "lobby": {
+      "description": "The match exists and seats are being claimed. Every seated client is simultaneously active — boardgame.io's ActivePlayers.ALL — so colour, avatar and ready arrive in any order.",
+      "on": {
+        "HOST_START": {
+          "target": "canal-era",
+          "guard": "the caller is seat 0 and at least two seats are joined, coloured and ready",
+          "actions": ["build-deck", "deal-eight-cards", "randomise-turn-order", "start-canal-era"],
+          "description": "The only move in the whole game restricted to one seat. hostID is hard-wired to \"0\", which is whoever created the match."
+        }
+      }
+    },
+    "canal-era": {
+      "description": "Canal era. Level-1 industries are buildable, only canal links may be laid, and round 1 grants a single action instead of two.",
+      "initial": "turn-start",
+      "on": {
+        "ERA_OVER": {
+          "target": "rail-era",
+          "guard": "the deck is empty and every hand is empty",
+          "actions": [
+            "score-links",
+            "score-industries",
+            "purge-level-one-tiles",
+            "clear-all-links",
+            "reset-merchant-beer",
+            "reshuffle-discards",
+            "reorder-by-spent",
+            "redeal-eight-cards"
+          ],
+          "description": "Scoring is an action on this edge rather than a state of its own: the supported XState subset has no eventless transition, so a scoring state would need an invented event to leave it — and endEra does exactly this, in one pass."
+        }
+      },
+      "states": {
+        "turn-start": {
+          "description": "A seat is on turn with its action budget intact.",
+          "on": {
+            "MAKE_MOVE": [
+              {
+                "target": "action-pending",
+                "guard": "budget remains after this action and the hand is not empty",
+                "description": "Two actions per turn, except canal-era round 1, which grants one."
+              },
+              {
+                "target": "awaiting-commit",
+                "actions": ["set-awaiting-commit"]
+              }
+            ]
+          }
+        },
+        "action-pending": {
+          "description": "One action taken, one left. The turn-scoped undo stack is live here — anything since turn start can still be reverted.",
+          "on": {
+            "MAKE_MOVE": {
+              "target": "awaiting-commit",
+              "actions": ["set-awaiting-commit"]
+            }
+          }
+        },
+        "awaiting-commit": {
+          "description": "The budget is spent (or the hand emptied). The only legal move is confirmTurn — the engine does not end a turn by itself. See 0001-turn-commit-gate.",
+          "on": {
+            "CONFIRM_TURN": [
+              {
+                "target": "turn-start",
+                "guard": "the committing seat is not last in turn order",
+                "actions": ["draw-up-to-eight", "advance-to-next-seat"]
+              },
+              {
+                "target": "turn-start",
+                "actions": [
+                  "draw-up-to-eight",
+                  "collect-income",
+                  "reorder-by-least-spent",
+                  "next-round"
+                ],
+                "description": "End of round: income is collected before turn order is recomputed by spend, and the round counter advances."
+              }
+            ]
+          }
+        }
+      }
+    },
+    "rail-era": {
+      "description": "Rail era. The same turn machine, with rail links, beer-paid double links, and the level-1 tiles gone.",
+      "initial": "turn-start",
+      "on": {
+        "ERA_OVER": {
+          "target": "finished",
+          "guard": "the deck is empty and every hand is empty",
+          "actions": ["score-links", "score-industries", "compute-winner"],
+          "description": "No income is collected in the final round — the game ends on scoring. computeWinner resolves ties by VP, then income level, then money, and may return several seats."
+        }
+      },
+      "states": {
+        "turn-start": {
+          "description": "A seat is on turn with both actions available.",
+          "on": {
+            "MAKE_MOVE": [
+              {
+                "target": "action-pending",
+                "guard": "budget remains after this action and the hand is not empty"
+              },
+              {
+                "target": "awaiting-commit",
+                "actions": ["set-awaiting-commit"]
+              }
+            ]
+          }
+        },
+        "action-pending": {
+          "description": "One action taken, one left.",
+          "on": {
+            "MAKE_MOVE": {
+              "target": "awaiting-commit",
+              "actions": ["set-awaiting-commit"]
+            }
+          }
+        },
+        "awaiting-commit": {
+          "description": "Waiting for confirmTurn, exactly as in the canal era.",
+          "on": {
+            "CONFIRM_TURN": [
+              {
+                "target": "turn-start",
+                "guard": "the committing seat is not last in turn order",
+                "actions": ["draw-up-to-eight", "advance-to-next-seat"]
+              },
+              {
+                "target": "turn-start",
+                "actions": [
+                  "draw-up-to-eight",
+                  "collect-income",
+                  "reorder-by-least-spent",
+                  "next-round"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "finished": {
+      "type": "final",
+      "tags": ["terminal"],
+      "description": "endIf has fired. ctx.gameover carries winner and winners; a shared victory is a normal outcome, not an error state."
+    }
+  }
+}

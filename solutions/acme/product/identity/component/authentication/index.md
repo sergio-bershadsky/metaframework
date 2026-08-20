@@ -1,12 +1,13 @@
 ---
 name: authentication
 kind: component
-version: 3
+version: 4
 title: Authentication
 summary: Verifies credentials and issues, elevates, and revokes sessions — the only writer of session state.
 status: approved
 owner: team-identity
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -20,13 +21,13 @@ relations:
     - /product/identity/component/acl
   implements:
     - /product/identity/requirement/session-revocation
+  realizes:
+    - /capability/identity-verification
 tags:
   - identity
   - login-path
 x-runtime: kotlin-jvm
 ---
-
-# Authentication
 
 Turns a proof into a [session](srn://acme/product/identity/datamodel/session@4). It reads
 [credential](srn://acme/product/identity/datamodel/credential@1) records, checks the

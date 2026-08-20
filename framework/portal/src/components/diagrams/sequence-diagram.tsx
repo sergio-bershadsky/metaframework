@@ -1,6 +1,8 @@
 'use client'
 
 import { useId, useMemo, useState } from 'react'
+import { ExpandButton } from '@/components/diagrams/expand-button'
+import { useExpandable } from '@/lib/diagrams/use-expandable'
 import type { EntityKind } from '@/lib/catalog/frontmatter'
 import type {
   FragmentLayout,
@@ -44,6 +46,16 @@ export interface SequenceDiagramProps {
   participants: Record<string, SequenceParticipant>
   /** Called with a payload datamodel's absolute SRN. */
   onNavigate?: (srn: string) => void
+  /**
+   * Step and fragment paths the source side is pointing at. The path a step
+   * carries *is* its position in the YAML, so no translation happens here — the
+   * diagram lights whatever it is handed by the same key it already owns.
+   */
+  activeAnchors?: readonly string[]
+  /** The pointer moved onto a row, or off every row (null). */
+  onAnchorHover?: (path: string | null) => void
+  /** A row was clicked; the selection outlives the pointer. */
+  onAnchorSelect?: (path: string | null) => void
   className?: string
 }
 
@@ -69,11 +81,23 @@ const ARROW_STYLES: Record<MessageKind, ArrowStyle> = {
 
 const DATAMODEL_COLOR = kindColorVar('datamodel')
 
-export function SequenceDiagram({ workflow, participants, onNavigate, className }: SequenceDiagramProps) {
+export function SequenceDiagram({
+  workflow,
+  participants,
+  onNavigate,
+  activeAnchors,
+  onAnchorHover,
+  onAnchorSelect,
+  className,
+}: SequenceDiagramProps) {
   // SVG marker ids must be unique per instance and valid in a url(#…) reference.
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
+  const { expanded, toggle: toggleExpanded } = useExpandable()
+
+  const lit = useMemo(() => new Set(activeAnchors ?? []), [activeAnchors])
+  const linked = Boolean(onAnchorHover || onAnchorSelect)
 
   const labelOf = useMemo(
     () => (alias: string) => participants[alias]?.label ?? alias,
@@ -105,25 +129,61 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
   const clearHover = () => {
     setHoveredRow(null)
     setHoveredLane(null)
+    onAnchorHover?.(null)
+  }
+
+  const enterRow = (path: string) => {
+    setHoveredRow(path)
+    onAnchorHover?.(path)
   }
 
   return (
-    <figure className={cn('panel overflow-hidden', className)}>
+    <figure
+      data-expanded={expanded || undefined}
+      className={cn(
+        'panel overflow-hidden',
+        expanded && 'fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background',
+        className,
+      )}
+    >
       <figcaption className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border px-4 py-3">
         <h3 className="text-[13px] font-medium text-foreground">{workflow.title}</h3>
         <span className="font-mono text-[11px] tracking-tight text-muted-foreground">{workflow.name}</span>
+        {/* In the caption rather than floating over the drawing, as the two
+            mermaid diagrams do it: this figure has a header bar and they do not,
+            and the corner an overlay would take is where the rightmost lifeline
+            header sits. */}
+        <ExpandButton expanded={expanded} onToggle={toggleExpanded} className="ml-auto self-center" />
         {workflow.summary && (
           <p className="basis-full text-[12.5px] leading-5 text-muted-foreground">{workflow.summary}</p>
         )}
       </figcaption>
 
-      {/* Never squash: the grid keeps its natural width and the frame scrolls. */}
-      <div className="overflow-x-auto overscroll-x-contain">
+      {/*
+        Fit the drawing to the pane, up to its natural size.
+
+        This used to hold the grid at `minWidth: layout.width` and let the frame
+        scroll, on the argument that a squashed diagram is worse than a scrolled
+        one. In the artifact block that argument loses: the drawing gets 1.1fr of
+        a split column — around 570px against a place-order layout of 1120 — so
+        the first thing a reader saw was a drawing sliced down the middle, with
+        the half that names the participants off-screen. Nothing was lost (the
+        pane scrolled), but a cut-off picture reads as a broken one.
+
+        The fit is CSS rather than a measured transform: `width: 100%` against a
+        viewBox scales the whole drawing, text and hit targets alike, and it is
+        already right on the server's first paint — no ResizeObserver, no frame
+        where the untruncated width flashes. `maxWidth` is the natural width, so
+        a pane wider than the drawing draws it at 1:1 rather than blowing it up.
+        Scrolling survives for the case CSS cannot help with: expanded, where the
+        drawing is capped at 1:1 and may be taller than the window.
+      */}
+      <div className={cn('overflow-auto overscroll-x-contain', expanded && 'min-h-0 flex-1')}>
         <svg
           width={layout.width}
           height={layout.height}
           viewBox={`0 0 ${layout.width} ${layout.height}`}
-          style={{ minWidth: layout.width }}
+          style={{ width: '100%', maxWidth: layout.width, height: 'auto' }}
           className="block select-none"
           aria-hidden="true"
           focusable="false"
@@ -186,7 +246,7 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
           {/* Fragments first: they are the substrate the rows sit on. */}
           <g>
             {layout.fragments.map((fragment) => (
-              <FragmentBox key={fragment.path} fragment={fragment} />
+              <FragmentBox key={fragment.path} fragment={fragment} lit={lit.has(fragment.path)} />
             ))}
           </g>
 
@@ -200,12 +260,34 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
                 width={layout.width}
                 height={message.rowHeight}
                 fill="var(--surface-raised)"
-                opacity={hoveredRow === message.path ? 1 : 0}
+                opacity={hoveredRow === message.path || lit.has(message.path) ? 1 : 0}
                 pointerEvents="all"
-                className="transition-opacity duration-150 motion-reduce:transition-none"
-                onMouseEnter={() => setHoveredRow(message.path)}
+                className={cn(
+                  'transition-opacity duration-150 motion-reduce:transition-none',
+                  linked && 'cursor-pointer',
+                )}
+                onMouseEnter={() => enterRow(message.path)}
+                onClick={() => onAnchorSelect?.(message.path)}
               />
             ))}
+          </g>
+
+          {/* The marker for "these are the lines the caret is in". A bar in the
+              margin rather than a tint on the row: the row tint already means
+              hover, and one channel may carry one meaning. */}
+          <g pointerEvents="none">
+            {layout.messages
+              .filter((message) => lit.has(message.path))
+              .map((message) => (
+                <rect
+                  key={`lit-${message.path}`}
+                  x={0}
+                  y={message.rowTop}
+                  width={3}
+                  height={message.rowHeight}
+                  fill="var(--primary)"
+                />
+              ))}
           </g>
 
           <g pointerEvents="none">
@@ -229,7 +311,7 @@ export function SequenceDiagram({ workflow, participants, onNavigate, className 
                 uid={uid}
                 opacity={rowOpacity(message)}
                 onNavigate={onNavigate}
-                onEnter={() => setHoveredRow(message.path)}
+                onEnter={() => enterRow(message.path)}
               />
             ))}
           </g>
@@ -497,7 +579,7 @@ function Message({
   )
 }
 
-function FragmentBox({ fragment }: { fragment: FragmentLayout }) {
+function FragmentBox({ fragment, lit = false }: { fragment: FragmentLayout; lit?: boolean }) {
   const tabHeight = 20
 
   return (
@@ -510,8 +592,8 @@ function FragmentBox({ fragment }: { fragment: FragmentLayout }) {
         rx={5}
         fill="var(--surface)"
         fillOpacity={0.4}
-        stroke="var(--border-strong)"
-        strokeWidth={1}
+        stroke={lit ? 'var(--primary)' : 'var(--border-strong)'}
+        strokeWidth={lit ? 1.5 : 1}
       />
       <path
         d={`M ${fragment.x} ${fragment.y}

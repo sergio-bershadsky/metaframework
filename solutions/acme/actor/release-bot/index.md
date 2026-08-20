@@ -19,8 +19,6 @@ tags:
   - internal
 ---
 
-# Release bot
-
 The identity, not the pipeline. The pipeline runtime lives in another
 repository and is not described here; `release-bot` is the credential that
 runtime assumes, and the two are separate because the credential is revoked,

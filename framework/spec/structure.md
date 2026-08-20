@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: structure
-version: 2
+version: 4
 status: review
 title: Directory structure
-summary: The full directory layout contract — monorepo layout, kind buckets at every level, the entity-directory convention, placement, and naming rules.
+summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, and naming rules.
 ---
 
 # Directory structure
@@ -39,13 +39,13 @@ Below a solution directory, the tree strictly alternates **kind bucket** and
 solutions/{solution}( /{kind}/{name} )*
 ```
 
-- A **kind bucket** is a directory named exactly after one of the eight reserved
-  kinds. It is not an entity, has no `index.md`, and has no SRN.
+- A **kind bucket** is a directory named exactly after one of the eleven
+  reserved kinds. It is not an entity, has no `index.md`, and has no SRN.
 - An **entity directory** is a directory inside a bucket. It holds `index.md`,
   and — if its kind is a container — further kind buckets.
 
 The consequence is that a directory listing anywhere in the catalog answers
-"what is in here?" without knowing any vocabulary beyond the eight kinds:
+"what is in here?" without knowing any vocabulary beyond the eleven kinds:
 
 ```bash
 $ ls -d solutions/acme/*/                       # a solution holds buckets only
@@ -70,8 +70,14 @@ Nesting rules, all of them enforced by the SRN grammar (`E_SRN_PLACEMENT`, see
 - Components are product-owned. Reuse of a component elsewhere in the same
   solution is by SRN reference, never by copying or symlinking the directory.
 - Only products and components own buckets. Every other kind is a leaf: a
-  datamodel, protocol, actor, environment, adr, or requirement directory
-  contains artifacts, never further entities.
+  datamodel, protocol, actor, environment, adr, requirement, capability,
+  journey, or metric directory contains artifacts, never further entities.
+- **Solution-level kinds** — `actor`, `environment`, `capability`, `journey` —
+  have their bucket directly under the solution and nowhere else.
+  **Owner-scoped kinds** — `datamodel`, `protocol`, `adr`, `requirement`,
+  `metric` — have their bucket under the solution, under a product, or under a
+  component at any depth. `metric` is scoped exactly as `requirement` is
+  ([srn.md](srn.md)).
 
 Example — `payment` is a sub-component of `checkout`, which belongs to the
 `shop` product of the `acme` solution:
@@ -91,19 +97,19 @@ entity on the path is written down, never inferred from how deep it sits.
 `index.md`. There are no other markers.
 
 Every entity — containers (solution, product, component) and leaf kinds
-(datamodel, protocol, actor, environment, adr, requirement) alike — is a
-directory holding:
+(datamodel, protocol, actor, environment, adr, requirement, capability,
+journey, metric) alike — is a directory holding:
 
 - `index.md` — REQUIRED. YAML frontmatter (see
   [frontmatter.md](frontmatter.md)) plus free prose.
 - Sibling artifacts — OPTIONAL. YAML/JSON/markdown files carrying the
   machine-readable substance of the entity (e.g. `schema.json` for a datamodel,
-  `transport.yaml` for a protocol). Which siblings a kind defines is specified
-  in that kind's `kinds/*.md` document.
+  `transport.yaml` for a protocol, `journey.yaml` for a journey). Which siblings
+  a kind defines is specified in that kind's `kinds/*.md` document.
 - Asset subdirectories — OPTIONAL. An entity directory MAY contain
   subdirectories to organize its artifacts (e.g. `workflows/`, `examples/`). An
   asset subdirectory is named for its role and is therefore never one of the
-  eight kinds; it MUST NOT contain an `index.md` at any depth, otherwise it
+  eleven kinds; it MUST NOT contain an `index.md` at any depth, otherwise it
   would itself parse as an entity.
 
 ```text
@@ -115,6 +121,47 @@ solutions/acme/product/shop/protocol/order-placement/
     ├── cancel-order.yaml
     └── place-order.yaml
 ```
+
+### The document body
+
+**Rule:** the prose in `index.md` MUST NOT contain a level-1 heading. Sections
+start at `##`. Violation is `E_STRUCT_BODY_H1`
+([below](#structure-error-classes)).
+
+The title is already stated, once, in frontmatter `title`, and the portal
+renders it as the page's `<h1>`. A `#` in the prose therefore produces a second
+`<h1>` on the same page — a document with two top-level headings has no outline,
+which is what a screen reader's heading navigation and every outline-consuming
+tool read the page by. In practice the duplicate was never a *different* title
+either: every entity in this repository opened with `# <title>`, byte-identical
+to the frontmatter field the header had just printed, so the rule removes a
+repetition rather than a section.
+
+```markdown
+---
+name: order
+kind: datamodel
+title: Order
+# … the rest of the frontmatter
+---
+
+The order aggregate as the payment component owns it: …
+
+## Invariants the schema cannot express
+```
+
+The rule is on the **source**, not on the renderer. Demoting authored headings
+at render time would fix the outline while leaving the file — which is what
+review reads, in a diff and on any git host — saying something the page does not
+say. Level in the source and level on the page agree.
+
+Both markdown spellings of a level-1 heading are covered: `# Title`, and `Title`
+underlined with `=`. A `#` inside a fenced block is prose about a path or a
+shell, not a heading, and is never flagged.
+
+Which headings each kind then uses is that kind's business: `kinds/adr.md` pins
+four level-2 sections, `kinds/requirement.md` pins one, and the rest leave them
+conventional. No kind may pin a level-1 heading.
 
 Kind buckets are the mirror image: they hold entity directories and nothing
 else.
@@ -138,7 +185,9 @@ else.
 Every row below is a grammar rule, not a convention. A path that violates it has
 no SRN at all, so the loader reports `E_SRN_PLACEMENT` while reading the
 directory rather than after building the graph. Example paths are real entities
-in the fixture under `solutions/`.
+in the fixture under `solutions/`, except the three marked **†** — `capability`,
+`journey` and `metric` are the newest kinds and no fixture entity of them exists
+yet, so those rows are illustrative.
 
 | Kind          | Bucket may sit in                               | Example path                                                           |
 | ------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
@@ -146,20 +195,38 @@ in the fixture under `solutions/`.
 | `component`   | a product or a component                        | `solutions/acme/product/shop/component/checkout/component/payment/`    |
 | `actor`       | the solution, and nowhere else                  | `solutions/acme/actor/customer/`                                       |
 | `environment` | the solution, and nowhere else                  | `solutions/acme/environment/production/`                               |
+| `capability`  | the solution, and nowhere else                  | `solutions/acme/capability/order-fulfilment/` †                        |
+| `journey`     | the solution, and nowhere else                  | `solutions/acme/journey/place-an-order/` †                             |
 | `datamodel`   | the solution, a product, or a component         | `solutions/acme/product/shop/component/checkout/datamodel/cart/`       |
 | `adr`         | the solution, a product, or a component         | `solutions/acme/product/shop/adr/0001-event-sourcing/`                 |
 | `requirement` | the solution, a product, or a component         | `solutions/acme/product/shop/component/checkout/requirement/idem-cap/` |
+| `metric`      | the solution, a product, or a component         | `solutions/acme/product/shop/metric/checkout-conversion/` †            |
 | `protocol`    | the nearest common ancestor of its participants | `solutions/acme/product/shop/protocol/order-placement/`                |
 
 Rules:
 
-- An `actor/` or `environment/` bucket below solution level is
-  `E_SRN_PLACEMENT`. Actors and environments describe the solution's universe;
+- An `actor/`, `environment/`, `capability/` or `journey/` bucket below solution
+  level is `E_SRN_PLACEMENT`. All four describe the solution's universe;
   products and components reference them, never own them.
 
   ```text
   solutions/acme/product/shop/actor/customer/index.md   # ILLEGAL — E_SRN_PLACEMENT
   solutions/acme/actor/customer/index.md                # legal
+  ```
+
+  For the two newest of the four, the reason is worth spelling out. A
+  **capability** is something the business can do; the products and components
+  that make it real point *up* at it with a `realizes` edge
+  ([frontmatter.md](frontmatter.md)), so putting the capability inside one of
+  them would invert the statement. A **journey** crosses the solution by
+  definition — its ordered steps touch several products — so an owner deep in
+  the tree would be claiming a path whose ends it cannot see.
+
+  ```text
+  solutions/acme/capability/order-fulfilment/index.md            # legal
+  solutions/acme/journey/place-an-order/index.md                 # legal
+  solutions/acme/product/shop/capability/pricing/index.md        # ILLEGAL — E_SRN_PLACEMENT
+  solutions/acme/product/shop/journey/checkout-flow/index.md     # ILLEGAL — E_SRN_PLACEMENT
   ```
 
 - A `product/` bucket below solution level is `E_SRN_PLACEMENT`, and so is a
@@ -172,16 +239,34 @@ Rules:
   ```
 
 - A bucket inside a leaf entity is `E_SRN_PLACEMENT` — a datamodel, protocol,
-  actor, environment, adr, or requirement owns nothing.
+  actor, environment, adr, requirement, capability, journey, or metric owns
+  nothing. The last three are leaves like every other non-container: a
+  capability is not a folder for the metrics about it, and a journey is not a
+  folder for the steps it lists (its steps are an artifact, not entities).
 
   ```text
   solutions/acme/datamodel/money/datamodel/currency/index.md   # ILLEGAL — E_SRN_PLACEMENT
+  solutions/acme/capability/order-fulfilment/metric/lead-time/index.md
+                                                               # ILLEGAL — E_SRN_PLACEMENT:
+                                                               #   a capability owns nothing
   ```
 
-- Datamodels, ADRs, and requirements are **owner-scoped**: they live in the
-  bucket of the container that owns them. Owner scope is a statement of
+- Datamodels, ADRs, requirements, and metrics are **owner-scoped**: they live in
+  the bucket of the container that owns them. Owner scope is a statement of
   responsibility, not visibility — any entity in the solution may reference
-  them.
+  them. A **metric** is scoped exactly as a requirement is, and for the same
+  reason: a number is only meaningful about *something*, so it sits with
+  whatever is accountable for it, from the solution down to the deepest
+  component. What it *measures* is an edge, not its placement — a
+  component-owned metric may `measures` a solution-level capability.
+
+  ```text
+  solutions/acme/metric/order-conversion/index.md                       # solution-owned
+  solutions/acme/product/shop/metric/checkout-conversion/index.md       # product-owned
+  solutions/acme/product/shop/component/checkout/component/payment/metric/authorization-success/index.md
+                                                                        # component-owned, any depth
+  ```
+
 - A protocol MUST live at the **nearest common ancestor (NCA)** of its
   *component and product* participants — the entries of the `participants` list
   in the protocol's own `index.md` frontmatter, which is the authoritative input
@@ -232,15 +317,20 @@ Rules:
   hyphen), `café` (non-ASCII). Violations are `E_SRN_SYNTAX` — naming and SRN
   share one grammar, because the path *is* the SRN.
 
-- The eight reserved kind keywords —
+- The eleven reserved kind keywords —
 
   ```text
   product  component  datamodel  protocol  actor  environment  adr  requirement
+  capability  journey  metric
   ```
 
   — MUST NOT be used as a solution or entity name. They may appear only as
   bucket directories, at the odd positions of the path. Violation:
-  `E_SRN_RESERVED`.
+  `E_SRN_RESERVED`. The second line is the later arrival: the list grows by
+  **appending**, never by re-sorting, and adopting a word takes it out of
+  circulation as a name everywhere at once — which is why the collision check
+  runs before an adoption, not after ([srn.md](srn.md), decision-record
+  amendment 2026-08-20-a).
 
   ```text
   solutions/acme/protocol/                     # legal — kind bucket at solution level
@@ -248,7 +338,7 @@ Rules:
   solutions/acme/product/component/index.md    # ILLEGAL — E_SRN_RESERVED: a product named
                                                #   "component"
   solutions/acme/actor-portal/index.md         # ILLEGAL — E_SRN_SYNTAX: a solution's child is
-                                               #   a bucket, and this is not one of the eight
+                                               #   a bucket, and this is not one of the eleven
   ```
 
   Note the last line: bucketing tightened this rule. Previously a solution's
@@ -364,17 +454,56 @@ srn://acme/product/shop/component/checkout/datamodel/cart
 srn://acme/product/shop/component/checkout/requirement/idem-cap
 ```
 
+### The newest three, on disk
+
+`capability`, `journey` and `metric` have no fixture entities yet, so they are
+shown separately — the tree above is real, this one is illustrative. Nothing
+here is a new layout rule; the point is that three more buckets slot into the
+same alternation:
+
+```text
+solutions/
+└── acme/
+    ├── capability/                             # solution-level bucket, beside actor/
+    │   └── order-fulfilment/                   # srn://acme/capability/order-fulfilment
+    │       └── index.md                        #   a leaf — no buckets inside
+    ├── journey/                                # solution-level bucket
+    │   └── place-an-order/                     # srn://acme/journey/place-an-order
+    │       ├── index.md
+    │       └── journey.yaml                    # sibling artifact: the ordered steps
+    ├── metric/                                 # owner-scoped bucket, here at the solution
+    │   └── order-conversion/                   # srn://acme/metric/order-conversion
+    │       └── index.md
+    └── product/
+        └── shop/
+            ├── metric/                         # the same bucket, owned by the product
+            │   └── checkout-conversion/        # srn://acme/product/shop/metric/checkout-conversion
+            │       └── index.md
+            └── component/
+                └── checkout/
+                    └── metric/                 # …and again, owned by a component
+                        └── p99-latency/        # srn://…/component/checkout/metric/p99-latency
+                            └── index.md
+```
+
+The `metric/` bucket repeats for the same reason `datamodel/` and `requirement/`
+do: the bucket names the kind, the owner names the accountability, and neither is
+inferred from depth. `capability/` and `journey/` cannot repeat — a second
+occurrence anywhere below the solution is `E_SRN_PLACEMENT`.
+
 ## Structure error classes
 
 Placement is grammar now, so the structural checks are only what the grammar
 cannot see: a document that should exist and does not, an entity where no entity
-may be, and two directories claiming one SRN.
+may be, two directories claiming one SRN, and a document whose prose opens a
+heading level the page has already used ([above](#the-document-body)).
 
 | Code                     | Meaning                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------ |
 | `E_STRUCT_MISSING_INDEX` | A directory that owns an entity has no `index.md`, so the owner's SRN resolves to nothing. |
 | `E_STRUCT_NESTED_ENTITY` | An `index.md` sits directly below an entity that is not a container.                       |
 | `E_STRUCT_DUPLICATE_SRN` | Two directories resolve to the same SRN.                                                   |
+| `E_STRUCT_BODY_H1`       | An `index.md` body carries a level-1 heading; the page already renders `title` as the h1.  |
 | `W_STRUCT_PROTOCOL_NCA`  | Protocol not at the NCA of its component/product participants.                             |
 
 Notes on each, because the grammar overlaps them:

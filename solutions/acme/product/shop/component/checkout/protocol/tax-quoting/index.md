@@ -19,8 +19,6 @@ tags:
   - internal
 ---
 
-# Tax quoting
-
 The smallest protocol in the catalog, and the one that proves the ontology does
 not depend on a network. [checkout](srn://acme/product/shop/component/checkout) calls
 [tax-engine](srn://acme/product/shop/component/checkout/component/tax-engine) through an exported interface

@@ -1,0 +1,59 @@
+name: play-a-match-over-mcp
+steps:
+  - actor: /actor/llm-agent
+    touches: /product/agent-play/component/mcp-server/component/rules-briefing
+    protocol: /product/agent-play/component/mcp-server/protocol/mcp-surface
+    note: Reads rules://brass/rulebook, /strategy and /moves once on connect and
+      carries them for the whole game. They teach this engine, not printed Brass.
+
+  - actor: /actor/llm-agent
+    touches: /product/agent-play/component/mcp-server
+    protocol: /product/agent-play/component/mcp-server/protocol/mcp-surface
+    note: list_matches, then join_match. Match, seat, colour and avatar are each
+      auto-selected when the caller omitted them; first open match wins.
+
+  - actor: /actor/llm-agent
+    touches: /product/play/component/server
+    protocol: /protocol/lobby-api
+    # agent-play -> play, documented: lobby-api lists mcp and game-server.
+    note: The seat is claimed through the routes a browser uses. The name defaults
+      to "Bot N" and the credential is held in process memory and nowhere else.
+
+  - actor: /actor/llm-agent
+    touches: /product/play/component/server
+    protocol: /protocol/game-transport
+    note: The sync authenticates the seat, and the sit-down move carries ai=true —
+      the whole implementation of the bot badge. Nothing else on the wire says so.
+
+  - actor: /actor/llm-agent
+    touches: /product/agent-play/component/mcp-server
+    protocol: /product/agent-play/component/mcp-server/protocol/mcp-surface
+    # play -> agent-play, documented: the tool surface is the model's only channel.
+    note: Woken by resources/updated on match://current/state, then get_state.
+      myTurn and awaitingCommit are the two fields the loop branches on.
+
+  - actor: /actor/llm-agent
+    touches: /product/play/component/rules/component/move-enumerator
+    protocol: /protocol/legal-move-api
+    # agent-play -> play, documented: legal-move-api lists mcp as a consumer. The
+    # call is an in-process import; the boundary it crosses is a package one.
+    note: get_legal_moves is this enumeration projected into ids. While
+      awaitingCommit is set the list holds exactly one entry, confirmTurn.
+
+  - actor: /actor/llm-agent
+    touches: /product/agent-play/component/mcp-server
+    protocol: /product/agent-play/component/mcp-server/protocol/mcp-surface
+    note: make_move with an id taken verbatim. The adapter re-enumerates before
+      matching, so a stale id misses cleanly instead of resolving to another move.
+
+  - actor: /actor/llm-agent
+    touches: /product/play/component/server
+    protocol: /protocol/game-transport
+    note: The envelope reaches the only authority and is adjudicated like any
+      seat's. A rejection would produce no message at all, only a missing update.
+
+  - actor: /actor/llm-agent
+    touches: /product/agent-play/component/mcp-server
+    protocol: /product/agent-play/component/mcp-server/protocol/mcp-surface
+    note: leave_match closes the socket and forgets the credentials. The seat stays
+      claimed on the server, and there is no path back into it.

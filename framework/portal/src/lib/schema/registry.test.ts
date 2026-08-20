@@ -11,24 +11,25 @@ import {
 } from './registry'
 import type { Catalog, Entity } from '../catalog/types'
 import { formatSrn, parseSrn } from '../srn/srn'
-import { schemaBaseUrl, srnToSchemaUrl } from './url'
+import { CANONICAL_SCHEMA_HOST, schemaBaseUrl, srnToSchemaUrl } from './url'
 
 /**
  * The fixture is in-memory: the registry only ever sees a loaded Catalog, so
  * these tests must not depend on a filesystem walk. Cases follow the worked
  * example and the composition patterns in framework/spec/kinds/datamodel.md.
  *
- * Every document below carries the `$id` the portal serves it at, and every
- * cross-entity `$ref` is another document's `$id` — the form a stock validator
- * dereferences over HTTP and this registry satisfies from memory
- * (decision-record 2026-08-19-c). `url()` is used everywhere instead of a
- * literal host, for the same reason the production code does: the origin comes
- * from SCHEMA_BASE_URL and is never typed out.
+ * Every document below carries the two identity keywords — the canonical `$id`
+ * and the matching `x-srn` — and every cross-entity `$ref` is another
+ * document's `$id`: the form a stock validator dereferences and this registry
+ * satisfies from memory (decision-record 2026-08-19-c). `url()` is used instead
+ * of a literal host so the test states the *rule* rather than the string, but
+ * the host itself is a constant, not configuration — see the SCHEMA_BASE_URL
+ * case at the end of the identity block.
  */
 
 const DIALECT = 'https://json-schema.org/draft/2020-12/schema'
 
-/** The schema URL of an entity, by its catalog path. */
+/** The canonical schema URL of an entity, by its catalog path. */
 function url(relDir: string): string {
   return srnToSchemaUrl(`srn://${relDir}`)
 }
@@ -37,10 +38,10 @@ function datamodel(relDir: string, source: SchemaNode | null, extra: Record<stri
   const parsed = parseSrn(`srn://${relDir}`)
   const srn = formatSrn({ ...parsed, version: null })
   const name = parsed.name as string
-  // $id is identity, so the helper writes the true one and every fixture
-  // document looks like a shipped schema.json; a case that wants a wrong,
-  // missing or nested $id declares it itself and wins the spread.
-  const document = source === null ? null : { $id: srnToSchemaUrl(srn), ...source }
+  // Both identity keywords are required, so the helper writes the true ones and
+  // every fixture document looks like a shipped schema.json; a case that wants a
+  // wrong, missing or nested one declares it itself and wins the spread.
+  const document = source === null ? null : { $id: srnToSchemaUrl(srn), 'x-srn': srn, ...source }
   const raw = document ? `${JSON.stringify(document, null, 2)}\n` : ''
 
   return {
@@ -441,49 +442,76 @@ describe('reference form', () => {
     return codes(registry, 'srn://acme/product/shop/datamodel/probe')
   }
 
-  it('accepts the served URL of the target — the one form there is', () => {
+  it('accepts the canonical URL of the target — the one form there is', () => {
     expect(refCodes(url('acme/datamodel/money'))).toEqual([])
   })
 
-  it('rejects a $ref that leaves the /schemas/ namespace on this very origin', () => {
-    expect(refCodes(`${schemaBaseUrl()}/api/history/acme/datamodel/money`)).toContain('E_DM_REF_ESCAPE')
-  })
+  it('rejects a serving address, and names the canonical URL to write instead', () => {
+    const serving = `${schemaBaseUrl()}/schemas/acme/datamodel/money`
+    expect(refCodes(serving)).toContain('E_DM_REF_TARGET')
 
-  it('rejects a $ref served by somebody else’s portal', () => {
-    expect(refCodes('https://elsewhere.example/schemas/acme/datamodel/money')).toContain('E_DM_REF_TARGET')
-  })
-
-  it('rejects a $ref that lands in another solution', () => {
-    expect(refCodes(`${schemaBaseUrl()}/schemas/globex/datamodel/money`)).toContain('E_SRN_CROSS_SOLUTION')
-  })
-
-  it('rejects a URL whose path is not an entity address', () => {
-    // A kind bucket with no name after it is not addressable.
-    expect(refCodes(`${schemaBaseUrl()}/schemas/acme/datamodel`)).toContain('E_DM_REF_TARGET')
-  })
-
-  it('rejects a version pin in the URL — it would silently serve the current schema', () => {
-    expect(refCodes(`${url('acme/datamodel/money')}@1`)).toContain('E_DM_REF_TARGET')
-  })
-
-  it('rejects the retired relative file path, and says what to write instead', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
         datamodel('acme/datamodel/money', money),
         datamodel('acme/product/shop/datamodel/probe', {
           $schema: DIALECT,
           type: 'object',
-          properties: { value: { $ref: '../../../../datamodel/money/schema.json' } },
+          properties: { value: { $ref: serving } },
         }),
       ]),
     )
-    const diagnostic = registry.diagnostics.find(
-      (candidate) => candidate.srn === 'srn://acme/product/shop/datamodel/probe',
-    )
-    expect(diagnostic?.code).toBe('E_DM_REF_TARGET')
-    // The old form resolves against $id to exactly the new one, so the author is
-    // handed the replacement rather than a rule.
+    const diagnostic = registry.diagnostics.find((candidate) => candidate.code === 'E_DM_REF_TARGET')
     expect(diagnostic?.message).toContain(url('acme/datamodel/money'))
+  })
+
+  it('rejects a $ref on somebody else’s host', () => {
+    expect(refCodes('https://elsewhere.example/acme/datamodel/money')).toContain('E_DM_REF_TARGET')
+  })
+
+  it('rejects a $ref that lands in another solution', () => {
+    expect(refCodes(`${CANONICAL_SCHEMA_HOST}/globex/datamodel/money`)).toContain('E_SRN_CROSS_SOLUTION')
+  })
+
+  it('rejects a URL whose path is not an entity address', () => {
+    // A kind bucket with no name after it is not addressable.
+    expect(refCodes(`${CANONICAL_SCHEMA_HOST}/acme/datamodel`)).toContain('E_DM_REF_TARGET')
+  })
+
+  it('rejects a version pin in the URL — it would silently serve the current schema', () => {
+    expect(refCodes(`${url('acme/datamodel/money')}@1`)).toContain('E_DM_REF_TARGET')
+  })
+
+  /** The one diagnostic raised on the probe entity, whatever its code. */
+  function probeDiagnostic(ref: string) {
+    const registry = buildSchemaRegistry(
+      catalogOf([
+        datamodel('acme/datamodel/money', money),
+        datamodel('acme/product/shop/datamodel/probe', {
+          $schema: DIALECT,
+          type: 'object',
+          properties: { value: { $ref: ref } },
+        }),
+      ]),
+    )
+    return registry.diagnostics.find((candidate) => candidate.srn === 'srn://acme/product/shop/datamodel/probe')
+  }
+
+  it('rejects the retired relative file path, and names the canonical form', () => {
+    const diagnostic = probeDiagnostic('../../../../datamodel/money/schema.json')
+    expect(diagnostic?.code).toBe('E_DM_REF_TARGET')
+    // It resolves to `…/datamodel/money/schema.json`, which is not an entity
+    // address, so there is no "did you mean" to offer — the message states the
+    // rule with a canonical example instead.
+    expect(diagnostic?.message).toContain(CANONICAL_SCHEMA_HOST)
+  })
+
+  it('hands back the exact URL a resolvable relative $ref meant', () => {
+    // `$id` is a base URI, so this *would* resolve under stock JSON Schema. Two
+    // spellings of one edge is one too many, so it is still rejected — but the
+    // author is handed the replacement rather than a rule.
+    const diagnostic = probeDiagnostic('../../../datamodel/money')
+    expect(diagnostic?.code).toBe('E_DM_REF_TARGET')
+    expect(diagnostic?.message).toContain(`did you mean "${url('acme/datamodel/money')}"`)
   })
 
   it('rejects an SRN $ref — a validator cannot dereference a private URI scheme', () => {
@@ -492,10 +520,11 @@ describe('reference form', () => {
 })
 
 describe('identity', () => {
-  it('accepts an $id that is the URL the portal serves the document at', () => {
+  it('accepts the canonical $id and the matching x-srn', () => {
     const registry = fixture()
     expect(codes(registry, 'srn://acme/datamodel/money')).toEqual([])
     expect(resolveSchema(registry, MONEY)?.document.$id).toBe(MONEY)
+    expect(resolveSchema(registry, MONEY)?.document['x-srn']).toBe('srn://acme/datamodel/money')
   })
 
   it('reports a missing $id — identity is not optional any more', () => {
@@ -512,22 +541,46 @@ describe('identity', () => {
     expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_ID_MISMATCH')
   })
 
-  it('reports an $id on a foreign origin, and names SCHEMA_BASE_URL as the source', () => {
+  it('reports an $id on a foreign host', () => {
+    const registry = buildSchemaRegistry(
+      catalogOf([datamodel('acme/datamodel/money', { ...money, $id: 'https://elsewhere.example/acme/datamodel/money' })]),
+    )
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_ID_MISMATCH')
+  })
+
+  it('reports an $id that states where the portal serves the schema, not what it is', () => {
     const registry = buildSchemaRegistry(
       catalogOf([
-        datamodel('acme/datamodel/money', { ...money, $id: 'https://elsewhere.example/schemas/acme/datamodel/money' }),
+        datamodel('acme/datamodel/money', { ...money, $id: `${schemaBaseUrl()}/schemas/acme/datamodel/money` }),
       ]),
     )
     const diagnostic = registry.diagnostics.find((candidate) => candidate.code === 'E_DM_ID_MISMATCH')
     expect(diagnostic).toBeDefined()
+    // The message must separate the two ideas by name, or the author "fixes" it
+    // by pointing SCHEMA_BASE_URL at the canonical host and breaks retrieval.
     expect(diagnostic?.message).toContain('SCHEMA_BASE_URL')
+    expect(diagnostic?.message).toContain(CANONICAL_SCHEMA_HOST)
   })
 
-  it('reports a retired x-srn rather than tolerating a second identity field', () => {
+  it('reports a missing x-srn — the SRN must survive a schema leaving the catalog', () => {
     const registry = buildSchemaRegistry(
-      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/datamodel/money' })]),
+      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': undefined })]),
     )
-    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_RETIRED')
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_MISSING')
+  })
+
+  it('reports an x-srn that disagrees with the path it sits in', () => {
+    const registry = buildSchemaRegistry(
+      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/datamodel/currency' })]),
+    )
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_MISMATCH')
+  })
+
+  it('reports a pinned x-srn — identity is unversioned, always', () => {
+    const registry = buildSchemaRegistry(
+      catalogOf([datamodel('acme/datamodel/money', { ...money, 'x-srn': 'srn://acme/datamodel/money@1' })]),
+    )
+    expect(codes(registry, 'srn://acme/datamodel/money')).toContain('E_DM_SRN_MISMATCH')
   })
 
   it('reports a nested $id, which would re-base every $ref beneath it', () => {
@@ -543,12 +596,15 @@ describe('identity', () => {
     expect(codes(registry, 'srn://acme/product/shop/datamodel/nested-id')).toContain('E_DM_ID_FORBIDDEN')
   })
 
-  it('takes the origin from SCHEMA_BASE_URL rather than a literal host', () => {
+  it('keeps identity fixed when SCHEMA_BASE_URL moves — a deployment cannot rename a schema', () => {
+    // This is the whole reason the host is a constant. If `$id` tracked
+    // SCHEMA_BASE_URL, a laptop and production would disagree about what a
+    // schema *is*, and every registry and cache keyed on `$id` would split.
     process.env.SCHEMA_BASE_URL = 'https://catalog.acme.example'
     try {
       const registry = buildSchemaRegistry(catalogOf([datamodel('acme/datamodel/money', money)]))
       expect(resolveSchema(registry, 'srn://acme/datamodel/money')?.id).toBe(
-        'https://catalog.acme.example/schemas/acme/datamodel/money',
+        `${CANONICAL_SCHEMA_HOST}/acme/datamodel/money`,
       )
       expect(codes(registry, 'srn://acme/datamodel/money')).toEqual([])
     } finally {
@@ -610,7 +666,7 @@ describe('buildSchemaBundle', () => {
     expect(bundle?.refs[ORDER][MONEY_FROM_ORDER].version).toBe(1)
     expect(bundle?.meta[BASE].abstract).toBe(true)
     expect(bundle?.raw).toContain('"$id"')
-    expect(bundle?.raw).not.toContain('"x-srn"')
+    expect(bundle?.raw).toContain('"x-srn"')
   })
 
   it('flattens every reachable document so a nested $ref expands to effective fields', () => {

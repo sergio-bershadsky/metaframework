@@ -1,0 +1,36 @@
+# No `regions`: a developer machine is a single unnamed place. Every entry is
+# fixed at one instance because nothing here is load-balanced.
+hosts:
+  - component: /product/play/component/server
+    replicas: { min: 1, max: 1 }
+    scaling: none — one tsx watch process
+    notes: |
+      `pnpm dev:server` → tsx watch on packages/server/src/index.ts, port 8000
+      (PORT is unset, so the code's default applies). Playwright starts the same
+      process through `pnpm --filter @brass/server start` and reuses a running one
+      unless CI is set.
+
+  - component: /product/play/component/web-client
+    replicas: { min: 1, max: 1 }
+    scaling: none — one Vite dev server
+    notes: |
+      `pnpm dev:client` → vite on 5173. This is a dev build, so PROD is false and
+      net.ts resolves the server to http://localhost:8000 rather than to the page
+      origin. Both e2e and manual play use this same dev server; there is no
+      preview-build path in the local composition.
+
+  - component: /product/play/component/e2e-harness
+    replicas: { min: 1, max: 1 }
+    scaling: none — playwright.config.ts pins workers to 1 and fullyParallel to false
+    notes: |
+      Drives n browser contexts against the one server above. Serialised on
+      purpose: the runs are whole multi-player games, and the server is a single
+      writer, so parallel workers would interleave matches unpredictably.
+
+  - component: /product/agent-play/component/mcp-server
+    replicas: { min: 1, max: 1 }
+    scaling: none — one process holds exactly one seat
+    notes: |
+      Not started by `pnpm dev`. The LLM host launches it over stdio, one process
+      per seat; BRASS_SERVER_URL selects which game server it joins, which may be
+      the local one or the production host.

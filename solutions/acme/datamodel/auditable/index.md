@@ -13,8 +13,6 @@ tags:
   - compliance
 ---
 
-# Auditable
-
 A cross-cutting property set, not a thing: `changed-by` and `change-reason`, both
 optional, added to any model whose changes an auditor may have to explain. It is
 a mixin only in the way people talk about it — mechanically it is another

@@ -1,6 +1,6 @@
 ---
 name: evolve-entity
-description: This skill should be used when changing an entity that already exists in a metaframework catalog — "rename this component", "delete this datamodel", "remove that field", "make this field required", "narrow the enum", "move this entity under the other product", "promote this datamodel to the solution level", "bump the version", "deprecate this", "replace it with a new one", "split this actor into two roles", "supersede this ADR", "this schema needs a breaking change", "can I just git mv it". It decides whether the change is legal in place or needs the swap procedure, and carries out whichever it is. Use it BEFORE editing any published entity, because the framework forbids removing, renaming, narrowing, moving and deleting, and the instinctive fix is usually one of those. For creating something new rather than changing something existing, use `add-entity`, `model-data` or `protocol-design`.
+description: This skill should be used when changing an entity that already exists in a metaframework catalog — "rename this component", "delete this datamodel", "remove that field", "make this field required", "narrow the enum", "move this entity under the other product", "promote this datamodel to the solution level", "bump the version", "deprecate this", "replace it with a new one", "split this actor into two roles", "supersede this ADR", "rename this capability", "split this capability in two", "reorder the steps in this journey", "change what this metric measures", "this schema needs a breaking change", "can I just git mv it". It decides whether the change is legal in place or needs the swap procedure, and carries out whichever it is. Use it BEFORE editing any published entity, because the framework forbids removing, renaming, narrowing, moving and deleting, and the instinctive fix is usually one of those. For creating something new rather than changing something existing, use `add-entity`, `model-data` or `protocol-design`.
 ---
 
 # Evolving an entity
@@ -40,6 +40,30 @@ version N accepted.** If a document that validated yesterday would fail today,
 it is a swap — at any version number. The per-keyword table is in
 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/schemas.md`.
 
+**`capability`, `journey` and `metric` follow the same rules as everything else.**
+They are newer kinds, not exempt ones: identify the contract surface, then apply
+the table above unchanged. A capability's surface is **its identity** — what the
+name denotes — so clarifying the sentence, sharpening `## Boundaries` or
+repointing relations is an in-place bump, while narrowing the doing, broadening it
+to absorb a neighbour, or splitting it in two is a reduction of what every
+existing `realizes` edge claimed, and the realizers have not been asked: **a
+capability rename is a swap like everything else**, and so is a redefinition
+hiding behind an unchanged name. A journey's surface is the **ordered step list** —
+each step's `actor` and `touches`, and their order — so adding a step or a `note`
+is additive, but removing one, reordering them, repointing a `touches`, or
+changing the frontmatter `actor` is a swap, because order *is* the entity here and
+the same route walked by someone else is a different path. A metric's surface is
+**what the number is**: its subject, `metric-type`, `window`, `direction` and its
+prose definition; `target` is the one field expected to move, and tightening it
+is legal in place precisely because a target is not a promise — the promise lives
+in the requirement the metric `measures`, and moving *that* follows the
+requirement's rules. Two consequences authors reach for and must not take: losing
+every realizer does **not** deprecate a capability (`status` describes the
+document, never the world — `W_CAP_UNREALIZED` appearing is the honest record
+that the business can no longer do something), and a capability split produces
+**two** successors, both naming the same predecessor in `supersedes`, which is
+legal and is the accurate history.
+
 Say which mechanism applies and why before editing. If it is a swap, say that
 out loud — the user usually expected an edit.
 
@@ -63,9 +87,11 @@ Bump rules that catch people out:
   or `accepted → superseded` is a fact about the architecture, so it **does**
   bump, and `date` moves with it.
 - **Artifacts carry no version of their own.** A top-level `version:` key in
-  `transport.yaml`, `topology.yaml`, `config.yaml` or a workflow file is a shape
-  violation, and `schema.json` carries an `$id` but never a version. One number,
-  in the frontmatter, covering the whole directory.
+  `transport.yaml`, `topology.yaml`, `config.yaml`, `journey.yaml` or a workflow
+  file is a shape violation. `schema.json` carries two identity keywords and neither takes a
+  version: `$id` is the canonical URL of the *current* schema and `x-srn` is the
+  **unversioned** SRN. One number, in the frontmatter, covering the whole
+  directory.
 - **A child does not bump its container.** Adding, bumping or deprecating
   `component/wishlist` leaves `product/shop` at the version it had.
 - **A referrer does not bump when its target evolves additively.** A `$ref`
@@ -79,7 +105,7 @@ breaks: both entities are live and referrers move one at a time.
 1. **Name the successor.** A real name for what it now is — `payment-intent`,
    not `charge-v2`. A `-v2` suffix is a last resort and reads as a defect
    forever, because the name is the address. Check the name is kebab-case and
-   not one of the eight reserved kinds.
+   not one of the eleven reserved kinds.
 2. **Create the successor entity** in the correct bucket (placement is grammar:
    `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`), `version: 1`,
    `status: draft`, with the edge on the **successor**:
@@ -103,6 +129,31 @@ breaks: both entities are live and referrers move one at a time.
    `status: deprecated`. Status alone, so no bump — but rewriting its
    title and summary to say where it went (recommended) is content, and that
    bumps. From then on any new reference to it is `W_REF_DEPRECATED`.
+
+   **For a datamodel, mark the schema too** — `"deprecated": true` at the root of
+   `schema.json`, in the same commit:
+
+   ```json
+   {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/charge",
+     "x-srn": "srn://acme/product/shop/datamodel/charge",
+     "title": "Charge",
+     "deprecated": true,
+     "description": "Superseded by srn://acme/product/shop/datamodel/payment-intent."
+   }
+   ```
+
+   `deprecated` is a **standard JSON Schema 2020-12 meta-data keyword** — the
+   same vocabulary as `title`, `description` and `examples`
+   (`https://json-schema.org/draft/2020-12/meta/meta-data`). It is an annotation:
+   it asserts nothing and rejects no instance, so setting it is always additive,
+   never a swap in its own right. Use the standard keyword rather than an `x-`
+   extension precisely because stock generators already understand it and emit
+   `@deprecated` into the code your consumers build against — the frontmatter
+   `status` reaches the portal, this reaches everyone who only ever sees
+   `schema.json`. Touching the schema makes the commit a content change, so bump
+   `version` once, covering both edits.
 6. **Never delete.** The deprecated directory stays forever; the portal renders
    it greyed with a derived pointer to the successor.
 
@@ -116,11 +167,14 @@ grep -rn "shop-admin" solutions/ --include='*.md' --include='*.json' --include='
 ```
 
 That catches solution-absolute refs (`/actor/shop-admin`), relative refs
-(`../shop-admin`), full `srn://` prose links, schema URLs
-(`http://localhost:3000/schemas/acme/...`) and protocol `participants[].ref`
-alike. Then classify each hit: a `relations` edge or a schema `$ref` is a live
-referrer and must be migrated; a prose mention is navigational and may stay
-(pointing at history is the correct use of a deprecated entity).
+(`../shop-admin`), full `srn://` prose links, canonical schema URLs
+(`https://schemas.metaframework.dev/acme/...`), the `x-srn` a `schema.json`
+declares about itself, and protocol `participants[].ref` alike — grepping the
+bare name is what makes one pass cover all of them. Then classify each hit: a
+`relations` edge or a schema `$ref` is a live referrer and must be migrated; a
+schema's own `x-srn` is self-identification, not a referrer; a prose mention is
+navigational and may stay (pointing at history is the correct use of a deprecated
+entity).
 
 After deprecating, confirm nothing structural is left:
 
@@ -133,9 +187,12 @@ is left half-done.
 
 ## Never move, never rename
 
-**The SRN is the path.** A move is a delete plus an unrelated create: the
-version→commit index does not follow it, so the entity's history is lost and
-every `@N` pin against it stops resolving. `git mv` is not a fix, and neither is
+**The SRN is the identity; the disk path is that identity's storage** and the
+canonical schema URL is its dereferenceable projection — one string in three
+views, mechanically inter-convertible, none of them a second scheme (`srn.md`).
+Moving the directory therefore changes the identity. A move is a delete plus an
+unrelated create: the version→commit index does not follow it, so the entity's
+history is lost and every `@N` pin against it stops resolving. `git mv` is not a fix, and neither is
 "nobody references it yet".
 
 Two consequences worth stating before anyone reaches for it:
@@ -168,14 +225,17 @@ states, and make sure `.git` is present and **unshallow** where the portal runs
 
 ## Kind-specific variants
 
-| Kind                | What the swap looks like                                                                                  |
-|---------------------|------------------------------------------------------------------------------------------------------------|
-| `adr`               | Successor gets its own ordinal (never reused); predecessor gets `decision-status: superseded` + same `date` + a version bump. **Not `status: deprecated`** — referencing old decisions is the point of an ADR archive, and deprecating them would flag every such reference. |
-| `datamodel`         | Successor is a new entity with its own `schema.json` and `$id`; referrers repoint `$ref`s one at a time. Promotion out of `$defs` is *not* a swap. |
-| `actor`             | Splitting one role into several is one successor per role, each carrying `supersedes` toward the old actor.  |
-| `environment`       | Successor environment, then repoint each component's `uses` edge, then deprecate.                            |
-| `requirement`       | A narrowed or reversed statement is a new requirement; migrate the `implements` edges that pointed at the old one. |
-| `component` / `product` | Swapping a container implies swapping everything under it — see the cost above; prefer keeping the name.  |
+| Kind                    | What the swap looks like                                                                                                                                                                                                                                                                                           |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `adr`                   | Successor gets its own ordinal (never reused); predecessor gets `decision-status: superseded` + same `date` + a version bump. **Not `status: deprecated`** — referencing old decisions is the point of an ADR archive, and deprecating them would flag every such reference.                                       |
+| `datamodel`             | Successor is a new entity with its own `schema.json`, its own `$id` and its own `x-srn` — both derived from the new directory, never copied from the predecessor. Referrers repoint `$ref`s one at a time; the predecessor's schema gets `"deprecated": true` at step 5. Promotion out of `$defs` is *not* a swap. |
+| `actor`                 | Splitting one role into several is one successor per role, each carrying `supersedes` toward the old actor.                                                                                                                                                                                                        |
+| `environment`           | Successor environment, then repoint each component's `uses` edge, then deprecate.                                                                                                                                                                                                                                  |
+| `requirement`           | A narrowed or reversed statement is a new requirement; migrate the `implements` edges that pointed at the old one.                                                                                                                                                                                                 |
+| `capability`            | Successor capability in the same solution-level bucket; migrate each realizer's `realizes` edge one at a time — the portal's derived `realized-by` list **is** the migration checklist — then deprecate. A split is two successors, both superseding the one predecessor, and that is the honest record.            |
+| `journey`               | Successor journey with its own `journey.yaml`. Nothing points at a journey in v1, so there are no referrers to migrate: create, deprecate the old one, link the two in prose.                                                                                                                                      |
+| `metric`                | Successor metric carrying the same `measures` subject; repoint whoever quoted the old one, then deprecate. Never deleted — a retired metric is the record of how the number *used* to be computed, and that is the only thing that keeps an old chart readable.                                                    |
+| `component` / `product` | Swapping a container implies swapping everything under it — see the cost above; prefer keeping the name.                                                                                                                                                                                                           |
 
 ## Finish
 

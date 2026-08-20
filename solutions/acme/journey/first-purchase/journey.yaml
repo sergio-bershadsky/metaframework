@@ -1,0 +1,52 @@
+name: first-purchase
+steps:
+  - actor: /actor/customer
+    touches: /product/shop
+    note: Browses. The product itself is what is touched — no component below shop
+      claims the storefront, and the basket does not exist yet.
+
+  - actor: /actor/customer
+    touches: /product/identity/component/registration
+    protocol: none
+    # shop -> identity, carried by the customer: they follow a link and type.
+    note: Creates the account and its first credential. Nothing passed from the
+      storefront to get them here.
+
+  - actor: /actor/customer
+    touches: /product/identity/component/authentication
+    protocol: /product/identity/protocol/authorization-check
+    note: Signs in. The session issued here is the one every product downstream
+      is willing to trust.
+
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout
+    protocol: none
+    # identity -> shop, carried by the customer: the opaque token rides in the
+    # browser. What checkout then does with it is not described anywhere — see
+    # index.md, which is the only place that fact can currently be written.
+    note: Returns to the basket, now as somebody with an account.
+
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout/component/payment
+    protocol: /product/shop/protocol/order-placement
+    note: Pays. The last step the customer can retry alone, and the one that
+      publishes the fact everything after this reacts to.
+
+  - actor: /actor/customer
+    touches: /product/fulfilment/component/tracking
+    protocol: none
+    # shop -> fulfilment, carried by the customer: the tracking link in the
+    # confirmation mail. Shop does not know fulfilment exists.
+    note: Opens tracking for the first time, usually before there is anything to
+      see.
+
+  - actor: /actor/courier
+    touches: /product/fulfilment/component/carrier-gateway
+    protocol: /product/fulfilment/protocol/tracking-events
+    note: Hands the parcel over and scans it. The only step in this path that a
+      person acme does not employ performs, and the only one that moves a parcel.
+
+  - actor: /actor/customer
+    touches: /product/fulfilment/component/tracking
+    protocol: /product/fulfilment/protocol/tracking-events
+    note: Sees "delivered". The path ends here whether or not anyone was told.

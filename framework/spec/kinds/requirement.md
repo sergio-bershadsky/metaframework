@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: requirement
-version: 2
+version: 3
 status: review
 title: Kind — Requirement
 summary: Contract for requirement entities — placement, requirement-type and MoSCoW priority, the acceptance-criteria section, satisfaction via the implements edge, and derived coverage.
@@ -278,11 +278,12 @@ would be an additive change to the closed edge set in
 
 ## Body template
 
-Only `## Acceptance criteria` is enforced. The rest is conventional:
+Only `## Acceptance criteria` is enforced. The rest is conventional, save the
+one rule every body shares: sections start at `##`, because the page already
+renders `title` as its h1
+([structure.md](../structure.md#the-document-body)).
 
 ```markdown
-# <Title>
-
 <The statement: one or two paragraphs saying what must hold and for whom.>
 
 ## Acceptance criteria
@@ -370,8 +371,6 @@ tags:
   - reliability
 ---
 
-# Idempotent payment capture
-
 A client that cannot tell whether its capture request arrived must be able to
 retry it safely. Checkout accepts an idempotency key on every capture and
 guarantees that a replay of the same key produces the same outcome and no
@@ -427,8 +426,6 @@ tags:
   - performance
   - checkout-path
 ---
-
-# Checkout p99 latency under peak
 
 The submit-order path must stay responsive at the traffic peaks the shop sees
 in the last week of the quarter. Measured in production, at the edge of the

@@ -1,0 +1,62 @@
+# The wire is stdio JSON-RPC, which transport.kind cannot express: the closed enum
+# is http | grpc | amqp | kafka | websocket | in-process. `in-process` is the
+# nearest neighbour — the server is a subprocess of the host with no network hop
+# and no addressable endpoint — and the real answer is recorded in x-wire.
+kind: in-process
+summary: MCP over stdio JSON-RPC. The host launches this process; stdout is the transport, so every diagnostic goes to stderr.
+encoding: json
+x-wire: stdio-jsonrpc
+x-resources:
+  - rules://brass/rulebook
+  - rules://brass/strategy
+  - rules://brass/moves
+  - match://current/state
+in-process:
+  language: typescript
+  module: "@brass/mcp"
+  interface: McpServer
+  functions:
+    - name: list_matches
+      response: /datamodel/match-summary@1
+      summary: >-
+        Open matches with each seat and how many are free. Filtered to
+        isGameover=false; there is no paging and no ranking.
+
+    - name: join_match
+      response: /product/agent-play/component/mcp-server/datamodel/state-view@1
+      summary: >-
+        Claim a seat and complete the whole in-game lobby in one call — sit down
+        with the AI flag, pick a free colour and avatar, ready up — then return
+        the first state view. Every argument is optional; omitted ones are
+        auto-picked. One seat per process, enforced locally.
+
+    - name: get_state
+      response: /product/agent-play/component/mcp-server/datamodel/state-view@1
+      summary: >-
+        This seat's player view: era, round, whose turn, whether a commit is
+        owed, my money/income/VP/hand/mat, opponents' public standing, the board
+        and the last fifteen log lines. Opponent hands are structurally absent,
+        not blanked.
+
+    - name: get_legal_moves
+      response: /product/agent-play/component/mcp-server/datamodel/move-option@1
+      summary: >-
+        The exact legal set for this seat right now, each entry an id, a kind, a
+        human-readable label and the raw move. Returns myTurn=false and an empty
+        list when it is not this seat's turn.
+
+    - name: make_move
+      request: /product/agent-play/component/mcp-server/datamodel/move-option@1
+      response: /product/agent-play/component/mcp-server/datamodel/tool-result@1
+      summary: >-
+        Apply one move by the id it was offered under. Re-enumerates first, so an
+        id from a since-changed state misses cleanly and comes back with the
+        current legalIds. The request carries only that id — the rest of the
+        move-option is what the caller was shown, not what it sends.
+
+    - name: leave_match
+      response: /product/agent-play/component/mcp-server/datamodel/tool-result@1
+      summary: >-
+        Drop the socket and clear the session. It does NOT release the seat on
+        the server, so the match keeps a claimed chair nobody can re-enter — see
+        requirement long-running-reconnect.

@@ -18,21 +18,26 @@ handful that are not are the expensive ones.
 | Schema conventions, error codes, the additive/swap keyword table | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/schemas.md`      |
 | Placement, artifact filenames, `examples/`                       | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`    |
 | Common + per-kind frontmatter, relation edges                    | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`  |
-| Reference syntax and the `..` arithmetic                         | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`          |
+| The consolidating principle, reference syntax, the `..` arithmetic | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`         |
 | Version bumps, the swap procedure                                | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`    |
 
 **When `framework/spec/` is present in the repository it is authoritative and
 wins over the bundled copies** — read `framework/spec/kinds/datamodel.md` first
 in that case. The bundle exists because an installed plugin cannot see the repo.
 
-**One stale source to distrust.** An earlier convention had `schema.json` carry
-no `$id` and use relative file-path `$ref`s. It was retired because those
-references are not dereferenceable. The spec and every shipped `schema.json` are
-current, but the **prose** of
-`solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/index.md`
-still tells the reader the schema has no `$id` and reaches `order-line` by
-relative file path — while the sibling `schema.json` next to it does neither.
-Never author the retired form, and never copy prose that explains it.
+**The retired convention, so you recognise it.** An earlier revision had
+`schema.json` carry **no `$id`** and reach its neighbours by **relative file
+path** (`../../../../datamodel/order-line/schema.json`). It was retired because
+such a reference is not dereferenceable: it resolves only for a tool running
+inside a clone of the repo with the whole catalog on disk. Every `schema.json`
+under `solutions/` was migrated off it, but **prose was not, and nothing checks
+prose against the artifact beside it** — a paragraph describing the old form
+passes a green catalog check indefinitely, and the acme fixture carried exactly
+such a paragraph for four versions of one datamodel. Read the sibling
+`schema.json`, never the prose, when you want to know what the convention is;
+never author the retired form, and never copy prose that explains it. The grep
+that finds surviving cases, with the hits that are legitimate history, is in
+`validate-catalog`'s `references/diagnostics.md` §4.
 
 ## Procedure
 
@@ -43,9 +48,9 @@ costs a swap, not an edit.
 2. **Decide `usage` and `abstract`.**
 3. **Decide the composition shape** — standalone, `allOf` base, `oneOf` union,
    or a `$defs` local shape.
-4. **Compute the `$id`** mechanically from the directory path.
-5. **Write `schema.json`**: `$schema`, `$id`, `title`, composition (`allOf` /
-   `oneOf`), own `properties`, `required`, `$defs` last.
+4. **Compute the `$id` and `x-srn`** mechanically from the directory path.
+5. **Write `schema.json`**: `$schema`, `$id`, `x-srn`, `title`, composition
+   (`allOf` / `oneOf`), own `properties`, `required`, `$defs` last.
 6. **Write `index.md`**: frontmatter, then prose stating the invariants the
    schema cannot express and why the shape is what it is.
 7. **Add `examples/*.json`** — concrete models only.
@@ -74,7 +79,8 @@ because exactly two shop datamodels use it. Recount before promoting; do not
 trust these numbers, which drift as the fixture grows:
 
 ```bash
-grep -rho 'schemas/acme/[a-z0-9/-]*' --include='schema.json' solutions/ | sort | uniq -c | sort -rn
+grep -rho 'https://schemas\.metaframework\.dev/[a-z0-9/-]*' \
+  --include='schema.json' solutions/ | sort | uniq -c | sort -rn
 ```
 
 An entity is never moved once it exists (`evolution.md`) — getting the bucket
@@ -132,44 +138,62 @@ object schema, every branch declares the same tag property, each tag is a
 distinct `const`, and the tag is in each branch's `required`. Anything less
 still validates but renders as an opaque blob (`W_DM_UNION_TAG`).
 
-### 4. Compute `$id` — never hand-type it
+### 4. Compute `$id` and `x-srn` — never hand-type either
 
-The `$id` is the URL the portal serves the document at. The path after
-`/schemas/` is the entity's SRN path verbatim:
+Both are the same fact in two spellings, and both fall out of the directory path:
 
 ```text
 solutions/acme/product/shop/datamodel/order-line/schema.json
           └────────────────────────────────────┘
           strip "solutions/" and "/schema.json" — what is left is the SRN path
 
-$id = $SCHEMA_BASE_URL + "/schemas/" + acme/product/shop/datamodel/order-line
-SRN = "srn://"          +              acme/product/shop/datamodel/order-line
+$id   = "https://schemas.metaframework.dev/" + acme/product/shop/datamodel/order-line
+x-srn = "srn://"                             + acme/product/shop/datamodel/order-line
 ```
 
-`SCHEMA_BASE_URL` defaults to `http://localhost:3000` and is a deployment-wide
-constant baked into the files; changing it means rewriting every `$id` and
-`$ref`, which the metaframework repository's own `scripts/migrate_schema_ids.py`
-(at the repo root, not in this plugin) does idempotently. Verify what was written
-rather than eyeballing it:
+> **The SRN is the identity. The schema URL is its dereferenceable projection.
+> The disk path is its storage. All three are mechanically inter-convertible,
+> and none of them is a second addressing scheme.**
+
+**The host is a stable canonical constant.** `https://schemas.metaframework.dev`
+is defined once, in the portal's schema URL helper, and reads the same on a
+laptop and in production. It is deliberately **not** an environment variable:
+registries and caches key on `$id`, so two deployments disagreeing about a
+schema's identity is a defect, not a configuration.
+
+**`SCHEMA_BASE_URL` is a different thing and must not leak into a file.** It
+controls where the portal *serves* schemas — the `/schemas` route,
+`http://localhost:3000/schemas/…` in dev. Serving address, not identity. An `$id`
+or `$ref` carrying it is `E_DM_ID_MISMATCH` / `E_DM_REF_TARGET`.
+
+**`x-srn` is required** and carries the **unversioned** SRN. It is checked
+against the file's real path at load, so it cannot drift. It earns its place
+because without it the SRN disappears from schema files entirely and identity
+becomes implicit in a URL-parsing rule — a schema pasted into a validator or
+vendored into a client repo must still say where it came from.
+
+Verify what was written rather than eyeballing it:
 
 ```bash
 python3 - <<'PY'
-import json, os, pathlib
-base = os.environ.get("SCHEMA_BASE_URL", "http://localhost:3000").rstrip("/")
+import json, pathlib
+HOST = "https://schemas.metaframework.dev"
 for s in sorted(pathlib.Path("solutions").glob("**/datamodel/*/schema.json")):
-    want = f"{base}/schemas/{s.parent.relative_to('solutions')}"
-    got = json.loads(s.read_text()).get("$id")
-    if got != want:
-        print(f"{s}\n  want {want}\n  got  {got}")
+    path = s.parent.relative_to("solutions").as_posix()
+    doc = json.loads(s.read_text())
+    for key, want in (("$id", f"{HOST}/{path}"), ("x-srn", f"srn://{path}")):
+        got = doc.get(key)
+        if got != want:
+            print(f"{s}\n  {key}: want {want}\n  {' ' * len(key)}  got  {got}")
 PY
 ```
 
-Why URLs at all: a stock tool — `ajv`, `json-schema-to-typescript`,
-`quicktype`, `json-schema-ref-parser` — given only the `$id` can fetch the whole
-transitive closure over HTTP, knowing nothing about this framework. A relative
-file path resolved only inside a clone of the repo, invoked from the right
-directory. That is the whole reason for the form; the fact that references stop
-encoding the referrer's depth is a side benefit, not the argument.
+Why URLs at all: a stock tool — `ajv`, `json-schema-to-typescript`, `quicktype`,
+`json-schema-ref-parser` — given only the `$id` can walk the whole transitive
+closure, knowing nothing about this framework. A relative file path resolved only
+inside a clone of the repo, invoked from the right directory. That is the whole
+reason for the form; the fact that references stop encoding the referrer's depth
+is a side benefit, not the argument.
 
 ### 5–7. Write the files
 
@@ -178,10 +202,11 @@ Skeleton — every keyword here is load-bearing:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/<srn-path>",
+  "$id": "https://schemas.metaframework.dev/acme/<srn-path>",
+  "x-srn": "srn://acme/<srn-path>",
   "title": "…",
   "type": "object",
-  "allOf": [ { "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record" } ],
+  "allOf": [ { "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record" } ],
   "properties": { "x": { "$ref": "#/$defs/positive-int" } },
   "required": [ "x" ],
   "$defs": { "positive-int": { "type": "integer", "minimum": 1 } }
@@ -212,8 +237,13 @@ version history in words. Link with full `srn://…` form; prose links may pin.
 - **`$defs` are entity-private.** A `$ref` into another entity's `$defs` is
   `E_DM_FOREIGN_DEFS`. That prohibition is what forces promotion.
 - **No `$id` below the root** (`E_DM_ID_FORBIDDEN`) — it re-bases every
-  reference beneath it, and one document quietly becomes two. No `x-srn`
-  (`E_DM_SRN_RETIRED`) — `$id` carries identity now.
+  reference beneath it, and one document quietly becomes two. The root `$id` is
+  required (`E_DM_ID_MISSING`) and must be the canonical URL
+  (`E_DM_ID_MISMATCH`).
+- **`x-srn` is required** (`E_DM_SRN_MISSING`) and must equal the unversioned SRN
+  of the directory the file sits in (`E_DM_SRN_MISMATCH`). It is not a leftover
+  of an older convention — it is checked against the path, so it is the one field
+  that keeps identity legible when a schema leaves the catalog.
 - **Forbidden keywords** (`E_DM_KEYWORD`): `$dynamicRef` and `$dynamicAnchor`
   make the inheritance graph late-bound, so the portal cannot derive it
   statically; `$anchor` is a second, ungreppable way to address a local shape;
@@ -224,6 +254,11 @@ version history in words. Link with full `srn://…` form; prose links may pin.
   and examples-only edits included. Only a `status`-alone change is exempt.
 - **Renaming a property is never additive**, at any version number. Add the new
   one as optional, mark the old `"deprecated": true`, let them coexist.
+  `deprecated` is a standard JSON Schema 2020-12 meta-data annotation — it
+  asserts nothing and rejects no instance, so setting it is always additive, and
+  stock generators turn it into `@deprecated`. Set it at the **root** too when
+  the entity's `status` becomes `deprecated`: the frontmatter tells the portal,
+  the keyword tells everyone who only ever sees `schema.json` (`schemas.md`).
 
 ## Additive in place, or a swap?
 
@@ -272,10 +307,13 @@ pass/fail and every diagnostic with its code and file. Codes are documented in
 removing, renaming, narrowing or moving an entity, that is not a fix — stop and
 say it requires a swap.
 
-**The catalog check does not run the schema registry over the shipped tree.**
-`E_DM_*` is raised when the portal renders a datamodel page, not by this suite —
-which asserts only that every `$id` equals the URL the portal serves it at and
-that every non-local `$ref` names a real datamodel with a `schema.json` behind
-it. After writing or editing a `schema.json`, open that entity's page
-(`npm run dev`, then the datamodel's URL) or use the `validate-catalog` skill,
+**What this suite covers, and where the rest of `E_DM_*` appears.** The catalog
+suite asserts over the shipped tree that every `$id` and `x-srn` agree with the
+entity's own path and that every non-local `$ref` names a real datamodel with a
+`schema.json` behind it. The full registry — inheritance cycles, closed bases,
+contradictory conjunctions — runs when the portal loads the catalog:
+`getCatalog()` composes `loadCatalog` with `buildSchemaRegistry` and folds its
+diagnostics into the same list, so `/diagnostics` reports schema problems
+alongside loader ones. After writing or editing a `schema.json`, run the suite,
+then open `/diagnostics` (`npm run dev`) — or use the `validate-catalog` skill,
 which carries the full coverage map.

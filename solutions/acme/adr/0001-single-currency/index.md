@@ -20,8 +20,6 @@ tags:
   - foundation
 ---
 
-# One currency per order, three currencies in the catalog
-
 ## Context
 
 Acme sells into the euro zone, the UK, and the US. Early prototypes carried an

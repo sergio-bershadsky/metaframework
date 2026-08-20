@@ -6,6 +6,9 @@
 > plugin cannot see them. Nothing here is invented — if a field, heading or
 > phrasing looks surprising, it is because the fixture is deliberately teaching
 > something at that spot.
+>
+> Ten kinds, one section each. `journey` is the only one that carries a second
+> file: its `journey.yaml` is REQUIRED and is reproduced with it.
 
 Read the file for the kind being written, then the note under it, which names
 the decision the example demonstrates. The rules themselves live in
@@ -58,8 +61,6 @@ tags:
   - retail
   - flagship
 ---
-
-# Acme Retail Platform
 
 Acme sells physical goods online. This catalog describes the systems that take an
 order from a customer's cart to a settled payment and a posted ledger entry. It
@@ -152,8 +153,6 @@ tags:
 x-cost-center: "4711"
 ---
 
-# Shop
-
 Everything a customer touches between browsing and a confirmed order.
 Fulfilment and settlement happen elsewhere: shop takes the money, publishes the
 fact, and stops there.
@@ -222,12 +221,13 @@ local field the framework ignores.
 ---
 name: tax-engine
 kind: component
-version: 2
+version: 3
 title: Tax engine
 summary: Library computing tax for a cart from a versioned rate table; runs inside checkout's process.
 status: approved
 owner: team-checkout
 component-type: library
+lifecycle: released
 relations:
   uses:
     - /datamodel/money@1
@@ -237,8 +237,6 @@ tags:
   - tax
   - library
 ---
-
-# Tax engine
 
 A build-time artifact with no runtime of its own: it runs inside whatever
 process embeds it, which today is exactly one —
@@ -281,6 +279,15 @@ datamodels and protocols under a single `uses` list — see the `checkout`
 frontmatter block reproduced in
 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`.
 
+**`lifecycle: released` on a library.** The field is REQUIRED on every component,
+and "released" is a fact about an *artifact*, not about a running process: for a
+library it means a version is published and consumers can build against it. It is
+answering a different question from `status: approved` two lines above — the
+description is reviewed, the thing is shipped — and the two never substitute for
+each other. The component enum is `planned | in-development | released | sunset |
+retired`, deliberately **not** product's, which stages a funded position rather
+than a built thing.
+
 ## `actor`
 
 `solutions/acme/actor/customer/index.md`
@@ -306,8 +313,6 @@ tags:
   - commerce
   - external-facing
 ---
-
-# Customer
 
 A customer is any person holding a shop account, authenticated or in a guest
 session. The role says nothing about tenure or spend — segmentation is a concern
@@ -370,8 +375,6 @@ tags:
   - eu
   - regulated
 ---
-
-# Production
 
 The only target that holds customer data of record. Everything deployed here is
 `status: approved` at the version that is running; a component still in `draft`
@@ -442,8 +445,6 @@ tags:
   - payments
   - reliability
 ---
-
-# Idempotent payment capture
 
 A client that cannot tell whether its capture request arrived must be able to
 retry it safely. Checkout accepts an idempotency key on every capture and
@@ -532,8 +533,6 @@ tags:
   - foundation
 ---
 
-# One currency per order, three currencies in the catalog
-
 ## Context
 
 Acme sells into the euro zone, the UK, and the US. Early prototypes carried an
@@ -610,3 +609,489 @@ no ADR, because they claim a decision was examined when it was not.
 For a superseding ADR, the `supersedes` edge goes on the **successor** and the
 `superseded-by` pointer on the old page is derived — see
 `solutions/acme/product/shop/adr/0002-change-data-capture/index.md`.
+
+
+## `capability`
+
+`solutions/acme/capability/order-fulfilment/index.md`
+
+````markdown
+---
+name: order-fulfilment
+kind: capability
+version: 1
+title: Fulfil an order
+summary: Get paid-for goods to the customer who ordered them, on a date acme named, or say truthfully why not.
+status: approved
+owner: team-commerce
+tags:
+  - commerce
+  - customer-facing
+---
+
+Acme can turn an order into a parcel a customer has taken from a courier's
+hands. It can hold the stock while the payment clears, decide what travels in
+which box and by whose van, get a carrier to accept it, and keep the customer
+told where it is until it arrives. When it cannot be done — the stock was
+oversold, no carrier would take the parcel, the address does not exist, the
+scan stream went quiet — acme can say so, name the reason, and stop the
+customer finding out by waiting.
+
+The failure path is inside the sentence deliberately. A fulfilment description
+that covers only the happy case is exactly the description under which a
+customer ends up with no goods, no money back, and no explanation, and that is
+the case the business is actually judged on. It is why
+[carrier-failover](srn://acme/product/fulfilment/requirement/carrier-failover)
+and
+[delivery-promise-accuracy](srn://acme/product/fulfilment/requirement/delivery-promise-accuracy)
+read as obligations on this capability rather than as features of a component.
+
+Rebuild every system underneath — a different carrier network, a different
+orchestrator, a warehouse acme operates itself — and this paragraph does not
+change. That invariance is the test, and it is the only reason this entity
+exists separately from
+[fulfilment](srn://acme/product/fulfilment), which is the product currently
+carrying most of it.
+
+## Boundaries
+
+- **Starts at the intent to buy, not at the settled payment.** The reservation
+  [inventory](srn://acme/product/shop/component/inventory) holds for 120 seconds
+  is inside this capability even though it happens before any money moves: a
+  promise acme cannot keep has already been broken at that moment, and
+  discovering it at dispatch only changes who has to apologise. That is why two
+  components in [shop](srn://acme/product/shop) — the one that holds the stock
+  and the one that turns a basket into the order to be fulfilled — realize a
+  capability whose remaining realizers all sit in
+  [fulfilment](srn://acme/product/fulfilment). Each carries a slice; the catalog
+  does not try to say how large a slice, because nobody could check the answer.
+- **Ends at delivery, or at a parcel written off.** What happens to the money
+  afterwards is [billing](srn://acme/product/billing)'s, and a refund is a
+  different doing with a different team answering for it.
+- **Says nothing about which carrier.** The third party is described as an
+  external component
+  ([parcel-carrier](srn://acme/product/fulfilment/component/carrier-gateway/component/parcel-carrier))
+  and may be swapped without a word of this page changing. The portal's
+  "Realized by" list is where the current answer lives, and it is derived.
+- **Warehouse operations are out of scope for the whole solution**, so they are
+  out of scope here. This capability starts with a parcel that has a weight and
+  a destination, as the fulfilment product does.
+
+## Not this
+
+- *Take payment* is upstream and separate. An order can be paid for and never
+  fulfilled — that is precisely the case this capability's failure path is
+  written to cover, and folding the two together would hide it.
+- *Track a parcel* is not a second capability. It is the "keep the customer
+  told" clause of this one, read from the customer's side; the fact that
+  [tracking](srn://acme/product/fulfilment/component/tracking) is a separate
+  component is an implementation split, and this page is deliberately blind to
+  implementation splits.
+- *Deliver on the promised date* is not a capability either — it is a statement
+  that must be true, which makes it a requirement
+  ([delivery-promise-accuracy](srn://acme/product/fulfilment/requirement/delivery-promise-accuracy)),
+  and a number that says whether it holds, which makes it a metric
+  ([delivery-on-time-rate](srn://acme/product/fulfilment/metric/delivery-on-time-rate)).
+````
+
+**What this example teaches**
+
+The frontmatter is **the common contract and nothing else** — no
+`capability-type`, no `maturity`, no `lifecycle`, no `realized-by`. That is the
+kind's design, not an unfinished example: every candidate field failed the test
+the existing enums pass, *does some portal behaviour or validation rule change
+with the value?* A strategy classification goes in `tags`; a score of how well
+the doing is done is a `metric`.
+
+`name` is a noun phrase and `title` is the verb phrase the business says. That
+pairing is the countermeasure to the one real danger of the kind: the slug
+`order-fulfilment` reads like the name of a fulfilment service, which is exactly
+the confusion capabilities exist to prevent. `title: Order Fulfilment Service`
+would not be a build error — no parser tells a verb phrase from a product name —
+it is a review defect.
+
+Read the third paragraph as the acceptance test for every capability you write:
+*rebuild every system underneath and this paragraph does not change.* If it would
+have to be rewritten, the sentence described an implementation and belongs to a
+component or a product.
+
+`## Boundaries` is where the review value sits — it is the paragraph that stops
+the capability list from becoming a set of overlapping synonyms two quarters from
+now. Notice that the first bullet argues about where the capability *starts* and
+concedes something uncomfortable: two `shop` components realize a capability
+whose other realizers all sit in `fulfilment`. Partial realization is normal and
+is deliberately not quantified — "the catalog does not try to say how large a
+slice, because nobody could check the answer."
+
+`## Not this` does the second half of the job, and its last bullet is the kind
+boundary in miniature: *deliver on the promised date* is not a capability, it is
+a `requirement` (a statement that must be true) plus a `metric` (a number that
+says whether it holds).
+
+The entity authors **no realization edge**. Realizers point at it from their own
+side, and any number of them may — this is `checkout`, which carries two:
+
+````yaml
+# solutions/acme/product/shop/component/checkout/index.md
+relations:
+  implements:
+    - /product/shop/component/checkout/requirement/idem-cap
+  realizes:
+    - /capability/order-fulfilment
+    - /capability/promotion-pricing
+````
+
+Two products realizing one capability is the case that fixes the placement rule,
+and `order-fulfilment` is exactly it: five realizers across two products —
+`shop`'s `checkout` and `inventory`, and `fulfilment`'s `carrier-gateway`,
+`delivery-orchestrator` and `tracking`. Had capabilities been product-scoped, the
+second product would have had to either duplicate the description — two entities
+for one doing, drifting from the first commit — or reference into another
+product's bucket, making one product's reorganization break the other's page.
+
+`promotion-pricing` is the same shape from the other direction: `checkout` in
+`shop` and two components in `growth`. Count the realizers with a single grep,
+which is also the migration checklist for a capability swap:
+
+```bash
+grep -rn "capability/order-fulfilment" solutions/ --include=index.md
+```
+
+## `journey`
+
+`solutions/acme/journey/first-purchase/index.md`
+
+````markdown
+---
+name: first-purchase
+kind: journey
+version: 1
+title: First purchase
+summary: A new customer's path from the storefront to a parcel in their hands — three products, one account they did not have this morning, and not one system conversation between them.
+status: review
+owner: team-commerce
+actor: /actor/customer
+relations:
+  uses:
+    - /environment/production
+tags:
+  - commerce
+  - cross-product
+---
+
+The path acme is judged on. Somebody who has never bought here before arrives at
+the storefront, ends up with an account, an order they have paid for, and a
+parcel they have watched turn into "delivered". It crosses
+[shop](srn://acme/product/shop), [identity](srn://acme/product/identity) and
+[fulfilment](srn://acme/product/fulfilment), in that order, and every one of
+those crossings is a place where the catalog can be true inside each product and
+say nothing about what happens between them.
+
+## Outcome
+
+The customer holds the parcel, has an account they can sign back into, and can
+see what they paid and when it arrived without contacting support.
+
+## Preconditions
+
+None. That is what makes this journey worth naming rather than
+`place-an-order`: the account does not exist at step 0, and the two steps that
+create it are the two a returning customer skips. A returning customer's path is
+a shorter, different journey and is not written down yet.
+
+## Every product crossing here is carried by the customer
+
+Three steps change product, and all three name `protocol: none`. That is a claim
+and it deserves the paragraph:
+
+- **steps[1], shop to identity.** The customer follows a "create an account"
+  link and types their details into identity's own form. Nothing passes between
+  the storefront and [registration](srn://acme/product/identity/component/registration);
+  the customer is the integration.
+- **steps[3], identity back to shop.** The customer returns to the basket
+  holding an opaque session token in their browser
+  ([0002-opaque-session-tokens](srn://acme/product/identity/adr/0002-opaque-session-tokens)).
+  Nothing flows from
+  [authentication](srn://acme/product/identity/component/authentication) to
+  [checkout](srn://acme/product/shop/component/checkout) at that moment either.
+- **steps[5], shop to fulfilment.** The confirmation mail carries a tracking
+  link, and the customer clicks it. Shop does not know fulfilment exists — that
+  asymmetry is declared on
+  [fulfilment](srn://acme/product/fulfilment) and is deliberate.
+
+`none` is a narrow claim, and steps[3] is where the narrowness matters. It says
+that nothing travels between authentication and checkout when the customer walks
+back. It does **not** say that checkout never asks identity anything — and what
+checkout does with the token it receives is not written down anywhere in this
+catalog. Checkout declares no edge toward
+[authorization-check](srn://acme/product/identity/protocol/authorization-check),
+and that protocol lists no shop component among its participants. The gap is
+real, it is older than this journey, and this page is only the first thing to
+point at it.
+
+## Why the courier appears
+
+`steps[6]` belongs to the [courier](srn://acme/actor/courier). It is the one
+step the customer does not take, and the only one that moves the parcel
+anywhere. It is written out
+rather than folded into the step around it because a reader who skims the actor
+column should stop there: everything before it is somebody choosing to buy, and
+everything after it is somebody watching a fact that was created by a person
+acme does not employ.
+
+## Out of scope
+
+Returns and refunds, which start where this path ends.
+[billing](srn://acme/product/billing) — the fourth product, which the customer's
+money passes through and which never appears in a single step. That absence is
+accurate and is worth noticing: the ledger is on the other side of a bus, and
+nothing the customer does waits for it.
+````
+
+`solutions/acme/journey/first-purchase/journey.yaml`
+
+````yaml
+name: first-purchase
+steps:
+  - actor: /actor/customer
+    touches: /product/shop
+    note: Browses. The product itself is what is touched — no component below shop
+      claims the storefront, and the basket does not exist yet.
+
+  - actor: /actor/customer
+    touches: /product/identity/component/registration
+    protocol: none
+    # shop -> identity, carried by the customer: they follow a link and type.
+    note: Creates the account and its first credential. Nothing passed from the
+      storefront to get them here.
+
+  - actor: /actor/customer
+    touches: /product/identity/component/authentication
+    protocol: /product/identity/protocol/authorization-check
+    note: Signs in. The session issued here is the one every product downstream
+      is willing to trust.
+
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout
+    protocol: none
+    # identity -> shop, carried by the customer: the opaque token rides in the
+    # browser. What checkout then does with it is not described anywhere — see
+    # index.md, which is the only place that fact can currently be written.
+    note: Returns to the basket, now as somebody with an account.
+
+  - actor: /actor/customer
+    touches: /product/shop/component/checkout/component/payment
+    protocol: /product/shop/protocol/order-placement
+    note: Pays. The last step the customer can retry alone, and the one that
+      publishes the fact everything after this reacts to.
+
+  - actor: /actor/customer
+    touches: /product/fulfilment/component/tracking
+    protocol: none
+    # shop -> fulfilment, carried by the customer: the tracking link in the
+    # confirmation mail. Shop does not know fulfilment exists.
+    note: Opens tracking for the first time, usually before there is anything to
+      see.
+
+  - actor: /actor/courier
+    touches: /product/fulfilment/component/carrier-gateway
+    protocol: /product/fulfilment/protocol/tracking-events
+    note: Hands the parcel over and scans it. The only step in this path that a
+      person acme does not employ performs, and the only one that moves a parcel.
+
+  - actor: /actor/customer
+    touches: /product/fulfilment/component/tracking
+    protocol: /product/fulfilment/protocol/tracking-events
+    note: Sees "delivered". The path ends here whether or not anyone was told.
+````
+
+**What this example teaches**
+
+Eight steps, three product crossings, and **all three name `protocol: none`** —
+which is why the prose spends a whole section on them. `none` is the documented
+negative: a claim that the actor carries the hop and there is nothing to
+automate, as opposed to an omitted `protocol`, which means "not written down
+yet". The distinction is the entire reason the field has three states, and a
+reviewer can grep for `protocol: none` and audit every one of them.
+
+Read the `none` paragraph closely, because it is the honest half. It states what
+the claim covers (nothing flows between authentication and checkout when the
+customer walks back) and then states what it does **not** cover — what checkout
+does with the token it receives is described nowhere, checkout declares no edge
+toward `authorization-check`, and that protocol lists no shop component. A
+journey that found a gap it cannot itself close says so; it does not silence
+itself.
+
+`steps[6]` belongs to the courier, not the protagonist, and the prose says why it
+is written out rather than folded into a neighbour. That hand-off is why `actor`
+is repeated on **every** step instead of defaulting from the frontmatter: it is
+the row a reader most needs to notice, and inheritance would hide it. The
+protagonist must still take at least one step (`W_JRN_ACTOR_ABSENT`).
+
+`steps[0]` touches `/product/shop` — the **product**, not a component. That is
+legal and is the right call when no component below claims the surface; a
+`touches` may name a product or a component, and nothing else
+(`E_JRN_TOUCHES_KIND`).
+
+Frontmatter carries exactly one kind field, `actor`, and it is a single SRN, not
+a list. `relations.uses` names the **environment only**: every component the path
+touches is already in `journey.yaml`, and repeating them as edges is double
+bookkeeping that drifts.
+
+`## Preconditions` is what earns the name `first-purchase` over `place-an-order`
+— the account does not exist at step 0, and the two steps that create it are the
+two a returning customer skips. A returning customer's path is a *different
+journey*, and the page says so rather than adding a branch. That is the
+no-branching rule stated from the authoring side, and
+`solutions/acme/journey/coupon-redemption/` is the second path in the same
+catalog.
+
+`## Out of scope` closes with the observation worth stealing: `billing` never
+appears in a single step, and that absence is accurate — the ledger is on the
+other side of a bus and nothing the customer does waits for it. A journey that
+lists every product is usually a journey that stopped describing the actor's
+path.
+
+No step ids, no `order` key, no timings. The list order *is* the order, and the
+portal's stable key is the positional path `steps[3]`, 0-based — which is exactly
+how the prose above refers to its own steps. Inserting one shifts every later
+key; that is the accepted cost of id-free authoring, and the `version` bump is
+the signal that anchors moved.
+
+## `metric`
+
+`solutions/acme/product/shop/metric/checkout-conversion/index.md`
+
+````markdown
+---
+name: checkout-conversion
+kind: metric
+version: 1
+title: Checkout conversion
+summary: Share of checkout attempts that end in a placed order, measured over a rolling seven days in production.
+status: draft
+owner: team-shop
+metric-type: ratio
+target: "68%"
+window: "7d"
+direction: higher-is-better
+relations:
+  measures:
+    - /capability/order-fulfilment
+  uses:
+    - /environment/production
+tags:
+  - commerce
+  - checkout-path
+---
+
+Of the customers who got as far as submitting a basket, how many ended up with
+an order. It is the front door of
+[order-fulfilment](srn://acme/capability/order-fulfilment): a basket that dies
+here is a fulfilment that never started, and no amount of on-time delivery
+downstream compensates for it.
+
+## Definition
+
+Denominator: checkout attempts in production in which the customer submitted the
+cart at least once — one `submit-order` exchange opened on
+[order-placement](srn://acme/product/shop/protocol/order-placement), regardless
+of how it ended. Numerator: attempts that produced an
+[order-placed](srn://acme/product/shop/datamodel/order-placed@1) fact.
+
+An attempt is counted once, keyed by the idempotency key
+[idem-cap](srn://acme/product/shop/component/checkout/requirement/idem-cap)
+already requires, so a customer retrying a declined card is one attempt and not
+three. Sessions the edge classifier marks as bots are excluded from both sides.
+Attempts abandoned before submission are excluded too — not because they do not
+matter, but because they are a question about the storefront rather than about
+whether acme could take the order, and mixing the two produces a number nobody
+can act on.
+
+## Rationale
+
+This metric points at a capability rather than at
+[checkout](srn://acme/product/shop/component/checkout), and the choice is
+deliberate. Most of what moves it is not checkout's code: a stock reservation
+that could not be granted, a payment declined by the acquirer, a promotion quote
+that arrived too late to be applied. The number is a statement about whether the
+business can convert an intent to buy into something to fulfil, and the
+component that happens to be holding the customer when it fails is the wrong
+subject for it.
+
+It is filed in [shop](srn://acme/product/shop)'s bucket, not at solution level,
+because `team-shop` is who answers for it. Placement says whose number it is;
+`measures` says what it is about. The same capability is measured from the other
+end by
+[delivery-on-time-rate](srn://acme/product/fulfilment/metric/delivery-on-time-rate),
+filed under a different product and owned by a different team — one capability,
+two numbers, two accountable owners, and no argument about where either lives.
+
+## Known distortions
+
+- Removing an inconvenient payment method raises this number by removing the
+  customers who were going to use it. Read next to order volume, never alone.
+- A stock-out counts as a failed conversion even though checkout behaved
+  correctly. That is intended — the customer left without goods either way — but
+  it means a bad week in the warehouse looks like a bad week in checkout.
+- The seven-day window is short enough to see a deploy and long enough to
+  survive a weekend. It is not long enough to compare against a promotional
+  period, and a comparison across one is meaningless.
+````
+
+**What this example teaches**
+
+All four scalars are present, and that is the additive-safe order: a field
+introduced as optional can never be made required later — that is a narrowing —
+so requiring them now leaves both moves available. `target` and `window` are
+**quoted**, always. Quoting is invisible for `"68%"` and `"7d"` and load-bearing
+for exactly one case, a `count` target of `"1200"`, which YAML would otherwise
+turn into an integer and fail as `E_FM_SCHEMA` for what looks like the right
+value. The unit lives inside the literal rather than in a `unit:` field, so the
+two can never disagree.
+
+`direction: higher-is-better` says `target` is a **floor**. It is not derivable
+from `metric-type` — a duration is *usually* lower-is-better and a ratio
+*usually* higher, and "usually" is the word that makes a derived field wrong
+twice a year.
+
+The `## Rationale` section is the one to copy the shape of. It answers two
+questions an author is always asked and usually cannot: *why this subject* and
+*why this bucket*. The subject is `/capability/order-fulfilment` rather than the
+`checkout` component, because most of what moves the number is not checkout's
+code — a reservation refused, a card declined, a promotion quote that arrived
+late — and "the component that happens to be holding the customer when it fails
+is the wrong subject for it". The bucket is `shop`'s because `team-shop` answers
+for the number.
+
+That is the split to internalise: **placement says whose number it is;
+`measures` says what it is about.** They are different questions, and the same
+capability is measured from the other end by
+`solutions/acme/product/fulfilment/metric/delivery-on-time-rate/` — one
+capability, two numbers, two accountable owners, no argument about where either
+lives. A capability subject constrains placement not at all, which is why
+`W_MET_SUBJECT_SCOPE` exempts it: a capability is solution-level and owned by
+nobody.
+
+`measures` is REQUIRED — no edge at all is `E_MET_NO_SUBJECT`, a number with no
+subject — and the inverse is never authored: `measured-by` is derived onto the
+capability's page. The `uses` edge naming the environment is what makes staging
+and production numbers distinguishable observations.
+
+`## Definition` is what makes the metric real: numerator, denominator, the
+keying that stops one retried card counting three times, and the exclusions —
+each with the reason it is excluded, not just the fact. `## Known distortions` is
+the honest section, and its first bullet is the pattern: *removing an
+inconvenient payment method raises this number by removing the customers who were
+going to use it.* Every metric can be gamed; its own page is the place to say
+how.
+
+Two further shapes from the same catalog:
+`solutions/acme/product/identity/metric/p99-authz-check/` is a `duration` whose
+subject is a **requirement** (`authz-check-latency`) and which names the protocol
+it is observed on under `uses` rather than under `measures` — the pairing this
+kind exists for, a commitment plus the number that checks it.
+`solutions/acme/product/fulfilment/metric/delivery-on-time-rate/` carries **two**
+subjects, a requirement and the capability behind it: legal precisely because the
+same observation, computed the same way, is the measure of each. That is the only
+case for a second entry — two things measured differently are two metrics.

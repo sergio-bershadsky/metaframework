@@ -1,0 +1,17 @@
+# The whole configuration surface. Every key is environment-wide: one Node
+# process serves the console, /schemas and /api/history, so there is nothing to
+# scope a key `for:`. No key is secret — nothing here holds a credential.
+config:
+  - key: CATALOG_DIR
+    description: Catalog root the loader walks. Unset, it resolves to <repo>/solutions.
+
+  - key: SCHEMA_BASE_URL
+    value: http://localhost:3000
+    description: Where this process serves schema bytes. Never appears in a file; identity is a constant.
+
+  - key: NODE_ENV
+    value: development
+    description: Selects the /schemas Cache-Control (no-store here, max-age=300 otherwise) and the dev catalog cache.
+
+  - key: PORT
+    description: Next's own listen port. Normally unset; the default 3000 is what DEFAULT_SCHEMA_BASE_URL assumes.

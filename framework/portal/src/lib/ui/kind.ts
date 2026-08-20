@@ -2,12 +2,15 @@ import {
   Boxes,
   CircleUser,
   FileText,
+  Gauge,
   GitBranch,
   Layers,
   Package,
+  Route,
   ScrollText,
   Server,
   Target,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 import type { EntityKind } from '../catalog/frontmatter'
@@ -16,6 +19,15 @@ import type { EntityKind } from '../catalog/frontmatter'
  * Colour is ontology: every kind owns one hue, defined once in globals.css and
  * referenced everywhere — tree, badges, diagram nodes. Nothing else in the UI
  * is allowed to be colourful, so hue always means "kind" and never decoration.
+ *
+ * Twelve kinds in two tiers. The nine structural kinds — what the system is made
+ * of — are full-chroma; capability, journey and metric describe intent and are
+ * set apart by BOTH lower chroma AND higher lightness. Both, deliberately: at
+ * the 14–16px an icon is actually met, the brightness step separates the tiers
+ * at least as strongly as the desaturation does. globals.css carries the
+ * measured CIELAB numbers beside the tokens; this is only the reminder that the
+ * tier is two channels, so a future kind added at low chroma and structural
+ * lightness would not join the tier — it would just look washed out.
  */
 export interface KindStyle {
   label: string
@@ -112,6 +124,33 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-adr/30',
     icon: ScrollText,
     blurb: 'A decision record — why the solution is shaped the way it is.',
+  },
+  capability: {
+    label: 'Capability',
+    cssVar: '--kind-capability',
+    text: 'text-kind-capability',
+    bg: 'bg-kind-capability/10',
+    border: 'border-kind-capability/30',
+    icon: Zap,
+    blurb: 'Something the business can do, stated for the whole solution.',
+  },
+  journey: {
+    label: 'Journey',
+    cssVar: '--kind-journey',
+    text: 'text-kind-journey',
+    bg: 'bg-kind-journey/10',
+    border: 'border-kind-journey/30',
+    icon: Route,
+    blurb: 'The ordered path one actor takes across the solution.',
+  },
+  metric: {
+    label: 'Metric',
+    cssVar: '--kind-metric',
+    text: 'text-kind-metric',
+    bg: 'bg-kind-metric/10',
+    border: 'border-kind-metric/30',
+    icon: Gauge,
+    blurb: 'How the entity that owns it is measured — a number with a target.',
   },
 }
 

@@ -48,6 +48,12 @@ export async function GET(request: Request, context: Params): Promise<Response> 
 
   switch (op) {
     case 'log': {
+      // The payload carries `reach` beside `versions`, and a client resolving a
+      // pinned `@N` needs both: `versions` says what this path's log can
+      // produce, `reach` says where that log stops. Absent the second, a caller
+      // reading `{"7": …, "8": …}` has no way to tell "v1 was never written"
+      // from "v1 predates a rename this index will not follow" — and the API is
+      // the one surface with no prose to explain the difference.
       const history = await getEntityHistory(relPath)
       return Response.json({ op, history }, { headers: { 'Cache-Control': VOLATILE } })
     }

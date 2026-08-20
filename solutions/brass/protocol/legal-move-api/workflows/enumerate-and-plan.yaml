@@ -1,0 +1,91 @@
+name: enumerate-and-plan
+title: Enumerate, then plan the resources
+summary: Both consumers call the same two functions in the same order — enumerate the legal set, then plan what one chosen move would consume.
+participants: [action-flow, mcp, enumerator]
+steps:
+  - message: enumerate-legal-moves
+    from: action-flow
+    to: enumerator
+    kind: call
+    note: >-
+      Called on every render while it is the player's turn. No cache and no memo: each
+      broadcast replaces the state object wholesale, so a cache would be a staleness bug
+      with no measured benefit.
+
+  - message: legal-moves
+    from: enumerator
+    to: action-flow
+    kind: return
+    payload: /product/play/component/rules/component/move-enumerator/datamodel/legal-move@1
+    note: >-
+      eligibleCards is ordered non-wild first, so element 0 is a real card
+      whenever one exists. A consumer that takes the default never spends a wild
+      it did not need.
+
+  - message: enumerate-legal-moves
+    from: mcp
+    to: enumerator
+    kind: call
+    condition: on get_legal_moves, and again inside make_move
+    note: >-
+      The second call is the interesting one: make_move re-enumerates before matching
+      the submitted id, so an id from a state that has since changed fails to match
+      instead of resolving elsewhere.
+
+  - message: legal-moves
+    from: enumerator
+    to: mcp
+    kind: return
+    payload: /product/play/component/rules/component/move-enumerator/datamodel/legal-move@1
+
+  - opt:
+      when: the chosen move consumes coal, iron, beer or a merchant slot
+      steps:
+        - message: plan-move-choices
+          from: action-flow
+          to: enumerator
+          kind: call
+          payload: /product/play/component/rules/component/move-enumerator/datamodel/planned-move@1
+          note: >-
+            The planned shape mirrors the move handler's arguments, not the
+            enumerated move — deliberately, so the planner and the handler cannot
+            disagree about what a move is.
+        - message: move-decisions
+          from: enumerator
+          to: action-flow
+          kind: return
+          payload: /product/play/component/rules/component/move-enumerator/datamodel/move-decisions@1
+          note: >-
+            Only decisions with more than one candidate reach the player.
+            Everything forced is resolved silently — see 0005-prompt-only-real-choices.
+
+  - opt:
+      when: the chosen move is a sell
+      steps:
+        - message: plan-sell
+          from: action-flow
+          to: enumerator
+          kind: call
+        - message: sell-decisions
+          from: enumerator
+          to: action-flow
+          kind: return
+          payload: /product/play/component/rules/component/move-enumerator/datamodel/decision@1
+          condition: one decision per tile, index-aligned to tileIds
+        - loop:
+            while: a tile still has an unresolved merchant or barrel decision
+            steps:
+              - message: plan-sell-tile-beer
+                from: action-flow
+                to: enumerator
+                kind: call
+                note: >-
+                  Re-run after each merchant pick, because choosing a merchant
+                  changes which barrels are reachable from that tile. This is the
+                  one place where two decisions in the same move are genuinely
+                  ordered.
+              - message: tile-beer-decisions
+                from: enumerator
+                to: action-flow
+                kind: return
+                payload: /product/play/component/rules/component/move-enumerator/datamodel/decision@1

@@ -1,0 +1,48 @@
+kind: http
+summary: Four read-only reads over the entity's git history, all GET on one path and separated by an op query parameter.
+encoding: json
+http:
+  base-path: /api/history
+  tls: false
+  operations:
+    - name: history-log
+      method: GET
+      path: /{entity-path}
+      x-op: log
+      summary: >-
+        The entity's revisions, its version-to-commit index and any
+        E_VER_REGRESSION findings. Cache-Control no-store — the worktree can
+        change under it.
+
+    - name: history-files
+      method: GET
+      path: /{entity-path}
+      x-op: files
+      summary: >-
+        The entity directory's files at one commit. Requires commit; the answer
+        cannot change, so private max-age=600.
+
+    - name: history-show
+      method: GET
+      path: /{entity-path}
+      x-op: show
+      summary: >-
+        One file's bytes at a revision. commit is optional; without it the read
+        is of the worktree and is not cached.
+
+    - name: history-diff
+      method: GET
+      path: /{entity-path}
+      x-op: diff
+      summary: >-
+        A parsed unified diff of the entity at a commit, against=parent,
+        worktree, or another hex object name. Hunks are capped at 4000 rendered
+        lines.
+
+# The operation object has no field for a query parameter, so the discriminator
+# lives in x-op rather than being smuggled into `path`. Every operation really
+# is GET on the same path; that is the shape of the route, not a modelling
+# shortcut.
+x-request-shape: >-
+  op is required in practice and defaults to log; commit and against are
+  validated as 4-40 hex object names before any of them reaches git.

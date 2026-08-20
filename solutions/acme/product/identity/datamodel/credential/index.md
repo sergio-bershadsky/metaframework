@@ -13,8 +13,6 @@ tags:
   - security
 ---
 
-# Credential
-
 What [authentication](srn://acme/product/identity/component/authentication) checks a
 proof against. One record per verifier, so an account with a password and a
 security key has two, distinguished by `factor` rather than by which one came

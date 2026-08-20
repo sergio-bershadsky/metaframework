@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/web-client/component/animation/datamodel/game-deltas",
+  "x-srn": "srn://brass/product/play/component/web-client/component/animation/datamodel/game-deltas",
+  "title": "Game deltas",
+  "description": "Per-player and per-tile changes between two consecutive game states, recovered by diffing because the transport ships whole states and no patches. Client-side only.",
+  "type": "object",
+  "properties": {
+    "per-player": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[0-3]$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "d-money": {
+            "type": "integer",
+            "description": "next.money minus prev.money. Zero when there is no previous value."
+          },
+          "d-vp": {
+            "type": "integer",
+            "description": "next.vp minus prev.vp. Zero when there is no previous value."
+          },
+          "d-income-level": {
+            "type": "integer",
+            "description": "Change in income LEVEL, not in track spaces: a two-space advance may be worth one level or none."
+          },
+          "income-level": {
+            "type": "integer",
+            "minimum": -10,
+            "maximum": 30,
+            "description": "Current income level from next. Exactly the money paid out at round end, so it sizes the payout animation without duplicating levelFromSpace."
+          }
+        },
+        "required": [
+          "d-money",
+          "d-vp",
+          "d-income-level",
+          "income-level"
+        ]
+      },
+      "description": "One entry per player in next. A player absent from prev yields all-zero deltas, so joining mid-lobby does not animate a windfall."
+    },
+    "new-tiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The built-tile id, for looking the live tile up when the animation renders."
+          },
+          "city": {
+            "type": "string",
+            "description": "Board-location id to fly the piece to."
+          },
+          "owner": {
+            "type": "string",
+            "pattern": "^[0-3]$",
+            "description": "Player id, resolved to a colour through the seat."
+          }
+        },
+        "required": [
+          "id",
+          "city",
+          "owner"
+        ],
+        "description": "A deliberate three-field projection of built-tile, not the tile itself: everything else is read live at render time rather than carried stale in the diff."
+      },
+      "description": "Tiles in next.tiles whose id is absent from prev.tiles. Empty on the first render, so the opening snapshot never animates the whole board."
+    },
+    "round-rolled": {
+      "type": "boolean",
+      "description": "Inferred, not received: the round number or the era changed, and collectIncome runs in endOfRound just before that bump. False on the first render."
+    }
+  },
+  "required": [
+    "per-player",
+    "new-tiles",
+    "round-rolled"
+  ]
+}

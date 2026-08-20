@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/move-decisions",
+  "x-srn": "srn://brass/product/play/component/rules/component/move-enumerator/datamodel/move-decisions",
+  "title": "Move decisions",
+  "description": "Every resource decision a planned move raises, grouped by category. Empty arrays where the category does not apply.",
+  "type": "object",
+  "properties": {
+    "coal": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/decision"
+      },
+      "description": "One decision per coal cube. For a double rail build, one per link in the move's own link order, each planned after the previous link's consumption."
+    },
+    "iron": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/decision"
+      },
+      "description": "One decision per iron cube. Iron needs no network connection, so candidates are every unflipped works plus the market."
+    },
+    "beer": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/decision"
+      },
+      "description": "Flat list of barrels in tile order, not one entry per tile: a tile needing two barrels contributes two consecutive decisions."
+    },
+    "merchant": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/decision"
+      },
+      "description": "Sell destination per tile, index-aligned to the move's tile-ids."
+    }
+  },
+  "required": [
+    "coal",
+    "iron",
+    "beer",
+    "merchant"
+  ]
+}

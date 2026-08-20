@@ -19,8 +19,6 @@ tags:
   - external-facing
 ---
 
-# Customer
-
 A customer is any person holding a shop account, authenticated or in a guest
 session. The role says nothing about tenure or spend — segmentation is a concern
 of the analytics stack, not of this description, and a description that tried to

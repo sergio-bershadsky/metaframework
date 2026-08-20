@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: solution
-version: 2
+version: 5
 status: review
 title: Kind — solution
 summary: The solution kind — the sealed universe and catalog root, its frontmatter additions, the shared container rules C1–C7, and the no-cross-solution boundary.
@@ -39,21 +39,27 @@ solutions/{solution}/                     ← this kind
   solutions/acme/component/shop/     # E_SRN_PLACEMENT — no product owns it
   ```
 
-- **Actors and environments live only here.** `actor/` and `environment/`
-  buckets below solution level are `E_SRN_PLACEMENT` — the grammar admits those
-  two pairs only as the first pair after the authority. Products and components
-  *reference* them; they never own them, because both describe the universe the
-  whole solution shares.
+- **The solution-level kinds live only here.** `actor/`, `environment/`,
+  `capability/` and `journey/` buckets below solution level are
+  `E_SRN_PLACEMENT` — the grammar admits those four pairs only as the first pair
+  after the authority. Products and components *reference* them; they never own
+  them, because all four describe the universe the whole solution shares: who
+  pushes on it, where it runs, what the business can do, and the paths taken
+  across it.
 
   ```text
   solutions/acme/actor/customer/                    # legal
   solutions/acme/environment/production/            # legal
+  solutions/acme/capability/order-fulfilment/       # legal
+  solutions/acme/journey/place-an-order/            # legal
   solutions/acme/product/shop/actor/customer/       # E_SRN_PLACEMENT
+  solutions/acme/product/shop/capability/pricing/   # E_SRN_PLACEMENT
   ```
 
-- A solution MAY also own `datamodel/`, `protocol/`, `adr/`, and `requirement/`
-  buckets — for entities whose owner is the solution itself (a protocol whose
-  participants span two products, a solution-wide `money` datamodel).
+- A solution MAY also own `datamodel/`, `protocol/`, `adr/`, `requirement/`, and
+  `metric/` buckets — for entities whose owner is the solution itself (a
+  protocol whose participants span two products, a solution-wide `money`
+  datamodel, a conversion number no single product is accountable for).
 
 ### The only path-less SRN
 
@@ -80,24 +86,25 @@ Three consequences fall out of [srn.md](../srn.md):
 
 **No reference of any kind may cross a solution boundary**, on any surface:
 
-| Surface                       | Crossing example                                                 | Verdict                |
-| ----------------------------- | ----------------------------------------------------------------- | ---------------------- |
-| frontmatter `relations`       | `depends-on: [srn://globex/product/shop/component/ledger]`        | `E_SRN_CROSS_SOLUTION` |
-| JSON Schema `$ref`            | `{"$ref": ".../schemas/globex/datamodel/money"}`                  | `E_SRN_CROSS_SOLUTION` |
-| protocol / workflow YAML      | `payload: srn://globex/product/shop/datamodel/order@1`            | `E_SRN_CROSS_SOLUTION` |
-| prose markdown link           | `[Ledger](srn://globex/product/billing/component/ledger)`         | `E_SRN_CROSS_SOLUTION` |
-| kind-specific fields          | `primary-actors: [srn://globex/actor/customer]`                   | `E_SRN_CROSS_SOLUTION` |
+| Surface                  | Crossing example                                           | Verdict                |
+|--------------------------|------------------------------------------------------------|------------------------|
+| frontmatter `relations`  | `depends-on: [srn://globex/product/shop/component/ledger]` | `E_SRN_CROSS_SOLUTION` |
+| JSON Schema `$ref`       | `{"$ref": ".../globex/datamodel/money"}`                   | `E_SRN_CROSS_SOLUTION` |
+| protocol / workflow YAML | `payload: srn://globex/product/shop/datamodel/order@1`     | `E_SRN_CROSS_SOLUTION` |
+| prose markdown link      | `[Ledger](srn://globex/product/billing/component/ledger)`  | `E_SRN_CROSS_SOLUTION` |
+| kind-specific fields     | `primary-actors: [srn://globex/actor/customer]`            | `E_SRN_CROSS_SOLUTION` |
 
 The `$ref` row is the only one that is not an SRN, and its shape matters. A
-`schema.json` references other schemas by **served schema URL** and never by SRN
-(decision-record amendment 2026-08-19-c), so an `srn://` in a `$ref` is
-`E_DM_REF_TARGET` — a malformed reference, caught before any boundary question
-is asked. The way a schema crosses the boundary is now plain to read rather than
-counted: the first path segment after `/schemas/` is the solution, so
-`http://localhost:3000/schemas/globex/datamodel/money` written from an `acme`
-schema is `E_SRN_CROSS_SOLUTION` on inspection, with no normalisation involved.
-A URL on this origin that leaves the `/schemas/` namespace entirely is
-`E_DM_REF_ESCAPE` ([datamodel.md](datamodel.md)).
+`schema.json` references other schemas by **canonical schema URL** and never by
+SRN (decision-record amendments 2026-08-19-c and 2026-08-19-d), so an `srn://`
+in a `$ref` is `E_DM_REF_TARGET` — a malformed reference, caught before any
+boundary question is asked. The way a schema crosses the boundary is plain to
+read rather than counted: the first path segment after the host is the solution,
+so `https://schemas.metaframework.dev/globex/datamodel/money` written from an
+`acme` schema is `E_SRN_CROSS_SOLUTION` on inspection, with no normalisation
+involved. Any other malformed URL — a foreign host, a serving address, a path
+that is not an entity address — is `E_DM_REF_TARGET`
+([datamodel.md](datamodel.md)); `E_DM_REF_ESCAPE` is retired.
 
 Rationale: the boundary is what makes a solution reviewable and movable as a
 unit — no build may depend on a catalog that is not in the tree. Cross-solution
@@ -208,14 +215,14 @@ On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 
 ## What may nest inside
 
-| Child                                       | Allowed | Note                                                  |
-| ------------------------------------------- | ------- | ------------------------------------------------------ |
-| `product/` bucket                           | yes     | Any number of products; the only container bucket here.|
-| `actor/`, `environment/` buckets            | yes     | **Only** here (`E_SRN_PLACEMENT` elsewhere).           |
-| `datamodel/`, `protocol/`, `adr/`, `requirement/` buckets | yes | For solution-owned entities.               |
-| another solution                            | no      | Solutions never nest.                                  |
-| a `component/` bucket                       | no      | A component needs a product ancestor — `E_SRN_PLACEMENT`. |
-| an entity directory not inside a bucket     | no      | Every child of a solution is a bucket; the path would not parse (`E_SRN_SYNTAX`). |
+| Child                                                                | Allowed | Note                                                                              |
+| -------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `product/` bucket                                                    | yes     | Any number of products; the only container bucket here.                           |
+| `actor/`, `environment/`, `capability/`, `journey/` buckets          | yes     | **Only** here (`E_SRN_PLACEMENT` elsewhere).                                      |
+| `datamodel/`, `protocol/`, `adr/`, `requirement/`, `metric/` buckets | yes     | For solution-owned entities.                                                      |
+| another solution                                                     | no      | Solutions never nest.                                                             |
+| a `component/` bucket                                                | no      | A component needs a product ancestor — `E_SRN_PLACEMENT`.                         |
+| an entity directory not inside a bucket                              | no      | Every child of a solution is a bucket; the path would not parse (`E_SRN_SYNTAX`). |
 
 ## Validation rules
 
@@ -277,8 +284,6 @@ tags:
   - retail
   - flagship
 ---
-
-# Acme Retail Platform
 
 Acme sells physical goods online. This catalog describes the systems that take
 an order from a customer's cart to a settled payment and a shipped parcel.

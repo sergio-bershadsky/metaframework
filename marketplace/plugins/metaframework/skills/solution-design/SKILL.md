@@ -1,6 +1,6 @@
 ---
 name: solution-design
-description: This skill should be used when the user asks to "design a solution", "start a new metaframework catalog", "model our system as a catalog", "how should I split this into products and components", "propose an SRN tree", "is this decomposition right", "should this be two products or one", "is this a product or a component", "should this datamodel be promoted", or describes a whole system in prose that has to become a catalog. It owns the interview, the decomposition heuristics, the proposed SRN tree, and the review gate — everything that happens BEFORE any file is written, and it covers the shape of MANY entities at once. For creating ONE entity whose placement is already settled, use `add-entity`, `model-data` or `protocol-design` instead; for judging a catalog that already exists, use `review-solution`.
+description: This skill should be used when the user asks to "design a solution", "start a new metaframework catalog", "model our system as a catalog", "how should I split this into products and components", "propose an SRN tree", "is this decomposition right", "should this be two products or one", "is this a product or a component", "should this datamodel be promoted", "what can the business do", "map our capabilities", "is this a capability or a product", "map the customer journey", "how would we measure this", or describes a whole system in prose that has to become a catalog. It owns the interview — which starts at capabilities, above the deliverables — the decomposition heuristics, the proposed SRN tree, and the review gate — everything that happens BEFORE any file is written, and it covers the shape of MANY entities at once. For creating ONE entity whose placement is already settled, use `add-entity`, `model-data` or `protocol-design` instead; for judging a catalog that already exists, use `review-solution`.
 ---
 
 # Solution design — from a system in someone's head to an SRN tree
@@ -27,10 +27,20 @@ This skill carries procedure and judgement. Legality lives in the specification.
   `index.md`, `srn.md`, `structure.md`, `frontmatter.md`, and the relevant
   `kinds/*.md`.
 - Otherwise read the distilled copy bundled with this plugin:
-  `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` — `srn.md` (placement
-  grammar, the relative-reference trap), `structure.md` (buckets, artifacts, the
-  protocol NCA rule), `frontmatter.md` (per-kind required fields, the closed
-  relation-edge set), `schemas.md`, `evolution.md` (names are permanent).
+  `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` — `srn.md` (the
+  consolidating principle, placement grammar, the relative-reference trap),
+  `structure.md` (buckets, artifacts, the protocol NCA rule), `frontmatter.md`
+  (per-kind required fields, the closed relation-edge set), `schemas.md`
+  (`$id`, `x-srn`, canonical schema URLs), `protocols.md` (the protocol artifacts),
+  `environments.md` (environment, actor, ADR, requirement), `journeys.md` (the
+  `journey.yaml` mini-spec and the product-crossing check), `evolution.md`
+  (names are permanent), `decomposition.md` (the component tests and the
+  granularity band — judgement the spec deliberately leaves open, so it applies
+  even when `framework/spec/` is on disk). The business layer is spread across
+  those on purpose:
+  capability and metric fields and the `realizes`/`measures` edges are in
+  `frontmatter.md`, their placement is in `structure.md`, and only the journey
+  artifact needed a file of its own.
 
 ## Procedure
 
@@ -49,16 +59,45 @@ exist. Settle the solution name here: it is the SRN authority.
 Ask in small batches, not as a questionnaire. Each question exists because its
 answer decides a specific piece of the tree.
 
+#### 1a — The business, asked first
+
+Start one level above the deliverables. A catalog that opens with "what do you
+ship" gets an inventory; one that opens with "what can the business do" gets an
+inventory **and** the frame that judges it — a product nobody can attach to a
+capability is a deliverable with no stated purpose, and that is worth finding in
+the interview rather than two quarters later.
+
+| Ask                                                                | Decides                                        |
+|--------------------------------------------------------------------|------------------------------------------------|
+| What can the business *do* that it would still do after a total rewrite on a different stack? | capabilities (solution level) |
+| Say each one as a sentence starting with a verb. Whose words are those — yours, or engineering's? | capability `title` vs a service name in disguise |
+| Which of those does *this* solution carry, and which are somebody else's? | capabilities in scope, and `scope.out`       |
+| What path does each actor take, first contact to outcome?          | journeys (solution level), one per outcome     |
+| Where does that path leave one team's territory and enter another's? | the crossings a journey must document          |
+| How would you know each capability is going well — one number?     | metrics, and the `measures` edge on each       |
+| Is that number a floor or a ceiling, and over what period?         | `direction` and `window`                       |
+
+A capability answer that changes when you imagine replacing every system behind
+it was a description of the implementation: it is a component or a product, and
+belongs in 1b. Push back at the time — asking first buys nothing if the list is
+quietly a list of services.
+
+#### 1b — The build
+
 | Ask                                                        | Decides                                      |
 |------------------------------------------------------------|----------------------------------------------|
 | What do you ship, and who gets paged when it breaks?       | products, and `owner` on each                |
+| Which capability does each of those let the business do?   | `realizes` edges — and the gaps in both directions |
 | What has its own roadmap, funding, or release cadence?     | product vs component                         |
 | What could be deployed, released, or replaced on its own?  | components                                   |
 | What always changes in the same commit as something else?  | components to merge                          |
 | What runs *inside* another process rather than beside it?  | `component-type: library`                    |
 | What holds state / fronts others / has no inbound surface? | `datastore` / `gateway` / `job`              |
+| Is each of those built, being built, or only agreed?       | `lifecycle` on every component               |
 | What talks to what, and across which ownership boundary?   | protocols, and where they sit                |
 | Which of those crossings is a contract you would version?  | protocol vs a plain `depends-on` edge        |
+| Walk me through the journey again, naming the actual components this time | `touches` per journey step, in order |
+| At each hand-off — is there a conversation, or does the human carry it? | `protocol:` on the step, or `protocol: none` |
 | Which nouns appear in more than one part of the system?    | datamodels, and how far up they get promoted |
 | Is that noun stored, exchanged, or both?                   | `usage`                                      |
 | Who or what starts work from outside the system?           | actors (solution level)                      |
@@ -74,61 +113,67 @@ produces a catalog nobody recognises.
 Apply the heuristics below. Write down, for each non-obvious call, the
 alternative rejected and why — that list is what makes Phase 3 reviewable.
 
+This is the point where the cut gets made, so before any candidate earns the
+word **component**, put it through the four component tests, in order: is it a
+unit of **delivery and decision** (ships, versions, fails, own-able separately
+from its parent)? does its boundary **carry an edge** (something outside it
+references it)? does it have its **own failure mode**? could a **team own it**?
+A candidate failing all four is a feature, a file, or a chapter — content of a
+component: it becomes a table in the parent's prose and its files the parent's
+artifacts, not an entity. Hold each product to the **granularity band** — a
+handful of components, not one and not twenty — and hold the density
+*consistent across products*, because a catalog where one product has two
+components and its neighbour has twenty has stopped meaning one thing by
+"component". When in doubt, do not split yet: merging later destroys prose and
+edges through a swap, splitting later is additive and cheap. The tests, the
+band, and the anti-patterns this catalog has already paid for are in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`.
+
 ### Phase 3 — Propose the tree, then STOP
 
-Present three things and ask for sign-off before touching the filesystem:
+Present four things and ask for sign-off before touching the filesystem:
 
 1. **The annotated SRN tree** — every entity, its kind bucket, and a few words on
    what it is.
-2. **The decision table** — each judgement call, the alternative rejected, the
+2. **The coverage table** — capability by capability: what realizes it, what
+   measures it, which journeys pass through it. It is a small table and it is
+   where the design fails visibly: an empty realizer cell is **H11**, a cell
+   spanning four products is **H12**, an empty metric cell is **H14**. Present
+   the empty cells as findings, not as a to-do list to be filled in silently.
+3. **The decision table** — each judgement call, the alternative rejected, the
    heuristic that decided it.
-3. **The open questions** — anything answered with under 80% confidence.
+4. **The open questions** — anything answered with under 80% confidence.
 
 ### Phase 4 — Write, targets before referrers
 
 Write in dependency order so the check stays meaningful: solution `index.md` →
-actors and environments → products → components (outermost first) → datamodels →
-protocols → requirements and ADRs. A referrer written before its target produces
-`E_SRN_DANGLING`.
+capabilities → actors and environments → products → components (outermost
+first) → datamodels → protocols → journeys → requirements, metrics and ADRs. A
+referrer written before its target produces `E_SRN_DANGLING`.
+
+Two entries there are load-bearing. **Capabilities come first**: they reference
+nothing and are referenced by `realizes` from almost everything, so they are the
+only kind writeable before anything else exists. **Journeys come after
+protocols**, because every `touches` and `protocol` in `journey.yaml` must
+already resolve — written early, a journey is a page of `E_SRN_DANGLING`.
 
 Delegate each entity to its kind's skill rather than hand-rolling frontmatter.
 Kind-required fields are the most-missed rule in the framework: `vision` on the
-solution, `lifecycle` on a product, `component-type` on a component, `usage` on a
-datamodel, `participants` + `style` on a protocol, `actor-type` + `goals` on an
-actor, `environment-type`, `requirement-type` + `priority`, `decision-status` +
-`date` on an ADR.
+solution, `lifecycle` on a product, `component-type` **and `lifecycle`** on a
+component, `usage` on a datamodel, `participants` + `style` on a protocol,
+`actor-type` + `goals` on an actor, `environment-type`, `requirement-type` +
+`priority`, `decision-status` + `date` on an ADR, `actor` **and a
+`journey.yaml`** on a journey, and `metric-type` + `target` + `window` +
+`direction` + a `measures` edge on a metric. A capability requires none — it is
+common fields, a verb-phrase `title`, and its inbound edges.
 
-What a settled product looks like — `solutions/acme/product/shop/index.md`,
-verbatim, minus its prose:
+`lifecycle` on a component is the one to expect resistance on, because it looks
+like `status` and is not: `status` is the review state of the **description**,
+`lifecycle` is the delivery state of the **thing described**. `status: approved`
+with `lifecycle: planned` is the design-first normal case, not a contradiction.
 
-```yaml
----
-name: shop                    # MUST equal the directory name
-kind: product                 # MUST equal the bucket
-version: 4
-title: Shop
-summary: Customer-facing storefront, cart, and checkout for the acme retail business.
-status: approved              # the document's state, not the product's
-owner: team-shop
-lifecycle: active             # the product's state in the world
-primary-actors:
-  - /actor/customer           # solution-absolute; MUST resolve to an actor
-  - /actor/support-agent
-relations:                    # forward edges only — inverses are derived
-  exposes:
-    - /product/shop/datamodel/order-placed@1
-  depends-on:
-    - /product/billing/component/ledger
-  implements:
-    - /product/shop/requirement/guest-checkout
-  uses:
-    - /datamodel/money@1
-tags:
-  - commerce
-  - customer-facing
-x-cost-center: "4711"         # unknown top-level fields need the x- prefix
----
-```
+What a settled product's frontmatter looks like, field by field, is in
+`references/worked-example.md` under **"A settled product, field by field"**.
 
 ### Phase 5 — Check
 
@@ -213,13 +258,58 @@ actors. So a third-party acquirer, carrier or IdP that something must
 `depends-on` has to be a component with `component-type: external`, described at
 whatever fidelity the dependency requires.
 
+**H11 — A capability realized by zero components is aspiration, not
+architecture.** Say so in the proposal rather than letting the list stand. Every
+other kind describes something we built; a capability is the one kind that can
+be true of the business and absent from the system, which is why its emptiness
+is the finding. Read it against `status`: a `draft` capability with no realizer
+is the to-do list working as intended, an **`approved`** one is an agreed
+description of something the business cannot do. The same finding recurs one
+level down — a capability only a *product* realizes, with no component under it
+carrying the claim, is a product asserting a doing nothing inside it performs.
+
+**H12 — A capability realized by components in four or more products suggests
+the product boundaries cut ACROSS the business rather than along it.** Four
+deliverables holding slices of one business sentence makes every change to that
+sentence a four-way negotiation. Two products realizing one capability is
+ordinary — that is what capabilities are solution-level *for*; three is worth a
+question; four is a decomposition finding. It is **H4** (protocols piling up at
+the root) read from the other end: both are the shape a catalog takes when the
+products were drawn from the org chart and the work runs across them. Count it
+before Phase 4, because the fix is a redraw and a redraw is free only before
+anything is written.
+
+**H13 — A journey step with no protocol behind it is an undocumented
+integration.** Applies exactly at a product crossing: consecutive steps with
+different owning products, and the later one naming no `protocol`. The path
+leaves one product and arrives in another, and the catalog says nothing about
+how — which finds integrations that exist in production and in nobody's
+description. The fix is a new protocol entity, never an edit to the journey. If
+there genuinely is no system conversation — the actor retypes a number, or
+follows a link from an email — write `protocol: none`: a claim a reviewer can
+grep for, as against an omission nobody can tell from forgetfulness.
+
+**H14 — Every `must` requirement should trace to a capability, and every
+capability to at least one metric.** Both halves are about the same hole. A
+`must` that serves no capability is an obligation with no business reason
+attached — either the reason was never stated, or the requirement is a
+technical preference wearing a `must`; trace it through the component that
+`implements` it to what that component `realizes`, and if the chain does not
+close, that is the finding. A capability with no metric is a claim nobody can
+check: the catalog says the business can do this and offers no number that
+would say whether it does it well. Trace, do not enforce — the spec raises no
+`W_CAP_UNMEASURED`, because a warning that fires on every capability the day
+the kind is adopted is a warning nobody reads. It is a column in the coverage
+table and a question in the interview, not an alarm.
+
 ## Naming
 
 - Every segment matches `^[a-z0-9]+(-[a-z0-9]+)*$`, 1–64 characters. `Shop`,
   `order_placement`, `-cart` are `E_SRN_SYNTAX`.
-- The eight reserved kinds — `product`, `component`, `datamodel`, `protocol`,
-  `actor`, `environment`, `adr`, `requirement` — may never be a solution or entity
-  name. They appear only as bucket directories.
+- The eleven reserved kinds — `product`, `component`, `datamodel`, `protocol`,
+  `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`,
+  `metric` — may never be a solution or entity name. They appear only as bucket
+  directories.
 - **Name the thing, not its position.** The path already carries the context:
   `component/checkout`, not `component/shop-checkout`. Drop `-service` and `-api`
   suffixes; `component-type` already says what it is.
@@ -242,6 +332,12 @@ whatever fidelity the dependency requires.
 | An "auth" or "audit" concern inside several products | Cross-cutting product missing (H7)                |
 | A component nested under something it merely calls   | Composition confused with dependency (H9)         |
 | Deep nesting with one child at each level            | Nesting used as taxonomy, not composition         |
+| A capability list that reads like the service list   | The rewrite test was never applied (1a, H11)      |
+| One capability realized across four+ products        | Products cut across the business (H12)            |
+| A journey whose every crossing has no protocol       | Integrations exist and are undescribed (H13)      |
+| A journey that needs a thirteenth step or a branch   | Two journeys with two outcomes, filed as one      |
+| Every component `lifecycle: released` on day one     | `lifecycle` filled in by habit, not by the test   |
+| A metric with two subjects and one definition        | Two metrics; one number, one metric               |
 
 On an **existing** catalog, these smells are the `catalog-reviewer` agent's remit —
 dispatch it for a full audit rather than re-deriving the tree by hand.
@@ -253,6 +349,15 @@ dispatch it for a full audit rather than re-deriving the tree by hand.
   the question that produced each decision, the alternatives rejected, and the
   open questions handed back. It lands on the shape shipped at `solutions/acme/`,
   so the result can be read against real files.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/journeys.md`** — the
+  `journey.yaml` mini-spec in full: step keys, the 2–12 cap, the no-branching
+  rule with its argument, and the mechanical definition of a product crossing.
+  Read it before proposing any journey; **H13** is only as good as that
+  definition.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/decomposition.md`** — the
+  four component tests, the granularity band, the merge/split asymmetry, and
+  the three anti-patterns with the receipts from this repository's own history.
+  Read it at Phase 2, before any cut is proposed.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the distilled rules,
   used when `framework/spec/` is not on disk.
 - **`solutions/acme/`** — the worked fixture, when the repository is present.

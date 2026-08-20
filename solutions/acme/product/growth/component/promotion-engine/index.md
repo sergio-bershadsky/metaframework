@@ -1,12 +1,13 @@
 ---
 name: promotion-engine
 kind: component
-version: 4
+version: 5
 title: Promotion engine
 summary: Stateless evaluator on the checkout hot path — decides what a cart is worth and answers within a budget.
 status: review
 owner: team-growth
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -25,14 +26,14 @@ relations:
   implements:
     - /product/growth/requirement/promotion-evaluation-budget
     - /product/growth/requirement/stackable-promotions
+  realizes:
+    - /capability/promotion-pricing
 tags:
   - promotions
   - hot-path
   - privacy
 x-runtime: rust
 ---
-
-# Promotion engine
 
 Answers one question: given this cart and this account, which discounts apply
 and what are they worth. It holds no state of its own, writes nothing, and can

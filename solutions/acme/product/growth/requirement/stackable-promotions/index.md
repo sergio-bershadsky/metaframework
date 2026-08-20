@@ -17,8 +17,6 @@ tags:
   - determinism
 ---
 
-# Deterministic stacking of multiple discounts
-
 When more than one discount could apply to a cart, the outcome must be a
 function of the inputs alone — not of evaluation order, not of which replica
 answered, not of the order a customer happened to type codes in. Two carts

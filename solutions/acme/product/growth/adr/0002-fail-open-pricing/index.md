@@ -22,8 +22,6 @@ tags:
   - availability
 ---
 
-# Promotion evaluation is advisory and fails open
-
 ## Context
 
 [growth](srn://acme/product/growth) put a new component on the checkout request

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/planned-move",
+  "x-srn": "srn://brass/product/play/component/rules/component/move-enumerator/datamodel/planned-move",
+  "title": "Planned move",
+  "description": "Planner input: a move described just enough to derive its resource decisions. Tagged union on \"type\"; only the four resource-consuming actions have a branch.",
+  "oneOf": [
+    {
+      "title": "Build",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "build"
+        },
+        "city": {
+          "type": "string",
+          "description": "Board-location id. Coal distance is measured from here."
+        },
+        "slot-index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "industry": {
+          "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type",
+          "description": "The level is not given: the planner reads the head of the player's mat stack for this industry."
+        }
+      },
+      "required": [
+        "type",
+        "city",
+        "slot-index",
+        "industry"
+      ]
+    },
+    {
+      "title": "Network",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "network"
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "Order matters: coal for link i is planned after link i-1 has consumed. Canal-era links raise no decisions at all."
+        }
+      },
+      "required": [
+        "type",
+        "edges"
+      ]
+    },
+    {
+      "title": "Develop",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "develop"
+        },
+        "industries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+          },
+          "description": "Only the count drives planning: one iron decision per developed tile."
+        }
+      },
+      "required": [
+        "type",
+        "industries"
+      ]
+    },
+    {
+      "title": "Sell",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "sell"
+        },
+        "tile-ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Built-tile ids to sell. The merchant decisions come back index-aligned to this array."
+        }
+      },
+      "required": [
+        "type",
+        "tile-ids"
+      ]
+    }
+  ]
+}

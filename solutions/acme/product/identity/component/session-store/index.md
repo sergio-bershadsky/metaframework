@@ -1,12 +1,13 @@
 ---
 name: session-store
 kind: component
-version: 1
+version: 2
 title: Session store
 summary: The store of record for live sessions, and the reason a revocation is measured in seconds.
 status: approved
 owner: team-identity
 component-type: datastore
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -21,8 +22,6 @@ tags:
   - hot-path
 x-runtime: redis-cluster
 ---
-
-# Session store
 
 Holds every live [session](srn://acme/product/identity/datamodel/session@1), keyed by its
 opaque reference, and answers the `resolve-session` operation of

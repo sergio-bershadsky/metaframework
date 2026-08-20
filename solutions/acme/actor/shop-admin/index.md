@@ -15,8 +15,6 @@ tags:
   - internal
 ---
 
-# Shop admin (retired role)
-
 Kept because nothing in this framework is ever deleted, and because the access
 reviews of 2025 are only readable if the role they audited still has an address.
 

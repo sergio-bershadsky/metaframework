@@ -1,12 +1,13 @@
 ---
 name: psp
 kind: component
-version: 1
+version: 2
 title: Card acquirer (PSP)
 summary: The third-party card acquirer acme authorizes, captures, and refunds through.
 status: approved
 owner: team-payments
 component-type: external
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -15,8 +16,6 @@ tags:
   - payments
   - third-party
 ---
-
-# Card acquirer (PSP)
 
 A system acme does not own, described here only as far as the boundary requires.
 It tokenizes cards in the customer's browser, authorizes and captures on request

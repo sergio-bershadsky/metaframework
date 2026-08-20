@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/merchant",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/merchant",
+  "title": "Merchant",
+  "description": "One of the five commerce locations: a board location plus its printed bonus, tile-slot count and activation threshold.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/board-location"
+    }
+  ],
+  "properties": {
+    "bonus": {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/merchant-bonus",
+      "description": "Printed reward, fired once when this location's free beer barrel is consumed."
+    },
+    "tile-slots": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2,
+      "description": "Merchant-tile spaces at this location. Shrewsbury has 1; the other four have 2."
+    },
+    "active-from-players": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 4,
+      "description": "Lowest seat count at which this location is in play. Yields 5 / 7 / 9 total tile slots at 2 / 3 / 4 seats."
+    },
+    "connects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adjacent city ids as printed. Documentation only: no engine code reads this. Real adjacency is the edge table."
+    }
+  },
+  "required": [
+    "bonus",
+    "tile-slots",
+    "active-from-players"
+  ]
+}

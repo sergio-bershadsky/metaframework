@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/edge",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/edge",
+  "title": "Edge",
+  "description": "A printed, undirected connection between two board locations. 39 in total: 30 both-era, 8 rail-only, 1 canal-only.",
+  "type": "object",
+  "properties": {
+    "from": {
+      "type": "string",
+      "description": "One endpoint's board-location id. Ordering carries no meaning; every consumer compares both directions."
+    },
+    "to": {
+      "type": "string",
+      "description": "The other endpoint's board-location id."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "both",
+        "canal",
+        "rail"
+      ],
+      "description": "Eras in which a link may be built here. \"both\" for 30 edges; \"rail\" for 8; \"canal\" for the single Burton-on-Trent to Walsall edge."
+    },
+    "also-connects": {
+      "type": "string",
+      "description": "A third location this one edge touches. Present on exactly one edge (kidderminster-worcester also touches the southern farm brewery) and load-bearing for link scoring and for network presence."
+    }
+  },
+  "required": [
+    "from",
+    "to",
+    "type"
+  ]
+}

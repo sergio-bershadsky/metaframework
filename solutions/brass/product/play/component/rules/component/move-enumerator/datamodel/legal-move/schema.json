@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/legal-move",
+  "x-srn": "srn://brass/product/play/component/rules/component/move-enumerator/datamodel/legal-move",
+  "title": "Legal move",
+  "description": "One rule-legal move for one player in one state. Tagged union on \"kind\"; every branch except confirm-turn carries the cards that could authorise it.",
+  "oneOf": [
+    {
+      "title": "Build",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "build"
+        },
+        "card-id": {
+          "$ref": "#/$defs/card-id"
+        },
+        "city": {
+          "type": "string",
+          "description": "Board-location id being built in."
+        },
+        "slot-index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index into that location's slots array."
+        },
+        "industry": {
+          "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+        },
+        "eligible-cards": {
+          "$ref": "#/$defs/eligible-cards"
+        }
+      },
+      "required": [
+        "kind",
+        "card-id",
+        "city",
+        "slot-index",
+        "industry",
+        "eligible-cards"
+      ],
+      "description": "One entry per legal (city, slot, industry) triple. The tile level is implicit: it is the head of the player's mat stack for that industry."
+    },
+    {
+      "title": "Network",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "network"
+        },
+        "card-id": {
+          "$ref": "#/$defs/card-id"
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string"
+            },
+            "description": "The two endpoint ids of one printed edge."
+          },
+          "description": "One edge, or two for a rail-era double build (15 money, 2 coal, 1 beer). The second may chain off the first, so the anchor edge is emitted first."
+        },
+        "eligible-cards": {
+          "$ref": "#/$defs/eligible-cards"
+        }
+      },
+      "required": [
+        "kind",
+        "card-id",
+        "edges",
+        "eligible-cards"
+      ]
+    },
+    {
+      "title": "Develop",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "develop"
+        },
+        "card-id": {
+          "$ref": "#/$defs/card-id"
+        },
+        "industries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+          },
+          "description": "Industries whose lowest mat tile is removed. Two entries may name the same industry twice. Every named tile must have can-develop set."
+        },
+        "eligible-cards": {
+          "$ref": "#/$defs/eligible-cards"
+        }
+      },
+      "required": [
+        "kind",
+        "card-id",
+        "industries",
+        "eligible-cards"
+      ]
+    },
+    {
+      "title": "Sell",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "sell"
+        },
+        "card-id": {
+          "$ref": "#/$defs/card-id"
+        },
+        "tile-ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Built-tile ids to flip by selling. The enumerator emits one tile per move; the engine handler accepts several."
+        },
+        "eligible-cards": {
+          "$ref": "#/$defs/eligible-cards"
+        }
+      },
+      "required": [
+        "kind",
+        "card-id",
+        "tile-ids",
+        "eligible-cards"
+      ]
+    },
+    {
+      "title": "Loan",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "loan"
+        },
+        "card-id": {
+          "$ref": "#/$defs/card-id"
+        },
+        "eligible-cards": {
+          "$ref": "#/$defs/eligible-cards"
+        }
+      },
+      "required": [
+        "kind",
+        "card-id",
+        "eligible-cards"
+      ],
+      "description": "Take 30 money and drop income by 3 levels. Offered only while the resulting level stays at or above -10."
+    },
+    {
+      "title": "Scout",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "scout"
+        },
+        "cards": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/card-id"
+          },
+          "description": "The three cards discarded to draw one Wild Location and one Wild Industry."
+        },
+        "eligible-cards": {
+          "$ref": "#/$defs/eligible-cards"
+        }
+      },
+      "required": [
+        "kind",
+        "cards",
+        "eligible-cards"
+      ],
+      "description": "The one branch with no card-id: three cards are spent, not one. Illegal while already holding a wild, or while either shared pool is empty."
+    },
+    {
+      "title": "Pass",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "pass"
+        },
+        "card-id": {
+          "$ref": "#/$defs/card-id",
+          "description": "Absent when the hand is empty; passing is legal either way."
+        },
+        "eligible-cards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/card-id"
+          },
+          "description": "May be empty, unlike every other branch: an empty hand can still pass."
+        }
+      },
+      "required": [
+        "kind",
+        "eligible-cards"
+      ],
+      "description": "Always legal, so the enumeration is never empty."
+    },
+    {
+      "title": "Confirm turn",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "confirm-turn"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "description": "Seals the turn. Spends no card. While game-state.awaiting-commit is set this is the only move enumerated at all."
+    }
+  ],
+  "$defs": {
+    "card-id": {
+      "type": "string",
+      "description": "A card id from the acting player's hand."
+    },
+    "eligible-cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/card-id"
+      },
+      "description": "Every hand card that could authorise this exact move, ordered non-wild-first. Element 0 is the default card-id."
+    }
+  }
+}

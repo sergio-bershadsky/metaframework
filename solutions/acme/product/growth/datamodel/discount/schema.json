@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/discount",
+  "$id": "https://schemas.metaframework.dev/acme/product/growth/datamodel/discount",
+  "x-srn": "srn://acme/product/growth/datamodel/discount",
   "title": "Discount",
   "description": "Abstract base of every price reduction acme can express. Extended through allOf; never instantiated alone.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     }
   ],
   "properties": {
@@ -60,7 +61,7 @@
           "description": "Hundredths of a percent. 1500 is 15%; 10000 makes the scoped total free."
         },
         "cap": {
-          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
           "description": "Optional ceiling on the reduction, so a percentage cannot uncap the spend."
         }
       },
@@ -79,11 +80,11 @@
           "description": "Union tag."
         },
         "amount": {
-          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
           "description": "Amount taken off the scoped total. Clamped at the total, never negative."
         },
         "minimum-spend": {
-          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
           "description": "Threshold the scoped total must reach before this discount is eligible."
         }
       },
@@ -102,7 +103,7 @@
           "description": "Union tag."
         },
         "max-refund": {
-          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
           "description": "Ceiling on the shipping charge absorbed, for expedited options acme will not fund."
         }
       },

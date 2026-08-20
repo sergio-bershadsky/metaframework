@@ -33,8 +33,6 @@ tags:
   - synchronous
 ---
 
-# Promotion evaluation
-
 [checkout](srn://acme/product/shop/component/checkout) is the only initiator.
 [audience](srn://acme/product/growth/component/audience) and
 [coupon-service](srn://acme/product/growth/component/coupon-service) are reached

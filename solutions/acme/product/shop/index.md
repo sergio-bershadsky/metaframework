@@ -25,8 +25,6 @@ tags:
 x-cost-center: "4711"
 ---
 
-# Shop
-
 Everything a customer touches between browsing and a confirmed order.
 Fulfilment and settlement happen elsewhere: shop takes the money, publishes the
 fact, and stops there.

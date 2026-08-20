@@ -1,0 +1,39 @@
+name: author-an-entity
+steps:
+  - actor: /actor/ai-author
+    touches: /product/authoring-kit/component/plugin
+    note: /entity-new routes on kind and stops. Every command in the kit ends by
+      forbidding the model to improvise from the command file.
+
+  - actor: /actor/ai-author
+    touches: /product/authoring-kit/component/reference-bundle
+    note: Reads the distilled contract, because an installed plugin cannot see
+      framework/spec on disk and this repository is the only one that has it.
+
+  - actor: /actor/ai-author
+    touches: /product/authoring-kit/component/plugin
+    note: Writes index.md, and schema.json or workflows if the kind has them.
+      Placement is decided here and is the one thing that cannot be fixed later.
+
+  - actor: /actor/ai-author
+    touches: /product/portal/component/catalog-loader
+    protocol: none
+    # authoring-kit -> portal, carried by the actor: it runs a command in a
+    # shell. Files on disk are the entire interface between the two products.
+    note: Runs the check from framework/portal. The loader walks solutions/ and
+      every violation becomes a diagnostic; nothing throws.
+
+  - actor: /actor/ai-author
+    touches: /product/authoring-kit/component/plugin
+    protocol: none
+    # portal -> authoring-kit, carried by the actor: it reads the printed
+    # diff and looks the code up in a markdown table.
+    note: Reads the cascade order and the code-to-fix table, then edits. The
+      failure prints as a diff against an expected empty array.
+
+  - actor: /actor/ai-author
+    touches: /product/portal/component/catalog-loader
+    protocol: none
+    # authoring-kit -> portal again. Three crossings, one loop, no automation.
+    note: Green. The entity is legal, and nothing in this loop has said whether
+      it is a good description of anything.

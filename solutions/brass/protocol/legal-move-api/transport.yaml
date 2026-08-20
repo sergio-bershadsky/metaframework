@@ -1,0 +1,35 @@
+kind: in-process
+summary: A workspace import, not a network hop — the same compiled functions run inside the browser bundle, the server process and the MCP subprocess.
+in-process:
+  language: typescript
+  module: "@brass/rules"
+  functions:
+    - name: enumerateLegalMoves
+      response: /product/play/component/rules/component/move-enumerator/datamodel/legal-move@1
+      summary: >-
+        Every legal move for one seat in one state, card-agnostic duplicates
+        collapsed and each move annotated with the full set of hand cards that
+        would authorise it. Returns only confirmTurn once the action budget is
+        spent.
+
+    - name: planMoveChoices
+      request: /product/play/component/rules/component/move-enumerator/datamodel/planned-move@1
+      response: /product/play/component/rules/component/move-enumerator/datamodel/move-decisions@1
+      summary: >-
+        One decision per cube, barrel and merchant tile the move consumes,
+        grouped into coal / iron / beer / merchant. An empty candidate list means
+        the move is unplayable; a single candidate means the decision is forced.
+
+    - name: planSell
+      response: /product/play/component/rules/component/move-enumerator/datamodel/decision@1
+      summary: >-
+        The per-tile merchant-destination decisions for a sell, index-aligned to
+        the tile ids. Split out from planMoveChoices because the sell wizard
+        walks tiles one at a time.
+
+    - name: planSellTileBeer
+      response: /product/play/component/rules/component/move-enumerator/datamodel/decision@1
+      summary: >-
+        The barrel decisions for one tile of a sell, re-evaluated after the
+        merchant for that tile is chosen — a merchant choice changes which
+        barrels are reachable, so the two cannot be planned in one pass.

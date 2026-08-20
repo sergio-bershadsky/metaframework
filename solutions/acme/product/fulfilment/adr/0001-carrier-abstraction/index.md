@@ -21,8 +21,6 @@ tags:
   - boundaries
 ---
 
-# One gateway in front of every carrier, not one adapter per carrier
-
 ## Context
 
 Acme ships through four carriers today and the commercial team expects six by

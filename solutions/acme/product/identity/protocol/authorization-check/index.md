@@ -34,8 +34,6 @@ tags:
   - hot-path
 ---
 
-# Authorization check
-
 One question, asked constantly: may the principal behind this session reference
 perform this action on this resource kind. The caller names
 [acl](srn://acme/product/identity/component/acl) and waits for an answer, which is what

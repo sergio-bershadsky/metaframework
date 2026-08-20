@@ -27,8 +27,6 @@ tags:
 x-cost-center: "4713"
 ---
 
-# Fulfilment
-
 Everything between a paid order and a parcel a customer has signed for. Shop
 takes the money and publishes the fact; fulfilment turns that fact into a
 physical movement it does not itself perform, using carriers acme does not

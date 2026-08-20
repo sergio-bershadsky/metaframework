@@ -13,8 +13,6 @@ tags:
   - pricing
 ---
 
-# Carrier quote
-
 What a carrier says it will charge and when it will deliver, for one parcel, at
 one moment. Produced by
 [carrier-gateway](srn://acme/product/fulfilment/component/carrier-gateway) from a

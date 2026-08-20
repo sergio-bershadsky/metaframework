@@ -16,8 +16,6 @@ tags:
   - checkout-path
 ---
 
-# Checkout p99 latency under peak
-
 The submit-order path must stay responsive at the traffic peaks the shop sees in
 the last week of a quarter. Measured in
 [production](srn://acme/environment/production), at the public edge of the

@@ -1,12 +1,13 @@
 ---
 name: reconciliation
 kind: component
-version: 1
+version: 2
 title: Reconciliation
 summary: Nightly job proving that the ledger agrees with the acquirer's settlement file.
 status: draft
 owner: team-billing
 component-type: job
+lifecycle: in-development
 relations:
   uses:
     - /environment/staging
@@ -19,8 +20,6 @@ tags:
   - finance
   - batch
 ---
-
-# Reconciliation
 
 A scheduled worker with no inbound surface. It reads the acquirer's settlement
 file, replays the [settlement](srn://acme/protocol/settlement) topic for the same

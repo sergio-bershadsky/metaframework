@@ -12,8 +12,6 @@ tags:
   - promotions
 ---
 
-# Promo
-
 The automatic half of the discount hierarchy. A promo composes
 [discount](srn://acme/product/growth/datamodel/discount@1) with a root-level
 `allOf` and adds the three things an unprompted offer needs that a presented one

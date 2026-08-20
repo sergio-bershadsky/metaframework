@@ -1,15 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/redemption",
+  "$id": "https://schemas.metaframework.dev/acme/product/growth/datamodel/redemption",
+  "x-srn": "srn://acme/product/growth/datamodel/redemption",
   "title": "Redemption",
   "description": "The immutable fact that one discount was actually applied to one order, and what it cost.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     },
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/auditable"
     }
   ],
   "properties": {
@@ -54,7 +55,7 @@
       "description": "Order in the shop product the discount was applied to."
     },
     "amount-off": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "What the discount actually cost, after caps and clamping. Never negative."
     },
     "redeemed-at": {

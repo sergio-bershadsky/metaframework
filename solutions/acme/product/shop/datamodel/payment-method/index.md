@@ -13,8 +13,6 @@ tags:
   - union
 ---
 
-# Payment method
-
 A `oneOf` over two branches — [card](srn://acme/product/shop/datamodel/card-payment@1)
 and [sepa](srn://acme/product/shop/datamodel/sepa-payment@1) — each tagged by a `method`
 property that is a distinct `const` and is required in every branch. That

@@ -1,0 +1,90 @@
+name: create-and-seat
+title: Create a room and seat a guest
+summary: The host creates a match, takes seat 0, and shares one link; a guest opens it and claims the first free seat.
+participants: [host, player, lobby-ui, game-server]
+steps:
+  - message: create-session-room
+    from: host
+    to: lobby-ui
+    kind: call
+    note: One button on the home screen. The host never chooses a seat count here.
+
+  - message: create-match
+    from: lobby-ui
+    to: game-server
+    kind: call
+    note: Always numPlayers=4. How many seats are really played is decided later, in the game's own lobby phase.
+
+  - message: match-created
+    from: game-server
+    to: lobby-ui
+    kind: return
+    note: Carries the matchID only. Everything else about the match is still empty.
+
+  - message: join-match
+    from: lobby-ui
+    to: game-server
+    kind: call
+    condition: playerID = "0"
+    note: The creator immediately claims seat 0, which is also hostID in game state — that is the whole definition of "host".
+
+  - message: seat-claimed
+    from: game-server
+    to: lobby-ui
+    kind: return
+    payload: /datamodel/match-credentials@1
+    note: Written to localStorage["brass:creds:<matchID>"] before the router navigates, so a reload can rejoin.
+
+  - message: invite-link
+    from: lobby-ui
+    to: host
+    kind: return
+    note: "/play/<matchID>. There is no server-side notion of an invitation — the URL is the invitation."
+
+  - message: open-invite-link
+    from: player
+    to: lobby-ui
+    kind: call
+
+  - message: get-match
+    from: lobby-ui
+    to: game-server
+    kind: call
+
+  - message: match-metadata
+    from: game-server
+    to: lobby-ui
+    kind: return
+    payload: /datamodel/match-summary@1
+    note: A seat is free iff its entry carries no name. That is the only free-seat test performed anywhere.
+
+  - alt:
+      - when: a seat with no name exists
+        steps:
+          - message: join-match
+            from: lobby-ui
+            to: game-server
+            kind: call
+            condition: first unnamed seat
+          - message: seat-claimed
+            from: game-server
+            to: lobby-ui
+            kind: return
+            payload: /datamodel/match-credentials@1
+          - message: enter-lobby
+            from: lobby-ui
+            to: player
+            kind: return
+            note: >-
+              The seat is now claimed at the framework level only. It is not
+              "joined" in game state until the sit-down move lands on
+              game-transport — see 0005-lobby-inside-game-state.
+    otherwise:
+      - message: match-full
+        from: game-server
+        to: lobby-ui
+        kind: error
+        note: >-
+          A late arrival is refused here, not in the game. The four framework
+          seats are the hard limit; an empty chair in the started game is not
+          one of them.

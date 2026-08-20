@@ -1,12 +1,13 @@
 ---
 name: carrier-gateway
 kind: component
-version: 3
+version: 4
 title: Carrier gateway
 summary: One normalized surface in front of every carrier — rating, booking, label retrieval, and scan ingest.
 status: approved
 owner: team-fulfilment
 component-type: gateway
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -21,13 +22,13 @@ relations:
   implements:
     - /product/fulfilment/requirement/carrier-failover
     - /product/fulfilment/requirement/tracking-freshness
+  realizes:
+    - /capability/order-fulfilment
 tags:
   - logistics
   - third-party
 x-runtime: go
 ---
-
-# Carrier gateway
 
 Every carrier acme uses has a different API, a different status vocabulary, a
 different idea of what a weight is, and a different opinion about whether a

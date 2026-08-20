@@ -1,5 +1,7 @@
+import { isValidElement } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { CodeBlock } from '@/components/code/code-block'
 import { EntityLink } from '@/components/entity-link'
 import type { ResolvedMention } from '@/lib/catalog/mentions'
 import { SRN_PATTERN } from '@/lib/catalog/mentions'
@@ -85,7 +87,13 @@ export function Markdown({
               </code>
             )
           },
+          // A fenced block is handed to Monaco's colouriser rather than drawn
+          // as flat text. It is intercepted at `pre` rather than at `code`
+          // because only the outer element can be replaced wholesale — matching
+          // on `code` alone would leave the block wrapped in a second <pre>.
           pre({ children: content }) {
+            const fence = fenceOf(content)
+            if (fence) return <CodeBlock code={fence.code} language={fence.language} />
             return (
               <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-surface p-3.5 text-[13px] leading-6">
                 {content}
@@ -98,6 +106,22 @@ export function Markdown({
       </ReactMarkdown>
     </div>
   )
+}
+
+/**
+ * The source and language of a fenced block, or null for anything else a `<pre>`
+ * may contain. react-markdown hands `pre` a single `code` child carrying the
+ * fence's text and a `language-…` class; an indented block has the same child
+ * with no class, which is still a fence and still worth rendering as one — as
+ * plaintext, which is what an unlabelled fence is.
+ */
+function fenceOf(children: React.ReactNode): { code: string; language?: string } | null {
+  if (!isValidElement(children)) return null
+  const props = children.props as { className?: string; children?: React.ReactNode }
+  const text = props.children
+  if (typeof text !== 'string') return null
+  const language = (props.className ?? '').match(/language-([\w-]+)/)?.[1]
+  return { code: text.replace(/\n$/, ''), language }
 }
 
 /**

@@ -13,8 +13,6 @@ tags:
   - privacy
 ---
 
-# Account
-
 The record of a principal: a handle to log in with, a status, a tenant, and a
 list of assigned roles. Written only by
 [registration](srn://acme/product/identity/component/registration), read by everything in

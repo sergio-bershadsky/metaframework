@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/state-machine-document",
+  "title": "State machine document",
+  "description": "states.json — an XState v5 machine configuration describing the state of one conversation as the protocol sees it, not the internal state of any participant. Pinned to a subset that createMachine() accepts verbatim. Specified in framework/spec/kinds/protocol.md; validated by framework/portal/src/lib/protocol/states.ts.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "MUST equal the protocol entity's name (E_PROTO_STATES_ID). It is also the root of every absolute target path, e.g. #order-placement.rejected."
+    },
+    "initial": {
+      "type": "string",
+      "description": "A key of this object's own states."
+    },
+    "states": { "$ref": "#/$defs/state-map" },
+    "description": { "type": "string" }
+  },
+  "required": ["id", "initial", "states"],
+  "additionalProperties": false,
+  "$defs": {
+    "state-map": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+      "additionalProperties": { "$ref": "#/$defs/state" },
+      "minProperties": 1
+    },
+    "state": {
+      "description": "A state node. `additionalProperties: false` is where the subset is enforced: context, assign, always, after, invoke, input, output and meta have no member here, and any of them is E_PROTO_STATES_SUBSET. The catalog documents contracts, not runtime behaviour — anything carrying data or executing is out.",
+      "type": "object",
+      "properties": {
+        "states": { "$ref": "#/$defs/state-map" },
+        "initial": {
+          "type": "string",
+          "description": "REQUIRED if and only if this node has states — a compound state must say where it begins."
+        },
+        "type": {
+          "const": "final",
+          "description": "The only legal value. type: parallel and type: history are outside the subset. A final state MUST carry no `on`."
+        },
+        "on": { "$ref": "#/$defs/transitions" },
+        "entry": { "$ref": "#/$defs/actions" },
+        "exit": { "$ref": "#/$defs/actions" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
+        },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "dependentRequired": { "states": ["initial"] }
+    },
+    "transitions": {
+      "type": "object",
+      "description": "Event name to transition. Event names MUST match ^[A-Z][A-Z0-9_]*$ (E_PROTO_STATES_EVENT_NAME), which excludes the wildcard \"*\" by construction. An event name maps to a workflow message name by lowercasing and turning _ into -; one with no such message anywhere in the protocol's workflows raises W_PROTO_STATES_EVENT_UNKNOWN.",
+      "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$" },
+      "additionalProperties": { "$ref": "#/$defs/transition-value" }
+    },
+    "transition-value": {
+      "description": "A target string, a transition object, or an array of transition objects evaluated top to bottom — first matching guard wins, and an unguarded entry is the fallback.",
+      "anyOf": [
+        { "$ref": "#/$defs/target" },
+        { "$ref": "#/$defs/transition" },
+        { "type": "array", "items": { "$ref": "#/$defs/transition" }, "minItems": 1 }
+      ]
+    },
+    "transition": {
+      "type": "object",
+      "properties": {
+        "target": { "$ref": "#/$defs/target" },
+        "guard": {
+          "type": "string",
+          "description": "A plain string, rendered as [guard] on the edge. Object-form guards are outside the subset."
+        },
+        "actions": { "$ref": "#/$defs/actions" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "string",
+      "description": "Exactly two forms (E_PROTO_STATES_TARGET otherwise): a sibling state key such as \"reserved\", or an absolute id path such as \"#order-placement.rejected\". Relative descent (\"reserved.settled\") is not supported — it is the form that most often silently resolves to the wrong node. Omitting target entirely makes the transition an internal self-transition: actions run, the machine does not move.",
+      "anyOf": [
+        { "title": "sibling state key", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        { "title": "absolute id path", "pattern": "^#[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)*$" }
+      ]
+    },
+    "actions": {
+      "description": "Action names as plain strings. Object-form actions, and assign in particular, are outside the subset — they carry data, and data shapes belong to datamodels.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    }
+  }
+}

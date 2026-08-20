@@ -1,14 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/payment-method",
+  "x-srn": "srn://acme/product/shop/datamodel/payment-method",
   "title": "Payment method",
   "description": "Tagged union of payment instruments. The tag property is \"method\".",
   "oneOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/card-payment"
+      "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/card-payment"
     },
     {
-      "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/sepa-payment"
+      "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/sepa-payment"
     }
   ]
 }

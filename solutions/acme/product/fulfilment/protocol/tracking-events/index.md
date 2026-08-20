@@ -35,8 +35,6 @@ tags:
   - asynchronous
 ---
 
-# Tracking events
-
 The inbound half of fulfilment. The world reports what happened to a parcel, at
 times acme does not choose, and every interested component catches up at its own
 pace. Nobody names a receiver; the fan-out is by subscription, which is what

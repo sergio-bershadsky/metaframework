@@ -1,12 +1,13 @@
 ---
 name: tracking
 kind: component
-version: 2
+version: 3
 title: Tracking
 summary: Folds carrier scans into a delivery status a customer can be shown, and answers "where is it" without a carrier call.
 status: approved
 owner: team-fulfilment
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -18,13 +19,13 @@ relations:
   implements:
     - /product/fulfilment/requirement/tracking-freshness
     - /product/fulfilment/requirement/delivery-promise-accuracy
+  realizes:
+    - /capability/order-fulfilment
 tags:
   - logistics
   - read-model
 x-runtime: kotlin-jvm
 ---
-
-# Tracking
 
 The read side of the product. It consumes normalized
 [tracking-event](srn://acme/product/fulfilment/datamodel/tracking-event@1) scans,

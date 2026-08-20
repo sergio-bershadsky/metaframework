@@ -1,12 +1,13 @@
 ---
 name: acl
 kind: component
-version: 3
+version: 4
 title: ACL
 summary: The decision point — answers "may this session do this" and refuses to answer anything else.
 status: approved
 owner: team-identity
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -26,8 +27,6 @@ tags:
   - hot-path
 x-runtime: rust
 ---
-
-# ACL
 
 A policy decision point and nothing else. It takes a session reference and an
 asserted [permission](srn://acme/product/identity/datamodel/permission@2), resolves the

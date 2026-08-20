@@ -5,9 +5,13 @@
 > repository, it is authoritative and wins over this file.** This bundled copy
 > exists because an installed plugin cannot see the repo spec.
 >
-> The `schema.json` snippets here follow the current served-URL convention
-> (`$id` and every cross-entity `$ref` are HTTP URLs the portal serves). See
-> `schemas.md` in this directory for the full conventions.
+> The `schema.json` snippets here follow the current convention: a required root
+> `$id` and every cross-entity `$ref` written as the target's **canonical schema
+> URL** (`https://schemas.metaframework.dev/{srn-path}`, a stable constant host —
+> never `SCHEMA_BASE_URL`, which only says where the portal *serves* schemas), and
+> a required `x-srn` carrying the entity's unversioned SRN. The retired form — no
+> `$id`, relative file-path `$ref`s — is never authored. See `schemas.md` in this
+> directory for the full conventions.
 
 Two mechanisms carry all change: the **integer `version` field** (additive,
 in-place extension of one entity) and the **swap** (a successor entity replaces
@@ -23,9 +27,11 @@ one that could not be extended). Nothing is ever deleted.
   bump. Status is workflow state, not content.
 - **The frontmatter is the only place a version lives.** Sibling artifacts carry
   no version of their own; a top-level `version:` key in `transport.yaml`,
-  `topology.yaml`, `config.yaml` or a workflow file is a shape violation. A
-  `schema.json` `$ref` cannot carry a pin either — pins live in
-  `relations.uses`.
+  `topology.yaml`, `config.yaml` or a workflow file is a shape violation. In
+  `schema.json` neither identity keyword carries one either: `$id` is the
+  canonical URL of the *current* schema and `x-srn` is the **unversioned** SRN,
+  and a `$ref` with an `@N` is `E_DM_REF_TARGET`. Pins live in `relations.uses`,
+  where git-backed history can resolve them.
 - A child entity's version is independent of its container's (rule C3): adding
   or bumping `component/wishlist` does not bump `product/shop`.
 
@@ -74,13 +80,33 @@ An illegal change MUST NOT be made in place. The escape hatch is the swap.
 3. **Deprecate the old entity** once the portal's reverse-reference view shows
    no live referrers: set `status: deprecated` on it. New references to it are
    then flagged `W_REF_DEPRECATED`.
+
+   For a **datamodel**, set `"deprecated": true` at the root of its
+   `schema.json` in the same commit. `deprecated` is a standard JSON Schema
+   2020-12 meta-data annotation, so this is always an additive edit — and it is
+   the only half of the signal that survives the schema being copied out of the
+   catalog, where no frontmatter follows it:
+
+   ```json
+   {
+     "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/charge",
+     "x-srn": "srn://acme/product/shop/datamodel/charge",
+     "deprecated": true,
+     "description": "Superseded by srn://acme/product/shop/datamodel/payment-intent."
+   }
+   ```
+
+   `status: deprecated` **alone** would not bump `version`; touching
+   `schema.json` in the same commit does. Bump once, for both.
 4. **Never delete.** Deprecated entities stay on the filesystem permanently. The
    portal renders them greyed with a pointer to the successor; the inverse
    `superseded-by` edge is derived, never authored.
 
 ## Entities are never moved or renamed
 
-**The SRN is the path.** A move is a delete plus an unrelated create, and the
+**The SRN is the identity, and the disk path is that identity's storage**
+(`srn.md`) — so moving the directory changes the identity. A move is therefore a
+delete plus an unrelated create, and the
 version→commit index does not follow it — the history is lost. Renaming is a
 **swap** like any other breaking change: new entity, `supersedes` edge, migrate
 referrers, deprecate the old one.
@@ -120,12 +146,12 @@ the `c2` snapshot, approved status included. `order@5` → `E_SRN_VERSION`.
 
 ## Status lifecycle
 
-| Status       | Meaning                                                       |
-|--------------|---------------------------------------------------------------|
-| `draft`      | Being written; referenceable but unstable; portal marks it.   |
-| `review`     | Content-complete; under git-native review (PRs on the files). |
-| `approved`   | The reviewed, binding state.                                  |
-| `deprecated` | Superseded or retired; kept forever; new refs are flagged.    |
+| Status       | Meaning                                                                                                                        |
+|--------------|--------------------------------------------------------------------------------------------------------------------------------|
+| `draft`      | Being written; referenceable but unstable; portal marks it.                                                                    |
+| `review`     | Content-complete; under git-native review (PRs on the files).                                                                  |
+| `approved`   | The reviewed, binding state.                                                                                                   |
+| `deprecated` | Superseded or retired; kept forever; new refs are flagged. On a datamodel, mirror it as `"deprecated": true` in `schema.json`. |
 
 ```text
 draft → review          # author submits
@@ -149,6 +175,7 @@ approved → deprecated   # swap completed, or retired without a successor
 | `E_VER_REGRESSION` | `version` decreased, or increased by more than 1, in a commit.     |
 | `E_SRN_VERSION`    | Pinned `@N` not on the filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED` | Reference targets a `status: deprecated` entity.                   |
+| `W_REF_STALE_PIN`  | Pinned `@N` resolves, but the target has moved past it.            |
 
 Datamodel-specific: `E_DM_NOT_ADDITIVE` (`schemas.md`).
 Retired, MUST NOT be emitted: `E_VER_ID_MISMATCH`.

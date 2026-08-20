@@ -1,0 +1,17 @@
+# No `regions`: a developer machine is a single unnamed place. One entry,
+# because the whole solution is one process — the console, the schema route and
+# the history route are handlers inside it, not deployments beside it.
+hosts:
+  - component: /product/portal
+    replicas: { min: 1, max: 1 }
+    scaling: none — one `next dev` process, started by hand
+    notes: |
+      `npm run dev` at the repository root proxies to `next dev` in
+      framework/portal (Next 16.3.1, Turbopack). It reads solutions/ and .git/
+      and nothing else. `next start` serves the same tree from a build; there is
+      no third mode and no process manager.
+
+      The other two products are not processes. framework/spec/ is fourteen
+      markdown documents that nothing executes, and the authoring kit is
+      installed into a Claude Code session from a local path rather than run
+      here. Listing them as hosts would invent runtimes that do not exist.

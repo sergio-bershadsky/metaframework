@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/fulfilment/datamodel/carrier-quote",
+  "$id": "https://schemas.metaframework.dev/acme/product/fulfilment/datamodel/carrier-quote",
+  "x-srn": "srn://acme/product/fulfilment/datamodel/carrier-quote",
   "title": "Carrier quote",
   "description": "A carrier's normalized offer for one parcel: price, promised date, and expiry.",
   "type": "object",
@@ -26,11 +27,11 @@
       "description": "Carrier's own quote id, quoted back on booking. Also records a gateway-supplied expiry."
     },
     "price": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "All-in price in the carrier's billing currency. Equals base-rate plus every surcharge."
     },
     "base-rate": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "Rate-card price before surcharges, in the same currency as price."
     },
     "surcharges": {
@@ -38,7 +39,7 @@
       "items": {
         "$ref": "#/$defs/surcharge"
       },
-      "description": "Itemized additions. Base rate plus their sum equals price — a rule the gateway enforces."
+      "description": "Itemized additions. Base rate plus their sum equals price \u2014 a rule the gateway enforces."
     },
     "collection-cutoff": {
       "type": "string",
@@ -66,7 +67,7 @@
   "$defs": {
     "surcharge": {
       "type": "object",
-      "description": "One named addition to the base rate — fuel, remote area, oversize, residential.",
+      "description": "One named addition to the base rate \u2014 fuel, remote area, oversize, residential.",
       "properties": {
         "code": {
           "type": "string",
@@ -74,7 +75,7 @@
           "description": "Acme's normalized surcharge code, not the carrier's label."
         },
         "amount": {
-          "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+          "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
           "description": "Amount added, in the same currency as the price."
         }
       },

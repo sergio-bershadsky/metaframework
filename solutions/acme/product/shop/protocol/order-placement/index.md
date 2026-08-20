@@ -30,8 +30,6 @@ tags:
   - synchronous
 ---
 
-# Order placement
-
 Checkout is the only responder the customer talks to; inventory and payment are
 reached behind it and never expose an edge to the browser. That is the shape the
 sequence diagrams derived from `workflows/` show, and it is the reason this

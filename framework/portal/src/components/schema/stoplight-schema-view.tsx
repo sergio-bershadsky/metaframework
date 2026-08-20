@@ -38,8 +38,16 @@ const JsonSchemaViewer = dynamic(
  *
  * Stoplight is used instead of a hand-rolled table because it already solves the
  * hard parts properly: nested expansion, combiner (allOf/oneOf/anyOf) tabs,
- * constraint rendering, and required/optional affordances. The schema arrives
- * pre-bundled from the server, so every relative `$ref` is already resolved.
+ * constraint rendering, and required/optional affordances.
+ *
+ * It follows exactly one kind of reference. `json-schema-tree` refuses a `$ref`
+ * with a source ("Cannot dereference external references") and resolves a
+ * fragment-only one against the *root* document, ignoring any `$id` in between.
+ * So the input contract is stricter than "bundled": the document must be **one
+ * resource whose every `$ref` is a local pointer into it**, which is what
+ * `lib/schema/dereference.ts` guarantees. A schema that merely satisfies the
+ * bundler renders its cross-document fields as raw `$ref` strings instead — the
+ * viewer contradicting the page it sits on.
  *
  * Its Mosaic design tokens are overridden in stoplight-theme.css so the viewer
  * inherits the console palette rather than shipping a second theme.

@@ -1,0 +1,48 @@
+kind: websocket
+summary: socket.io on the fixed path /socket.io, namespace /brass; JSON frames, no compression, no delta encoding.
+encoding: json
+auth:
+  - seat-credentials
+websocket:
+  path: /socket.io
+  tls: true
+  channels:
+    - name: sync-request
+      direction: client-to-server
+      summary: >-
+        Wire event "sync" with (matchID, playerID, credentials). Joins the socket
+        to the match room and authenticates the seat. Sent once on connect and
+        again after any reconnect.
+
+    - name: sync-response
+      direction: server-to-client
+      message: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+      summary: >-
+        Wire event "sync" carrying the full syncInfo — state, redacted log, and
+        the match's player metadata. This is the first state a seat ever sees,
+        and it is already filtered by playerView.
+
+    - name: move-submit
+      direction: client-to-server
+      message: /datamodel/move-envelope@1
+      summary: >-
+        Wire event "update" with (action, stateID, matchID, playerID). The action
+        is a redux-style envelope whose payload carries the move name, its
+        positional args, the player id and the seat credentials. A stale stateID
+        is dropped silently.
+
+    - name: state-update
+      direction: server-to-client
+      message: /product/play/component/rules/component/engine-core/datamodel/game-state@1
+      summary: >-
+        Wire event "update" broadcast to every seat in the match after an
+        accepted move. Full state, never a patch — deltaState is not enabled.
+        A rejected move produces no message on this channel at all.
+
+    - name: match-data
+      direction: server-to-client
+      message: /datamodel/match-summary@1
+      summary: >-
+        Wire event "matchData" carrying the framework's per-seat metadata,
+        including isConnected. It is the only presence signal on the wire; the
+        game's own notion of who is seated lives in game state instead.

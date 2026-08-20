@@ -30,7 +30,12 @@ export interface HighlightState {
   focused: (id: string) => boolean
 }
 
-const DIMMED_OPACITY = 0.18
+/**
+ * The recession opacity is NOT a constant here. It lives with the `.dgm-recede`
+ * rule in globals.css, because that is the only place it can be applied — see
+ * `decorate` below. A copy on this side would be dead the moment the two drift.
+ */
+
 /** Above React Flow's own node layer, so a lit edge is never hidden by a box. */
 const LIFTED = 1000
 

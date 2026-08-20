@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/merchant-tile-state",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/merchant-tile-state",
+  "title": "Merchant tile state",
+  "description": "A merchant tile in one commerce slot. 5 slots in play at 2 seats, 7 at 3, 9 at 4.",
+  "type": "object",
+  "properties": {
+    "merchant-id": {
+      "type": "string",
+      "description": "Board-location id of the commerce location this tile sits on."
+    },
+    "slot-index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Which of that location's tile slots. Shrewsbury has only index 0."
+    },
+    "buys": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+      },
+      "description": "Industries this tile accepts. Empty with all=false means a blank tile that accepts NOTHING, not a wildcard."
+    },
+    "all": {
+      "type": "boolean",
+      "description": "True on the single wildcard tile: accepts any sellable good. When true, buys is empty."
+    },
+    "beer": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The free barrel. Starts at 1 on every non-blank tile, 0 on a blank one. Spending it fires the location's merchant bonus. Reset at the era transition."
+    }
+  },
+  "required": [
+    "merchant-id",
+    "slot-index",
+    "buys",
+    "all",
+    "beer"
+  ]
+}

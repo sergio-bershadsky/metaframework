@@ -16,8 +16,6 @@ tags:
   - conversion
 ---
 
-# A customer can create an account without an operator
-
 A [customer](srn://acme/actor/customer) must be able to go from nothing to a
 signed-in session without anyone at acme touching the request. The obligation is
 commercial before it is technical — every account that needs an operator is an

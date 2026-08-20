@@ -1,12 +1,13 @@
 ---
 name: delivery-orchestrator
 kind: component
-version: 4
+version: 5
 title: Delivery orchestrator
 summary: Decides what ships in which parcel, by which carrier, and owns the shipment aggregate end to end.
 status: approved
 owner: team-fulfilment
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -25,13 +26,13 @@ relations:
     - /product/fulfilment/requirement/carrier-failover
     - /product/fulfilment/requirement/delivery-promise-accuracy
     - /requirement/gdpr-erasure
+  realizes:
+    - /capability/order-fulfilment
 tags:
   - logistics
   - decisions
 x-runtime: kotlin-jvm
 ---
-
-# Delivery orchestrator
 
 The only component in this product that decides anything. It consumes
 [order-placed](srn://acme/product/shop/datamodel/order-placed@1), splits the order

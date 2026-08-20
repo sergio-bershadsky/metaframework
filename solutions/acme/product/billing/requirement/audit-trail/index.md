@@ -17,8 +17,6 @@ tags:
   - finance
 ---
 
-# Settlement is auditable end to end
-
 Given any [ledger-entry](srn://acme/product/billing/datamodel/ledger-entry@1), an auditor
 must be able to reach the payment fact that caused it, the order it belongs to,
 and the actor that triggered any manual intervention along the way — without

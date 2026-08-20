@@ -12,8 +12,6 @@ tags:
   - payments
 ---
 
-# SEPA payment
-
 The `method: sepa` branch of
 [payment-method](srn://acme/product/shop/datamodel/payment-method@1): a direct debit
 against an account the customer has mandated acme to charge.

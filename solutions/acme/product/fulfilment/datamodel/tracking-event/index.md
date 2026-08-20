@@ -13,8 +13,6 @@ tags:
   - event
 ---
 
-# Tracking event
-
 The atom of everything acme knows about a parcel after it leaves the dispatch
 door. One scan by one [courier](srn://acme/actor/courier) or one sorting
 facility, translated out of the carrier's vocabulary and into acme's.

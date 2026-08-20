@@ -32,8 +32,10 @@ marketplace/
         └── skills/
             ├── _shared/
             │   └── references/          # the distilled spec, read by every skill
+            │       ├── environments.md
             │       ├── evolution.md
             │       ├── frontmatter.md
+            │       ├── protocols.md
             │       ├── schemas.md
             │       ├── srn.md
             │       └── structure.md
@@ -107,15 +109,15 @@ The skills live in `plugins/metaframework/skills/`. Each one points into
 deliberately does not: the procedure, the ordering, the judgement calls, and the
 traps.
 
-| Skill              | Owns                                                                                                                                               |
-|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `solution-design`  | Many entities at once, before any file exists: the interview, the decomposition heuristics, the proposed SRN tree, the sign-off gate.               |
-| `add-entity`       | One entity of a mechanical kind — product, component, actor, environment, ADR, requirement, or the solution root.                                   |
-| `model-data`       | One `datamodel`: `schema.json` in JSON Schema 2020-12 with HTTP `$id`/`$ref`, `allOf` inheritance, `$defs` privacy, the promotion decision.         |
-| `protocol-design`  | One `protocol`: participants and style, the nearest-common-ancestor placement, `transport.yaml`, `workflows/*.yaml`, `states.json`.                 |
-| `evolve-entity`    | Anything that already exists: additive edit with a version bump, or the swap procedure when the change is forbidden in place.                       |
-| `validate-catalog` | Legality — running the check, reading the diagnostics, the cascade order, and what the check deliberately does not cover.                           |
-| `review-solution`  | Judgement — a ranked architectural review of an existing catalog, backed by `scripts/catalog_facts.py`. Read-only; proposes no edits.               |
+| Skill              | Owns                                                                                                                                                         |
+|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `solution-design`  | Many entities at once, before any file exists: the interview, the decomposition heuristics, the proposed SRN tree, the sign-off gate.                        |
+| `add-entity`       | One entity of a mechanical kind — product, component, actor, environment, ADR, requirement, or the solution root.                                            |
+| `model-data`       | One `datamodel`: `schema.json` in JSON Schema 2020-12 with canonical `$id`/`$ref` and `x-srn`, `allOf` inheritance, `$defs` privacy, the promotion decision. |
+| `protocol-design`  | One `protocol`: participants and style, the nearest-common-ancestor placement, `transport.yaml`, `workflows/*.yaml`, `states.json`.                          |
+| `evolve-entity`    | Anything that already exists: additive edit with a version bump, or the swap procedure when the change is forbidden in place.                                |
+| `validate-catalog` | Legality — running the check, reading the diagnostics, the cascade order, and what the check deliberately does not cover.                                    |
+| `review-solution`  | Judgement — a ranked architectural review of an existing catalog, backed by `scripts/catalog_facts.py`. Read-only; proposes no edits.                        |
 
 The three creation skills are disjoint by kind: `datamodel` → `model-data`,
 `protocol` → `protocol-design`, everything else → `add-entity`. The two audit
@@ -135,14 +137,17 @@ by running this and reporting the result.
 
 ## The bundled reference
 
-`plugins/metaframework/skills/_shared/references/` distils ~5,700 lines of
-specification into five focused files. Each names the spec document it distils
-and states that the spec is authoritative.
+`plugins/metaframework/skills/_shared/references/` distils ~7,300 lines of
+specification (`wc -l framework/spec/*.md framework/spec/kinds/*.md`) into seven
+focused files. Each names the spec document it distils and states that the spec
+is authoritative.
 
-| File             | Covers                                                                                                   |
-|------------------|----------------------------------------------------------------------------------------------------------|
-| `srn.md`         | SRN grammar, kind buckets, placement rules P1–P4, relative-reference arithmetic, error codes.            |
-| `frontmatter.md` | Common fields, the required per-kind fields in one table, the forward-only relation edges.               |
-| `structure.md`   | Directory layout, buckets vs. entity directories, artifact filenames per kind, container rules.          |
-| `schemas.md`     | JSON Schema conventions: HTTP `$id`/`$ref`, `allOf` inheritance, `$defs` privacy, additive schema edits. |
-| `evolution.md`   | Additive-only rules, version bumps, the swap procedure, git-backed history, status lifecycle.            |
+| File              | Covers                                                                                                                                                   |
+|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `srn.md`          | SRN grammar, kind buckets, placement rules P1–P4, relative-reference arithmetic, error codes.                                                            |
+| `frontmatter.md`  | Common fields, the required per-kind fields in one table, the forward-only relation edges.                                                               |
+| `structure.md`    | Directory layout, buckets vs. entity directories, artifact filenames per kind, container rules.                                                          |
+| `schemas.md`      | JSON Schema conventions: canonical `$id`/`$ref`, `x-srn`, `allOf` inheritance, `$defs` privacy, `deprecated`, additive schema edits.                     |
+| `protocols.md`    | Participants and aliases, `style`, `transport.yaml` bindings, the workflow YAML, the XState subset, payload binding, `E_PROTO_*`.                        |
+| `environments.md` | `environment-type`, `topology.yaml`, the config surface, the component-side deployment edge — plus the actor, ADR and requirement field and body detail. |
+| `evolution.md`    | Additive-only rules, version bumps, the swap procedure, git-backed history, status lifecycle.                                                            |

@@ -11,9 +11,9 @@ steps:
     channel: acme.growth.redemption-recorded.v1
     condition: published inside the transaction that incremented redeemed-count
     note: >-
-      Never published before the burn commits. A published redemption that was
-      later rolled back would be a discount acme cannot account for, and the
-      whole reason the counter and the log are written together.
+      Never published before the burn commits. A published redemption later rolled back
+      would be a discount acme cannot account for, and is why the counter and the log
+      are written together.
 
   - message: increment-spent
     from: campaign-manager

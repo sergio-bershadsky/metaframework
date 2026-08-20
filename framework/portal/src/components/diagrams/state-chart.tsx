@@ -1,447 +1,119 @@
 'use client'
 
-import {
-  BaseEdge,
-  Background,
-  BackgroundVariant,
-  Controls,
-  EdgeLabelRenderer,
-  Handle,
-  MarkerType,
-  Panel,
-  Position,
-  ReactFlow,
-  getBezierPath,
-  type Edge,
-  type EdgeProps,
-  type EdgeTypes,
-  type Node,
-  type NodeProps,
-  type NodeTypes,
-} from '@xyflow/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ExpandButton } from '@/components/diagrams/expand-button'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
-import { useGraphHighlight } from '@/lib/diagrams/use-graph-highlight'
-import {
-  DIAGRAM_BACKGROUND,
-  DIAGRAM_CANVAS_VARS,
-  fitCanvasHeight,
-  layoutGraph,
-  type LayoutDirection,
-  type LayoutNode,
-} from '@/lib/diagrams/layout'
-import { stateChartSummary, type StateChart, type StateChartNode } from '@/lib/protocol/states'
-import { kindColorVar } from '@/lib/ui/kind'
+import { compileStates } from '@/lib/protocol/mermaid'
+import { stateChartSummary, type StateChart } from '@/lib/protocol/states'
+import { renderMermaid } from '@/lib/ui/mermaid'
 import { cn } from '@/lib/utils'
 
-import '@xyflow/react/dist/style.css'
-
 /**
- * The state chart derived from a protocol's `states.json`.
+ * The state chart derived from a protocol's `states.json`, drawn by mermaid.
  *
- * UML conventions the spec asks for, and how they are drawn here: the initial
- * state carries the entry dot, final states are double-bordered, compound
- * states are nested regions, and every transition is labelled
- * `EVENT [guard] / actions`. The chart belongs to a protocol, so its accents
- * come from the protocol hue — colour stays ontology even inside a diagram.
+ * Rebuilt from scratch per decision-record amendment 2026-08-19-e: the custom
+ * React Flow renderer went through repeated legibility rounds and still grazed
+ * labels; mermaid's deterministic `stateDiagram-v2` layout replaced it, always.
+ * The division of labour is strict — `parseStates` stays the validator and the
+ * model, `statesToMermaid` (a pure, tested function) decides every word on the
+ * drawing, and this component only renders that text and dresses the SVG.
+ *
+ * Mermaid itself is loaded and themed by `@/lib/ui/mermaid` — one loader for
+ * every derived diagram, so the state chart and the journey walk cannot drift
+ * onto two theming paths.
+ *
+ * Interactivity is SVG post-processing, and each piece guards itself:
+ *
+ * - **States** are found by mermaid's stable node ids (`state-<alias>-<n>`,
+ *   `stateDomId` in mermaid's dataFetcher), joined back to chart node ids via
+ *   the generator's alias map. Clicking selects the state's source lines,
+ *   hovering previews them — the same anchor contract the old renderer had.
+ * - **Transitions** are joined *by rank*: mermaid numbers its edges
+ *   (`<renderId>-edge<n>`) in statement order, but notes share the counter,
+ *   so the numbers themselves index nothing — sorting the arrow paths by `n`
+ *   and zipping against the generator's statement list (`edgeOrder`) is the
+ *   join. It is verified by count before it is trusted — if the SVG
+ *   disagrees, edge interactivity is dropped rather than mis-wired. Labels
+ *   join exactly, by the `data-id="edge<n>"` they carry themselves.
+ * - **Hover dimming** recedes everything not adjacent to the hovered state or
+ *   transition, computed from the chart model, applied as a class.
  */
 
 export interface StateChartDiagramProps {
   chart: StateChart
-  /** Canvas height in pixels. Default 480. */
-  height?: number
-  /** `DOWN` reads as a flow of time and is the default for a conversation. */
-  direction?: LayoutDirection
+  /**
+   * State node ids and transition edge ids the source side is pointing at. The
+   * chart's own ids are the join key — `states.json` is what it was built
+   * from, and `anchors.ts` maps each id back to the lines that declared it.
+   */
+  activeAnchors?: readonly string[]
+  /** The pointer moved onto a state or transition, or off one (null). */
+  onAnchorHover?: (id: string | null) => void
+  /** A state or transition was clicked; the selection outlives the pointer. */
+  onAnchorSelect?: (id: string | null) => void
   className?: string
 }
 
-interface StateNodeData extends Record<string, unknown> {
-  label: string
-  description: string | null
-  entry: string[]
-  exit: string[]
-  tags: string[]
-  initial: boolean
-  final: boolean
-  compound: boolean
-  direction: LayoutDirection
-}
-
-interface TransitionEdgeData extends Record<string, unknown> {
-  event: string
-  guard: string | null
-  actions: string[]
-  description: string | null
-  internal: boolean
-  self: boolean
-  /** Rank among the transitions sharing this source and target; see buildFlow. */
-  lane: number
-}
-
-type StateFlowNode = Node<StateNodeData, 'state'>
-type TransitionFlowEdge = Edge<TransitionEdgeData, 'transition'>
-
-const PROTOCOL_HUE = kindColorVar('protocol')
-
-/** Handle ids are shared between the node chrome and the edge wiring. */
-const HANDLE = { in: 'in', out: 'out', selfOut: 'self-out', selfIn: 'self-in' } as const
-
-// Inline rather than utility classes: React Flow ships its own `.react-flow__handle`
-// rules, and inline style is the only override that does not depend on the order
-// the two stylesheets happen to land in.
-const HANDLE_STYLE = { width: 6, height: 6, border: 'none', background: 'var(--border-strong)' } as const
-const HIDDEN_HANDLE = { width: 6, height: 6, border: 'none', background: 'transparent' } as const
-
-function StateBox({ data }: NodeProps<StateFlowNode>) {
-  const flowsDown = data.direction === 'DOWN'
-  const target = flowsDown ? Position.Top : Position.Left
-  const source = flowsDown ? Position.Bottom : Position.Right
-
-  return (
-    <div
-      className={cn(
-        'relative h-full w-full rounded-md border text-left transition-colors',
-        data.compound
-          ? 'border-dashed border-border-strong bg-surface/40'
-          : 'border-border-strong bg-surface-raised shadow-[0_1px_0_0_oklch(1_0_0/0.04)_inset]',
-      )}
-      style={
-        data.final
-          ? { borderColor: PROTOCOL_HUE, boxShadow: `inset 0 0 0 3px var(--surface-raised), inset 0 0 0 4px ${PROTOCOL_HUE}` }
-          : undefined
-      }
-    >
-      <Handle type="target" position={target} id={HANDLE.in} style={HANDLE_STYLE} />
-      <Handle type="source" position={source} id={HANDLE.out} style={HANDLE_STYLE} />
-      <Handle type="source" position={Position.Right} id={HANDLE.selfOut} style={{ ...HIDDEN_HANDLE, top: '28%' }} />
-      <Handle type="target" position={Position.Right} id={HANDLE.selfIn} style={{ ...HIDDEN_HANDLE, top: '72%' }} />
-
-      <div className={cn('px-3', data.compound ? 'pt-2.5' : 'py-2.5')}>
-        <p className="flex items-center gap-1.5 font-mono text-[12.5px] leading-tight tracking-tight text-foreground">
-          {/* The UML initial pseudostate. It sits inside the box rather than
-              floating above it: an entry dot outside a nested state lands on
-              top of its parent region's header. */}
-          {data.initial && (
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: PROTOCOL_HUE }}
-              title="initial state"
-            />
-          )}
-          <span className="truncate" title={data.label}>
-            {data.label}
-          </span>
-        </p>
-        {data.description && (
-          <p
-            className={cn(
-              'mt-1 text-[11px] leading-snug text-muted-foreground',
-              data.compound ? 'line-clamp-1' : 'line-clamp-2',
-            )}
-          >
-            {data.description}
-          </p>
-        )}
-        {(data.entry.length > 0 || data.exit.length > 0) && (
-          <p className="mt-1.5 space-x-2 font-mono text-[10.5px] leading-snug text-muted-foreground">
-            {data.entry.length > 0 && <span>entry / {data.entry.join(', ')}</span>}
-            {data.exit.length > 0 && <span>exit / {data.exit.join(', ')}</span>}
-          </p>
-        )}
-        {data.tags.length > 0 && (
-          <p className="mt-1.5 flex flex-wrap gap-1">
-            {data.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded border border-border px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
-              >
-                {tag}
-              </span>
-            ))}
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function TransitionEdge({
-  id,
-  sourceX,
-  sourceY,
-  sourcePosition,
-  targetX,
-  targetY,
-  targetPosition,
-  markerEnd,
-  data,
-}: EdgeProps<TransitionFlowEdge>) {
-  const self = data?.self ?? false
-  const loop = 56
-
-  let path: string
-  let midX: number
-  let midY: number
-  if (self) {
-    // Both endpoints sit on the same side of the node, so a bezier through two
-    // control points pushed outwards is the only shape that reads as a loop.
-    path = `M ${sourceX},${sourceY} C ${sourceX + loop},${sourceY} ${targetX + loop},${targetY} ${targetX},${targetY}`
-    midX = Math.max(sourceX, targetX) + loop * 0.6
-    midY = (sourceY + targetY) / 2
-  } else {
-    ;[path, midX, midY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition })
-  }
-
-  return (
-    <>
-      <BaseEdge
-        id={id}
-        path={path}
-        markerEnd={markerEnd}
-        style={{ stroke: 'var(--border-strong)', strokeDasharray: data?.internal ? '4 3' : undefined }}
-      />
-      <EdgeLabelRenderer>
-        <div
-          className="nodrag nopan pointer-events-none absolute whitespace-nowrap rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10.5px] leading-tight text-foreground/85"
-          style={{
-            // The label renderer sits below nested nodes in paint order, so the
-            // chip lifts itself out; a label hidden behind a region box is worse
-            // than one overlapping it.
-            zIndex: 50,
-            // A self-loop label hangs off the right of its own node, so it is
-            // anchored by its left edge instead of centred on the curve.
-            transform: `translate(${self ? '0' : '-50%'}, -50%) translate(${midX}px, ${
-              midY + (data?.lane ?? 0) * 16
-            }px)`,
-          }}
-          title={data?.description ?? undefined}
-        >
-          <span>{data?.event}</span>
-          {data?.guard && <span className="text-muted-foreground"> [{data.guard}]</span>}
-          {data && data.actions.length > 0 && (
-            <span style={{ color: PROTOCOL_HUE }}> / {data.actions.join(', ')}</span>
-          )}
-        </div>
-      </EdgeLabelRenderer>
-    </>
-  )
-}
-
-const nodeTypes: NodeTypes = { state: StateBox }
-const edgeTypes: EdgeTypes = { transition: TransitionEdge }
-
-/** Keeps the fitted graph clear of the overlays: controls left, legend right. */
-const FIT_PADDING = { top: '24px', right: '104px', bottom: '24px', left: '48px' } as const
-
-/**
- * Sizes are estimated rather than measured: ELK needs them before anything is
- * in the DOM, and a two-pass measure-then-layout makes the chart visibly jump.
- * The constants are calibrated for IBM Plex Mono at 12.5px / Archivo at 11px.
- */
-const MONO_CHAR = 7
-const SANS_CHAR = 5.6
-const MIN_WIDTH = 168
-const MAX_WIDTH = 272
-
-function measure(node: StateChartNode): { width: number; height: number } {
-  const actions = [
-    node.entry.length > 0 ? `entry / ${node.entry.join(', ')}` : '',
-    node.exit.length > 0 ? `exit / ${node.exit.join(', ')}` : '',
-  ]
-    .filter(Boolean)
-    .join('  ')
-
-  const width = clamp(
-    Math.max(
-      node.key.length * MONO_CHAR + (node.initial ? 14 : 0),
-      actions.length * 6,
-      node.tags.join(' ').length * 6.5,
-      node.description ? Math.min(node.description.length * SANS_CHAR, MAX_WIDTH) : 0,
-    ) + 26,
-    MIN_WIDTH,
-    MAX_WIDTH,
-  )
-
-  const descriptionLines = node.description
-    ? Math.min(2, Math.ceil((node.description.length * SANS_CHAR) / (width - 26)))
-    : 0
-
-  const height =
-    20 + // vertical padding
-    16 + // name
-    descriptionLines * 14 +
-    (node.entry.length > 0 || node.exit.length > 0 ? 15 : 0) +
-    (node.tags.length > 0 ? 18 : 0)
-
-  return { width, height }
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
-
-/**
- * A compound state draws its own header inside its box, so its children have to
- * start below whatever that header actually contains — a fixed inset either
- * wastes space or lets the nested boxes sit on the description.
- */
-function compoundHeader(node: StateChartNode): number {
-  return (
-    30 +
-    (node.description ? 16 : 0) +
-    (node.entry.length > 0 || node.exit.length > 0 ? 15 : 0) +
-    (node.tags.length > 0 ? 18 : 0)
-  )
-}
-
-/** Label chips are one line, so ELK only needs their run length. */
-function labelSize(event: string, guard: string | null, actions: string[]): { width: number; height: number } {
-  const text = [event, guard ? `[${guard}]` : '', actions.length > 0 ? `/ ${actions.join(', ')}` : ''].join(' ')
-  return { width: text.length * 6.2 + 14, height: 18 }
-}
-
-interface Flow {
-  nodes: StateFlowNode[]
-  edges: TransitionFlowEdge[]
-}
-
-async function buildFlow(chart: StateChart, direction: LayoutDirection): Promise<Flow> {
-  const layoutNodes: LayoutNode[] = chart.nodes.map((node) => ({
-    id: node.id,
-    ...measure(node),
-    parent: node.parent,
-    padding: node.compound ? { top: compoundHeader(node), right: 18, bottom: 18, left: 18 } : undefined,
-  }))
-
-  const result = await layoutGraph({
-    nodes: layoutNodes,
-    edges: chart.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: labelSize(edge.event, edge.guard, edge.actions),
-    })),
-    direction,
-  })
-  const placed = new Map(result.nodes.map((node) => [node.id, node]))
-
-  const nodes: StateFlowNode[] = chart.nodes.map((node) => {
-    const box = placed.get(node.id)
-    return {
-      id: node.id,
-      type: 'state',
-      position: { x: box?.x ?? 0, y: box?.y ?? 0 },
-      style: { width: box?.width ?? MIN_WIDTH, height: box?.height ?? 56 },
-      parentId: node.parent ?? undefined,
-      extent: node.parent ? 'parent' : undefined,
-      selectable: false,
-      data: {
-        label: node.key,
-        description: node.description,
-        entry: node.entry,
-        exit: node.exit,
-        tags: node.tags,
-        initial: node.initial,
-        final: node.final,
-        compound: node.compound,
-        direction,
-      },
-    }
-  })
-
-  // Two transitions between the same pair of states share one curve, so their
-  // labels would land on the same pixel; the lane number stacks them instead.
-  const lanes = new Map<string, number>()
-
-  const edges: TransitionFlowEdge[] = chart.edges.map((edge) => {
-    const pair = `${edge.source}->${edge.target}`
-    const lane = lanes.get(pair) ?? 0
-    lanes.set(pair, lane + 1)
-
-    return {
-      id: edge.id,
-      type: 'transition',
-      source: edge.source,
-      target: edge.target,
-      sourceHandle: edge.self ? HANDLE.selfOut : HANDLE.out,
-      targetHandle: edge.self ? HANDLE.selfIn : HANDLE.in,
-      markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: 'var(--border-strong)' },
-      ariaLabel: `${edge.source} on ${edge.event} to ${edge.target}`,
-      data: {
-        event: edge.event,
-        guard: edge.guard,
-        actions: edge.actions,
-        internal: edge.internal,
-        self: edge.self,
-        description: edge.description,
-        lane,
-      },
-    }
-  })
-
-  return { nodes, edges }
-}
-
-export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', className }: StateChartDiagramProps) {
-  const [flow, setFlow] = useState<Flow | null>(null)
-  const [failed, setFailed] = useState(false)
+export function StateChartDiagram({
+  chart,
+  activeAnchors,
+  onAnchorHover,
+  onAnchorSelect,
+  className,
+}: StateChartDiagramProps) {
+  const compiled = useMemo(() => compileStates(chart), [chart])
   const summary = useMemo(() => stateChartSummary(chart), [chart])
-
-  // The effect keys off the chart's *content*: a caller that rebuilds the chart
-  // object on every render would otherwise relayout forever.
-  const signature = useMemo(() => JSON.stringify(chart), [chart])
-  const latest = useRef(chart)
-  // Kept in a ref so the layout effect can read the newest value without
-  // re-running on every render. Written in an effect rather than during render:
-  // a render-phase ref write is unsafe when React renders concurrently or
-  // double-invokes in StrictMode. This effect is declared first, so the value
-  // is current before the layout effect below reads it.
-  useEffect(() => {
-    latest.current = chart
-  })
-
-  useEffect(() => {
-    const source = latest.current
-    if (source.nodes.length === 0) return
-    let cancelled = false
-    setFlow(null)
-    setFailed(false)
-    buildFlow(source, direction).then(
-      (result) => {
-        if (!cancelled) setFlow(result)
-      },
-      () => {
-        if (!cancelled) setFailed(true)
-      },
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [signature, direction])
-
-  // Same rule as the relation graph: the canvas fits the chart, and `height`
-  // only caps how tall it may grow before panning takes over.
-  const canvasHeight = useMemo(() => {
-    const placedNodes = flow?.nodes ?? []
-    if (placedNodes.length === 0) return fitCanvasHeight(null, height)
-    let top = Number.POSITIVE_INFINITY
-    let bottom = Number.NEGATIVE_INFINITY
-    for (const node of placedNodes) {
-      const nodeHeight = Number(node.style?.height ?? 0)
-      top = Math.min(top, node.position.y)
-      bottom = Math.max(bottom, node.position.y + nodeHeight)
-    }
-    return fitCanvasHeight(bottom - top, height)
-  }, [flow, height])
   const { expanded, toggle: toggleExpanded } = useExpandable()
 
-  // Hovering a state reveals only what it connects to, and lifts that subgraph
-  // above the rest so its transitions and labels stay readable.
-  const highlight = useGraphHighlight(flow?.nodes ?? [], flow?.edges ?? [])
-  const litNodes = useMemo(() => (flow?.nodes ?? []).map(highlight.decorate), [flow, highlight])
-  const litEdges = useMemo(() => (flow?.edges ?? []).map(highlight.decorate), [flow, highlight])
+  const hostRef = useRef<HTMLDivElement>(null)
+  /** The SVG→chart join, rebuilt on every render pass; null between passes. */
+  const joinRef = useRef<SvgJoin | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [rendered, setRendered] = useState(false)
+  const renderId = `smc${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+
+  // The callbacks live in a ref so the render effect keys on the chart alone:
+  // a parent handing down a fresh closure per render must not re-run mermaid.
+  const callbacks = useRef({ onAnchorHover, onAnchorSelect })
+  useEffect(() => {
+    callbacks.current = { onAnchorHover, onAnchorSelect }
+  })
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host || chart.nodes.length === 0) return
+    let cancelled = false
+
+    renderMermaid(renderId, compiled.text)
+      .then((root) => {
+        if (cancelled) return
+        host.replaceChildren(root)
+        joinRef.current = decorate(host, chart, compiled, renderId, callbacks.current)
+        setFailure(null)
+        setRendered(true)
+      })
+      .catch((error: unknown) => {
+        // A failed render can leave mermaid's scratch element in the document.
+        document.getElementById(renderId)?.remove()
+        if (!cancelled) setFailure(error instanceof Error ? error.message : String(error))
+      })
+
+    return () => {
+      cancelled = true
+      joinRef.current = null
+    }
+  }, [chart, compiled, renderId])
+
+  // The source pane's pointer, reflected into the SVG. A separate effect from
+  // the render pass: hovering a line of YAML must not re-run mermaid.
+  useEffect(() => {
+    const join = joinRef.current
+    if (!join) return
+    const linked = new Set(activeAnchors ?? [])
+    for (const [id, elements] of join.byAnchor) {
+      for (const element of elements) element.classList.toggle('smc-linked', linked.has(id))
+    }
+  }, [activeAnchors, rendered])
 
   if (chart.nodes.length === 0) {
     return (
@@ -451,86 +123,46 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
     )
   }
 
-
   return (
     <figure
       data-expanded={expanded || undefined}
       className={cn(
         'panel diagram-surface overflow-hidden',
-        expanded && 'fixed inset-0 z-50 rounded-none border-0 bg-background',
+        expanded && 'fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background',
         className,
       )}
     >
-      {/* A <figure> may carry exactly one <figcaption>, and the a11y text
-          equivalent below is it — the machine's own description is plain prose. */}
       {chart.description && (
         <p className="border-b border-border px-4 py-2.5 text-[12.5px] text-muted-foreground">{chart.description}</p>
       )}
 
-      <div
-        className="relative"
-        style={{ height: expanded ? '100%' : canvasHeight, ...DIAGRAM_CANVAS_VARS }}
-      >
-        {failed ? (
+      <div className={cn('relative', expanded && 'min-h-0 flex-1')}>
+        {failure ? (
           <TextFallback summary={summary} />
-        ) : flow === null ? (
-          <LayoutPending label="Laying out the state chart" />
         ) : (
-          <ReactFlow
-            nodes={litNodes}
-            edges={litEdges}
-            {...highlight.handlers}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            colorMode="dark"
-            fitView
-            fitViewOptions={{ padding: FIT_PADDING, maxZoom: 1 }}
-            minZoom={0.2}
-            maxZoom={2}
-            nodesConnectable={false}
-            nodesFocusable={false}
-            edgesFocusable={false}
-            elementsSelectable={false}
-            zoomOnDoubleClick={false}
-            // The chart sits inside a scrolling document: hijacking the wheel
-            // would trap the page. Zoom stays on the controls and on pinch.
-            zoomOnScroll={false}
-            panOnScroll={false}
-            preventScrolling={false}
-            proOptions={{ hideAttribution: false }}
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={DIAGRAM_BACKGROUND.gap}
-              size={DIAGRAM_BACKGROUND.size}
-              color={DIAGRAM_BACKGROUND.color}
+          <>
+            <div
+              ref={hostRef}
+              className={cn('smc-host overflow-auto p-4', expanded && 'absolute inset-0')}
+              // The drawing is a duplicate of the figcaption below, and every
+              // interactive element in it duplicates the source pane's lines —
+              // hiding it keeps a screen reader from hearing the machine twice.
+              aria-hidden
             />
-            <Controls showInteractive={false} style={{ margin: 10 }} />
-            <Panel position="top-right" style={{ margin: 10 }}>
-              <div className="mb-1 flex justify-end">
-                <ExpandButton
-                  expanded={expanded}
-                  onToggle={toggleExpanded}
-                  className="rounded-md border border-border bg-surface/90 backdrop-blur-sm hover:bg-surface-raised"
-                />
+            {!rendered && (
+              <div className="absolute inset-0 grid place-items-center bg-surface" role="status" aria-live="polite">
+                <p className="font-mono text-[11px] tracking-tight text-muted-foreground">Drawing the state chart…</p>
               </div>
-              <ul className="flex flex-col gap-1 rounded-md border border-border bg-surface/90 px-2 py-1.5 font-mono text-[10.5px] text-muted-foreground backdrop-blur-sm">
-                <li className="flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full" style={{ backgroundColor: PROTOCOL_HUE }} aria-hidden />
-                  initial
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <span
-                    className="size-2 rounded-[2px] border"
-                    style={{ borderColor: PROTOCOL_HUE, boxShadow: `inset 0 0 0 1px ${PROTOCOL_HUE}` }}
-                    aria-hidden
-                  />
-                  final
-                </li>
-              </ul>
-            </Panel>
-          </ReactFlow>
+            )}
+          </>
         )}
+        <div className="absolute top-2.5 right-2.5">
+          <ExpandButton
+            expanded={expanded}
+            onToggle={toggleExpanded}
+            className="rounded-md border border-border bg-surface/90 backdrop-blur-sm hover:bg-surface-raised"
+          />
+        </div>
       </div>
 
       <figcaption className="sr-only">
@@ -550,30 +182,236 @@ export function StateChartDiagram({ chart, height = 480, direction = 'DOWN', cla
   )
 }
 
-function LayoutPending({ label }: { label: string }) {
-  return (
-    <div className="absolute inset-0 grid place-items-center" role="status" aria-live="polite">
-      <div className="flex flex-col items-center gap-3">
-        <div className="grid grid-cols-3 gap-1.5" aria-hidden>
-          {Array.from({ length: 6 }, (_, index) => (
-            <span
-              key={index}
-              className="h-4 w-10 animate-pulse rounded-sm bg-muted"
-              style={{ animationDelay: `${index * 90}ms` }}
-            />
-          ))}
-        </div>
-        <p className="font-mono text-[11px] tracking-tight text-muted-foreground">{label}…</p>
-      </div>
-    </div>
-  )
+/* -------------------------------------------------------- post-processing */
+
+interface SvgJoin {
+  /** Anchor id (state node id or transition edge id) → its SVG elements. */
+  byAnchor: Map<string, Element[]>
 }
 
-/** Layout can only fail catastrophically (ELK failed to load); say so and still show the graph. */
+/**
+ * Dress mermaid's SVG and wire it to the anchor contract.
+ *
+ * Everything here works from the two joins the generator guarantees — the
+ * alias map for states, statement order for transitions — and degrades by
+ * dropping a feature when the SVG breaks a guarantee, never by guessing.
+ */
+function decorate(
+  host: HTMLElement,
+  chart: StateChart,
+  compiled: ReturnType<typeof compileStates>,
+  renderId: string,
+  callbacks: { onAnchorHover?: (id: string | null) => void; onAnchorSelect?: (id: string | null) => void },
+): SvgJoin {
+  const svg = host.querySelector('svg')
+  const byAnchor = new Map<string, Element[]>()
+  if (!svg) return { byAnchor }
+
+  svg.classList.add('smc-svg')
+
+  // ---- states, by mermaid's stable dom ids -------------------------------
+  // `stateDomId` in mermaid's dataFetcher: `<renderId>-state-<alias>-<n>`,
+  // for leaves and composite clusters alike. The `-\d+$` anchor is what keeps
+  // an alias from matching its own note satellites (`…----note-1`), and
+  // aliases never contain `-`, so one alias cannot prefix-match another.
+  const byAlias = new Map<string, string>()
+  for (const [nodeId, alias] of compiled.aliases) byAlias.set(alias, nodeId)
+  const stateElements = new Map<string, Element[]>()
+  const statePattern = new RegExp(`^${renderId}-state-(.+)-\\d+$`)
+  for (const element of svg.querySelectorAll(`[id^="${renderId}-state-"]`)) {
+    const alias = element.id.match(statePattern)?.[1]
+    const nodeId = alias ? byAlias.get(alias) : undefined
+    if (nodeId === undefined) continue
+    const elements = stateElements.get(nodeId) ?? []
+    elements.push(element)
+    stateElements.set(nodeId, elements)
+    byAnchor.set(nodeId, elements)
+  }
+
+  for (const node of chart.nodes) {
+    const elements = stateElements.get(node.id) ?? []
+    // The double border on a named final state keeps the protocol hue —
+    // carried over from the old renderer, where colour stays ontology.
+    if (node.final) for (const element of elements) element.classList.add('smc-final')
+  }
+
+  // ---- transitions, by mermaid's edge numbering --------------------------
+  // Every arrow statement becomes one `<renderId>-edge<n>` path, with `n`
+  // increasing in statement order — but not *equal* to it: note edges share
+  // the counter (their paths carry a different id shape and drop out of the
+  // match, yet they consume a number), so the join sorts the arrow paths by
+  // `n` and zips them against the generator's `edgeOrder` by rank. The zip is
+  // verified by count before it is trusted — a mismatch (a mermaid upgrade
+  // reshaping its DOM) drops edge wiring whole rather than mis-wiring it.
+  // Labels need no such care: each carries its path's own token in
+  // `data-id="edge<n>"`, an exact join.
+  const paths = [...svg.querySelectorAll('.edgePaths > *')]
+  const labels = [...svg.querySelectorAll('.edgeLabels > *')]
+  const edgePattern = new RegExp(`^${renderId}-edge(\\d+)$`)
+
+  const labelByToken = new Map<string, Element>()
+  for (const label of labels) {
+    const token = label.querySelector('[data-id]')?.getAttribute('data-id')
+    if (token) labelByToken.set(token, label)
+  }
+
+  const numbered = paths
+    .map((path) => ({ path, order: Number(path.id.match(edgePattern)?.[1] ?? NaN) }))
+    .filter((entry) => Number.isFinite(entry.order))
+    .sort((a, b) => a.order - b.order)
+
+  const edgeElements = new Map<string, Element[]>()
+  if (numbered.length === compiled.edgeOrder.length) {
+    compiled.edgeOrder.forEach((edgeIds, index) => {
+      if (!edgeIds) return
+      const entry = numbered[index]
+      const label = labelByToken.get(`edge${entry.order}`)
+      const elements = [entry.path, ...(label ? [label] : [])]
+      // One statement can stand for several chart edges — the generator merges
+      // parallel self loops, because mermaid draws only the last of them — so
+      // every id of the statement anchors to the same drawn elements.
+      for (const edgeId of edgeIds) {
+        edgeElements.set(edgeId, elements)
+        byAnchor.set(edgeId, elements)
+      }
+    })
+  }
+
+  // Mermaid's one legibility gap: labels of parallel edges between the same
+  // pair of states land on top of each other. Resolved deterministically here.
+  separateEdgeLabels(svg, labels)
+
+  // ---- adjacency ---------------------------------------------------------
+  const neighbours = new Map<string, Set<string>>()
+  const touch = (a: string, b: string) => {
+    const set = neighbours.get(a) ?? new Set()
+    set.add(b)
+    neighbours.set(a, set)
+  }
+  for (const edge of chart.edges) {
+    if (edge.internal) continue
+    touch(edge.source, edge.target)
+    touch(edge.target, edge.source)
+    touch(edge.source, edge.id)
+    touch(edge.target, edge.id)
+    touch(edge.id, edge.source)
+    touch(edge.id, edge.target)
+  }
+
+  const dimmables: Element[][] = [...stateElements.values(), ...edgeElements.values()]
+  const litSets = new Map<string, Set<Element>>()
+  for (const [id, elements] of byAnchor) {
+    const lit = new Set(elements)
+    for (const neighbour of neighbours.get(id) ?? []) {
+      for (const element of byAnchor.get(neighbour) ?? []) lit.add(element)
+    }
+    litSets.set(id, lit)
+  }
+
+  const dim = (id: string | null) => {
+    const lit = id ? litSets.get(id) : undefined
+    for (const elements of dimmables) {
+      for (const element of elements) element.classList.toggle('smc-dim', Boolean(lit && !lit.has(element)))
+    }
+  }
+
+  // ---- pointer wiring ----------------------------------------------------
+  // Merged parallel self loops give several anchor ids the same elements; the
+  // first id wired wins the pointer, so one hover reports one anchor rather
+  // than a burst of them.
+  const wired = new Set<Element>()
+  for (const [id, elements] of byAnchor) {
+    for (const element of elements) {
+      if (wired.has(element)) continue
+      wired.add(element)
+      element.classList.add('smc-hit')
+      element.addEventListener('mouseenter', () => {
+        dim(id)
+        callbacks.onAnchorHover?.(id)
+      })
+      element.addEventListener('mouseleave', () => {
+        dim(null)
+        callbacks.onAnchorHover?.(null)
+      })
+      element.addEventListener('click', () => callbacks.onAnchorSelect?.(id))
+    }
+  }
+
+  return { byAnchor }
+}
+
+/**
+ * Nudge overlapping edge labels apart, vertically, smallest move that clears.
+ *
+ * Dagre gives parallel edges between one pair of states distinct curves but
+ * near-identical label anchors, so their labels collide — the single residue
+ * of the layout problem the mermaid rebuild retired. This is not a layout
+ * solver: labels only slide down, in overlap-sized steps, and everything else
+ * stays exactly where mermaid put it. Measured in screen space (the SVG is
+ * width-scaled in its pane), applied in user space through the scale factor.
+ */
+function separateEdgeLabels(svg: SVGSVGElement, labels: Element[]): void {
+  const viewWidth = svg.viewBox.baseVal?.width
+  const width = svg.getBoundingClientRect().width
+  if (!viewWidth || width === 0) return
+  const scale = width / viewWidth
+
+  const entries = labels
+    .filter((element) => (element.textContent ?? '').trim().length > 0)
+    .map((element) => ({ element, shift: 0, base: element.getAttribute('transform') ?? '' }))
+
+  // What a label may not sit on, beyond its peers: every state box, and a
+  // region's *title bar* — its interior stays open, a label between two of a
+  // region's children belongs there. The same rule the old renderer's solver
+  // enforced, kept because it is about the diagram, not about the renderer.
+  const obstacles = [
+    ...[...svg.querySelectorAll('g.node')].map((element) => element.getBoundingClientRect()),
+    ...[...svg.querySelectorAll('g.cluster .cluster-label, g.cluster-label')].map((element) =>
+      element.getBoundingClientRect(),
+    ),
+  ]
+
+  const push = (entry: (typeof entries)[number], dy: number) => {
+    entry.shift += dy
+    entry.element.setAttribute('transform', `translate(0 ${entry.shift}) ${entry.base}`.trim())
+  }
+
+  const overlap = (a: DOMRect, b: DOMRect): number => {
+    const x = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+    const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+    return x > 1 && y > 1 ? y : 0
+  }
+
+  for (let sweep = 0; sweep < 4; sweep++) {
+    let moved = false
+    const boxes = entries
+      .map((entry) => ({ entry, rect: entry.element.getBoundingClientRect() }))
+      .sort((a, b) => a.rect.top - b.rect.top)
+    for (let lower = 0; lower < boxes.length; lower++) {
+      for (const fixed of obstacles) {
+        const y = overlap(fixed, boxes[lower].rect)
+        if (y === 0) continue
+        push(boxes[lower].entry, (y + 3) / scale)
+        boxes[lower].rect = boxes[lower].entry.element.getBoundingClientRect()
+        moved = true
+      }
+      for (let upper = 0; upper < lower; upper++) {
+        const y = overlap(boxes[upper].rect, boxes[lower].rect)
+        if (y === 0) continue
+        push(boxes[lower].entry, (y + 3) / scale)
+        boxes[lower].rect = boxes[lower].entry.element.getBoundingClientRect()
+        moved = true
+      }
+    }
+    if (!moved) break
+  }
+}
+
+/** Rendering can only fail catastrophically; say so and still show the machine. */
 function TextFallback({ summary }: { summary: ReturnType<typeof stateChartSummary> }) {
   return (
-    <div className="h-full overflow-auto px-4 py-3">
-      <p className="text-[12.5px] text-warning">Diagram layout unavailable — the machine is listed instead.</p>
+    <div className="max-h-[480px] overflow-auto px-4 py-3">
+      <p className="text-[12.5px] text-warning">Diagram unavailable — the machine is listed instead.</p>
       <p className="mt-2 text-[12.5px] text-muted-foreground">{summary.headline}</p>
       <ul className="mt-2 space-y-1 font-mono text-[11.5px] text-foreground/80">
         {summary.transitions.map((transition) => (

@@ -1,19 +1,28 @@
 /**
  * The datamodel schema registry — framework/spec/kinds/datamodel.md.
  *
- * A `schema.json` is identified by the **HTTP URL the portal serves it at**, and
- * every cross-entity `$ref` is the absolute schema URL of its target:
+ * A `schema.json` states its identity twice, in two spellings of one derived
+ * fact:
  *
- *     "$id":  "http://localhost:3000/schemas/acme/datamodel/money"
- *     "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
+ *     "$id":   "https://schemas.metaframework.dev/acme/datamodel/money"
+ *     "x-srn": "srn://acme/datamodel/money"
  *
- * That is not decoration. The previous form — no `$id`, relative-path `$ref` —
+ * and every cross-entity `$ref` is the canonical schema URL of its target.
+ *
+ * That is not decoration. The retired form — no `$id`, relative-path `$ref` —
  * was *well-formed* for stock tooling but only ever resolvable by a tool sitting
- * in a clone of this repository. A served URL is **dereferenceable**: any
- * validator or generator, on any machine, can follow it
- * (decision-record 2026-08-19-c). `src/app/schemas/[...path]/route.ts` is what
- * makes that true, and `lib/schema/url.ts` is the single source of the origin —
- * the host is never hand-typed here.
+ * in a clone of this repository. A canonical URL is **dereferenceable**: any
+ * validator or generator, on any machine, can follow it once the host resolves
+ * (decision-record 2026-08-19-c). `lib/schema/url.ts` owns the canonical host —
+ * it is a stable constant, never `SCHEMA_BASE_URL`, which says only where *this*
+ * portal serves schemas from (`src/app/schemas/[...path]/route.ts`). Identity
+ * must not vary between a laptop and production.
+ *
+ * `x-srn` is required alongside it. Without it the SRN vanishes from schema
+ * files entirely and identity becomes implicit in a URL-parsing rule; a schema
+ * lifted out of the catalog must still say where it came from, in the
+ * framework's own vocabulary. Both fields are *derived and checked* against the
+ * file's own directory, so they cannot drift from each other or from the path.
  *
  * The portal's graph is still a graph of SRNs. A URL is mapped back to its
  * owning entity through SRN ≡ path ≡ URL path — via lib/schema/url, never by
@@ -33,7 +42,13 @@
 import { Ajv2020 } from 'ajv/dist/2020'
 import type { ValidateFunction } from 'ajv'
 import type { Catalog, Diagnostic, Entity } from '../catalog/types'
-import { schemaBaseUrl, schemaUrlToPath, schemaUrlToSrn, srnToSchemaUrl } from './url'
+import {
+  CANONICAL_SCHEMA_HOST,
+  isSchemaServingUrl,
+  schemaUrlToPath,
+  schemaUrlToSrn,
+  srnToSchemaUrl,
+} from './url'
 
 export const DIALECT_2020_12 = 'https://json-schema.org/draft/2020-12/schema'
 
@@ -41,11 +56,12 @@ export const DIALECT_2020_12 = 'https://json-schema.org/draft/2020-12/schema'
 export const SCHEMA_ARTIFACT = 'schema.json'
 
 /**
- * The provenance annotation that `$id` replaced. It is still named here so a
- * leftover one is *reported* rather than silently ignored: two identity fields
- * in one document is exactly the drift `$id` was adopted to end.
+ * The keyword carrying the entity's unversioned SRN. Required, and validated
+ * against the file's own path, so it can never drift from `$id` or from disk.
+ * It exists because without it identity would be implicit in a URL-parsing rule:
+ * a schema copied out of the catalog must still say where it came from.
  */
-export const RETIRED_SRN_ANNOTATION = 'x-srn'
+export const SRN_ANNOTATION = 'x-srn'
 
 /** Late-bound or second-addressing keywords, forbidden so the graph stays static. */
 const FORBIDDEN_KEYWORDS = ['$dynamicRef', '$dynamicAnchor', '$anchor', '$vocabulary'] as const
@@ -57,7 +73,7 @@ const FORBIDDEN_KEYWORDS = ['$dynamicRef', '$dynamicAnchor', '$anchor', '$vocabu
  */
 export interface SchemaNode {
   $schema?: string
-  /** The document's identity — its served schema URL. Required at the root only. */
+  /** The document's identity — its canonical schema URL. Required at the root only. */
   $id?: string
   $ref?: string
   $comment?: string
@@ -109,8 +125,8 @@ export interface RefSite {
 
 export interface SchemaMeta {
   /**
-   * Canonical registry key: the schema's served URL, e.g.
-   * `http://localhost:3000/schemas/acme/datamodel/money`. It is the document's
+   * Canonical registry key: the schema's canonical URL, e.g.
+   * `https://schemas.metaframework.dev/acme/datamodel/money`. It is the document's
    * `$id`, the key ajv holds it under, and the base its own `$ref`s resolve
    * against — one identity for the portal and for every outside consumer.
    */
@@ -333,16 +349,16 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
   // --- identity ---------------------------------------------------------
   //
   // The root `$id` is the document's identity and the base URI its own refs
-  // resolve against, so it must be exactly the URL this portal serves it at.
-  // `id` was computed from the entity's SRN and the configured SCHEMA_BASE_URL,
-  // which is what makes this check catch both a stale path and a stale origin —
-  // the two ways the artifacts and the deployment can drift apart.
+  // resolve against, so it must be exactly this entity's canonical schema URL.
+  // `id` was computed from the entity's SRN and the canonical host, so this
+  // check catches a stale path and a hand-typed host alike — including the
+  // tempting mistake of writing the address the portal *serves* from.
   const declared = document.$id
   if (declared === undefined) {
     diagnostics.push({
       code: 'E_DM_ID_MISSING',
       severity: 'error',
-      message: `$id is missing — it must be ${id}, the URL the portal serves this schema at`,
+      message: `$id is missing — it must be ${id}, this entity's canonical schema URL`,
       path: file,
       srn: entity.srn,
     })
@@ -351,9 +367,10 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
       code: 'E_DM_ID_MISMATCH',
       severity: 'error',
       message:
-        `$id is ${JSON.stringify(declared)} but this entity's schema URL is ${id}` +
-        (typeof declared === 'string' && !declared.startsWith(schemaBaseUrl())
-          ? ` — the origin comes from SCHEMA_BASE_URL (currently ${schemaBaseUrl()}), never from the file`
+        `$id is ${JSON.stringify(declared)} but this entity's canonical schema URL is ${id}` +
+        (typeof declared === 'string' && isSchemaServingUrl(declared)
+          ? ' — that is where this portal serves the schema (SCHEMA_BASE_URL), not what it is;' +
+            ` identity is always ${CANONICAL_SCHEMA_HOST}/{srn-path}`
           : ''),
       path: file,
       srn: entity.srn,
@@ -374,14 +391,26 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
     })
   }
 
-  // `x-srn` said in an annotation what `$id` now says in a keyword validators
-  // act on. Two identity fields is one too many, so a leftover is an error, not
-  // a tolerated `x-` extension.
-  if (document[RETIRED_SRN_ANNOTATION] !== undefined) {
+  // `x-srn` states the SRN in the framework's own vocabulary. Like `$id` it is
+  // checked against the file's directory rather than trusted, so the two can
+  // never disagree without a diagnostic — they are two spellings of one derived
+  // fact, not two hand-maintained fields.
+  const srn = document[SRN_ANNOTATION]
+  if (srn === undefined) {
     diagnostics.push({
-      code: 'E_DM_SRN_RETIRED',
+      code: 'E_DM_SRN_MISSING',
       severity: 'error',
-      message: `${RETIRED_SRN_ANNOTATION} is retired — $id carries identity now; remove the annotation`,
+      message: `${SRN_ANNOTATION} is missing — it must be ${entity.srn}, this entity's unversioned SRN`,
+      path: file,
+      srn: entity.srn,
+    })
+  } else if (typeof srn !== 'string' || srn !== entity.srn) {
+    diagnostics.push({
+      code: 'E_DM_SRN_MISMATCH',
+      severity: 'error',
+      message:
+        `${SRN_ANNOTATION} is ${JSON.stringify(srn)} but this entity's SRN is ${entity.srn}` +
+        (typeof srn === 'string' && srn.includes('@') ? ' — x-srn is always unversioned' : ''),
       path: file,
       srn: entity.srn,
     })
@@ -407,16 +436,16 @@ function readEntry(entity: Entity, ajv: Ajv2020, diagnostics: Diagnostic[]): Sch
 /* -------------------------------------------------------------------------- */
 
 /**
- * Resolve a cross-entity `$ref`, which is always an absolute schema URL.
+ * Resolve a cross-entity `$ref`, which is always a canonical schema URL.
  *
  * There is no arithmetic left to do — that is the point of the URL form. The
  * work is entirely rejection: naming *what kind* of wrong address this is, so
  * the author gets a code they can act on rather than a bare "unresolved".
  *
- * Returns the target's schema URL, or the diagnostic that stops it.
+ * Returns the target's canonical schema URL, or the diagnostic that stops it.
  */
 function resolveRefUrl(fromId: string, ref: string): { url: string } | { code: string; message: string } {
-  const base = schemaBaseUrl()
+  const example = `${CANONICAL_SCHEMA_HOST}/acme/datamodel/money`
 
   if (!/^[a-z][a-z0-9+.-]*:/i.test(ref)) {
     // A relative ref would resolve against `$id` and could even be legal JSON
@@ -432,22 +461,23 @@ function resolveRefUrl(fromId: string, ref: string): { url: string } | { code: s
     }
     return {
       code: 'E_DM_REF_TARGET',
-      message: `"${ref}" is not an absolute schema URL — a cross-entity $ref is its target's served URL, e.g. "${base}/schemas/acme/datamodel/money"${suggestion}`,
+      message: `"${ref}" is not a canonical schema URL — a cross-entity $ref is its target's canonical URL, e.g. "${example}"${suggestion}`,
     }
   }
 
   if (schemaUrlToPath(ref) === null) {
-    if (ref.startsWith(`${base}/`)) {
-      // Right origin, wrong namespace: this addresses something the portal may
-      // well serve, but it is not a schema.
+    if (isSchemaServingUrl(ref)) {
+      // A retrieval address, not an identity. It may well fetch; it still says
+      // nothing about what the target *is*, and it varies by deployment.
+      const path = ref.slice(ref.indexOf('/schemas/') + '/schemas/'.length)
       return {
-        code: 'E_DM_REF_ESCAPE',
-        message: `"${ref}" leaves the /schemas/ namespace — only served schema URLs are addressable from a $ref`,
+        code: 'E_DM_REF_TARGET',
+        message: `"${ref}" is where this portal serves a schema (SCHEMA_BASE_URL), not what it is — write "${CANONICAL_SCHEMA_HOST}/${path}"`,
       }
     }
     return {
       code: 'E_DM_REF_TARGET',
-      message: `"${ref}" is not a schema URL of this portal (${base}/schemas/…) — a solution's schemas are served by the portal that owns them`,
+      message: `"${ref}" is not a canonical schema URL (${CANONICAL_SCHEMA_HOST}/…) — every schema in every solution is identified on that one host`,
     }
   }
 
@@ -455,7 +485,7 @@ function resolveRefUrl(fromId: string, ref: string): { url: string } | { code: s
   if (targetSrn === null) {
     return {
       code: 'E_DM_REF_TARGET',
-      message: `"${ref}" has a path after /schemas/ that is not a legal entity address — it must be an SRN path, {solution}/({kind}/{name})+`,
+      message: `"${ref}" has a path after the host that is not a legal entity address — it must be an SRN path, {solution}/({kind}/{name})+, with no version pin`,
     }
   }
 

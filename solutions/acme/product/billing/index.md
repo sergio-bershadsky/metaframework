@@ -23,8 +23,6 @@ tags:
   - internal
 ---
 
-# Billing
-
 Everything that happens to money after the customer has authorized it. Billing
 does not take payments and never speaks to a customer; it observes what
 [shop](srn://acme/product/shop) did and records what it means in accounting terms.

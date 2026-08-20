@@ -13,8 +13,6 @@ tags:
   - union
 ---
 
-# Permission
-
 The smallest thing [acl](srn://acme/product/identity/component/acl) can evaluate: a set
 of actions over one resource kind, inside a scope, during an interval. Four
 branches today — `order`, `ledger-entry`, `catalog-item`, `identity-account` —

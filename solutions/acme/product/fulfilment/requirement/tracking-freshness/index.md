@@ -17,8 +17,6 @@ tags:
   - logistics
 ---
 
-# A scan is visible to the customer within 90 seconds
-
 From the moment a carrier scan reaches acme's ingress to the moment the same fact
 is readable on the customer's order page, at most 90 seconds at p95 in
 [production](srn://acme/environment/production).

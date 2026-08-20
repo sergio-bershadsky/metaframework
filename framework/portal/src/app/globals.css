@@ -5,11 +5,18 @@
  * beats Tailwind's utilities no matter the order — that is how it silently
  * flattened prose headings and replaced the type system.
  *
- * Declaring `stoplight` as the FIRST layer demotes the whole stylesheet below
- * everything Tailwind emits, which is exactly the priority it should have: it
- * styles one embedded widget, not the application.
+ * WHERE the layer sits is as load-bearing as the fact that it exists. It must
+ * sit ABOVE `base`: Tailwind's preflight zeroes margin and padding on `*`, and
+ * with Mosaic below it every `sl-m*`/`sl-p*` utility computed to nothing — the
+ * schema viewer rendered with property names fused to their types and its
+ * dropdown collapsed onto the content (measured: `sl-pl-3` → padding 0). And it
+ * must sit BELOW `components` and `utilities`, so Mosaic's global font and
+ * heading resets keep losing to everything this application actually says.
+ * This declaration comes before the Tailwind import on purpose — the first
+ * @layer statement fixes the order, and Tailwind's own declaration then cannot
+ * rearrange it.
  */
-@layer stoplight;
+@layer theme, base, stoplight, components, utilities;
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -20,10 +27,16 @@
  * metaframework portal — "architect's console".
  *
  * Dark-only by decision (docs/decision-record.md). The palette is built on one
- * idea: COLOR IS ONTOLOGY. Each of the nine entity kinds owns exactly one hue at
- * a fixed lightness/chroma, and that hue is used identically in the tree, in
+ * idea: COLOR IS ONTOLOGY. Each of the twelve entity kinds owns exactly one hue
+ * at a fixed lightness/chroma, and that hue is used identically in the tree, in
  * badges, and in diagram nodes — so a datamodel is the same emerald everywhere
  * it appears. Nothing else in the UI is allowed to be colourful.
+ *
+ * The kinds sit in two tiers, and the tier is carried by CHROMA AND LIGHTNESS
+ * TOGETHER: nine structural kinds at oklch C 0.14–0.15 / L 0.72–0.78, three
+ * conceptual ones at C 0.08 / L 0.80 — paler AND brighter, not merely paler.
+ * See the --kind-* block below for what that measures as and which channel is
+ * doing the work at glyph size.
  */
 
 @theme inline {
@@ -56,7 +69,7 @@
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
 
-  /* Ontology hues — evenly spaced around the wheel at matched L/C. */
+  /* Ontology hues — spread around the wheel at matched L/C, one per kind. */
   --color-kind-solution: var(--kind-solution);
   --color-kind-product: var(--kind-product);
   --color-kind-component: var(--kind-component);
@@ -66,6 +79,9 @@
   --color-kind-actor: var(--kind-actor);
   --color-kind-requirement: var(--kind-requirement);
   --color-kind-adr: var(--kind-adr);
+  --color-kind-capability: var(--kind-capability);
+  --color-kind-journey: var(--kind-journey);
+  --color-kind-metric: var(--kind-metric);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -120,6 +136,45 @@
   --kind-actor: oklch(0.78 0.14 65);
   --kind-requirement: oklch(0.74 0.15 30);
   --kind-adr: oklch(0.72 0.15 350);
+
+  /*
+   * The CONCEPTUAL tier. Nine hues at ~35° already sat on the distinguishability
+   * floor, so three more at full chroma would have collided — hue alone had run
+   * out. These three drop to C 0.08 (a little over half the structural 0.14–0.15)
+   * and rise to L 0.80 (just above the structural 0.72–0.78 band), so the tier
+   * reads as "concept vs structure" before hue resolves at all: capability,
+   * journey and metric describe intent, the other nine describe the built thing.
+   * Within the tier only three hues have to be told apart, and they take the
+   * three real gaps left on the wheel — journey between actor and environment,
+   * metric between solution and adr, capability between adr and requirement.
+   *
+   * TWO channels carry the tier, not one, and the name "chroma tier" was only
+   * ever half true. Measured in CIELAB (D65) from the tokens below:
+   *
+   *              L*            C*ab          contrast vs --background
+   *   structural 65.3–73.5     41.7–60.5     7.3:1 – 9.5:1
+   *   conceptual 75.7–77.3     26.5–31.7     10.1:1 – 10.6:1
+   *
+   * Chroma is the larger move by the metric — 22.6 C* units between the two
+   * means against 6.7 L* units — but a kind is met as a 14–16px icon or a badge
+   * dot, and the eye's spatial acuity for chroma is far below its acuity for
+   * luminance. At that size the brightness step is doing at least as much
+   * separating as the desaturation is, and the conceptual tier lands a full
+   * contrast step above every structural hue. That is why the lift is written
+   * here as part of the design rather than as a rounding of the chroma decision:
+   * flattening L back into the structural band to make the label "chroma tier"
+   * literally true would take the tier's separation with it.
+   *
+   * Measured in oklab (ΔE = √(ΔL²+Δa²+Δb²)), against the console's own floor —
+   * the closest existing pair, environment/datamodel at 0.0725:
+   *   within the tier   metric↔capability 0.0763   (the tightest of the three)
+   *   tier ↔ structural journey↔environment 0.0828 (the tightest of 27 pairs)
+   * Both clear the floor, which is what makes this a tier rather than a crowd.
+   * Hue means "which kind", never "how important".
+   */
+  --kind-capability: oklch(0.8 0.08 12);
+  --kind-journey: oklch(0.8 0.08 115);
+  --kind-metric: oklch(0.8 0.08 315);
 }
 
 @layer base {
@@ -230,6 +285,45 @@
   }
 
   /*
+   * Two further steps back, used by the solution map, where recession answers a
+   * different question than hover does: not "is this connected to what I am
+   * pointing at" but "is this on the branch I am looking at".
+   *
+   * SOFT is context the map admits it is not framing — the ring past the two it
+   * promises. FAR is everything off the focused branch: still drawn, because a
+   * dependency leaving the branch is exactly the edge somebody opens a map to
+   * find, but far enough back that the branch reads as the subject. They stack
+   * with `.dgm-recede`, and stacking is correct — off-branch AND unconnected to
+   * the pointer is the least interesting thing on the canvas.
+   */
+  .react-flow__node.dgm-recede-soft,
+  .react-flow__edge.dgm-recede-soft {
+    opacity: 0.34;
+  }
+
+  .react-flow__node.dgm-recede-far,
+  .react-flow__edge.dgm-recede-far {
+    opacity: 0.12;
+  }
+
+  /*
+   * React Flow owns the element that takes focus, and a custom node's own
+   * markup is a child of it — so both the focus ring and the reveal of
+   * whatever a compact node keeps behind hover have to be attached from here.
+   * Without this a keyboard reader could reach a state box and see nothing
+   * happen.
+   */
+  .react-flow__node:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--xy-node-border-radius, 6px);
+  }
+
+  .react-flow__node:focus-visible [data-diagram-detail] {
+    display: block;
+  }
+
+  /*
    * A diagram expanded to fill the browser viewport. It is a fixed overlay
    * rather than a real fullscreen element: taking over the display and hiding
    * the browser's own chrome is the wrong scale for reading one diagram.
@@ -239,6 +333,102 @@
   .diagram-surface[data-expanded] {
     box-shadow: 0 0 0 100vmax var(--background);
   }
+
+  /*
+   * Mermaid state charts (state-chart.tsx). The SVG arrives themed through
+   * mermaid's themeVariables; these rules cover what a variable cannot reach —
+   * layout of the SVG in its panel, and the interactivity classes the
+   * component's post-processing pins onto elements.
+   */
+  /* Flex + auto margins centres the SVG both ways (the expanded overlay)
+     while keeping overflow reachable by scroll, which grid centring clips. */
+  .smc-host {
+    display: flex;
+  }
+
+  .smc-host svg.smc-svg {
+    display: block;
+    margin: auto;
+    height: auto;
+  }
+
+  /* Clickable states and transitions — the join to the source pane. */
+  .smc-hit {
+    cursor: pointer;
+  }
+
+  /* Adjacency: everything not connected to the hovered element recedes. */
+  .smc-dim {
+    opacity: 0.18;
+    transition: opacity 120ms ease;
+  }
+
+  /* The source pane is pointing at this state or transition. */
+  .smc-linked {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /*
+   * A named final state keeps the UML double edge in the protocol hue —
+   * colour stays ontology, exactly as the old renderer drew it.
+   */
+  .smc-final rect {
+    stroke: var(--kind-protocol);
+    stroke-width: 1.25;
+  }
+
+  /*
+   * Mermaid journey walks (journey-diagram.tsx). Same two rules the state chart
+   * needs, for the same two reasons: flex plus auto margins centres the SVG both
+   * ways while keeping overflow reachable by scroll, and a step that navigates
+   * has to say so under the pointer. Each step's border hue is set by the
+   * component from `--kind-*`, because it depends on what the step touches.
+   */
+  .jny-host {
+    display: flex;
+  }
+
+  .jny-host svg.jny-svg {
+    display: block;
+    margin: auto;
+    height: auto;
+  }
+
+  .jny-hit {
+    cursor: pointer;
+  }
+
+  /*
+   * A band's title sits ON its top border, and the chain enters the band from
+   * exactly there — so the arrow is drawn straight through the product's name.
+   * Mermaid offers no control over either position, and both are right; what is
+   * wrong is only that the text has nothing behind it.
+   *
+   * A halo rather than a background box: mermaid sizes the label's
+   * foreignObject from the text alone, so anything that widens the content —
+   * padding, a border — is clipped, and the title disappears entirely
+   * (measured: `padding: 0 6px` erased every band name). A text-shadow changes
+   * no layout at all.
+   */
+  .jny-svg .cluster-label {
+    text-shadow:
+      0 0 3px var(--background),
+      0 0 3px var(--background),
+      0 0 5px var(--background);
+  }
+
+  /*
+   * A product boundary nobody wrote a protocol for — the finding the journey
+   * kind exists to produce. The colour itself is applied inline by the
+   * component (mermaid scopes its edge styles by render id, which outranks any
+   * rule written here); this class is what names the arrow for anyone reading
+   * the DOM, and the hook for a future rule that does not fight an id.
+   */
+  .jny-hop-gap {
+    stroke-linecap: round;
+  }
+
 
   /* Focus ring consistent across custom controls. */
   .focusable:focus-visible {
@@ -301,4 +491,24 @@ body {
   font-family: var(--font-sans);
   background-color: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * The join between an artifact's drawing and its source.
+ *
+ * Monaco applies these classes through a decorations collection, and its own
+ * stylesheet is injected unlayered at runtime — so these rules are unlayered
+ * too, or the editor's defaults would outrank them whatever the import order.
+ *
+ * The accent is `--primary`, the one non-ontology colour in the system: a lit
+ * line range is not an entity kind, it is "this is the thing you selected".
+ * Opacity is deliberately not used — in this console it already means "context,
+ * not a match", and a second meaning on the same channel is the bug.
+ */
+.monaco-editor .code-anchor-lines {
+  background-color: color-mix(in oklab, var(--primary) 14%, transparent);
+}
+
+.monaco-editor .code-anchor-gutter {
+  box-shadow: inset 3px 0 0 var(--primary);
 }

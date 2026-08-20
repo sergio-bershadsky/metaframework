@@ -26,16 +26,16 @@ solutions/acme/protocol/settlement/
 ## Where the rules live
 
 **Read `framework/spec/kinds/protocol.md` in full when the repository has it —
-it is authoritative and it is the largest kind document in the spec.** The
-shared bundle carries protocol placement and artifact rules (`structure.md`) and
-the `participants` / `style` / `conforms-to` frontmatter (`frontmatter.md`), but
-deliberately **no** distillation of the three mini-languages. Those live in this
-skill's own `references/artifacts.md`, which is the fallback when the repo spec
-is absent.
+it is authoritative and it is the largest kind document in the spec.** When it is
+absent, the bundled `_shared/references/protocols.md` is the distilled rule copy:
+the artifact contracts, the alias contract and every `E_PROTO_*` code. This
+skill's own `references/artifacts.md` sits on top of it as the authoring
+companion, anchored to the shipped fixtures.
 
 | Need                                                     | Read                                                              |
 |----------------------------------------------------------|-------------------------------------------------------------------|
-| `transport.yaml`, workflow YAML, `states.json` in detail | `references/artifacts.md`                                          |
+| The protocol rules: artifacts, aliases, `E_PROTO_*`      | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/protocols.md`    |
+| `transport.yaml`, workflow YAML, `states.json` while authoring | `references/artifacts.md`                                    |
 | A complete protocol, verbatim, with an audit checklist   | `references/worked-protocol.md`                                    |
 | NCA placement, artifact filenames, `x-` escape           | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`    |
 | `participants`, `style`, `conforms-to`, relations        | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`  |
@@ -174,7 +174,12 @@ reviewed against `order@2` starts describing `order@3` with no diff on this file
 
 Pinning works here and not in a `schema.json` `$ref` precisely because these are
 framework-private catalog references that no external tool reads, while
-`schema.json` must stay dereferenceable by stock JSON Schema tooling.
+`schema.json` must stay dereferenceable by stock JSON Schema tooling. Both name
+the same entity in two spellings — `/product/shop/datamodel/order` here,
+`https://schemas.metaframework.dev/acme/product/shop/datamodel/order` there — and
+the projection is exactly what drops the pin, because a schema URL addresses the
+*current* schema. That is the consolidating principle (`srn.md`), not two
+addressing schemes.
 
 **Write payload references path-absolute** (`/product/shop/datamodel/order@1`).
 A relative reference resolves against the referring *file's* URI, so the same
@@ -186,6 +191,27 @@ surfacing as `E_SRN_DANGLING` if nothing is there, and as a silently wrong edge
 if something is. Path-absolute removes the only case the grammar cannot catch.
 
 `states.json` carries no SRN references at all — it names events and states only.
+
+## Journeys name protocols
+
+One reference surface outside this kind points at protocols: a **journey** step
+may carry `protocol: <SRN of a protocol>`, saying how that step reaches what it
+touches. Nothing changes here — a protocol is authored the same way whether or
+not a journey names it — but two consequences are worth knowing while you decide
+whether a protocol is needed at all:
+
+- A journey step that **crosses a product boundary** and names no protocol is
+  `W_JRN_UNDOCUMENTED_INTEGRATION`: the catalog has found an integration nobody
+  wrote down. The fix is a new protocol entity, authored by this skill. The
+  integration-gap panel on the solution dashboard is therefore a queue of
+  protocols worth writing.
+- A step's named protocol SHOULD list either end of the hop among its
+  `participants` (`W_JRN_PROTOCOL_UNRELATED`) — a protocol documenting neither
+  end is not documenting the hop.
+
+The `journey.yaml` format itself is not this skill's business: it is in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/journeys.md`, and journey
+entities are authored with `add-entity`.
 
 ## Worked example
 
@@ -223,7 +249,9 @@ Zero **error** diagnostics is the pass condition; there is no CLI. Report
 pass/fail and every diagnostic with its code and file. `E_PROTO_*` and
 `W_PROTO_*` codes are documented at the end of
 `framework/spec/kinds/protocol.md`, and — for an installed plugin that cannot see
-it — in `references/artifacts.md` beside the rule each one guards. Note that the
+it — in one table at the end of
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/protocols.md`, as well as beside
+the rule each one guards in `references/artifacts.md`. Note that the
 catalog check does **not** run the protocol validators over the shipped tree;
 `E_PROTO_*` appears only when the portal renders the protocol page, so open it
 after touching `states.json` or a workflow (`validate-catalog` skill). If a

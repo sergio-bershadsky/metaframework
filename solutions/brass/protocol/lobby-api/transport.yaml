@@ -1,0 +1,78 @@
+kind: http
+summary: JSON over HTTP on the same origin as the SPA; the ingress path-splits /games to the game server.
+encoding: json
+auth:
+  - origin-allowlist
+http:
+  base-path: /games
+  tls: true
+  operations:
+    - name: list-games
+      method: GET
+      path: /
+      summary: >-
+        Returns the game names this server hosts — always ["brass"]. Not called
+        by any client; it is the deploy runbook's smoke test.
+
+    - name: create-match
+      method: POST
+      path: /{game}/create
+      summary: >-
+        Create a match with numPlayers seats and return its matchID. The web
+        client always asks for 4 seats and lets the game's own lobby phase decide
+        how many are actually seated, so a 2-player game is a 4-seat match with
+        two empty chairs.
+
+    - name: list-matches
+      method: GET
+      path: /{game}
+      response: /datamodel/match-summary@1
+      summary: >-
+        List matches, filterable by isGameover. The MCP server calls it with
+        isGameover=false to find a match with a free seat; the web client never
+        calls it, because a human arrives by invite link.
+
+    - name: get-match
+      method: GET
+      path: /{game}/{id}
+      response: /datamodel/match-summary@1
+      summary: >-
+        Read one match's metadata — how many seats it has and which of them
+        carry a name. A seat with no name is free; that is the only free-seat
+        test either client performs.
+
+    - name: join-match
+      method: POST
+      path: /{game}/{id}/join
+      response: /datamodel/match-credentials@1
+      summary: >-
+        Claim a seat by playerID and playerName, and receive that seat's
+        credentials. The only call in this solution that returns a secret. The
+        browser stores it under localStorage["brass:creds:<matchID>"]; the MCP
+        session keeps it in memory and loses it on exit.
+
+    - name: leave-match
+      method: POST
+      path: /{game}/{id}/leave
+      summary: >-
+        Framework route. No code in this repository calls it — leave_match on the
+        MCP surface only drops the socket, so the seat stays claimed until the
+        match is garbage. Reachable by anyone who can reach the host.
+
+    - name: play-again
+      method: POST
+      path: /{game}/{id}/playAgain
+      summary: Framework route; creates a successor match. Unused — there is no rematch flow.
+
+    - name: rename-player
+      method: POST
+      path: /{game}/{id}/rename
+      summary: Framework route, deprecated upstream in favour of update-player. Unused.
+
+    - name: update-player
+      method: POST
+      path: /{game}/{id}/update
+      summary: >-
+        Framework route for changing a seat's name or opaque data. Unused — this
+        game keeps display identity (name, colour, avatar, ready, ai) in game
+        state instead, so match metadata and game state disagree by design.

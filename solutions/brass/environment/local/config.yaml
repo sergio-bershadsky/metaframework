@@ -1,0 +1,13 @@
+config:
+  - key: PORT
+    for: /product/play/component/server
+    description: Overrides the server's listen port. Normally unset locally, where the code defaults to 8000.
+
+  - key: VITE_SERVER_URL
+    for: /product/play/component/web-client
+    description: Escape hatch pointing the client at another server. Unset locally; the dev build falls back to :8000.
+
+  - key: BRASS_SERVER_URL
+    for: /product/agent-play/component/mcp-server
+    value: http://localhost:8000
+    description: Game server the MCP session joins. Point it at the production host to play the hosted game.

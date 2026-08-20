@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/city",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/city",
+  "title": "City",
+  "description": "A build location: a board location plus its region and its ordered industry slots. The two farm breweries use this same shape with a single brewery-only slot.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/board-location"
+    }
+  ],
+  "properties": {
+    "region": {
+      "type": "string",
+      "enum": [
+        "birmingham",
+        "black-country",
+        "midlands",
+        "staffordshire",
+        "derbyshire"
+      ],
+      "description": "Banner colour group. Governs which seat counts put this city's cards in the deck."
+    },
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+        },
+        "description": "The industries this printed space accepts."
+      },
+      "description": "Ordered build spaces. The index is referenced by built-tile.slot-index and by every move id, so the order is frozen."
+    }
+  },
+  "required": [
+    "region",
+    "slots"
+  ]
+}

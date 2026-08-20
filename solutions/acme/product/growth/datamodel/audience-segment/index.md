@@ -13,8 +13,6 @@ tags:
   - privacy
 ---
 
-# Audience segment
-
 A segment is a rule, not a list. The rule is a conjunction of at most eight
 clauses over aggregated account behaviour;
 [audience](srn://acme/product/growth/component/audience) evaluates it nightly and

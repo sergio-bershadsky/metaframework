@@ -17,8 +17,6 @@ tags:
   - logistics
 ---
 
-# The date the customer is told is the date that holds
-
 A customer is told one delivery date, once, and it comes from the carrier quote
 that was actually accepted. It is stored on the
 [shipment](srn://acme/product/fulfilment/datamodel/shipment@1) and never

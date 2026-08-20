@@ -11,8 +11,6 @@ tags:
   - eu
 ---
 
-# Staging
-
 Same topology and the same protocol versions as
 [production](srn://acme/environment/production), one region, and no customer
 data of record. It exists so that a protocol change can be rehearsed against the

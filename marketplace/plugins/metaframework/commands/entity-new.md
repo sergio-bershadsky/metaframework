@@ -1,5 +1,5 @@
 ---
-description: Add an entity to a metaframework catalog — product, component, datamodel, protocol, actor, environment, adr or requirement
+description: Add an entity to a metaframework catalog — product, component, datamodel, protocol, actor, environment, adr, requirement, capability, journey or metric
 argument-hint: "[kind] [name] [where it belongs]"
 ---
 
@@ -14,6 +14,23 @@ improvise frontmatter from this file.
 | `datamodel`                                                          | `model-data`      |
 | `protocol`                                                           | `protocol-design` |
 | `product`, `component`, `actor`, `environment`, `adr`, `requirement` | `add-entity`      |
+| `capability`, `journey`, `metric`                                    | `add-entity`      |
+
+The second `add-entity` row is separate only because those three are the newest
+kinds and the ones a request is most likely to name imprecisely:
+
+- **capability** — what the business can *do*, independent of how it is built.
+  Solution-level. If the thing has an inside we describe, it is a `component`; if
+  it is funded and owned as a unit, a `product`; if it must be *true* and is
+  decidable by written criteria, a `requirement`.
+- **journey** — one actor's ordered path across the solution. Solution-level, and
+  its steps live in a REQUIRED `journey.yaml`. A path that branches is **two
+  journeys**, so a request describing a fork is a request for two entities: say
+  so before creating either.
+- **metric** — one number the solution observes about itself. Owner-scoped like a
+  requirement: it lives under whoever is accountable for the number, which is a
+  different question from what it `measures`. A dashboard with nine tiles is nine
+  metrics.
 
 Three checks before invoking anything:
 

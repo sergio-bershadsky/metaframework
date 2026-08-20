@@ -9,6 +9,7 @@ import {
   type EntityKind,
   KIND_FRONTMATTER,
   commonFrontmatterSchema,
+  kindDiagnostics,
   unknownFields,
 } from './frontmatter'
 import type { Artifact, Catalog, Diagnostic, Entity, Relation } from './types'
@@ -48,6 +49,7 @@ export async function loadCatalog({ catalogDir }: LoadOptions): Promise<Catalog>
 
   linkHierarchy(entities, diagnostics)
   const inbound = resolveRelations(entities, diagnostics)
+  checkGraphShape(entities, inbound, diagnostics)
 
   return { entities, solutions, diagnostics, inbound }
 }
@@ -159,6 +161,18 @@ async function readEntity(
     }
   }
 
+  // Kind rules the schema cannot express, because the spec gives them codes of
+  // their own — a metric's target and window literals are the v1 cases.
+  for (const issue of kindDiagnostics(expectedKind, data as Record<string, unknown>)) {
+    diagnostics.push({
+      code: issue.code,
+      severity: 'error',
+      message: issue.message,
+      path: docPath,
+      srn,
+    })
+  }
+
   for (const field of unknownFields(data as Record<string, unknown>, expectedKind)) {
     diagnostics.push({
       code: 'E_FM_UNKNOWN_FIELD',
@@ -195,6 +209,16 @@ async function readEntity(
   // SRN grammar itself now that every path segment is bucketed — a misplaced
   // entity fails to parse above and never reaches this point.
 
+  if (hasLevelOneHeading(content)) {
+    diagnostics.push({
+      code: 'E_STRUCT_BODY_H1',
+      severity: 'error',
+      message: 'body carries a level-1 heading — the page renders `title` as the h1; start sections at "##"',
+      path: docPath,
+      srn,
+    })
+  }
+
   if (entities.has(srn)) {
     diagnostics.push({
       code: 'E_STRUCT_DUPLICATE_SRN',
@@ -221,6 +245,43 @@ async function readEntity(
   }
   entities.set(srn, entity)
   return entity
+}
+
+/**
+ * Does the prose carry a heading at level 1?
+ *
+ * The entity page already renders frontmatter `title` as the document's h1, so
+ * a `#` anywhere in the body makes a second one: an outline that no screen
+ * reader and no outline-consuming tool can read as a tree. Until this check
+ * existed every shipped entity opened with `# <title>` — the same string the
+ * header had just printed — so the rule costs authors a heading they were
+ * duplicating anyway (framework/spec/structure.md, "The document body").
+ *
+ * Fenced blocks are skipped, because `# solutions/acme/…` inside a fence is a
+ * path comment and the spec's examples are full of them. The fence state is a
+ * simple toggle on ``` / ~~~, which is exact for well-formed markdown; a
+ * document with an unclosed fence has a bigger problem than this diagnostic.
+ */
+function hasLevelOneHeading(body: string): boolean {
+  const lines = body.split('\n')
+  let fenced = false
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    if (/^\s{0,3}(```|~~~)/.test(line)) {
+      fenced = !fenced
+      continue
+    }
+    if (fenced) continue
+    if (/^\s{0,3}#\s/.test(line)) return true
+    // Setext: a run of "=" underlining a PARAGRAPH line is an h1 too, and it is
+    // the one spelling a `#`-only check would let through. Only a paragraph —
+    // the same run under a list item, a table row or a quote is not a heading.
+    const previous = index > 0 ? lines[index - 1] : ''
+    if (/^\s{0,3}=+\s*$/.test(line) && /^\s{0,3}[^\s#>|*+\-=]/.test(previous)) return true
+  }
+
+  return false
 }
 
 /**
@@ -252,24 +313,31 @@ async function readArtifacts(dir: string, prefix = ''): Promise<Artifact[]> {
     if (!ARTIFACT_EXTENSIONS.has(extension)) continue
 
     const raw = await readFile(path.join(dir, relFile), 'utf8')
+    const { data, error } = parseArtifact(extension, raw)
     artifacts.push({
       file: relFile,
       extension: extension as Artifact['extension'],
-      data: parseArtifact(extension, raw),
+      data,
       raw,
+      ...(error ? { error } : {}),
     })
   }
   return artifacts.sort((a, b) => a.file.localeCompare(b.file))
 }
 
-function parseArtifact(extension: string, raw: string): unknown {
+/**
+ * Parsing is fail-soft like everything else in the loader, but the reason is
+ * kept rather than swallowed: "this file is not valid YAML" is only actionable
+ * with the parser's own message and the position it points at.
+ */
+function parseArtifact(extension: string, raw: string): { data: unknown; error?: string } {
   try {
-    if (extension === '.json') return JSON.parse(raw)
-    if (extension === '.yaml' || extension === '.yml') return parseYaml(raw)
-  } catch {
-    return null
+    if (extension === '.json') return { data: JSON.parse(raw) }
+    if (extension === '.yaml' || extension === '.yml') return { data: parseYaml(raw) }
+  } catch (cause) {
+    return { data: null, error: cause instanceof Error ? cause.message : String(cause) }
   }
-  return null
+  return { data: null }
 }
 
 function collectRelations(
@@ -386,12 +454,24 @@ function resolveRelations(
       }
 
       if (relation.version !== null && relation.version !== target.frontmatter.version) {
-        // Historic versions live in git, not on disk; the git index resolves
-        // them lazily. Flag the mismatch so a stale pin is visible.
+        // NOT `E_SRN_VERSION`. V7 (srn.md) fails a pin that exists "neither on
+        // the filesystem nor in the version→commit index" — a reference to
+        // nothing, which is an error. This pin resolves: historic versions live
+        // in git, and evolution.md's worked example has `order@1` legitimately
+        // reading the v1 snapshot while the entity is at v3. Emitting the error
+        // code here for a legal pin put code, severity and the /diagnostics
+        // heading in three-way disagreement, and it is the loader that was
+        // wrong: only `lib/history/git.ts`, which can actually ask git whether a
+        // commit exists, is in a position to raise V7 — and it does.
+        //
+        // What is true here is narrower and worth saying on its own: the pin has
+        // fallen behind. Either a deliberate freeze or a forgotten migration,
+        // and only the author knows which, so it is a warning
+        // (decision-record amendment 2026-08-20-e).
         diagnostics.push({
-          code: 'E_SRN_VERSION',
+          code: 'W_REF_STALE_PIN',
           severity: 'warning',
-          message: `"${relation.ref}" pins v${relation.version} but current is v${target.frontmatter.version}`,
+          message: `"${relation.ref}" pins v${relation.version} but current is v${target.frontmatter.version} — the pin still resolves, from git`,
           path: path.join(entity.relDir, ENTITY_DOCUMENT),
           srn: entity.srn,
         })
@@ -413,4 +493,109 @@ function resolveRelations(
     }
   }
   return inbound
+}
+
+/**
+ * Checks that need the whole resolved graph rather than one document.
+ *
+ * Codes and severities are the kind documents': kinds/capability.md,
+ * kinds/journey.md and kinds/metric.md. The severity split there is consistent
+ * and worth reading as one rule — a violation is an *error* when the entity is
+ * meaningless without the fix (a metric with no subject is a figure, not an
+ * observation) and a *warning* when it is a true statement about a system still
+ * being built (a capability nothing realizes yet) or a judgement call about who
+ * owns a number.
+ */
+function checkGraphShape(
+  entities: Map<string, Entity>,
+  inbound: Map<string, Array<{ edge: EdgeType; from: string }>>,
+  diagnostics: Diagnostic[],
+): void {
+  for (const entity of entities.values()) {
+    const docPath = path.join(entity.relDir, ENTITY_DOCUMENT)
+    const at = (code: string, severity: Diagnostic['severity'], message: string) =>
+      diagnostics.push({ code, severity, message, path: docPath, srn: entity.srn })
+
+    if (entity.kind === 'capability') {
+      // The gap between capabilities described and capabilities realized is the
+      // roadmap; on an `approved` capability it is the number a solution
+      // dashboard leads with.
+      if (!(inbound.get(entity.srn) ?? []).some((edge) => edge.edge === 'realizes')) {
+        at('W_CAP_UNREALIZED', 'warning', 'no product or component realizes this capability')
+      }
+      // Realization is stated once, by the realizer. A capability reaching down
+      // to a component says the same thing in the direction that drifts.
+      for (const relation of entity.relations) {
+        if (relation.edge !== 'uses' || !relation.target) continue
+        if (entities.get(relation.target)?.kind !== 'component') continue
+        at(
+          'W_CAP_REALIZATION_EDGE',
+          'warning',
+          `"uses" toward component ${relation.target} — realization is the component's "realizes" edge`,
+        )
+      }
+    }
+
+    if (entity.kind === 'journey') {
+      // The protagonist is a frontmatter reference rather than a relation, so
+      // nothing above resolved it; a journey without a named actor is a list of
+      // touches.
+      const ref = (entity.frontmatter as { actor?: unknown }).actor
+      if (typeof ref === 'string') {
+        let target: string | null = null
+        try {
+          target = formatSrn({ ...parseSrn(resolveRef(entity.srn, ref)), version: null })
+        } catch (error) {
+          at(
+            error instanceof SrnError ? error.code : 'E_SRN_SYNTAX',
+            'error',
+            error instanceof Error ? error.message : String(error),
+          )
+        }
+        const actor = target ? entities.get(target) : null
+        if (target && !actor) {
+          at('E_SRN_DANGLING', 'error', `actor "${ref}" resolves to ${target}, which does not exist`)
+        } else if (actor && actor.kind !== 'actor') {
+          at('E_JRN_ACTOR_KIND', 'error', `actor "${ref}" resolves to a ${actor.kind}, not an actor`)
+        }
+      }
+    }
+
+    if (entity.kind === 'metric') {
+      const subjects = entity.relations.filter((relation) => relation.edge === 'measures')
+      if (subjects.length === 0) {
+        // The one required edge in the ontology. A number with no subject is not
+        // an observation, and the kind's whole derived value is reading the edge
+        // backwards, from the thing measured to the numbers that measure it.
+        at('E_MET_NO_SUBJECT', 'error', 'a metric with no "measures" edge is a figure, not an observation')
+      }
+
+      for (const relation of subjects) {
+        const subject = relation.target ? entities.get(relation.target) : null
+        if (!subject) continue
+        // Placement says whose number this is; `measures` says what it is about.
+        // They only have to agree where the subject sits in the containment tree
+        // at all — a capability is solution-level and owned by nobody, so it
+        // constrains nothing.
+        const subjectOwner = subject.kind === 'component' ? subject.srn : subject.parent
+        if (subject.kind === 'capability' || !subjectOwner || !entity.parent) continue
+        if (entity.parent === subjectOwner || isAncestor(entities, entity.parent, subjectOwner)) continue
+        at(
+          'W_MET_SUBJECT_SCOPE',
+          'warning',
+          `filed under ${entity.parent}, which neither owns nor contains the owner of ${relation.target}`,
+        )
+      }
+    }
+  }
+}
+
+/** Whether `candidate` sits somewhere above `srn` on the containment chain. */
+function isAncestor(entities: Map<string, Entity>, candidate: string, srn: string): boolean {
+  let cursor = entities.get(srn)?.parent ?? null
+  while (cursor) {
+    if (cursor === candidate) return true
+    cursor = entities.get(cursor)?.parent ?? null
+  }
+  return false
 }

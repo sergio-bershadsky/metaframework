@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/merchant-bonus",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/merchant-bonus",
+  "title": "Merchant bonus",
+  "description": "The reward printed on a merchant location, fired once when that location's free beer barrel is consumed by a sale.",
+  "type": "string",
+  "enum": [
+    "vp4",
+    "vp3",
+    "money5",
+    "income2",
+    "develop"
+  ]
+}

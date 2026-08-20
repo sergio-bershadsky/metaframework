@@ -1,12 +1,13 @@
 ---
 name: payment
 kind: component
-version: 5
+version: 6
 title: Payment
 summary: Orchestrates authorization, capture, and refund against the card acquirer, and publishes settlement facts.
 status: approved
 owner: team-payments
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -26,8 +27,6 @@ tags:
   - pci
 x-jira-epic: SHOP-142
 ---
-
-# Payment
 
 The sub-component that talks to money. It authorizes, captures, and refunds
 through [/product/shop/component/checkout/component/payment/component/psp](srn://acme/product/shop/component/checkout/component/payment/component/psp), owns the

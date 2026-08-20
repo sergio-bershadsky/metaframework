@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest'
+import { DEFAULT_HOST, DEFAULT_PORT, helpText, parseCli } from './args.mjs'
+
+/**
+ * Every refusal below is checked for *what it says*, not only that it refused.
+ * A CLI that exits 1 without naming the flag it disliked is a stack trace with
+ * better manners.
+ */
+
+describe('parseCli', () => {
+  it('serves on the default port and host with no arguments', () => {
+    expect(parseCli([])).toEqual({
+      ok: true,
+      command: 'serve',
+      dir: undefined,
+      port: DEFAULT_PORT,
+      host: DEFAULT_HOST,
+      open: false,
+      watch: true,
+    })
+  })
+
+  it('does not default to 3000, which is already taken on every machine', () => {
+    expect(DEFAULT_PORT).not.toBe(3000)
+  })
+
+  it('reads the flags', () => {
+    expect(parseCli(['--dir', '../catalog', '--port', '4000', '--host', '0.0.0.0', '--open'])).toMatchObject({
+      dir: '../catalog',
+      port: 4000,
+      host: '0.0.0.0',
+      open: true,
+    })
+    expect(parseCli(['-d', 'x', '-p', '9', '--no-watch'])).toMatchObject({ dir: 'x', port: 9, watch: false })
+    expect(parseCli(['--port=4000'])).toMatchObject({ port: 4000 })
+  })
+
+  it('takes `check` as a command', () => {
+    expect(parseCli(['check', '--dir', 'x'])).toMatchObject({ command: 'check', dir: 'x' })
+  })
+
+  it('answers --help and --version before complaining about anything else', () => {
+    expect(parseCli(['--help'])).toMatchObject({ command: 'help' })
+    expect(parseCli(['-v'])).toMatchObject({ command: 'version' })
+    expect(parseCli(['nonsense', '--help'])).toMatchObject({ command: 'help' })
+  })
+
+  it('names the option it did not recognise', () => {
+    const refusal = parseCli(['--watch'])
+    expect(refusal.ok).toBe(false)
+    expect(refusal.message).toContain('--watch')
+    expect(refusal.message).toContain('--help')
+    // parseArgs' trailing advice about quoting positionals is not the mistake.
+    expect(refusal.message).not.toContain('positional')
+  })
+
+  it('names the command it did not recognise', () => {
+    expect(parseCli(['lint'])).toMatchObject({ ok: false, message: expect.stringContaining('"lint"') })
+    expect(parseCli(['check', 'twice'])).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('"twice"'),
+    })
+  })
+
+  it('rejects a port that is not a port', () => {
+    for (const port of ['abc', '-1', '70000', '80.5', '']) {
+      expect(parseCli(['--port', port]).ok).toBe(false)
+    }
+    // 0 parses as a number and would even bind — but the kernel picks the port
+    // and the banner would have no URL to print.
+    expect(parseCli(['--port', '0'])).toMatchObject({ ok: false, message: expect.stringContaining('65535') })
+  })
+
+  it('rejects an empty --host', () => {
+    expect(parseCli(['--host', '  '])).toMatchObject({ ok: false, message: expect.stringContaining('--host') })
+  })
+
+  it('refuses serve-only flags on `check` instead of ignoring them', () => {
+    expect(parseCli(['check', '--open'])).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('--open'),
+    })
+    expect(parseCli(['check', '--no-watch'])).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('--no-watch'),
+    })
+  })
+})
+
+describe('helpText', () => {
+  it('states the precedence rule, which is the one thing running it cannot show', () => {
+    expect(helpText()).toContain('--dir beats CATALOG_DIR beats discovery')
+  })
+
+  it('documents every option the parser accepts', () => {
+    const help = helpText()
+    for (const flag of ['--dir', '--port', '--host', '--open', '--no-watch', '--version', '--help']) {
+      expect(help).toContain(flag)
+    }
+    expect(help).toContain(String(DEFAULT_PORT))
+  })
+})

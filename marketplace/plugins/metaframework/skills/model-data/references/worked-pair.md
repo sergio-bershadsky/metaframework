@@ -1,10 +1,14 @@
 # Worked pair — an abstract base and the model derived from it
 
-> Reproduced **verbatim** from the shipped catalog. Base:
-> `solutions/acme/datamodel/base-record/`; derived:
-> `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/`.
+> Reproduced from the shipped catalog. Base: `solutions/acme/datamodel/base-record/`;
+> derived: `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/`.
 > When the repository is present, read the originals; this copy exists because
 > an installed plugin cannot see them.
+>
+> Identity here is the current convention: a required root `$id` on the canonical
+> constant host `https://schemas.metaframework.dev`, and a required `x-srn`
+> carrying the entity's unversioned SRN. Both are derived from the file's own
+> path — see `schemas.md`.
 
 ```text
 solutions/acme/
@@ -49,7 +53,8 @@ framework names it as its own error class rather than leaving it to review.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/datamodel/base-record",
+  "$id": "https://schemas.metaframework.dev/acme/datamodel/base-record",
+  "x-srn": "srn://acme/datamodel/base-record",
   "title": "Base record",
   "description": "Identity and creation time. Extended through allOf; never instantiated alone.",
   "type": "object",
@@ -79,7 +84,7 @@ the schema's `$ref` edges are absent from `relations`:
 ---
 name: order
 kind: datamodel
-version: 3
+version: 4
 title: Order
 summary: Customer order aggregate persisted by the payment component and published on settlement.
 status: approved
@@ -99,25 +104,26 @@ property, an array of another entity, and one private `$defs` shape:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "description": "Order aggregate owned by the payment component.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     },
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/auditable"
     }
   ],
   "properties": {
     "total": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "Gross amount payable."
     },
     "discount": {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/money",
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/money",
       "description": "Applied discount; added in version 2. Never exceeds total."
     },
     "status": {
@@ -129,13 +135,13 @@ property, an array of another entity, and one private `$defs` shape:
       "description": "\"refunded\" added in version 3. Moves forward only."
     },
     "payment": {
-      "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method",
+      "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/payment-method",
       "description": "The instrument that was actually charged."
     },
     "lines": {
       "type": "array",
       "items": {
-        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
+        "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-line"
       },
       "description": "Lines as authorized."
     },
@@ -170,8 +176,9 @@ property, an array of another entity, and one private `$defs` shape:
 
 Audit of the pair: the base is `abstract: true`, carries no `examples/`, and does
 not close itself; both `allOf` branches point at abstract models, so no
-`W_DM_ABSTRACT_USE`; the `$id` of each equals `SCHEMA_BASE_URL + "/schemas/" +`
-its SRN path; every cross-entity `$ref` is an unpinned absolute schema URL;
+`W_DM_ABSTRACT_USE`; the `$id` of each is the canonical host plus its SRN path
+and its `x-srn` is `srn://` plus the same path, both derived from the directory
+rather than typed; every cross-entity `$ref` is an unpinned canonical schema URL;
 `positive-int` stays private because it is trivial and single-entity, while
 `money` was promoted because five entities need it; the `money@1` pin, where a
 pin is wanted, lives in a `relations.uses` edge and never in a `$ref`.

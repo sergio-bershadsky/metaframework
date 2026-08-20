@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/built-tile",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/built-tile",
+  "title": "Built tile",
+  "description": "An industry tile placed in a city slot. (city, slot-index) is unique across the board.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/owned-piece"
+    }
+  ],
+  "properties": {
+    "city": {
+      "type": "string",
+      "description": "Board-location id of the build location. Includes the two farm breweries."
+    },
+    "slot-index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Index into that location's slots array. Part of the move id, so the slot order is frozen data."
+    },
+    "industry": {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/industry-type"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "Tile level, taken from the head of the owner's mat stack. Every level-1 tile is purged from the board at the canal-to-rail transition."
+    },
+    "flipped": {
+      "type": "boolean",
+      "description": "Flipped tiles score their vp and have already paid their income spaces. Resource tiles flip when drained; sellable tiles flip when sold."
+    },
+    "resources": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Cubes for coal/iron (from tile-spec.produces), barrels for a brewery (from beerProduced(era): 1 canal, 2 rail), always 0 for cotton/manufacturer/pottery."
+    }
+  },
+  "required": [
+    "city",
+    "slot-index",
+    "industry",
+    "level",
+    "flipped",
+    "resources"
+  ]
+}

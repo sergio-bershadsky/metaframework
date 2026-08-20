@@ -15,8 +15,6 @@ tags:
   - regulated
 ---
 
-# Production
-
 The only target that holds customer data of record. Everything deployed here is
 `status: approved` at the version that is running; a component still in `draft`
 has no business declaring `uses: /environment/production`, and the reviewer's

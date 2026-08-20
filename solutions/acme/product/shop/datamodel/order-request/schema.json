@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-request",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-request",
+  "x-srn": "srn://acme/product/shop/datamodel/order-request",
   "title": "Order request",
   "description": "Wire payload of submit-order. Never persisted in this shape.",
   "type": "object",
@@ -20,12 +21,12 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line"
+        "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-line"
       },
       "description": "Lines as the customer confirmed them, echoed back for verification."
     },
     "payment": {
-      "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method",
+      "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/payment-method",
       "description": "Tagged payment instrument."
     },
     "email": {

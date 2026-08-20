@@ -32,8 +32,6 @@ tags:
   - asynchronous
 ---
 
-# Redemption events
-
 One publisher of redemptions, three consumers, none of which the publisher knows
 about. [campaign-manager](srn://acme/product/growth/component/campaign-manager)
 is the one participant on both sides — it consumes redemptions to advance a

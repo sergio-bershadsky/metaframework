@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/deck-config",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/deck-config",
+  "title": "Deck config",
+  "description": "Per-face card distribution for one seat count. Totals: 40 cards at 2 seats, 54 at 3, 64 at 4.",
+  "type": "object",
+  "properties": {
+    "locations": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/copy-count"
+      },
+      "description": "Board-location id to number of copies. Key set widens with seat count: blue-banner cities at 3 seats, teal at 4, plus a second 4-only Uttoxeter."
+    },
+    "industry": {
+      "type": "object",
+      "properties": {
+        "iron": {
+          "$ref": "#/$defs/copy-count"
+        },
+        "coal": {
+          "$ref": "#/$defs/copy-count"
+        },
+        "pottery": {
+          "$ref": "#/$defs/copy-count"
+        },
+        "brewery": {
+          "$ref": "#/$defs/copy-count"
+        }
+      },
+      "required": [
+        "iron",
+        "coal",
+        "pottery",
+        "brewery"
+      ],
+      "description": "Single-industry card faces. Cotton and manufacturer have no single-face card; they appear only as the dual card below."
+    },
+    "dual-cotton-manufacturer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Cards whose face allows either cotton or manufacturer. 0 at 2 seats, 6 at 3, 8 at 4."
+    }
+  },
+  "required": [
+    "locations",
+    "industry",
+    "dual-cotton-manufacturer"
+  ],
+  "$defs": {
+    "copy-count": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

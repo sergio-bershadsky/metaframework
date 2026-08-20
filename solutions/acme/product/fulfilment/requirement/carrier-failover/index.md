@@ -17,8 +17,6 @@ tags:
   - logistics
 ---
 
-# A paid order always finds a carrier, or a human
-
 Once a customer has paid, there is no acceptable outcome in which a parcel
 quietly fails to be booked. Either a carrier takes it, or a person is told that
 one did not — within minutes, not on the next morning's exception report.

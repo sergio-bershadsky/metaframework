@@ -1,27 +1,29 @@
 #!/usr/bin/env python3
-"""Rewrite every catalog `schema.json` onto HTTP-resolvable identity.
+"""Normalise every catalog `schema.json` onto canonical, dereferenceable identity.
 
-Decision record 2026-08-19-c supersedes 2026-08-19-b: a schema is identified by
-the URL the portal actually serves it at, and every cross-entity `$ref` is that
-same absolute URL for its target. This script performs the migration exactly,
-which is the point of writing it rather than hand-editing fourteen files.
+Decision record 2026-08-19-c supersedes 2026-08-19-b: a schema is identified by a
+canonical HTTP URL, and every cross-entity `$ref` is that same URL for its
+target. This script performs the normalisation exactly, which is the point of
+writing it rather than hand-editing fifty files.
 
 Per document:
 
-  * add ``$id`` = the entity's schema URL, immediately after ``$schema``
-  * rewrite every relative-path ``$ref`` to the absolute schema URL of the
-    entity it resolves to, verifying that entity exists
-  * drop the retired ``x-srn`` annotation — ``$id`` now carries identity
+  * set ``$id`` = the entity's canonical schema URL, immediately after ``$schema``
+  * set ``x-srn`` = the entity's unversioned SRN, immediately after ``$id``
+  * rewrite every ``$ref`` — relative file path or stale URL — to the canonical
+    schema URL of the entity it resolves to, verifying that entity exists
   * leave local JSON Pointers (``#/$defs/...``) untouched
 
-The base URL is never hand-typed: it comes from SCHEMA_BASE_URL, exactly as
-``framework/portal/src/lib/schema/url.ts`` reads it, so the strings on disk and
-the strings the portal computes are produced by one source of truth.
+The host is **not** configuration. ``CANONICAL_SCHEMA_HOST`` mirrors the constant
+in ``framework/portal/src/lib/schema/url.ts`` and is the same string everywhere:
+identity must not vary between a developer's machine and production, because
+registries and caches key on ``$id``. ``SCHEMA_BASE_URL`` still exists and still
+controls where the portal *serves* schemas (the ``/schemas`` route); it must
+never reach an artifact, and this script rewrites it away when it finds one.
 
 The script is idempotent and **origin-agnostic on input**: an ``$id`` or ``$ref``
-that is already a schema URL is re-based onto the configured origin rather than
-rejected. That is what makes it the tool for the portability rule as well as for
-the one-time migration — change SCHEMA_BASE_URL, run this, commit the result.
+that is already some schema URL — canonical, a localhost serving address, an old
+deployment's host — is re-based onto the canonical host rather than rejected.
 
 Usage::
 
@@ -35,15 +37,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
 
-DEFAULT_SCHEMA_BASE_URL = "http://localhost:3000"
+# Mirrors CANONICAL_SCHEMA_HOST in framework/portal/src/lib/schema/url.ts.
+CANONICAL_SCHEMA_HOST = "https://schemas.metaframework.dev"
+# The route a portal serves schemas under. Recognised on input only, so a stale
+# serving address is rewritten instead of being mistaken for an entity path.
 SCHEMA_ROUTE = "/schemas"
 SCHEMA_ARTIFACT = "schema.json"
 ENTITY_DOCUMENT = "index.md"
+SRN_SCHEME = "srn://"
 
 # Mirrors RESERVED_KINDS in framework/portal/src/lib/srn/srn.ts. A path segment
 # in one of these positions is a kind bucket, not an entity name.
@@ -65,14 +70,14 @@ class MigrationError(Exception):
     """A defect in the catalog that the migration must not paper over."""
 
 
-def schema_base_url() -> str:
-    base = os.environ.get("SCHEMA_BASE_URL", "").strip() or DEFAULT_SCHEMA_BASE_URL
-    return base.rstrip("/")
-
-
 def schema_url(catalog_path: str) -> str:
-    """`acme/datamodel/money` -> the URL the portal serves its schema at."""
-    return f"{schema_base_url()}{SCHEMA_ROUTE}/{catalog_path}"
+    """`acme/datamodel/money` -> the entity's canonical schema URL."""
+    return f"{CANONICAL_SCHEMA_HOST}/{catalog_path}"
+
+
+def entity_srn(catalog_path: str) -> str:
+    """`acme/datamodel/money` -> `srn://acme/datamodel/money`, never pinned."""
+    return f"{SRN_SCHEME}{catalog_path}"
 
 
 def assert_srn_path(catalog_path: str, context: str) -> None:
@@ -123,18 +128,22 @@ def resolve_relative_ref(from_dir: str, ref: str, context: str) -> str:
 
 
 def target_of_absolute_ref(ref: str, context: str) -> str:
-    """Catalog path an already-absolute schema URL addresses, whatever its origin.
+    """Catalog path an already-absolute schema URL addresses, whatever its host.
 
-    Deliberately origin-agnostic: this is what lets the script *re-base* a
-    migrated catalog onto a new SCHEMA_BASE_URL, not merely convert a fresh one.
-    The origin is discarded and rebuilt from the environment, so running the
-    script is always "normalise every reference onto the configured base".
+    Deliberately host-agnostic: this is what lets the script normalise a catalog
+    written against an old host or against a portal's `/schemas` serving address
+    onto canonical identity, not merely convert a fresh one.
     """
-    marker = f"{SCHEMA_ROUTE}/"
-    at = ref.find(marker)
-    if at == -1:
-        raise MigrationError(f"{context}: {ref!r} is an absolute URL but not a schema URL ({marker} missing)")
-    path = ref[at + len(marker) :]
+    if ref.startswith(f"{CANONICAL_SCHEMA_HOST}/"):
+        path = ref[len(CANONICAL_SCHEMA_HOST) + 1 :]
+    else:
+        # A serving address: {origin}/schemas/{srn-path}. Recognised so it can be
+        # rewritten away — where a portal serves a schema is not what it is.
+        marker = f"{SCHEMA_ROUTE}/"
+        at = ref.find(marker)
+        if at == -1:
+            raise MigrationError(f"{context}: {ref!r} is an absolute URL but not a schema URL")
+        path = ref[at + len(marker) :]
     if not path or "#" in path or "?" in path:
         raise MigrationError(f"{context}: {ref!r} is not a bare schema address")
     if "@" in path:
@@ -158,14 +167,11 @@ def rewrite_refs(node, from_dir: str, catalog: Path, context: str, seen: list[st
                 out[key] = value
                 continue
             if value.startswith(("http://", "https://")):
-                # Already migrated: re-base it onto the configured origin. On an
-                # unchanged SCHEMA_BASE_URL this is a no-op, which is what makes
-                # the script idempotent.
                 target = target_of_absolute_ref(value, context)
             else:
                 target = resolve_relative_ref(from_dir, value, context)
             assert_srn_path(target, context)
-            # The proof that the URL will dereference: the file it maps to is
+            # The proof that the URL names something real: the file it maps to is
             # on disk right now, and it belongs to a real entity.
             if not (catalog / target / SCHEMA_ARTIFACT).is_file():
                 raise MigrationError(f"{context}: {value!r} -> {target}/{SCHEMA_ARTIFACT} does not exist")
@@ -184,13 +190,14 @@ def migrate_document(document: dict, from_dir: str, catalog: Path, context: str)
     seen: list[str] = []
     rewritten = rewrite_refs(document, from_dir, catalog, context, seen)
 
-    # Key order is part of the artifact's readability: dialect first, then
-    # identity, then the schema proper. `x-srn` is retired — $id says it now,
-    # and says it in a form a validator can act on.
+    # Key order is part of the artifact's readability: dialect first, then the
+    # two identity keywords — `$id` (what a validator acts on) and `x-srn` (the
+    # same fact in the framework's own vocabulary) — then the schema proper.
     out: dict = {}
     if "$schema" in rewritten:
         out["$schema"] = rewritten["$schema"]
     out["$id"] = schema_url(from_dir)
+    out["x-srn"] = entity_srn(from_dir)
     for key, value in rewritten.items():
         if key in ("$schema", "$id", "x-srn"):
             continue
@@ -214,7 +221,7 @@ def main() -> int:
         print(f"no {SCHEMA_ARTIFACT} found under {catalog}", file=sys.stderr)
         return 2
 
-    print(f"base URL: {schema_base_url()}  ({len(files)} schema documents)\n")
+    print(f"canonical host: {CANONICAL_SCHEMA_HOST}  ({len(files)} schema documents)\n")
     changed = 0
     refs_total = 0
     failures: list[str] = []
@@ -239,7 +246,7 @@ def main() -> int:
         refs_total += len(refs)
 
         if rendered == original:
-            print(f"  ok   {context} (already migrated)")
+            print(f"  ok   {context} (already canonical)")
             continue
 
         changed += 1

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/built-link",
+  "x-srn": "srn://brass/product/play/component/rules/component/engine-core/datamodel/built-link",
+  "title": "Built link",
+  "description": "A canal or rail token on one printed edge. At most one link per edge, by anybody. Every link is cleared at the canal-to-rail transition.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/engine-core/datamodel/owned-piece"
+    }
+  ],
+  "properties": {
+    "a": {
+      "type": "string",
+      "description": "One endpoint's board-location id. Undirected: consumers compare both orderings."
+    },
+    "b": {
+      "type": "string",
+      "description": "The other endpoint's board-location id."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "canal",
+        "rail"
+      ],
+      "description": "Token type, always equal to the era it was built in. Canal links cost 3 and no coal; rail links cost 5 plus 1 coal, or 15 plus 2 coal and 1 beer for a double build."
+    }
+  },
+  "required": [
+    "a",
+    "b",
+    "kind"
+  ]
+}

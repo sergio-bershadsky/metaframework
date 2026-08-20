@@ -1,4 +1,5 @@
 import { EntityLink } from '@/components/entity-link'
+import { SectionHeading } from '@/components/entity/section-heading'
 import type { Catalog, Entity } from '@/lib/catalog'
 import { kindFieldNames } from '@/lib/catalog/frontmatter'
 import { mentionsInValue } from '@/lib/catalog/mentions'
@@ -12,16 +13,31 @@ import { mentionsInValue } from '@/lib/catalog/mentions'
  * the difference between "references are linked" as a property of the system
  * and as a list someone has to maintain.
  */
-export function EntityDetails({ entity, catalog }: { entity: Entity; catalog: Catalog }) {
+export function EntityDetails({
+  entity,
+  catalog,
+  omit = [],
+}: {
+  entity: Entity
+  catalog: Catalog
+  /**
+   * Fields the page has already drawn somewhere better — a metric's stat block,
+   * a component's lifecycle chip. Omitted here rather than never promoted,
+   * because "every kind field appears exactly once" is the property worth
+   * keeping, and this list is the only place that can be checked.
+   */
+  omit?: readonly string[]
+}) {
   const fields = kindFieldNames(entity.kind)
+    .filter((field) => !omit.includes(field))
     .map((field) => [field, (entity.frontmatter as Record<string, unknown>)[field]] as const)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
 
   if (fields.length === 0) return null
 
   return (
-    <section className="mt-10">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Details</h2>
+    <section className="mt-10" aria-labelledby="section-details">
+      <SectionHeading id="section-details">Details</SectionHeading>
 
       <dl className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-[max-content_1fr]">
         {fields.map(([field, value]) => (
@@ -66,36 +82,17 @@ function FieldValue({ value, entity, catalog }: { value: unknown; entity: Entity
   }
 
   if (Array.isArray(value)) {
-    return (
-      <ul className="flex flex-col gap-1.5">
-        {value.map((item, index) => (
-          <li key={index} className="flex flex-wrap items-baseline gap-x-2">
-            {typeof item === 'object' && item !== null ? (
-              Object.entries(item as Record<string, unknown>).map(([key, inner]) => (
-                <span key={key} className="flex items-baseline gap-1">
-                  <span className="font-mono text-[11px] text-muted-foreground">{key}</span>
-                  {renderScalar(inner, key) ?? <span>{String(inner)}</span>}
-                </span>
-              ))
-            ) : (
-              renderScalar(item, String(index))
-            )}
-          </li>
-        ))}
-      </ul>
-    )
+    return <ValueList items={value} renderScalar={renderScalar} />
   }
 
   if (typeof value === 'object' && value !== null) {
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         {Object.entries(value as Record<string, unknown>).map(([key, inner]) => (
           <div key={key} className="flex flex-wrap items-baseline gap-x-2">
             <span className="font-mono text-[11px] text-muted-foreground">{key}</span>
             {Array.isArray(inner) ? (
-              <span className="flex flex-wrap gap-x-2">
-                {inner.map((item, index) => renderScalar(item, String(index)) ?? null)}
-              </span>
+              <ValueList items={inner} renderScalar={renderScalar} />
             ) : (
               (renderScalar(inner, key) ?? <span>{String(inner)}</span>)
             )}
@@ -106,4 +103,48 @@ function FieldValue({ value, entity, catalog }: { value: unknown; entity: Entity
   }
 
   return renderScalar(value) ?? <span>{String(value)}</span>
+}
+
+/**
+ * An array-valued field, drawn as the list it is.
+ *
+ * A nested array used to be laid out as wrapped inline spans, which is fine for
+ * three one-word tags and wrong for everything else: `scope.in` carries four
+ * whole sentences, and run together with a space between them they read as two
+ * or three sentences of prose rather than as four items. Nothing in the text
+ * says where one ends — the reader has to reconstruct the boundaries from the
+ * punctuation, which is exactly the work a list marker does for free.
+ *
+ * The marker needs the `li` to stay `display: list-item`, so the row's flex box
+ * is an inner span rather than the item itself.
+ */
+function ValueList({
+  items,
+  renderScalar,
+}: {
+  items: readonly unknown[]
+  renderScalar: (scalar: unknown, key?: string) => React.ReactNode
+}) {
+  if (items.length === 0) return null
+
+  return (
+    <ul className="basis-full list-disc space-y-1 pl-4.5 marker:text-muted-foreground/50">
+      {items.map((item, index) => (
+        <li key={index}>
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            {typeof item === 'object' && item !== null ? (
+              Object.entries(item as Record<string, unknown>).map(([key, inner]) => (
+                <span key={key} className="flex items-baseline gap-1">
+                  <span className="font-mono text-[11px] text-muted-foreground">{key}</span>
+                  {renderScalar(inner, key) ?? <span>{String(inner)}</span>}
+                </span>
+              ))
+            ) : (
+              renderScalar(item, String(index))
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
 }

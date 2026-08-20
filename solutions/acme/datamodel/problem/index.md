@@ -13,8 +13,6 @@ tags:
   - errors
 ---
 
-# Problem details
-
 Every failure that crosses a component boundary is a problem document, whatever
 the transport. One shape, so that a caller writes one error path instead of one
 per callee, and so that a support agent reading a log sees the same five fields

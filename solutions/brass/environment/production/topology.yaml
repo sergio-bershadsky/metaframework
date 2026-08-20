@@ -1,0 +1,34 @@
+regions:
+  - name: hetzner
+    notes: |
+      One k3s node, reached at 95.217.227.186, namespace `brass`. The Hetzner
+      datacentre is not recorded anywhere in the repository — only the node's
+      public address — so the region is named for the provider rather than
+      guessed as hel1 or nbg1. There are no failure domains to declare: a single
+      node has none.
+
+hosts:
+  - component: /product/play/component/server
+    regions: [hetzner]
+    replicas: { min: 1, max: 1 }
+    scaling: none — match state lives in the pod, so a second replica would shard games
+    notes: |
+      Deployment strategy is Recreate, not RollingUpdate, so two pods never
+      overlap. Port 8080; readiness and liveness both probe GET /games, which is
+      the boardgame.io lobby index and returns ["brass"].
+
+  - component: /product/play/component/web-client
+    regions: [hetzner]
+    replicas: { min: 1, max: 1 }
+    scaling: none — a static nginx image; one replica is sized for the traffic
+    notes: nginx:1.27-alpine serving the built SPA on port 80, with history fallback for /play/.
+
+  - component: /product/play/component/edge-router
+    regions: [hetzner]
+    replicas: { min: 1, max: 1 }
+    scaling: none — the cluster's shared Traefik, not a workload this solution scales
+    notes: |
+      Not a deployment of ours: the entry is the Ingress object this solution
+      installs into the cluster's existing Traefik. It is listed so the placement
+      view shows the component that owns the path split, and the replica count is
+      the ingress controller's, recorded for completeness rather than managed here.

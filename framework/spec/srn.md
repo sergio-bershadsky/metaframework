@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: srn
-version: 3
+version: 6
 status: review
 title: SRN — Solution Resource Name
-summary: The complete SRN grammar — bucketed syntax, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection, and validation rules.
+summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
 ---
 
 # SRN — Solution Resource Name
@@ -14,12 +14,11 @@ entity has exactly one SRN; the SRN maps 1:1 to the entity's directory under
 `solutions/`; and the same syntax is used in frontmatter, workflow YAML, and
 prose. There is no second addressing scheme for catalog references.
 
-One artifact is deliberately outside this rule: `schema.json` addresses other
-schemas by the HTTP URL the portal serves them at, so that standard JSON Schema
-tooling can *dereference* them unaided
-([below](#json-schema-is-the-one-exception)). That URL is not a second identity
-scheme — it is the SRN with a different prefix, and the entity's SRN remains the
-identity the catalog reasons in.
+One artifact *writes* it differently: `schema.json` addresses other schemas by
+the HTTP URL the portal serves them at, so that standard JSON Schema tooling can
+*dereference* them unaided ([below](#the-schema-url-projection)). That is a
+change of spelling, not of scheme — the URL is the SRN with a different prefix,
+and the next section states the rule that binds them.
 
 Every entity below the solution lives in a **kind bucket**, so an SRN path is a
 strict alternation of bucket and name:
@@ -37,7 +36,53 @@ srn://acme/product/shop/component/checkout/datamodel/cart@1   # component-owned 
 srn://acme/product/shop/protocol/order-placement@2            # product-level protocol
 srn://acme/actor/customer                                     # solution-level actor
 srn://acme/datamodel/money@1                                  # solution-level datamodel
+srn://acme/capability/order-fulfilment                        # solution-level capability
+srn://acme/journey/place-an-order                             # solution-level journey
+srn://acme/product/shop/metric/checkout-conversion            # product-owned metric
 ```
+
+## The consolidating principle
+
+> **The SRN is the identity. The schema URL is its dereferenceable projection.
+> The disk path is its storage. All three are mechanically inter-convertible,
+> and none of them is a second addressing scheme.**
+
+Three views of one string. The catalog reasons in the SRN, the filesystem stores
+it, and JSON Schema tooling dereferences it. Converting between the views is
+surgery on a prefix — never a lookup, never a table:
+
+```text
+srn://acme/datamodel/money                              # identity   — what the catalog says
+solutions/acme/datamodel/money/                         # storage    — strip "srn://", prefix "solutions/"
+https://schemas.metaframework.dev/acme/datamodel/money  # projection — strip "srn://", prefix the canonical host
+```
+
+The projection's host is a **stable canonical constant**, not an environment
+variable: identity must not vary between a developer's machine and production
+([kinds/datamodel.md](kinds/datamodel.md)). And the projection does not erase the
+identity view — a `schema.json` states its SRN outright, in `x-srn`, so all
+three views are legible in the artifact itself rather than only recoverable by
+applying a parsing rule.
+
+Every rule in this document follows from that. Placement is a directory rule
+*and* a grammar rule because the path and the SRN are one string
+([structure.md](structure.md)). The solution boundary is checkable on a bare URL
+because the first path segment after the host is the solution
+([kinds/solution.md](kinds/solution.md)). A `$ref` maps back to an SRN by
+deleting a prefix, which is why the portal can render URL edges as SRN pairs
+without resolving anything.
+
+The one asymmetry, stated so it is not mistaken for drift: **the projection drops
+the `@version` pin.** A schema URL addresses the *current* schema of an entity,
+and a `@N` inside one is rejected rather than ignored
+([kinds/datamodel.md](kinds/datamodel.md)). Pins live where git-backed history
+can resolve them — frontmatter `relations` and prose — so the identity view
+carries a version and the projection does not.
+
+This principle is normative. Its absence from an earlier revision is precisely
+what let `schema.json` be documented as an addressing scheme of its own, with
+rules that then drifted out of step with the rest of the spec. A `$ref` is an
+SRN wearing a prefix that `curl` understands, and nothing more.
 
 ## Why buckets
 
@@ -102,7 +147,9 @@ body          = "/" ( "component"    "/" name [ body ]
                     / scoped-kind    "/" name )
 
 solution-kind = "actor" / "environment"           ; describe the whole solution
-scoped-kind   = "datamodel" / "protocol" / "adr" / "requirement"
+              / "capability" / "journey"
+scoped-kind   = "datamodel" / "protocol" / "adr"  ; hang under whatever owns them
+              / "requirement" / "metric"
 
 segment       = word *( "-" word )                ; kebab-case, 1–64 chars total
 word          = 1*( lower / digit )
@@ -117,7 +164,7 @@ Constraints beyond the ABNF:
 
 - A reserved kind keyword MUST NOT be used as a `solution` or a `name`
   (`E_SRN_RESERVED`, [below](#reserved-kinds)). ABNF cannot express "any
-  segment except these eight literals" without unreadable noise, so the rule is
+  segment except these eleven literals" without unreadable noise, so the rule is
   stated rather than encoded.
 - The `@version` suffix MAY appear only on the **final** segment.
   `srn://acme/product/shop@2/component/checkout` is `E_SRN_SYNTAX`.
@@ -140,11 +187,12 @@ A reference that does not match is classified by **where** it fails, because one
 
 ## Reserved kinds
 
-There are **eight** kind buckets, and they are the only words that may stand in
+There are **eleven** kind buckets, and they are the only words that may stand in
 a `kind` position:
 
 ```text
 product  component  datamodel  protocol  actor  environment  adr  requirement
+capability  journey  metric
 ```
 
 They MUST NOT be used as a solution or entity **name** (`E_SRN_RESERVED`) — they
@@ -156,17 +204,44 @@ srn://acme/product/shop/datamodel/order-line   # legal — every odd segment is 
 srn://protocol/product/shop                    # ILLEGAL — solution named "protocol"
 srn://acme/product/shop/adr/adr                # ILLEGAL — entity named "adr"
 srn://acme/product/component                   # ILLEGAL — entity named "component"
+srn://acme/product/shop/datamodel/metric       # ILLEGAL — entity named "metric"
 ```
 
-Two of the eight are **containers** — they may own further entities:
+The second line of the bucket list is the later arrival, and the split is worth keeping
+visible: the set grows by **appending**, never by re-sorting or re-cutting, so a
+word that was a bucket stays a bucket and a word that was free for naming may
+stop being free. That last direction is the one with a cost — adopting a bucket
+takes its word out of circulation everywhere at once, and any existing entity
+named after it does not merely become illegal, it silently changes what its path
+means. None existed when these three were adopted, which is why they could be
+adopted at all ([evolution.md](evolution.md), decision-record amendment
+2026-08-20-a).
+
+Two of the eleven are **containers** — they may own further entities:
 
 ```text
 product  component
 ```
 
-The other six are leaves. `actor` and `environment` are additionally
-**solution-level**: they describe the solution as a whole and may only be the
-first pair. Both facts are enforced by the grammar, not by convention
+The other nine are leaves, and they divide by *what they are about*:
+
+```text
+solution-level   actor  environment  capability  journey
+owner-scoped     datamodel  protocol  adr  requirement  metric
+```
+
+A **solution-level** kind describes the solution as a whole and may only be the
+first pair: an actor and an environment sit outside any one product, a
+capability is something the business can do rather than something a component
+happens to contain, and a journey crosses the solution by definition — a product
+owning one would be claiming a path it cannot see the ends of.
+
+An **owner-scoped** kind hangs under whatever it belongs to, from the solution
+down to the deepest component. `metric` is scoped exactly as `requirement` is,
+and for the same reason: a number is only meaningful about *something*, so it
+lives with the thing it measures rather than in one solution-wide pile.
+
+All of this is enforced by the grammar, not by convention
 ([below](#placement-is-grammar)).
 
 ## Parsing algorithm
@@ -186,9 +261,13 @@ executable copy:
 import re
 
 RESERVED_KINDS  = {"product", "component", "datamodel", "protocol",
-                   "actor", "environment", "adr", "requirement"}
+                   "actor", "environment", "adr", "requirement",
+                   "capability", "journey", "metric"}
 CONTAINER_KINDS = {"product", "component"}          # may own further entities
-SOLUTION_KINDS  = {"actor", "environment"}          # may only be the first pair
+SOLUTION_KINDS  = {"actor", "environment",          # may only be the first pair
+                   "capability", "journey"}
+# Everything else is owner-scoped and needs no rule of its own: the container
+# check below is already the whole of its placement.
 
 SEGMENT = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 VERSION = re.compile(r"[1-9][0-9]*")
@@ -255,7 +334,7 @@ def split_version(body: str):
 def assert_placement(path):
     """Ownership is positional, so it is decided here rather than by the loader:
     a product hangs off the solution, a component off a product or component,
-    actors and environments describe the solution as a whole, and a leaf kind
+    the solution-level kinds describe the solution as a whole, and a leaf kind
     owns nothing at all."""
     for index, segment in enumerate(path):
         parent = None if index == 0 else path[index - 1].kind
@@ -284,6 +363,11 @@ Notes pinned by tests (`framework/portal/src/lib/srn/srn.test.ts`):
   alternate").
 - `srn://acme/shop/checkout` → `E_SRN_SYNTAX` (`"shop" is not a kind bucket`).
   The pre-bucket flat form does not parse; there is no compatibility mode.
+- `srn://acme/metric/order-conversion` → `path` `[(metric, order-conversion)]`.
+  The same string was `E_SRN_SYNTAX` before `metric` became a bucket, which is
+  the reinterpretation a new reserved word buys: the word is read as a kind now,
+  never as a name. `srn://acme/product/shop/datamodel/metric` is therefore
+  `E_SRN_RESERVED`, not a datamodel called "metric".
 
 ## Placement is grammar
 
@@ -297,7 +381,13 @@ after building the graph.
 | P1  | Only a `product` or a `component` may own anything.             | `srn://acme/datamodel/money/datamodel/currency` |
 | P2  | A `product` pair may only be the **first** pair.                | `srn://acme/product/shop/product/billing`       |
 | P3  | A `component` pair may never be first — it follows a container. | `srn://acme/component/checkout`                 |
-| P4  | `actor` and `environment` may only be the **first** pair.       | `srn://acme/product/shop/actor/operator`        |
+| P4  | A solution-level kind may only be the **first** pair.           | `srn://acme/product/shop/actor/operator`        |
+
+P4 reads over the set, not over a pair of literals, which is why admitting
+`capability` and `journey` added no rule: they joined `actor` and `environment`
+in `SOLUTION_KINDS` and P4 covered them the same day. `metric` added none
+either, for the opposite reason — an owner-scoped kind is exactly a kind no rule
+after P1 mentions.
 
 More than one rule can apply to the same reference, so the order is fixed: P1
 first, then P2, P3, P4. An entity under a leaf kind is therefore reported as an
@@ -313,6 +403,8 @@ srn://acme/product/shop/component/checkout/product/billing
                                                      #      a product is never nested
 srn://acme/product/shop/component/checkout/environment/production
                                                      # P4 — environments are solution-level
+srn://acme/product/shop/capability/order-fulfilment  # P4 — so are capabilities
+srn://acme/journey/place-an-order/metric/drop-off    # P1 — "a journey cannot own a metric"
 ```
 
 The placements these rules exist to permit, all of them real entities in the
@@ -329,6 +421,17 @@ srn://acme/datamodel/money
 srn://acme/adr/0001-single-currency
 srn://acme/requirement/gdpr-erasure
 srn://acme/protocol/settlement
+```
+
+The three newest kinds have no fixture entity yet, so their legal shapes are
+stated rather than pointed at:
+
+```text
+srn://acme/capability/order-fulfilment                          # P4 satisfied
+srn://acme/journey/place-an-order                               # P4 satisfied
+srn://acme/metric/order-conversion                              # owner-scoped: the solution
+srn://acme/product/shop/metric/checkout-conversion              # …or a product
+srn://acme/product/shop/component/checkout/metric/p99-latency   # …or a component
 ```
 
 Because SRN ≡ path, placement is also a *directory* rule; see
@@ -400,11 +503,12 @@ semantics of relative file paths on disk:
 | ----------------------------------------- | ----------------------------------------------------------- |
 | `index.md`, sibling YAML artifacts, prose | the document's own URI: `{entity-srn}/{path-within-entity}` |
 
-JSON Schema `$ref` is **not** in this table: `schema.json` uses absolute schema
+JSON Schema `$ref` is **not** in this table: `schema.json` uses canonical schema
 URLs rather than SRNs, so that stock validators and code generators can
-dereference them (see [kinds/datamodel.md](kinds/datamodel.md) and the "JSON
-Schema" note below). Nothing there is resolved relative to anything, so no base
-URI applies.
+dereference them ([the schema URL projection](#the-schema-url-projection),
+[kinds/datamodel.md](kinds/datamodel.md)). Every such `$ref` is already complete,
+so nothing there is resolved relative to anything and no base URI applies. The
+retired relative-path form is the one that needed one.
 
 **Document URIs are base URIs, not references.** A base like
 `srn://acme/product/shop/component/checkout/index.md` or
@@ -506,45 +610,65 @@ Rules:
   # → srn://acme/product/shop/protocol/order-placement
   ```
 
-### JSON Schema is the one exception
+### The schema URL projection
 
-`schema.json` artifacts do **not** use SRN references. Their `$id` and every
-cross-entity `$ref` are absolute HTTP URLs that the portal serves — here as
-written in
+`schema.json` artifacts do **not** spell references as SRNs. Their root `$id` and
+every cross-entity `$ref` are canonical HTTP URLs — here as written in
 `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`:
 
 ```json
-{ "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line" }
+{ "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-line" }
 { "$ref": "#/$defs/positive-int" }
 ```
 
-The reason is interoperability, and it was measured rather than assumed. The
-first attempt at this (relative file paths, no `$id`) produced references that
-were *well-formed* for stock tooling but resolvable only by a tool sitting in a
-clone of this repository. A served URL is **dereferenceable**: a stock
-`json-schema-ref-parser`, given nothing but the URL and no filesystem access,
-walked the full transitive closure of the schema above — eight documents. See
-[docs/decision-record.md](../../docs/decision-record.md) amendments
-2026-08-19-b and 2026-08-19-c for the measurements and the reversal.
-
-**The URL is the SRN with a different prefix.** Nothing is lost and no second
-identity scheme is introduced, because the path after `/schemas/` is the SRN
-path verbatim:
+This is the projection of [the consolidating
+principle](#the-consolidating-principle), not an exception to it: the path after
+the host is the SRN path verbatim, so the same entity is named by both. The
+schema also states the identity view directly, in `x-srn`, so nothing is lost in
+projection:
 
 ```text
-srn://acme/datamodel/money
-http://localhost:3000/schemas/acme/datamodel/money
+srn://acme/datamodel/money                              # x-srn
+https://schemas.metaframework.dev/acme/datamodel/money  # $id
 ```
 
-The origin comes from `SCHEMA_BASE_URL` and is never hand-typed; see
-[kinds/datamodel.md](kinds/datamodel.md) for the full rules and the portability
-constraint that follows from baking it into the artifacts.
+The reason for the projection is interoperability, and it was measured rather
+than assumed. An absolute URL is **dereferenceable**: a stock
+`json-schema-ref-parser`, given nothing but a canonical `$id` and one line of
+resolver config mapping that host onto a serving address — with every `node:fs`
+read replaced by a throw — walked the full transitive closure of the schema
+above, eight documents, and of the deepest schema in the catalog, ten. See
+[docs/decision-record.md](../../docs/decision-record.md) amendments 2026-08-19-c
+and 2026-08-19-d for the measurement and for the host rule, and
+[kinds/datamodel.md](kinds/datamodel.md) for the full rules. The host is a
+canonical constant and is never a deployment's serving address: `SCHEMA_BASE_URL`
+governs where the portal *serves* schemas and MUST NOT appear in an artifact.
 
-The `..` arithmetic in this section therefore does **not** apply to `$ref`. A
-schema URL is absolute and complete: it encodes what the target *is*, never how
-far it sits from the referrer, so moving an entity rewrites the references
-*inside* it and none of the references *out* of it. Fragments (`#/$defs/...`)
-remain ordinary JSON Pointers into the same document.
+**Retired — the earlier convention.** Before 2026-08-19-c, a `schema.json`
+carried **no `$id`** and spelled every cross-entity `$ref` as a **relative file
+path** (`../../../../datamodel/money/schema.json`), per amendment 2026-08-19-b.
+It was superseded because such a reference cannot be dereferenced: it resolves
+only for a tool running inside a clone of this repository with the whole catalog
+on disk, so a schema pasted into a validator or fetched by CI resolved nothing.
+Both spellings are now errors — a relative `$ref` is `E_DM_REF_TARGET`, a missing
+root `$id` is `E_DM_ID_MISSING` ([kinds/datamodel.md](kinds/datamodel.md)).
+
+**Also retired — the `$id`-only window.** Between 2026-08-19-c and
+2026-08-19-d, `x-srn` was itself retired on the grounds that `$id` had made it
+redundant. It is REQUIRED again: without it the SRN vanishes from schema files
+entirely and identity becomes implicit in a URL-parsing rule, so a schema copied
+out of the catalog could no longer say where it came from. Both fields are
+derived from, and checked against, the file's own path, so "two identity fields
+can disagree" does not arise. `E_DM_SRN_RETIRED` is retired with the window
+that produced it; absence is `E_DM_SRN_MISSING`, disagreement
+`E_DM_SRN_MISMATCH`.
+
+The `..` arithmetic in this section therefore does **not** apply to `$ref`, and
+no `$ref` in the catalog contains a `..` at all. A schema URL is absolute and
+complete: it encodes what the target *is*, never how far it sits from the
+referrer, so moving an entity rewrites the references *inside* it and none of the
+references *out* of it. Fragments (`#/$defs/...`) remain ordinary JSON Pointers
+into the same document, unchanged by any of this.
 
 ## Usage contexts
 
@@ -563,29 +687,31 @@ relations:
     - /product/shop/protocol/order-placement
 ```
 
-**2. JSON Schema** — SRNs are **not** used. `schema.json` states its `$id` and
-every cross-entity `$ref` as an absolute schema URL, so the artifact is not just
-parseable but *fetchable* by any standard validator or generator. The real
-fixture artifact at
+**2. JSON Schema** — SRNs are not used **as references**. `schema.json` states
+its `$id` and every cross-entity `$ref` as a canonical schema URL, so the
+artifact is not just parseable but *dereferenceable* by any standard validator or
+generator. The entity's own SRN still appears, once, as `x-srn`: that is
+self-identification, not a reference. The real fixture artifact at
 `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`,
 abridged:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "title": "Order",
   "type": "object",
   "allOf": [
-    { "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record" },
-    { "$ref": "http://localhost:3000/schemas/acme/datamodel/auditable" }
+    { "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record" },
+    { "$ref": "https://schemas.metaframework.dev/acme/datamodel/auditable" }
   ],
   "properties": {
-    "total": { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" },
-    "payment": { "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/payment-method" },
+    "total": { "$ref": "https://schemas.metaframework.dev/acme/datamodel/money" },
+    "payment": { "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/payment-method" },
     "lines": {
       "type": "array",
-      "items": { "$ref": "http://localhost:3000/schemas/acme/product/shop/datamodel/order-line" }
+      "items": { "$ref": "https://schemas.metaframework.dev/acme/product/shop/datamodel/order-line" }
     },
     "line-count": { "$ref": "#/$defs/positive-int" }
   },
@@ -594,13 +720,29 @@ abridged:
 }
 ```
 
-Read each `$ref` by deleting the origin and `/schemas/`: what remains is the
-target's SRN path, so `http://localhost:3000/schemas/acme/datamodel/money` *is*
-`srn://acme/datamodel/money`. Nothing here is relative and nothing counts
-levels — a solution-level base and a product-level one are written the same way,
-and the depth of the referring entity does not appear at all. The origin comes
-from `SCHEMA_BASE_URL` and is never typed into a file by hand. Fragments
-(`#/$defs/...`) remain ordinary JSON Pointers into the same document.
+Read each `$ref` by deleting the host: what remains is the target's SRN path, so
+`https://schemas.metaframework.dev/acme/datamodel/money` *is*
+`srn://acme/datamodel/money` — [the consolidating
+principle](#the-consolidating-principle) in one line, and the `x-srn` line above
+is that same reading already performed for the document itself. Nothing here is
+relative and nothing counts levels: a solution-level base and a product-level one
+are written the same way, and the depth of the referring entity does not appear
+at all. The host is a canonical constant, never `SCHEMA_BASE_URL` — that governs
+where the portal *serves* schemas, and a `$ref` naming a serving address is
+`E_DM_REF_TARGET`. Fragments (`#/$defs/...`) remain ordinary JSON Pointers into
+the same document.
+
+Three forms this surface does **not** accept as a `$ref`. A relative file path
+(`../../../../datamodel/money/schema.json`) and an `srn://` reference were both
+retired with amendment 2026-08-19-c — the first because no consumer outside a
+clone of this repository can resolve it, the second because no standard tool
+dereferences a private scheme. A serving address
+(`http://localhost:3000/schemas/acme/datamodel/money`) was never identity and is
+rejected as of 2026-08-19-d, because it says where one deployment happens to
+answer rather than what the target is. All three are `E_DM_REF_TARGET`
+([kinds/datamodel.md](kinds/datamodel.md)). Omitting the root `$id`, the other
+half of the retired relative-path convention, is `E_DM_ID_MISSING`; omitting
+`x-srn` is `E_DM_SRN_MISSING`.
 
 **3. Protocol frontmatter and workflow YAML** — participant refs and payload
 references. [kinds/protocol.md](kinds/protocol.md) owns both formats: SRNs
@@ -665,7 +807,7 @@ V6–V8 require the resolved catalog.
 | #   | Rule                                                                                     | Error class            |
 | --- | ---------------------------------------------------------------------------------------- | ---------------------- |
 | V1  | Reference parses under the ABNF + constraints (incl. `..` depth).                        | `E_SRN_SYNTAX`         |
-| V2  | Path alternates `{kind}/{name}`: every kind is one of the eight, every pair is complete. | `E_SRN_SYNTAX`         |
+| V2  | Path alternates `{kind}/{name}`: every kind is one of the eleven, every pair complete.   | `E_SRN_SYNTAX`         |
 | V3  | No reserved kind keyword as a solution or entity **name**.                               | `E_SRN_RESERVED`       |
 | V4  | Placement is legal — rules P1–P4 above.                                                  | `E_SRN_PLACEMENT`      |
 | V5  | Reference does not name a foreign solution (authority ≠ own solution).                   | `E_SRN_CROSS_SOLUTION` |
@@ -679,9 +821,15 @@ inside a sibling artifact — carries its own kind-specific class, so an error
 message names the surface it came from: `E_PROD_ACTOR_TARGET`
 ([kinds/product.md](kinds/product.md)), `E_PROTO_PARTICIPANT_KIND` /
 `E_PROTO_PAYLOAD_KIND` ([kinds/protocol.md](kinds/protocol.md)),
-`E_ENV_TARGET_KIND` ([kinds/environment.md](kinds/environment.md)),
-`E_DM_REF_KIND` ([kinds/datamodel.md](kinds/datamodel.md)). V1–V7 apply to all
-of them unchanged.
+`E_ENV_TARGET_KIND` ([kinds/environment.md](kinds/environment.md)). V1–V7 apply
+to all of them unchanged.
+
+A datamodel's `schema.json` has **no** such class, and this is where a retired
+one used to be listed. `E_DM_REF_KIND` is retired
+([kinds/datamodel.md](kinds/datamodel.md)) and MUST NOT be emitted: the schema
+registry holds only datamodels, so a `$ref` URL naming any other kind has no
+entry and is already `E_SRN_DANGLING` (V6). There was never a second check to
+fail. A `$ref` is not a relation edge either, so V8 does not reach it.
 
 Examples of each failure:
 
@@ -712,3 +860,14 @@ The complete error-class list for this document:
 `W_REF_DEPRECATED` (a warning): a reference whose target entity has
 `status: deprecated` — legal, but flagged so migrations converge
 ([evolution.md](evolution.md)).
+
+`W_REF_STALE_PIN` (a warning): a pin that **resolves** but is behind — `@1`
+against a target now at `@4`. V7 is not about this and never was. V7 asks
+whether the pin resolves *at all*, and a pin that reads an older snapshot out of
+the version→commit index resolves perfectly ([evolution.md](evolution.md) —
+`order@1` gets the `c2` snapshot while `order` is at v3). Nothing in this
+specification makes an old pin illegal; that is the point of pinning. But an
+`@N` left behind by a migration is indistinguishable, from the outside, from a
+deliberate freeze, so the drift is *reported* and never *failed*: only the author
+knows which one it is. A catalog whose `/diagnostics` shows nothing but
+`W_REF_STALE_PIN` is a valid catalog.

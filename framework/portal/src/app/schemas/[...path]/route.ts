@@ -6,14 +6,18 @@ import { safeCatalogPath } from '@/lib/history/git'
 import { dirToSrn } from '@/lib/srn/srn'
 
 /**
- * Serve `schema.json` at the URL that is its `$id`.
+ * Serve `schema.json` — the retrieval half of the schema-URL projection.
  *
- * This route is the whole reason a datamodel's identity is an HTTP URL rather
- * than a file path: it makes every `$ref` in the catalog **dereferenceable**.
- * `ajv-cli`, `json-schema-to-typescript`, `quicktype` and any browser-based
- * validator can follow `http://localhost:3000/schemas/acme/datamodel/money`
- * without knowing anything about this framework, this repository, or where the
- * files live (decision-record 2026-08-19-c).
+ * A datamodel's **identity** is its canonical URL,
+ * `https://schemas.metaframework.dev/acme/datamodel/money`, which is what its
+ * `$id` says and what every `$ref` to it says (`lib/schema/url.ts`). This route
+ * is where *this deployment* hands the bytes over, under `SCHEMA_BASE_URL` —
+ * `http://localhost:3000/schemas/acme/datamodel/money` in dev. The two are
+ * deliberately separate: identity must not vary between a laptop and
+ * production, while a serving address is a property of a deployment. A resolver
+ * that prefers fetching to trusting its cache maps the canonical host onto this
+ * route, in resolver config, outside the artifacts (decision-record
+ * 2026-08-19-c).
  *
  * The URL path after `/schemas/` is the entity's SRN path verbatim:
  *
@@ -114,7 +118,8 @@ export async function GET(request: Request, context: Params): Promise<Response> 
     'Content-Type': `${SCHEMA_MEDIA_TYPE}; charset=utf-8`,
     'Cache-Control': CACHE_CONTROL,
     ETag: etag,
-    // The schema's own identity, for a client that followed a redirect or a proxy.
+    // Where this response came from, for a client that followed a redirect or a
+    // proxy. The schema's *identity* is the `$id` in the body, not this path.
     'Content-Location': `/schemas/${relDir}`,
     ...CORS,
   }

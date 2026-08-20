@@ -13,8 +13,6 @@ tags:
   - public-surface
 ---
 
-# Session
-
 The identity product's one public datamodel, and the thing every other product
 holds. A session says which principal is acting, inside which tenant, how much
 they proved, and until when.

@@ -95,6 +95,34 @@ export interface EntityRevision extends Commit {
   version: number | null
 }
 
+/**
+ * How far back this entity's history actually reaches, and whether that is far
+ * enough to be the whole story.
+ *
+ * `git log` with a path filter stops where the path stops. evolution.md forbids
+ * moving an entity precisely because the version→commit index does not follow a
+ * rename — and GIT_BASE_ARGS pins `log.follow=false` so no local config can make
+ * the tool contradict that rule. The consequence is that a directory which HAS
+ * been moved presents a truncated history that looks complete: the oldest
+ * reachable commit is an "add", and every version authored before it is
+ * unreachable without saying so.
+ *
+ * evolution.md also fixes the other half: `version` starts at 1 and increments
+ * by exactly 1. So an entity whose oldest reachable commit already carries v7 is
+ * telling us that v1..v6 were written somewhere this log cannot see. That is the
+ * whole inference, and it needs no extra git call to make.
+ */
+export interface HistoryReach {
+  /** Lowest version any reachable commit carries. */
+  earliestVersion: number
+  /** The oldest commit that touches this path — where the trail stops. */
+  commit: string
+  short: string
+  date: string
+  /** True when the trail reaches v1: nothing is missing below it. */
+  complete: boolean
+}
+
 export interface EntityHistory {
   /** Catalog-relative entity directory, POSIX separators. */
   relDir: string
@@ -108,6 +136,8 @@ export interface EntityHistory {
   versions: Record<string, string>
   /** The version on the filesystem right now; null when index.md is unreadable. */
   currentVersion: number | null
+  /** Where the version→commit index bottoms out; null when there is no index. */
+  reach: HistoryReach | null
   shallow: boolean
   /** The log hit the commit cap; older revisions exist but were not listed. */
   truncated: boolean
@@ -117,12 +147,30 @@ export interface EntityHistory {
   diagnostics: Diagnostic[]
 }
 
+/**
+ * Why a version could not be produced. The distinction is the point: two of
+ * these are statements about the catalog and one is a statement about the
+ * INDEX, and a reader who is told "no such version" when the truth is "not
+ * reachable from here" goes looking for a bug that is not there.
+ */
+export type VersionMiss =
+  /** Git could not answer at all — no binary, no repository, nothing committed. */
+  | 'no-history'
+  /** Older than the oldest commit that touches this path. It existed; it is not reachable. */
+  | 'before-reach'
+  /** Within reach, and no commit carries it. This one really was never written. */
+  | 'never-written'
+
 export interface VersionResolution {
   version: number
   /** Commit to read the snapshot from; null when it is the filesystem version. */
   commit: string | null
   current: boolean
   code: 'E_SRN_VERSION' | null
+  /** Which kind of miss this is; null when the version resolved. */
+  miss: VersionMiss | null
+  /** One sentence a reader can act on; null when the version resolved. */
+  message: string | null
   hint: string | null
 }
 
@@ -596,6 +644,7 @@ export async function getEntityHistory(relDir: string, options: HistoryOptions =
     revisions: [],
     versions: {},
     currentVersion: null,
+    reach: null,
     shallow: false,
     truncated: false,
     unavailable: reason,
@@ -641,6 +690,7 @@ export async function getEntityHistory(relDir: string, options: HistoryOptions =
       revisions,
       versions,
       currentVersion,
+      reach: reachOf(revisions),
       shallow: log.shallow,
       truncated: log.truncated,
       unavailable: null,
@@ -649,6 +699,29 @@ export async function getEntityHistory(relDir: string, options: HistoryOptions =
       diagnostics: log.truncated ? [] : versionRegressions(revisions, safe),
     }
   })
+}
+
+/**
+ * Where the trail stops, read off the revisions themselves.
+ *
+ * The oldest revision carrying a version is the bottom of the index; a repo
+ * whose oldest reachable commit already says v7 has six versions somewhere it
+ * cannot reach. Revisions whose index.md would not parse are skipped rather
+ * than counted as v-unknown — they say nothing either way about the floor.
+ */
+function reachOf(revisions: readonly EntityRevision[]): HistoryReach | null {
+  for (let index = revisions.length - 1; index >= 0; index--) {
+    const revision = revisions[index]
+    if (revision.version === null) continue
+    return {
+      earliestVersion: revision.version,
+      commit: revision.hash,
+      short: revision.short,
+      date: revision.date,
+      complete: revision.version === 1,
+    }
+  }
+  return null
 }
 
 /** E_VER_REGRESSION — `version` decreased, or jumped by more than 1 (evolution.md). */
@@ -675,6 +748,58 @@ function versionRegressions(revisions: EntityRevision[], relDir: string): Diagno
   return diagnostics
 }
 
+const RENAME_HINT =
+  'The version→commit index does not follow renames — evolution.md forbids moving an entity, so the ' +
+  'portal will not paper over one. Anything authored under an earlier path is outside what this index ' +
+  'can address; `git log --follow` finds it in the repository, not here.'
+
+/**
+ * Why version N is not available, said in the terms that are actually true.
+ *
+ * Exported because three surfaces have to say the same thing — the entity
+ * page's notice, the version picker, and any client of /api/history — and a
+ * sentence written three times is a sentence that will differ three ways.
+ */
+export function explainMissingVersion(
+  history: EntityHistory,
+  version: number,
+): { miss: VersionMiss; message: string; hint: string | null } {
+  if (history.unavailable) {
+    return {
+      miss: 'no-history',
+      message: `v${version} cannot be read: ${history.unavailable.message}.`,
+      hint: history.unavailable.hint ?? null,
+    }
+  }
+
+  const reach = history.reach
+  if (reach && version < reach.earliestVersion) {
+    return {
+      miss: 'before-reach',
+      // "existed" rather than "may have existed": evolution.md makes versions
+      // start at 1 and step by 1, so a reachable floor of v7 is evidence that
+      // the six below it were written, not a guess that they might have been.
+      message:
+        `v${version} existed, but is not reachable. The history of this path starts at ${reach.short} ` +
+        `(${reach.date.slice(0, 10)}), where the entity already carried v${reach.earliestVersion}; ` +
+        `nothing below v${reach.earliestVersion} is addressable from here.`,
+      hint: history.shallow ? SHALLOW_HINT : RENAME_HINT,
+    }
+  }
+
+  const known = Object.keys(history.versions)
+    .map(Number)
+    .sort((a, b) => a - b)
+  return {
+    miss: 'never-written',
+    message:
+      known.length === 0
+        ? `No commit carries v${version}; git has no version of this entity at all.`
+        : `No commit carries v${version}; the index holds ${known.map((value) => `v${value}`).join(', ')}.`,
+    hint: history.shallow ? SHALLOW_HINT : null,
+  }
+}
+
 /** Resolve a pinned `@N` to the commit whose snapshot the referrer should see. */
 export async function resolveVersion(
   relDir: string,
@@ -682,22 +807,25 @@ export async function resolveVersion(
   options: HistoryOptions = {},
 ): Promise<VersionResolution> {
   const history = await getEntityHistory(relDir, options)
+  const found = { commit: null, current: true, code: null, miss: null, message: null, hint: null } as const
 
   if (history.currentVersion !== null && version === history.currentVersion) {
-    return { version, commit: null, current: true, code: null, hint: null }
+    return { version, ...found }
   }
 
   const commit = history.versions[String(version)]
-  if (commit) return { version, commit, current: false, code: null, hint: null }
+  if (commit) return { version, ...found, commit, current: false }
 
+  const explained = explainMissingVersion(history, version)
   return {
     version,
     commit: null,
     current: false,
     code: 'E_SRN_VERSION',
-    hint: history.shallow
-      ? SHALLOW_HINT
-      : (history.unavailable?.hint ?? history.unavailable?.message ?? 'no commit carries that version'),
+    miss: explained.miss,
+    message: explained.message,
+    // The shallow hint stays first: it is the one cause the reader can undo.
+    hint: history.shallow ? SHALLOW_HINT : explained.hint,
   }
 }
 

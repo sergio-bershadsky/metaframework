@@ -1,5 +1,5 @@
 {
-  "id": "session",
+  "id": "authorization-check",
   "initial": "anonymous",
   "description": "Lifecycle of the session every authorization check is evaluated against. The check itself is one request and one response and has no state of its own.",
   "states": {
@@ -13,7 +13,7 @@
           "description": "The same reference is bound to an account; id and created-at survive."
         },
         "RECOVERY_VERIFIED": {
-          "target": "#session.authenticated.recovery",
+          "target": "#authorization-check.authenticated.recovery",
           "actions": ["bind-account", "record-issued-at"],
           "description": "A mailbox was reached and nothing else. Bound to the account, but at the weakest strength there is."
         },

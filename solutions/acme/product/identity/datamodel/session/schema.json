@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/identity/datamodel/session",
+  "$id": "https://schemas.metaframework.dev/acme/product/identity/datamodel/session",
+  "x-srn": "srn://acme/product/identity/datamodel/session",
   "title": "Session",
   "description": "One authentication episode, as the session store holds it. The state values are the states in states.json.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/datamodel/base-record"
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/base-record"
     }
   ],
   "properties": {

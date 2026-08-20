@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/growth/datamodel/coupon",
+  "$id": "https://schemas.metaframework.dev/acme/product/growth/datamodel/coupon",
+  "x-srn": "srn://acme/product/growth/datamodel/coupon",
   "title": "Coupon",
-  "description": "A discount a customer has to present by code. Third level of the lineage base-record → discount → coupon.",
+  "description": "A discount a customer has to present by code. Third level of the lineage base-record \u2192 discount \u2192 coupon.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "http://localhost:3000/schemas/acme/product/growth/datamodel/discount"
+      "$ref": "https://schemas.metaframework.dev/acme/product/growth/datamodel/discount"
     }
   ],
   "properties": {

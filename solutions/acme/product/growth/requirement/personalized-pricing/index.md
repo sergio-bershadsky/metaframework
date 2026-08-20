@@ -17,8 +17,6 @@ tags:
   - non-goal
 ---
 
-# Per-individual pricing from behavioural signals
-
 The commercial team has twice asked for the ability to compute a discount for a
 single account from that account's own behaviour — a bigger offer for the
 customer judged most likely to abandon, a smaller one for the customer judged

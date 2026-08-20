@@ -6,6 +6,7 @@ import {
   SrnError,
   dirToSrn,
   formatSrn,
+  ownerTrail,
   parentSrn,
   parseSrn,
   resolveRef,
@@ -36,25 +37,49 @@ function codeOf(run: () => unknown): string {
 }
 
 describe('reserved kinds', () => {
-  it('is the closed set of eight buckets, product and component included', () => {
+  it('is the closed set of eleven buckets, product and component included', () => {
     expect([...RESERVED_KINDS].sort()).toEqual([
       'actor',
       'adr',
+      'capability',
       'component',
       'datamodel',
       'environment',
+      'journey',
+      'metric',
       'product',
       'protocol',
       'requirement',
     ])
   })
 
+  it('grows by appending — the three additions sit after the original eight', () => {
+    // Additive-only evolution: a kind adopted later never displaces one adopted
+    // earlier, so the head of the list is frozen and only the tail moves.
+    expect([...RESERVED_KINDS].slice(0, 8)).toEqual([
+      'product',
+      'component',
+      'datamodel',
+      'protocol',
+      'actor',
+      'environment',
+      'adr',
+      'requirement',
+    ])
+    expect([...RESERVED_KINDS].slice(8)).toEqual(['capability', 'journey', 'metric'])
+  })
+
   it('names only products and components as containers', () => {
     expect([...CONTAINER_KINDS]).toEqual(['product', 'component'])
   })
 
-  it('names actors and environments as solution-level kinds', () => {
-    expect([...SOLUTION_LEVEL_KINDS]).toEqual(['actor', 'environment'])
+  it('names actors, environments, capabilities and journeys as solution-level kinds', () => {
+    expect([...SOLUTION_LEVEL_KINDS]).toEqual(['actor', 'environment', 'capability', 'journey'])
+  })
+
+  it('leaves metric out of the solution-level set — it is owner-scoped, like requirement', () => {
+    expect([...SOLUTION_LEVEL_KINDS]).not.toContain('metric')
+    expect([...SOLUTION_LEVEL_KINDS]).not.toContain('requirement')
   })
 })
 
@@ -150,6 +175,49 @@ describe('parseSrn — shapes', () => {
   it('treats an absent version as latest (null)', () => {
     expect(parseSrn('srn://acme/product/shop/datamodel/order-placed').version).toBeNull()
   })
+
+  it('parses a solution-level capability', () => {
+    expect(parseSrn('srn://acme/capability/order-fulfilment')).toMatchObject({
+      path: [{ kind: 'capability', name: 'order-fulfilment' }],
+      kind: 'capability',
+      name: 'order-fulfilment',
+    })
+  })
+
+  it('parses a solution-level journey', () => {
+    expect(parseSrn('srn://acme/journey/place-an-order@2')).toMatchObject({
+      path: [{ kind: 'journey', name: 'place-an-order' }],
+      kind: 'journey',
+      name: 'place-an-order',
+      version: 2,
+    })
+  })
+
+  it('parses a metric at each level it may own — solution, product, component', () => {
+    expect(parseSrn('srn://acme/metric/order-conversion')).toMatchObject({
+      path: [{ kind: 'metric', name: 'order-conversion' }],
+      kind: 'metric',
+    })
+    expect(parseSrn('srn://acme/product/shop/metric/order-conversion')).toMatchObject({
+      path: [
+        { kind: 'product', name: 'shop' },
+        { kind: 'metric', name: 'order-conversion' },
+      ],
+      kind: 'metric',
+    })
+    expect(
+      parseSrn('srn://acme/product/shop/component/checkout/component/payment/metric/authorization-success'),
+    ).toMatchObject({
+      path: [
+        { kind: 'product', name: 'shop' },
+        { kind: 'component', name: 'checkout' },
+        { kind: 'component', name: 'payment' },
+        { kind: 'metric', name: 'authorization-success' },
+      ],
+      kind: 'metric',
+      name: 'authorization-success',
+    })
+  })
 })
 
 describe('parseSrn — syntax rejections', () => {
@@ -213,6 +281,48 @@ describe('parseSrn — the pair walk', () => {
   )
 })
 
+/**
+ * A new reserved word is a land grab: every path that already used it as a
+ * *name* changes meaning the moment it becomes a bucket. Nothing in the catalog
+ * did — `find solutions -type d -name capability -o -name journey -o -name
+ * metric` was empty when the three were adopted — so the cases below pin the
+ * behaviour rather than record a migration: the three words are now unavailable
+ * for naming anything, at every position, in every solution.
+ */
+describe('parseSrn — the new buckets take their names out of circulation', () => {
+  it.each(['srn://capability/product/shop', 'srn://journey/product/shop', 'srn://metric/product/shop'])(
+    'rejects it as a solution name (%s)',
+    (ref) => {
+      expect(codeOf(() => parseSrn(ref))).toBe('E_SRN_RESERVED')
+    },
+  )
+
+  it.each([
+    'srn://acme/product/capability',
+    'srn://acme/product/journey',
+    'srn://acme/product/metric',
+    'srn://acme/product/shop/datamodel/metric',
+    'srn://acme/product/shop/component/journey',
+    'srn://acme/capability/journey',
+  ])('rejects it as an entity name (%s)', (ref) => {
+    expect(codeOf(() => parseSrn(ref))).toBe('E_SRN_RESERVED')
+  })
+
+  it('rejects each of the three as a bare bucket — a bucket is still not addressable', () => {
+    for (const ref of ['srn://acme/capability', 'srn://acme/journey', 'srn://acme/metric']) {
+      expect(codeOf(() => parseSrn(ref))).toBe('E_SRN_SYNTAX')
+      expect(() => parseSrn(ref)).toThrow(/not addressable/)
+    }
+  })
+
+  it('reads a would-be collision as a bucket, not as a name — this is the reinterpretation', () => {
+    // Before the extension `srn://acme/metric/order-conversion` was
+    // E_SRN_SYNTAX ("metric" is not a kind bucket). It now parses, and `metric`
+    // is the kind rather than a hypothetical entity called "metric".
+    expect(parseSrn('srn://acme/metric/order-conversion').kind).toBe('metric')
+  })
+})
+
 describe('parseSrn — placement is grammar', () => {
   const cases: Array<[string, string]> = [
     ['a product below the first pair', 'srn://acme/product/shop/product/billing'],
@@ -223,6 +333,17 @@ describe('parseSrn — placement is grammar', () => {
     ['a datamodel owning an entity', 'srn://acme/datamodel/money/datamodel/currency'],
     ['a protocol owning an entity', 'srn://acme/product/shop/protocol/order-placement/requirement/latency'],
     ['an actor owning an entity', 'srn://acme/actor/customer/requirement/gdpr-erasure'],
+    ['a capability below solution level', 'srn://acme/product/shop/capability/order-fulfilment'],
+    [
+      'a capability under a component',
+      'srn://acme/product/shop/component/checkout/capability/order-fulfilment',
+    ],
+    ['a journey below solution level', 'srn://acme/product/shop/journey/place-an-order'],
+    ['a journey under a component', 'srn://acme/product/shop/component/checkout/journey/place-an-order'],
+    ['a capability owning an entity', 'srn://acme/capability/order-fulfilment/metric/order-conversion'],
+    ['a journey owning an entity', 'srn://acme/journey/place-an-order/metric/drop-off'],
+    ['a metric owning an entity', 'srn://acme/metric/order-conversion/requirement/accuracy'],
+    ['a requirement owning a metric', 'srn://acme/requirement/gdpr-erasure/metric/erasure-latency'],
   ]
 
   it.each(cases)('rejects %s', (_label, ref) => {
@@ -245,6 +366,25 @@ describe('parseSrn — placement is grammar', () => {
       expect(() => parseSrn(ref)).not.toThrow()
     }
   })
+
+  it('accepts capability and journey at solution level, and nowhere else', () => {
+    expect(() => parseSrn('srn://acme/capability/order-fulfilment')).not.toThrow()
+    expect(() => parseSrn('srn://acme/journey/place-an-order')).not.toThrow()
+  })
+
+  it('accepts a metric under every owner a requirement has, up to and including the solution', () => {
+    // The two owner-scoped kinds are deliberately indistinguishable to the
+    // grammar: wherever a requirement is legal, so is a metric.
+    for (const owner of [
+      '',
+      '/product/shop',
+      '/product/shop/component/checkout',
+      '/product/shop/component/checkout/component/payment',
+    ]) {
+      expect(() => parseSrn(`srn://acme${owner}/requirement/some-rule`)).not.toThrow()
+      expect(() => parseSrn(`srn://acme${owner}/metric/some-number`)).not.toThrow()
+    }
+  })
 })
 
 describe('formatSrn', () => {
@@ -258,6 +398,11 @@ describe('formatSrn', () => {
       'srn://acme/product/shop/protocol/order-placement@2',
       'srn://acme/actor/customer',
       'srn://acme/datamodel/money@1',
+      'srn://acme/capability/order-fulfilment',
+      'srn://acme/journey/place-an-order@2',
+      'srn://acme/metric/order-conversion',
+      'srn://acme/product/shop/metric/checkout-conversion@3',
+      'srn://acme/product/shop/component/checkout/metric/p99-latency',
     ]) {
       expect(formatSrn(parseSrn(ref))).toBe(ref)
     }
@@ -278,6 +423,9 @@ describe('srnToDir / srnToDocument / dirToSrn', () => {
       'solutions/acme/product/shop/component/checkout/component/payment',
     ],
     ['srn://acme/actor/customer', 'solutions/acme/actor/customer'],
+    ['srn://acme/capability/order-fulfilment', 'solutions/acme/capability/order-fulfilment'],
+    ['srn://acme/journey/place-an-order', 'solutions/acme/journey/place-an-order'],
+    ['srn://acme/product/shop/metric/checkout-conversion', 'solutions/acme/product/shop/metric/checkout-conversion'],
   ] as const
 
   it.each(shapes)('maps %s to %s', (ref, dir) => {
@@ -307,6 +455,14 @@ describe('srnToDir / srnToDocument / dirToSrn', () => {
   it('rejects a directory that is not a legal SRN — SRN ≡ path holds in both directions', () => {
     expect(codeOf(() => dirToSrn('solutions/acme/shop/checkout'))).toBe('E_SRN_SYNTAX')
     expect(codeOf(() => dirToSrn('solutions/acme/product/shop/actor/operator'))).toBe('E_SRN_PLACEMENT')
+    expect(codeOf(() => dirToSrn('solutions/acme/product/shop/capability/order-fulfilment'))).toBe('E_SRN_PLACEMENT')
+    expect(codeOf(() => dirToSrn('solutions/acme/product/shop/journey/place-an-order'))).toBe('E_SRN_PLACEMENT')
+  })
+
+  it('rejects a directory that names an entity after one of the new buckets', () => {
+    // The loader walks directories, so the collision surface is a folder on
+    // disk before it is ever a reference in prose.
+    expect(codeOf(() => dirToSrn('solutions/acme/product/shop/datamodel/metric'))).toBe('E_SRN_RESERVED')
   })
 })
 
@@ -323,6 +479,14 @@ describe('parentSrn', () => {
     ['srn://acme/product/shop/protocol/order-placement@2', 'srn://acme/product/shop'],
     ['srn://acme/actor/customer', 'srn://acme'],
     ['srn://acme/datamodel/money@1', 'srn://acme'],
+    ['srn://acme/capability/order-fulfilment', 'srn://acme'],
+    ['srn://acme/journey/place-an-order', 'srn://acme'],
+    ['srn://acme/metric/order-conversion', 'srn://acme'],
+    ['srn://acme/product/shop/metric/checkout-conversion@3', 'srn://acme/product/shop'],
+    [
+      'srn://acme/product/shop/component/checkout/metric/p99-latency',
+      'srn://acme/product/shop/component/checkout',
+    ],
   ]
 
   it.each(cases)('%s → %s', (ref, parent) => {
@@ -333,6 +497,42 @@ describe('parentSrn', () => {
     // The owner of an entity is the container the bucket sits in, so the bucket
     // itself is never a parent — `srn://acme/product/shop/datamodel` is not an SRN.
     expect(parentSrn(parseSrn('srn://acme/product/shop/datamodel/money'))).toBe('srn://acme/product/shop')
+  })
+})
+
+describe('ownerTrail', () => {
+  it('names the owning product of a solution-level list row', () => {
+    // What "Realized by" on a capability needs: `checkout` and `tracking` are
+    // two names in one flat list, and which product each belongs to is the
+    // whole argument for the capability sitting at solution level.
+    expect(ownerTrail('srn://acme/product/shop/component/checkout')).toEqual(['shop'])
+    expect(ownerTrail('srn://acme/product/fulfilment/component/tracking')).toEqual(['fulfilment'])
+  })
+
+  it('carries every container down to the entity, outermost first', () => {
+    expect(
+      ownerTrail('srn://acme/product/fulfilment/component/carrier-gateway/component/parcel-carrier'),
+    ).toEqual(['fulfilment', 'carrier-gateway'])
+    expect(ownerTrail('srn://acme/product/shop/component/checkout/datamodel/cart@1')).toEqual([
+      'shop',
+      'checkout',
+    ])
+  })
+
+  it('is empty for a product and for a solution root — they own themselves', () => {
+    expect(ownerTrail('srn://acme/product/shop')).toEqual([])
+    expect(ownerTrail('srn://acme')).toEqual([])
+  })
+
+  it('is relative to a base, which is what the deep-descendants list passes', () => {
+    const srn = 'srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3'
+    expect(ownerTrail(srn, 'srn://acme/product/shop')).toEqual(['checkout', 'payment'])
+    expect(ownerTrail(srn, 'srn://acme/product/shop/component/checkout')).toEqual(['payment'])
+  })
+
+  it('yields nothing rather than throwing on an SRN it cannot parse', () => {
+    // A list that refuses to render is worse than a row missing its context.
+    expect(ownerTrail('not-an-srn')).toEqual([])
   })
 })
 
@@ -347,6 +547,25 @@ describe('resolveRef — solution-absolute references', () => {
 
   it('reaches a solution-level entity', () => {
     expect(resolveRef(base, '/actor/customer')).toBe('srn://acme/actor/customer')
+  })
+
+  it('reaches a capability and a journey, which can only be addressed from the root', () => {
+    expect(resolveRef(base, '/capability/order-fulfilment')).toBe('srn://acme/capability/order-fulfilment')
+    expect(resolveRef(base, '/journey/place-an-order@2')).toBe('srn://acme/journey/place-an-order@2')
+  })
+
+  it('reaches an owning entity\'s own metric with a relative hop', () => {
+    // Two ".." pop the checkout pair, landing on the product that owns it.
+    expect(resolveRef(base, '../../metric/checkout-conversion')).toBe(
+      'srn://acme/product/shop/metric/checkout-conversion',
+    )
+    expect(resolveRef(base, 'metric/p99-latency')).toBe(
+      'srn://acme/product/shop/component/checkout/metric/p99-latency',
+    )
+  })
+
+  it('rejects a relative hop that lands a capability below the solution', () => {
+    expect(codeOf(() => resolveRef(base, '../../capability/order-fulfilment'))).toBe('E_SRN_PLACEMENT')
   })
 
   it('passes an already-absolute reference through unchanged', () => {

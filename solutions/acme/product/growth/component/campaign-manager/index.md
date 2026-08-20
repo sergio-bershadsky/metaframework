@@ -1,12 +1,13 @@
 ---
 name: campaign-manager
 kind: component
-version: 1
+version: 2
 title: Campaign manager
 summary: The authoring surface — where a marketer writes campaigns, promos, and segment rules, and only there.
 status: review
 owner: team-growth
 component-type: service
+lifecycle: released
 relations:
   uses:
     - /environment/production
@@ -27,8 +28,6 @@ tags:
   - authoring
 x-runtime: kotlin-jvm
 ---
-
-# Campaign manager
 
 The only writer of [campaign](srn://acme/product/growth/datamodel/campaign@1),
 [promo](srn://acme/product/growth/datamodel/promo@1), and

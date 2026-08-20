@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/agent-play/component/mcp-server/datamodel/move-option",
+  "x-srn": "srn://brass/product/agent-play/component/mcp-server/datamodel/move-option",
+  "title": "Move option",
+  "description": "One selectable move offered to the model. The id is content-derived and re-resolved against a fresh enumeration on every make_move.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Semantic move key, e.g. build|stafford|0|cotton, network|a~b, develop|coal,iron, sell|7, or the bare words loan, scout, pass, confirmTurn. Excludes the card spent, so it survives hand changes. Unique within one enumeration by construction."
+    },
+    "kind": {
+      "type": "string",
+      "description": "The move's tag, mirroring legal-move.kind. Present so the model can group options without parsing the id."
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable rendering, e.g. \"Build cotton L1 in Stafford (slot 0)\". This is what the model actually reasons over."
+    },
+    "move": {
+      "$ref": "https://schemas.metaframework.dev/brass/product/play/component/rules/component/move-enumerator/datamodel/legal-move",
+      "description": "The enumerated move in full, so nothing is hidden behind the label."
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "label",
+    "move"
+  ]
+}

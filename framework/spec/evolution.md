@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: evolution
-version: 2
+version: 5
 status: review
 title: Evolution and history
-summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples, the swap procedure, the git-backed history contract, and the status lifecycle.
+summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, and the status states.
 ---
 
 # Evolution and history
@@ -26,19 +26,35 @@ git.
 - **The frontmatter is the only place a version lives.** Sibling artifacts carry
   no version of their own — a `version:` key at the top level of
   `transport.yaml`, `topology.yaml`, or a workflow file is a shape violation for
-  that kind. A datamodel's `schema.json` carries an `$id`, but **no version**
-  (decision-record amendment 2026-08-19-c,
-  [kinds/datamodel.md](kinds/datamodel.md)): the `$id` and every `$ref` are
-  served URLs addressing the *current* schema, and a `@N` in one is rejected
-  rather than honoured. An entity version is a snapshot of the whole directory at one commit, so
-  there is exactly one number to bump and nothing that can drift out of step with
-  it.
+  that kind. A datamodel's `schema.json` is REQUIRED to carry a root `$id` and an
+  `x-srn`, and **neither carries a version** (decision-record amendments
+  2026-08-19-c and 2026-08-19-d, [kinds/datamodel.md](kinds/datamodel.md)): the
+  `$id` and every cross-entity `$ref` are canonical URLs addressing the *current*
+  schema, `x-srn` is the entity's unversioned SRN, and a `@N` in either is
+  rejected rather than honoured. An entity version is a snapshot of the whole
+  directory at one commit, so there is exactly one number to bump and nothing
+  that can drift out of step with it.
 
   ```json
-  { "$id": "srn://acme/datamodel/money@4" }   /* E_DM_ID_FORBIDDEN — the version
-                                                 belongs in index.md, and an $id
-                                                 re-bases every relative $ref */
+  /* solutions/acme/datamodel/money/schema.json */
+  { "$id": "https://schemas.metaframework.dev/acme/datamodel/money" }
+                          /* correct — the entity's schema URL, no version      */
+  { "$id": "https://schemas.metaframework.dev/acme/datamodel/money@4" }
+                          /* E_DM_ID_MISMATCH — a URL addresses the current
+                             schema; the version belongs in index.md            */
+  { "$id": "srn://acme/datamodel/money@4" }
+                          /* E_DM_ID_MISMATCH — not the entity's schema URL, and
+                             nothing dereferences srn://                        */
+  { "x-srn": "srn://acme/datamodel/money@4" }
+                          /* E_DM_SRN_MISMATCH — x-srn is unversioned, always   */
   ```
+
+  Note the code. A **root** `$id` is required, so its absence is
+  `E_DM_ID_MISSING` and a wrong value is `E_DM_ID_MISMATCH`; `x-srn` is required
+  too, absence `E_DM_SRN_MISSING` and disagreement `E_DM_SRN_MISMATCH`.
+  `E_DM_ID_FORBIDDEN` has a narrower subject: an `$id` nested *below* the root,
+  which would re-base every `$ref` beneath it onto a second identity. It never
+  applies to the root.
 
 ## The additive-only principle
 
@@ -57,8 +73,8 @@ accepted. Loosening is legal; tightening or reshaping is not.
 
 Both listings below are
 `solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/schema.json`
-at two successive commits. Both carry the same `$id` and neither carries a
-version: identity does not move when content does, and the version number lives
+at two successive commits. Both carry the same `$id` and the same `x-srn`, and
+neither carries a version: identity does not move when content does, and the version number lives
 in the sibling `index.md` and nowhere else — which is why the two files below
 are labelled "version 1" and "version 2" by their commit rather than by anything
 inside them.
@@ -68,12 +84,13 @@ Version 1:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "required": ["id", "total"],
   "properties": {
     "id":     { "type": "string" },
-    "total":  { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" },
+    "total":  { "$ref": "https://schemas.metaframework.dev/acme/datamodel/money" },
     "status": { "enum": ["placed", "paid"] }
   }
 }
@@ -84,22 +101,25 @@ Legal version 2 (every v1 instance still validates):
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "http://localhost:3000/schemas/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/order",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/order",
   "type": "object",
   "required": ["id", "total"],
   "properties": {
     "id":       { "type": "string" },
-    "total":    { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" },
+    "total":    { "$ref": "https://schemas.metaframework.dev/acme/datamodel/money" },
     "status":   { "enum": ["placed", "paid", "refunded"] },
-    "discount": { "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }
+    "discount": { "$ref": "https://schemas.metaframework.dev/acme/datamodel/money" }
   }
 }
 ```
 
 The two documents differ only in the `properties` block, which is the point: a
 version bump touches content, never identity. A pin on `money` — "this model was
-reviewed against `money@1`" — cannot live in a `$ref`, because a path carries no
-`@N`; it goes in the entity's `relations.uses` as `/datamodel/money@1`
+reviewed against `money@1`" — cannot live in a `$ref`, because a schema URL
+addresses the current schema and a `@N` in one is rejected outright; it goes in
+the entity's `relations.uses` as `/datamodel/money@1`, where the git-backed
+version→commit index can actually resolve it
 ([kinds/datamodel.md](kinds/datamodel.md)).
 
 | Change                                             | Verdict | Why                                    |
@@ -120,12 +140,56 @@ unknown enum values in instances of a *later* version than they pinned.
 
 The same shape, stated per artifact:
 
-| Entity kind         | Legal at `N+1` (examples)                              | ILLEGAL at `N+1` (examples)                       |
-| ------------------- | ------------------------------------------------------ | ------------------------------------------------- |
-| protocol            | add an operation; add an optional message field; add a workflow; add a state + transitions | remove/rename an operation; remove a state; change a message's datamodel ref to an incompatible one |
-| requirement / adr   | clarify wording; append consequences; add relations    | reverse or narrow the decision/requirement — that is a new entity (swap) |
-| actor / environment | extend description; add relations                      | repurpose the name to mean something else         |
-| container           | add child entities; extend prose                       | remove or rename children (children swap individually) |
+| Entity kind         | Legal at `N+1` (examples)                                                                  | ILLEGAL at `N+1` (examples)                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| protocol            | add an operation; add an optional message field; add a workflow; add a state + transitions | remove/rename an operation; remove a state; change a message's datamodel ref to an incompatible one      |
+| requirement / adr   | clarify wording; append consequences; add relations                                        | reverse or narrow the decision/requirement — that is a new entity (swap)                                 |
+| actor / environment | extend description; add relations                                                          | repurpose the name to mean something else                                                                |
+| capability          | sharpen the description without narrowing it; add relations                                | narrow or re-scope what the business can do — a different ability is a different entity                  |
+| journey             | append a step at the end within the 12-step cap; extend a step's note                      | remove, reorder, or re-point existing steps; introduce a branch (that is a second journey)               |
+| metric              | move `target`; extend the description; add relations                                       | change `metric-type`, `direction`, or what `measures` points at — the number stops meaning what it meant |
+| container           | add child entities; extend prose                                                           | remove or rename children (children swap individually)                                                   |
+
+### The three newest kinds are governed by exactly these rules
+
+`capability`, `journey` and `metric` were adopted after the ontology was
+reopened (decision-record amendment 2026-08-20-a), and adoption bought them no
+special treatment: they carry the same integer `version`, bump it on any content
+change, extend rather than reduce, and swap when extension is not enough. Two
+consequences are worth stating outright, because they are the ones an author
+will reach for first.
+
+**A capability rename is a swap, like every other rename.** The SRN is the path,
+so `srn://acme/capability/order-fulfilment` cannot become
+`srn://acme/capability/fulfilment` in place — the version→commit index does not
+follow a move, and every `realizes` edge pointing at the old name would resolve
+to nothing. Create the successor, point it at its predecessor with `supersedes`,
+migrate the realizers one at a time, then deprecate:
+
+```yaml
+# solutions/acme/capability/fulfilment/index.md
+kind: capability
+version: 1
+status: draft
+relations:
+  supersedes:
+    - ../order-fulfilment      # sibling in the same capability/ bucket
+```
+
+The same procedure, unchanged, covers a journey that grows a branch (it becomes
+two journeys, and the second one is a new entity) and a metric that starts
+counting a different thing (a new number is a new entity, so the history of the
+old one stays readable).
+
+**A `lifecycle` move is an ordinary content change, not a swap.** A component
+going `planned` → `in-development` → `released`, or a product going `active` →
+`sunset`, bumps `version` like any other edit and nothing else
+([kinds/component.md](kinds/component.md),
+[kinds/product.md](kinds/product.md)). It is not the `status`-only exception
+above either: `status` is workflow state on the document and is exempt from the
+bump; `lifecycle` is content, and content bumps. Adding the now-REQUIRED
+`lifecycle` field to a component that predates it is likewise an ordinary
+additive change on that component — add the field, bump its `version`.
 
 An illegal change MUST NOT be made in place at any version number. The escape
 hatch is the swap.
@@ -208,15 +272,28 @@ Index: `{1: c2, 2: c3, 3: c4}`. A referrer pinned to
 `/product/shop/component/checkout/component/payment/datamodel/order@1` gets the
 `c2` snapshot — including its approved status. `order@5` → `E_SRN_VERSION`.
 
-A snapshot is loaded against **that commit's tree**, so the URLs inside a
-historical `schema.json` resolve to the documents of that same commit — never to
-the working tree, and never over the network. This is also why a move is
-forbidden: the path is the identity, and the `$id` derived from it would have to
-be rewritten in every historical commit to stay true.
+A snapshot is loaded into a registry scoped to **that commit's tree**, so the
+schema URLs inside a historical `schema.json` resolve to the documents of that
+same commit — never to the working tree, and never over the network. Working-tree
+and historical schemas are never mixed in one registry
+([kinds/datamodel.md](kinds/datamodel.md)).
 
-## Status lifecycle
+This is also why a move is forbidden. SRN, disk path and schema URL are one
+identity in three views ([srn.md](srn.md)), so moving a directory silently
+changes all three at once: the `$id` derived from the new path would have to be
+rewritten in every historical commit for the old snapshots to stay true, and the
+version→commit index does not follow a move in any case. Renaming is done by the
+swap procedure above.
 
-`status` is REQUIRED in every entity's frontmatter:
+## The `status` states
+
+`status` is REQUIRED in every entity's frontmatter. It is the review state of
+**the document** and nothing else — not the stage of the thing the document
+describes, which is `lifecycle` on a product or a component
+([frontmatter.md](frontmatter.md#status-and-lifecycle-are-different-axes)). The
+two axes cross freely: `status: approved` with `lifecycle: planned` is a
+reviewed description of something not yet built, and it is the case this catalog
+exists for.
 
 | Status       | Meaning                                                          |
 | ------------ | ---------------------------------------------------------------- |
@@ -236,6 +313,37 @@ approved → deprecated   # swap completed (or entity retired without successor)
 
 - `deprecated` is terminal. There is no un-deprecate — reviving a concept means
   a new entity that `supersedes` the deprecated one.
+- **A deprecated datamodel SHOULD say so inside its schema too.** When a
+  datamodel entity reaches `status: deprecated`, its `schema.json` SHOULD set
+  `"deprecated": true` at the root. `deprecated` is a standard JSON Schema
+  2020-12 meta-data keyword (vocabulary
+  `https://json-schema.org/draft/2020-12/vocab/meta-data`, a boolean defaulting
+  to `false`) — not an `x-` extension — so generators and documentation tools
+  act on it without knowing this framework. Frontmatter `status` is what the
+  portal reads; the annotation is what a schema carries once it has been
+  dereferenced out of the catalog, where the frontmatter is no longer attached.
+
+  ```json
+  /* .../component/payment/datamodel/cart-order/schema.json — the predecessor
+     that `order` supersedes, once its own index.md reads status: deprecated */
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/cart-order",
+    "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/cart-order",
+    "deprecated": true,
+    "type": "object"
+  }
+  ```
+
+  It is an annotation, so setting it rejects no instance and is legal in place
+  under the superset rule ([kinds/datamodel.md](kinds/datamodel.md)) — it still
+  bumps `version` like any content change. The same keyword MAY be set on an
+  individual property being phased out, which is the additive substitute for
+  removing it:
+
+  ```json
+  { "status": { "enum": ["placed", "paid"], "deprecated": true } }
+  ```
 - A version bump on an `approved` entity SHOULD reset `status` to `review`
   (or `draft`) per the owning team's process; the additive rule already
   guarantees the previous approved contract still holds.
@@ -253,14 +361,24 @@ and the portal build's validation.
 | `E_VER_REGRESSION`    | `version` decreased, or increased by more than 1, in a commit. |
 | `E_SRN_VERSION`       | Pinned `@N` not on filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED`    | Reference targets a `status: deprecated` entity.               |
+| `W_REF_STALE_PIN`     | Pinned `@N` resolves, but the target has moved past it.        |
 
 (`E_VER_REGRESSION` is checkable only where history is available — the portal
 checks it while building the version→commit index.)
 
+The two version codes answer different questions and MUST NOT be conflated.
+`E_SRN_VERSION` is an **error** and asks whether the pin resolves at all; it can
+only be raised by something holding the version→commit index, which is why the
+portal raises it in `lib/history`, at resolution time, and never at load.
+`W_REF_STALE_PIN` is a **warning** and asks whether a resolving pin has fallen
+behind; the loader can answer that from frontmatter alone. `order@1` while
+`order` is at v3 is `W_REF_STALE_PIN` and legal; `order@5` is `E_SRN_VERSION`
+and is not.
+
 **Retired: `E_VER_ID_MISMATCH`.** It meant "schema `$id` version ≠ frontmatter
 `version`". A `schema.json` carries an `$id` again (decision-record amendment
 2026-08-19-c) but it carries **no version** — the URL addresses the current
-schema and a `@N` in one is rejected — so the comparison still has no second
+schema and a `@N` in one is rejected, as it is in `x-srn` — so the comparison has no second
 operand and the code MUST NOT be emitted. The rule it enforced is gone rather
 than moved: with one copy of the version there is nothing to compare it against.
 An `$id` that disagrees with the entity's schema URL is `E_DM_ID_MISMATCH`
