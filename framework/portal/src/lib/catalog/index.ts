@@ -71,7 +71,9 @@ const load = async (): Promise<LoadedCatalog> =>
  *
  * Parsing the catalog costs two orders of magnitude more than stat'ing it, and
  * between two page loads the answer is almost always "nothing changed".
- * Measured in `next dev` against the real catalog (197 entities, 597 entries):
+ * Measured in `next dev` against the catalog as it stood at the time (197
+ * entities, 597 entries; it has since grown past 280, which moves the absolute
+ * numbers but not the ratio this trade rests on):
  * ~18ms to fingerprint against ~2.2s of request time to rebuild. Only ~400ms of
  * that lands inside the loader; the balance is the price of the graph itself,
  * which each rebuild grows the heap by ~250MB to produce and the rest of the

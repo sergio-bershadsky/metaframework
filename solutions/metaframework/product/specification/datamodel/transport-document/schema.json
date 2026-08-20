@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/transport-document",
+  "title": "Transport document",
+  "description": "transport.yaml — how one protocol's conversation reaches the wire. One protocol, one transport: the binding block is keyed by exactly the kind value, and `spec` and the block's surface list are mutually exclusive. Specified in framework/spec/kinds/protocol.md; no portal code parses it.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["http", "grpc", "amqp", "kafka", "websocket", "in-process"],
+      "description": "The wire technology. Closed set; selects the binding block (E_PROTO_TRANSPORT_BINDING). No value exists for a local subprocess exec or for stdio JSON-RPC — both are recorded in prose and in x- keys instead."
+    },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "encoding": {
+      "type": "string",
+      "enum": ["json", "avro", "protobuf", "msgpack", "xml", "text", "binary"],
+      "description": "Wire encoding of payloads."
+    },
+    "auth": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/kebab" },
+      "description": "Display-only labels: oauth2-bearer, mtls, sasl-scram. The portal renders them and derives nothing."
+    },
+    "spec": { "$ref": "#/$defs/spec" },
+    "http": { "$ref": "#/$defs/http-binding" },
+    "grpc": { "$ref": "#/$defs/grpc-binding" },
+    "amqp": { "$ref": "#/$defs/amqp-binding" },
+    "kafka": { "$ref": "#/$defs/kafka-binding" },
+    "websocket": { "$ref": "#/$defs/websocket-binding" },
+    "in-process": { "$ref": "#/$defs/in-process-binding" }
+  },
+  "required": ["kind"],
+  "patternProperties": {
+    "^x-": {
+      "description": "The escape hatch reaches into this artifact, at the top level and inside entries. Tolerated and ignored by the portal; any other unknown key is E_PROTO_TRANSPORT_SCHEMA."
+    }
+  },
+  "additionalProperties": false,
+  "dependentSchemas": {
+    "spec": {
+      "description": "spec and the binding block's surface list are mutually exclusive (E_PROTO_TRANSPORT_SPEC_CONFLICT): either the spec file is the single source of operation truth, or the lightweight list is written here. Maintaining both guarantees divergence.",
+      "properties": {
+        "http": { "not": { "required": ["operations"] } },
+        "grpc": { "not": { "required": ["methods"] } },
+        "amqp": { "not": { "required": ["bindings"] } },
+        "kafka": { "not": { "required": ["topics"] } },
+        "websocket": { "not": { "required": ["channels"] } },
+        "in-process": { "not": { "required": ["functions"] } }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "http" } }, "required": ["kind"] },
+      "then": {
+        "required": ["http"],
+        "not": { "anyOf": [{ "required": ["grpc"] }, { "required": ["amqp"] }, { "required": ["kafka"] }, { "required": ["websocket"] }, { "required": ["in-process"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "grpc" } }, "required": ["kind"] },
+      "then": {
+        "required": ["grpc"],
+        "not": { "anyOf": [{ "required": ["http"] }, { "required": ["amqp"] }, { "required": ["kafka"] }, { "required": ["websocket"] }, { "required": ["in-process"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "amqp" } }, "required": ["kind"] },
+      "then": {
+        "required": ["amqp"],
+        "not": { "anyOf": [{ "required": ["http"] }, { "required": ["grpc"] }, { "required": ["kafka"] }, { "required": ["websocket"] }, { "required": ["in-process"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "kafka" } }, "required": ["kind"] },
+      "then": {
+        "required": ["kafka"],
+        "not": { "anyOf": [{ "required": ["http"] }, { "required": ["grpc"] }, { "required": ["amqp"] }, { "required": ["websocket"] }, { "required": ["in-process"] }] },
+        "allOf": [
+          {
+            "description": "kafka.topics is required unless an external spec is linked — the one binding block whose surface list is not optional.",
+            "if": { "not": { "required": ["spec"] } },
+            "then": { "properties": { "kafka": { "required": ["topics"] } } }
+          }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "websocket" } }, "required": ["kind"] },
+      "then": {
+        "required": ["websocket"],
+        "not": { "anyOf": [{ "required": ["http"] }, { "required": ["grpc"] }, { "required": ["amqp"] }, { "required": ["kafka"] }, { "required": ["in-process"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "in-process" } }, "required": ["kind"] },
+      "then": {
+        "required": ["in-process"],
+        "not": { "anyOf": [{ "required": ["http"] }, { "required": ["grpc"] }, { "required": ["amqp"] }, { "required": ["kafka"] }, { "required": ["websocket"] }] }
+      }
+    }
+  ],
+  "$defs": {
+    "kebab": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64
+    },
+    "srn-ref": {
+      "type": "string",
+      "description": "An SRN reference, absolute or solution-absolute, optionally @-pinned. MUST resolve to a datamodel (E_PROTO_PAYLOAD_KIND). This is one of the few places a version pin can still live, since a canonical schema URL cannot carry one."
+    },
+    "spec": {
+      "type": "object",
+      "description": "Link to an external spec file sitting beside index.md. In v1 the portal treats the linked file as an opaque attachment: a card with format, version and a raw link. Parsing OpenAPI or AsyncAPI to derive operation tables is deferred.",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["openapi", "asyncapi", "protobuf", "graphql", "json-schema"]
+        },
+        "file": {
+          "type": "string",
+          "pattern": "^[^/]",
+          "description": "Path relative to the entity directory. MUST exist, MUST NOT start with / and MUST NOT contain .. (E_PROTO_SPEC_FILE). Only the first of those three is checkable here; existence is not a schema question."
+        },
+        "version": { "type": "string" }
+      },
+      "required": ["format", "file"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "http-binding": {
+      "type": "object",
+      "properties": {
+        "base-path": { "type": "string", "pattern": "^/", "description": "Path prefix all operations hang off." },
+        "tls": { "type": "boolean", "default": true },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/http-operation" },
+          "description": "Surface list. Mutually exclusive with the document's spec."
+        }
+      },
+      "required": ["base-path"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "http-operation": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/kebab" },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "path": { "type": "string", "pattern": "^/", "description": "May contain {param} placeholders." },
+        "request": { "$ref": "#/$defs/srn-ref" },
+        "response": { "$ref": "#/$defs/srn-ref" },
+        "summary": { "type": "string" }
+      },
+      "required": ["name", "method", "path"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "grpc-binding": {
+      "type": "object",
+      "properties": {
+        "package": {
+          "type": "string",
+          "description": "Proto package, dot-separated. An external identifier, so not kebab-constrained."
+        },
+        "service": { "type": "string", "description": "Service name as declared in the proto." },
+        "tls": { "type": "boolean", "default": true },
+        "methods": { "type": "array", "items": { "$ref": "#/$defs/grpc-method" } }
+      },
+      "required": ["package", "service"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "grpc-method": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "request": { "$ref": "#/$defs/srn-ref" },
+        "response": { "$ref": "#/$defs/srn-ref" },
+        "streaming": { "type": "string", "enum": ["none", "client", "server", "bidi"], "default": "none" },
+        "summary": { "type": "string" }
+      },
+      "required": ["name"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "amqp-binding": {
+      "type": "object",
+      "properties": {
+        "exchange": { "type": "string", "description": "Exchange name; may be the empty string for the default exchange." },
+        "exchange-type": { "type": "string", "enum": ["direct", "topic", "fanout", "headers"] },
+        "durable": { "type": "boolean", "default": true },
+        "bindings": { "type": "array", "items": { "$ref": "#/$defs/amqp-binding-entry" } }
+      },
+      "required": ["exchange", "exchange-type"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "amqp-binding-entry": {
+      "type": "object",
+      "properties": {
+        "routing-key": { "type": "string", "description": "May contain * and # wildcards." },
+        "queue": { "type": "string" },
+        "message": { "$ref": "#/$defs/srn-ref" },
+        "summary": { "type": "string" }
+      },
+      "required": ["routing-key", "queue"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "kafka-binding": {
+      "type": "object",
+      "properties": {
+        "cluster": { "type": "string", "description": "Free label for the logical cluster." },
+        "topics": { "type": "array", "items": { "$ref": "#/$defs/kafka-topic" } }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "kafka-topic": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Kafka naming, not kebab-constrained." },
+        "key": { "type": "string", "description": "The partition key." },
+        "message": { "$ref": "#/$defs/srn-ref" },
+        "partitions": { "type": "integer", "minimum": 1 },
+        "retention": { "type": "string", "description": "e.g. 7d." },
+        "summary": { "type": "string" }
+      },
+      "required": ["name"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "websocket-binding": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "pattern": "^/", "description": "Upgrade path." },
+        "subprotocol": { "type": "string", "description": "Sec-WebSocket-Protocol." },
+        "tls": { "type": "boolean", "default": true },
+        "channels": { "type": "array", "items": { "$ref": "#/$defs/websocket-channel" } }
+      },
+      "required": ["path"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "websocket-channel": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/kebab" },
+        "direction": { "type": "string", "enum": ["client-to-server", "server-to-client", "bidi"] },
+        "message": { "$ref": "#/$defs/srn-ref" },
+        "summary": { "type": "string" }
+      },
+      "required": ["name", "direction"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "in-process-binding": {
+      "type": "object",
+      "properties": {
+        "language": { "type": "string", "description": "e.g. typescript, python, go." },
+        "module": { "type": "string", "description": "Import path or package path." },
+        "interface": { "type": "string", "description": "Exported symbol implementing the surface." },
+        "functions": { "type": "array", "items": { "$ref": "#/$defs/in-process-function" } }
+      },
+      "required": ["language", "module"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "in-process-function": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "request": { "$ref": "#/$defs/srn-ref" },
+        "response": { "$ref": "#/$defs/srn-ref" },
+        "summary": { "type": "string" }
+      },
+      "required": ["name"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    }
+  }
+}

@@ -77,6 +77,32 @@ const CONTRIBUTIONS = [
   () => import('monaco-editor/editor/contrib/toggleTabFocusMode/browser/toggleTabFocusMode.js'),
 ]
 
+/**
+ * Services that other people's contributions ask for.
+ *
+ * Monaco's contribution registry is GLOBAL and additive: any module anywhere in
+ * the bundle that imports a controller registers that controller for every
+ * editor created afterwards. The list above therefore decides what we *import*,
+ * not what ends up registered — something in the graph pulls the code lens,
+ * suggest and tree-view controllers in without us asking, and each of those is
+ * constructed with a service that only `editor.main` would otherwise register.
+ * The result was a runtime error the moment an editor mounted:
+ *
+ *     [createInstance] CodeLensContribution depends on UNKNOWN service ICodeLensCache
+ *
+ * Registering the three services is the cheap half of the fix and the safe one:
+ * each is a `registerSingleton(..., InstantiationType.Delayed)`, so nothing is
+ * constructed unless the contribution that needs it actually runs. Dropping the
+ * contributions instead would mean either taking `editor.main` — and the whole
+ * TypeScript compiler with it, which is what this file exists to avoid — or
+ * policing an import graph we do not own.
+ */
+const REQUIRED_SERVICES = [
+  () => import('monaco-editor/editor/contrib/codelens/browser/codeLensCache.js'),
+  () => import('monaco-editor/editor/contrib/suggest/browser/suggestMemory.js'),
+  () => import('monaco-editor/editor/common/services/treeViewsDndService.js'),
+]
+
 /** The languages this catalog is written in, and nothing else. */
 const GRAMMARS = [
   () => import('monaco-editor/languages/definitions/yaml/register.js'),
@@ -92,6 +118,7 @@ export function loadMonaco(): Promise<typeof Monaco> {
     const [monaco, json] = await Promise.all([
       import('monaco-editor/editor/editor.api.js'),
       import('monaco-editor/languages/features/json/register.js'),
+      ...REQUIRED_SERVICES.map((load) => load()),
       ...CONTRIBUTIONS.map((load) => load()),
       ...GRAMMARS.map((load) => load()),
     ])

@@ -103,6 +103,9 @@ interface EntityNodeData extends Record<string, unknown> {
   kind: EntityKind
   focused: boolean
   direction: LayoutDirection
+  /** Some drawable edge arrives here / leaves here — see {@link HANDLE_STYLE}. */
+  hasIn: boolean
+  hasOut: boolean
   onNavigate?: (srn: string) => void
 }
 
@@ -112,6 +115,13 @@ type RelationFlowEdge = Edge<Record<string, unknown>>
 // Inline rather than utility classes: React Flow ships `.react-flow__handle`
 // rules of its own, and inline style is the only override that does not depend
 // on the order the two stylesheets happen to land in.
+//
+// A dot is the END of a line, so it is painted only when a line actually
+// arrives there. The handle itself is always rendered — React Flow resolves an
+// edge against a handle that must exist, and a leaf node still owns the anchor
+// its future edges would use — but an unconnected one is transparent. Drawing
+// it regardless left a stud on the side of every terminal node, promising a
+// connection that was not there.
 const HANDLE_STYLE = { width: 6, height: 6, border: 'none', background: 'var(--border-strong)' } as const
 const HIDDEN_HANDLE = { width: 6, height: 6, border: 'none', background: 'transparent' } as const
 
@@ -154,13 +164,13 @@ function EntityBox({ data }: NodeProps<EntityFlowNode>) {
         type="target"
         position={flowsRight ? Position.Left : Position.Top}
         id="in"
-        style={HANDLE_STYLE}
+        style={data.hasIn ? HANDLE_STYLE : HIDDEN_HANDLE}
       />
       <Handle
         type="source"
         position={flowsRight ? Position.Right : Position.Bottom}
         id="out"
-        style={HANDLE_STYLE}
+        style={data.hasOut ? HANDLE_STYLE : HIDDEN_HANDLE}
       />
       <Handle type="source" position={Position.Top} id="self-out" style={{ ...HIDDEN_HANDLE, left: '30%' }} />
       <Handle type="target" position={Position.Top} id="self-in" style={{ ...HIDDEN_HANDLE, left: '70%' }} />
@@ -335,10 +345,37 @@ export function RelationGraph({
     [edges, known],
   )
 
+  /**
+   * Which sides of each box a line actually reaches.
+   *
+   * Derived from `drawable` rather than from the visible subset: a type hidden
+   * from the legend is a reading preference, and handles blinking in and out as
+   * the reader toggles one would be a second, noisier answer to a question they
+   * did not ask. A self-edge is excluded because it lands on its own pair of
+   * handles at the top of the box, never on these two.
+   */
+  const anchored = useMemo(() => {
+    const sides = new Map<string, { hasIn: boolean; hasOut: boolean }>()
+    const side = (srn: string) => {
+      const existing = sides.get(srn)
+      if (existing) return existing
+      const created = { hasIn: false, hasOut: false }
+      sides.set(srn, created)
+      return created
+    }
+    for (const edge of drawable) {
+      if (edge.from === edge.to) continue
+      side(edge.from).hasOut = true
+      side(edge.to).hasIn = true
+    }
+    return sides
+  }, [drawable])
+
   const flowNodes = useMemo<EntityFlowNode[]>(() => {
     if (!layout) return []
     return nodes.map((node) => {
       const box = layout.placed.get(node.srn)
+      const sides = anchored.get(node.srn)
       return {
         id: node.srn,
         type: 'entity',
@@ -350,11 +387,13 @@ export function RelationGraph({
           kind: node.kind,
           focused: node.srn === focus,
           direction,
+          hasIn: sides?.hasIn ?? false,
+          hasOut: sides?.hasOut ?? false,
           onNavigate,
         },
       }
     })
-  }, [nodes, layout, focus, direction, onNavigate])
+  }, [nodes, layout, focus, direction, anchored, onNavigate])
 
   // Visibility is a filter on drawn edges only: toggling a type must never
   // reshuffle the graph, or the reader loses the map they had just learned.

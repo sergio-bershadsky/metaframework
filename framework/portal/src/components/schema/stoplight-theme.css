@@ -47,6 +47,38 @@
   background-color: var(--surface) !important;
 }
 
+/*
+ * Mosaic's hover breadcrumb is switched off.
+ *
+ * On hovering a nested property, the viewer pins that property's dotted path to
+ * the top of the scroll box: `sl-sticky sl-top-0` with `sl--mt-8`, a negative
+ * top margin exactly its own height, so it consumes no layout and the schema
+ * does not jump when it appears.
+ *
+ * The consequence is that it sits ON a row rather than beside one. Pinned to
+ * the top of a 520px window it covers whichever row happens to be there — which
+ * is generally NOT the row being described, because the hovered property is the
+ * one further down that put it on screen. Measured on ledger-entry: hovering
+ * `amount.amount` painted that path over the `direction` row's name, leaving
+ * "Explicit direction. Amounts are never signed." and its allowed values
+ * beneath a heading for a different field. It reads as corrupted rendering, and
+ * it read that way whether or not the bar was opaque — being genuinely on top
+ * (verified: z-index above every sibling, `elementFromPoint` returning the bar
+ * itself) makes it hide the row cleanly instead of ghosting through it, which
+ * is not the same as being right.
+ *
+ * Nothing is lost that this console does not already say more plainly: a
+ * property's path is legible from the indentation it sits at, the Lineage
+ * section names every ancestor that contributed a field, and the entity's own
+ * SRN is in the page heading.
+ *
+ * To restore it, delete this rule — but restore the opacity and stacking with
+ * it, or the ghost text comes back.
+ */
+.sl-metaframework-schema .sl-sticky {
+  display: none;
+}
+
 .sl-metaframework-schema .sl-text-muted {
   color: var(--muted-foreground) !important;
 }

@@ -94,6 +94,36 @@ describe('statesToMermaid', () => {
     expect(statesToMermaid(chartOf(machine))).toContain('s_quoted --> s_quoted : RETRY')
   })
 
+  it('merges parallel self transitions into one loop arrow, a line each', () => {
+    // Mermaid keys a state's loop edges by their shared endpoints, so two
+    // separate loop statements draw as one arrow with only the second's label
+    // — the first transition silently vanishes. One statement carrying both
+    // labels is the drawing that loses nothing.
+    const chart = chartOf({
+      id: 'm',
+      initial: 'serving',
+      states: {
+        serving: {
+          on: {
+            RECORDED: { target: 'serving', actions: ['increment'] },
+            REVERSED: { target: 'serving', actions: ['decrement'] },
+            CLOSED: { target: 'done' },
+          },
+        },
+        done: { type: 'final' },
+      },
+    })
+    const { text, edgeOrder } = compileStates(chart)
+    expect(text).toContain('s_serving --> s_serving : RECORDED / increment<br/>REVERSED / decrement')
+    // One statement, both edges — and the lone non-self arrow is untouched.
+    expect(edgeOrder).toEqual([
+      null, // [*] --> serving
+      ['serving--RECORDED--0', 'serving--REVERSED--0'],
+      ['serving--CLOSED--0'],
+      null, // done --> [*]
+    ])
+  })
+
   it('flattens label text mermaid cannot carry through its lexer', () => {
     const chart = chartOf({
       id: 'm',
@@ -156,11 +186,11 @@ describe('compileStates', () => {
     expect(edgeOrder).toEqual([
       null, // [*] --> scanning (inside evaluating)
       null, // [*] --> evaluating
-      'evaluating.scanning--EXHAUSTED--0',
-      'evaluating.scanning--EXHAUSTED--1',
-      'evaluating.validating-coupon--COUPON_VALID--0',
-      'quoted--RETRY--0',
-      'quoted--ORDER_PLACED--0',
+      ['evaluating.scanning--EXHAUSTED--0'],
+      ['evaluating.scanning--EXHAUSTED--1'],
+      ['evaluating.validating-coupon--COUPON_VALID--0'],
+      ['quoted--RETRY--0'],
+      ['quoted--ORDER_PLACED--0'],
       null, // committed --> [*]
     ])
 

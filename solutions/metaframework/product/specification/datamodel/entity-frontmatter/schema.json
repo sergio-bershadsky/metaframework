@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/entity-frontmatter",
+  "x-srn": "srn://metaframework/product/specification/datamodel/entity-frontmatter",
+  "title": "Entity frontmatter",
+  "description": "The YAML block at the top of every entity index.md: the common contract from framework/spec/frontmatter.md plus the fields the entity's kind document adds. Modelled as a discriminated union on `kind`, which is how framework/portal/src/lib/catalog/frontmatter.ts implements it (commonFrontmatterSchema plus KIND_FRONTMATTER).",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "#/$defs/kebab",
+      "description": "MUST equal the entity's directory name (E_FM_NAME_MISMATCH)."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "solution",
+        "product",
+        "component",
+        "datamodel",
+        "protocol",
+        "actor",
+        "environment",
+        "adr",
+        "requirement"
+      ],
+      "description": "The closed v1 ontology. MUST equal the kind bucket the directory sits in (E_FM_KIND_LOCATION); the solution root is the only entity with no bucket."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Integer, never a string. Bumped on every content change per evolution.md; a change to `status` alone is exempt."
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "summary": { "$ref": "#/$defs/one-line" },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "review", "approved", "deprecated"],
+      "description": "Document lifecycle — is this description written and reviewed. Never the described thing's real-world stage."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-form responsible handle. No registry of handles exists; nothing validates it."
+    },
+    "relations": { "$ref": "#/$defs/relations" },
+    "tags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/kebab" },
+      "description": "Free navigation facets. No semantics attached."
+    }
+  },
+  "required": ["name", "kind", "version", "title", "summary", "status"],
+  "patternProperties": {
+    "^x-": {
+      "description": "The escape hatch for local experimentation. Tolerated, ignored by the portal."
+    }
+  },
+  "oneOf": [
+    {
+      "title": "solution",
+      "properties": {
+        "kind": { "const": "solution" },
+        "vision": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "in": { "type": "array", "items": { "$ref": "#/$defs/one-line" } },
+            "out": { "type": "array", "items": { "$ref": "#/$defs/one-line" } }
+          },
+          "required": ["in"]
+        },
+        "contacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "$ref": "#/$defs/kebab" },
+              "handle": { "type": "string", "minLength": 1 },
+              "channel": { "type": "string" }
+            },
+            "required": ["role", "handle"]
+          }
+        }
+      },
+      "required": ["vision"]
+    },
+    {
+      "title": "product",
+      "properties": {
+        "kind": { "const": "product" },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["concept", "incubating", "active", "maintenance", "sunset", "retired"],
+          "description": "The product in the world, as opposed to `status`, which is the document."
+        },
+        "primary-actors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "A kind field rather than an edge, because no v1 edge type accepts an actor target."
+        }
+      },
+      "required": ["lifecycle"]
+    },
+    {
+      "title": "component",
+      "properties": {
+        "kind": { "const": "component" },
+        "component-type": {
+          "type": "string",
+          "enum": ["service", "library", "ui", "job", "datastore", "gateway", "external"]
+        }
+      },
+      "required": ["component-type"]
+    },
+    {
+      "title": "datamodel",
+      "properties": {
+        "kind": { "const": "datamodel" },
+        "usage": { "type": "string", "enum": ["storage", "exchange", "both"] },
+        "abstract": { "type": "boolean", "default": false }
+      },
+      "required": ["usage"]
+    },
+    {
+      "title": "protocol",
+      "properties": {
+        "kind": { "const": "protocol" },
+        "style": { "type": "string", "enum": ["point-to-point", "bus", "request-response"] },
+        "participants": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "properties": {
+              "alias": { "$ref": "#/$defs/kebab", "maxLength": 32 },
+              "ref": { "$ref": "#/$defs/srn-ref" },
+              "role": { "$ref": "#/$defs/kebab", "maxLength": 32 }
+            },
+            "required": ["alias", "ref"]
+          },
+          "description": "Authoritative for the workflow alias namespace and for the NCA that fixes the directory — not for edge direction, which the participants' own exposes/uses edges carry."
+        },
+        "conforms-to": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "standard": { "type": "string", "minLength": 1 },
+              "version": { "type": "string" },
+              "url": { "type": "string" }
+            },
+            "required": ["standard"]
+          }
+        }
+      },
+      "required": ["style", "participants"]
+    },
+    {
+      "title": "actor",
+      "properties": {
+        "kind": { "const": "actor" },
+        "actor-type": {
+          "type": "string",
+          "enum": ["human", "system", "external-system", "service-account"]
+        },
+        "goals": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/one-line" }
+        }
+      },
+      "required": ["actor-type", "goals"]
+    },
+    {
+      "title": "environment",
+      "properties": {
+        "kind": { "const": "environment" },
+        "environment-type": {
+          "type": "string",
+          "enum": ["dev", "staging", "production", "edge", "local"]
+        }
+      },
+      "required": ["environment-type"]
+    },
+    {
+      "title": "adr",
+      "properties": {
+        "kind": { "const": "adr" },
+        "decision-status": {
+          "type": "string",
+          "enum": ["proposed", "accepted", "rejected", "superseded"],
+          "description": "Where the decision stands in the architecture. Orthogonal to `status`, which is where the document stands."
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "Bare ISO-8601 calendar date; no time, no timezone (E_ADR_DATE)."
+        },
+        "deciders": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "required": ["decision-status", "date"]
+    },
+    {
+      "title": "requirement",
+      "properties": {
+        "kind": { "const": "requirement" },
+        "requirement-type": { "type": "string", "enum": ["functional", "non-functional"] },
+        "priority": {
+          "type": "string",
+          "enum": ["must", "should", "could", "wont"],
+          "description": "MoSCoW, spelled without an apostrophe."
+        }
+      },
+      "required": ["requirement-type", "priority"]
+    }
+  ],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "kebab": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Naming and the SRN share one grammar, because the path is the SRN."
+    },
+    "one-line": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[^\\n]*$"
+    },
+    "srn-ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An absolute srn:// reference, a solution-absolute path starting with /, or a relative path resolved from the referring entity's own directory. An optional @N pin may follow."
+    },
+    "relations": {
+      "type": "object",
+      "description": "Typed outgoing edges only. The five inverses — used-by, exposed-by, depended-on-by, implemented-by, superseded-by — are derived by the portal and authoring one is E_FM_SCHEMA.",
+      "properties": {
+        "uses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Any source. Targets: datamodel, protocol, environment, component."
+        },
+        "exposes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Source: component or product. Targets: protocol, datamodel."
+        },
+        "depends-on": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Source: component or product. Targets: component, product."
+        },
+        "implements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Source: component or product. Target: requirement, and nothing else."
+        },
+        "supersedes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Any source; the target MUST be the same kind as the source."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

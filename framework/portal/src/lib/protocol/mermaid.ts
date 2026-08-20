@@ -30,7 +30,11 @@ import { stateChartSummary, type StateChart, type StateChartEdge, type StateChar
  *   compartment — because an arrow that leaves and re-enters would say
  *   "exit and entry actions run", which is precisely what `internal` denies.
  * - **Self transitions** are real arrows `alias --> alias`, which mermaid
- *   draws as a loop.
+ *   draws as a loop. *Parallel* self transitions on one state collapse into a
+ *   single arrow statement, one transition per label line: mermaid keys a
+ *   state's loop edges by their shared endpoints, so of N separate loop
+ *   statements only the last is drawn (verified against mermaid 11.17) — the
+ *   others would silently vanish from the diagram.
  * - **Entry/exit actions** are description lines too (`entry / …`, `exit / …`).
  *   On a *compound* state they become a `note right of` block instead:
  *   mermaid renders description lines by swapping the state to a
@@ -45,12 +49,14 @@ export interface CompiledStateDiagram {
   /** Chart node id → the mermaid alias it is declared as. */
   aliases: ReadonlyMap<string, string>
   /**
-   * Chart edge ids in the order their transition statements appear in `text`,
-   * with `null` for the pseudo-transitions ([*] arrows) interleaved among
-   * them. Mermaid assigns DOM ids to edges in statement order, so this is the
-   * join key for any SVG post-processing.
+   * Chart edge ids per transition statement, in the order the statements
+   * appear in `text`, with `null` for the pseudo-transitions ([*] arrows)
+   * interleaved among them. One statement usually carries one edge; a merged
+   * parallel-self-loop statement carries every edge it stands for. Mermaid
+   * assigns DOM ids to edges in statement order, so this is the join key for
+   * any SVG post-processing.
    */
-  edgeOrder: ReadonlyArray<string | null>
+  edgeOrder: ReadonlyArray<readonly string[] | null>
 }
 
 export function statesToMermaid(chart: StateChart): string {
@@ -73,7 +79,7 @@ export function compileStates(chart: StateChart): CompiledStateDiagram {
   lines.push(`  accTitle: State machine ${escapeLabel(chart.id)}`)
   lines.push(`  accDescr: ${escapeLabel(summary.headline)}`)
 
-  const edgeOrder: Array<string | null> = []
+  const edgeOrder: Array<string[] | null> = []
   const internals = internalsBySource(chart.edges)
 
   /** Declarations first — a state exists before anything points at it. */
@@ -116,10 +122,32 @@ export function compileStates(chart: StateChart): CompiledStateDiagram {
     edgeOrder.push(null)
   }
 
+  // Parallel self loops, grouped up front so the loop below can spend a
+  // state's whole group in one statement when it reaches the first of them.
+  const selfLoops = new Map<string, StateChartEdge[]>()
+  for (const edge of chart.edges) {
+    if (edge.internal || edge.source !== edge.target) continue
+    const group = selfLoops.get(edge.source) ?? []
+    group.push(edge)
+    selfLoops.set(edge.source, group)
+  }
+
+  const merged = new Set<string>()
   for (const edge of chart.edges) {
     if (edge.internal) continue // rendered inside the state's compartment
+    const group = edge.source === edge.target ? (selfLoops.get(edge.source) as StateChartEdge[]) : null
+    if (group && group.length > 1) {
+      if (merged.has(edge.source)) continue // spent by the group's first edge
+      merged.add(edge.source)
+      // `<br/>` is mermaid's own line break; each line is escaped on its own,
+      // so the separator cannot be forged from inside a label.
+      const label = group.map((loop) => escapeLabel(edgeLabel(loop))).join('<br/>')
+      lines.push(`  ${alias(edge.source)} --> ${alias(edge.target)} : ${label}`)
+      edgeOrder.push(group.map((loop) => loop.id))
+      continue
+    }
     lines.push(`  ${alias(edge.source)} --> ${alias(edge.target)} : ${escapeLabel(edgeLabel(edge))}`)
-    edgeOrder.push(edge.id)
+    edgeOrder.push([edge.id])
   }
 
   for (const node of chart.nodes) {

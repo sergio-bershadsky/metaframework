@@ -152,7 +152,15 @@ async function describe(
       visual: error ? (
         <Undrawable messages={[error]} what="resolved" />
       ) : (
-        <div className="max-h-[520px] overflow-auto p-4">
+        // Extra room on the left: an expandable row's chevron is pulled into
+        // the gutter by a negative margin, far enough that at an even `p-4` it
+        // touched the panel edge. The padding is asymmetric because the cause
+        // is — nothing hangs off the other three sides.
+        //
+        // `bg-surface` because Mosaic paints no background of its own and the
+        // panel's is several ancestors away, which leaves anything that pins
+        // itself inside this box sitting on nothing.
+        <div className="max-h-[520px] overflow-auto bg-surface py-4 pr-4 pl-6">
           <StoplightSchemaView schema={schema} />
         </div>
       ),

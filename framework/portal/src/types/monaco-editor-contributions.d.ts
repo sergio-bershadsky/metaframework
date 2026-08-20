@@ -9,3 +9,10 @@
  */
 declare module 'monaco-editor/editor/browser/*'
 declare module 'monaco-editor/editor/contrib/*'
+
+/**
+ * Same shape, and imported for the same reason: the singleton services those
+ * contributions are constructed with. `treeViewsDndService` is the one that
+ * lives under `common/services` rather than beside a contribution.
+ */
+declare module 'monaco-editor/editor/common/*'

@@ -1,0 +1,32 @@
+kind: http
+summary: Two read-only operations on the portal's own origin — the retrieval half of a schema URL, not the identity half.
+encoding: json
+http:
+  base-path: /schemas
+  tls: false
+  operations:
+    - name: get-schema
+      method: GET
+      path: /{srn-path}
+      response: /product/specification/datamodel/schema-document@1
+      summary: >-
+        The path after the prefix is the datamodel's SRN path verbatim. Answers
+        application/schema+json with a sha256 ETag and Content-Location; 304 on
+        a matching If-None-Match; 404 for any address that is not a datamodel
+        holding a schema.json.
+
+    - name: preflight
+      method: OPTIONS
+      path: /{srn-path}
+      summary: >-
+        204 with Access-Control-Allow-Origin *, so a browser-based validator can
+        fetch a schema cross-origin. The catalog is not secret and the route is
+        read-only.
+
+# tls: false is the truthful value for the only environment that exists — the
+# portal is served over http://localhost:3000 and has never been deployed
+# behind TLS. See environment/local.
+x-serving-origin-only: >-
+  This base-path is a retrieval address under SCHEMA_BASE_URL, never an identity.
+  No $id and no $ref in the catalog names this origin, and fixture-check.test.ts
+  asserts that no schema.json contains the string "/schemas/".

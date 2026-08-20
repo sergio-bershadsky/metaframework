@@ -1,0 +1,77 @@
+name: fetch-schema
+title: Fetch a schema, then follow a reference out of it
+summary: One GET is unremarkable; the second one is the whole point, and its else-branch is where the canonical host stops resolving.
+participants: [consumer, schema-service]
+steps:
+  - message: get-schema
+    from: consumer
+    to: schema-service
+    kind: call
+    note: >-
+      GET /schemas/{srn-path}. The path is validated three times before it
+      reaches disk: a catalog-relative check, an SRN check only a datamodel
+      passes, and a post-realpath containment re-check.
+
+  - alt:
+      - when: the path is a legal datamodel address and schema.json exists
+        steps:
+          - message: schema-document
+            from: schema-service
+            to: consumer
+            kind: return
+            payload: /product/specification/datamodel/schema-document@1
+            condition: "200 application/schema+json"
+            note: >-
+              The body's $id names the canonical host, not this origin. That is
+              what the next fragment turns on. A sha256 ETag travels with it, so
+              a re-fetch costs one 304.
+      - when: the address parses but names something other than a datamodel
+        steps:
+          - message: not-a-datamodel
+            from: schema-service
+            to: consumer
+            kind: error
+            condition: "404"
+            note: >-
+              Only a datamodel owns a schema.json. fixture-check.test.ts asserts
+              this branch for acme/actor/customer, a real entity of the wrong
+              kind.
+    otherwise:
+      - message: path-rejected
+        from: schema-service
+        to: consumer
+        kind: error
+        condition: "400"
+        note: >-
+          A '..' climb, or a path escaping the catalog through a symlink. The
+          handler never re-decodes what Next already decoded, so %252e%252e does
+          not become '..' here.
+
+  - opt:
+      when: the document carries a cross-entity $ref to the canonical host
+      steps:
+        - alt:
+            - when: the consumer's resolver maps that host onto this origin
+              steps:
+                - message: get-schema
+                  from: consumer
+                  to: schema-service
+                  kind: call
+                  note: >-
+                    One line of resolver config, outside the artifacts — the
+                    same mapping lib/schema/dereference.ts performs in-process
+                    with a resolver ordered ahead of the http one.
+                - message: schema-document
+                  from: schema-service
+                  to: consumer
+                  kind: return
+                  payload: /product/specification/datamodel/schema-document@1
+          otherwise:
+            - message: reference-unresolved
+              from: schema-service
+              to: consumer
+              kind: error
+              note: >-
+                schemas.metaframework.dev has no DNS, host or redirect in this
+                repository. Without the mapping the reference does not resolve.
+                Drawn rather than omitted: it is the state of the world today.

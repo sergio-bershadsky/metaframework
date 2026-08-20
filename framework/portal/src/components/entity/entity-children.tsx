@@ -80,10 +80,16 @@ function KindGroups({ entities, base }: { entities: Entity[]; base?: string }) {
         <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {group.map((entity) => (
             <li key={entity.srn}>
+              {/* `h-full` is what makes a row's cards line up. The <li> already
+                  stretches to the tallest card in its row — that is the grid
+                  default — but the card is this link, and a block element is
+                  sized by its own content, so it sat short inside a cell that
+                  was already the right height. One entity carrying a status
+                  badge was enough to leave its neighbours visibly clipped. */}
               <Link
                 href={entityHref(entity.srn)}
-                className={`focusable group block rounded-lg border border-border bg-surface/60 p-3 transition
-                            hover:border-border-strong hover:bg-surface`}
+                className={`focusable group block h-full rounded-lg border border-border bg-surface/60 p-3
+                            transition hover:border-border-strong hover:bg-surface`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-mono text-[13px] font-medium text-foreground/90">

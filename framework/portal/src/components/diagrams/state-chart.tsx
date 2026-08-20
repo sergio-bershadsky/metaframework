@@ -30,11 +30,13 @@ import { cn } from '@/lib/utils'
  *   `stateDomId` in mermaid's dataFetcher), joined back to chart node ids via
  *   the generator's alias map. Clicking selects the state's source lines,
  *   hovering previews them — the same anchor contract the old renderer had.
- * - **Transitions** have no addressable identity of their own in the SVG, so
- *   they are joined *by document order*: mermaid emits one edge element per
- *   arrow statement, in statement order, and the generator reports that order
- *   (`edgeOrder`). The join is verified by count before it is trusted — if the
- *   SVG disagrees, edge interactivity is dropped rather than mis-wired.
+ * - **Transitions** are joined *by rank*: mermaid numbers its edges
+ *   (`<renderId>-edge<n>`) in statement order, but notes share the counter,
+ *   so the numbers themselves index nothing — sorting the arrow paths by `n`
+ *   and zipping against the generator's statement list (`edgeOrder`) is the
+ *   join. It is verified by count before it is trusted — if the SVG
+ *   disagrees, edge interactivity is dropped rather than mis-wired. Labels
+ *   join exactly, by the `data-id="edge<n>"` they carry themselves.
  * - **Hover dimming** recedes everything not adjacent to the hovered state or
  *   transition, computed from the chart model, applied as a class.
  */
@@ -144,10 +146,16 @@ export function StateChartDiagram({
       .then(async (mermaid) => {
         const { svg } = await mermaid.render(renderId, compiled.text)
         if (cancelled) return
+        // Mermaid serialises its HTML labels as HTML, so the one tag the
+        // generator writes into a label (`<br/>` between merged self-loop
+        // lines) comes back unclosed — legal HTML, fatal XML. Closing it here
+        // is what lets the parse below stay strict. Label *text* cannot smuggle
+        // one in: `<` survives only entity-escaped.
+        const xml = svg.replace(/<br>/g, '<br/>')
         // DOMParser rather than innerHTML: the string is mermaid's own
         // DOMPurify-sanitised output, but parsing it as a document and
         // adopting the root element makes that trust boundary explicit.
-        const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
+        const parsed = new DOMParser().parseFromString(xml, 'image/svg+xml')
         if (parsed.querySelector('parsererror')) throw new Error('mermaid produced unparseable SVG')
         host.replaceChildren(document.adoptNode(parsed.documentElement))
         joinRef.current = decorate(host, chart, compiled, renderId, callbacks.current)
@@ -299,33 +307,43 @@ function decorate(
 
   // ---- transitions, by mermaid's edge numbering --------------------------
   // Every arrow statement becomes one `<renderId>-edge<n>` path, with `n`
-  // increasing in statement order — but the *DOM* order interleaves cluster
-  // and root edges, so the join sorts by `n` and zips against the generator's
-  // `edgeOrder`. Note edges carry a different id shape and drop out. Labels
-  // have no ids of their own; they do mirror the paths' DOM order, so each
-  // path is paired with the label at its own DOM index first. Both joins are
-  // verified by count — a mismatch (a mermaid upgrade reshaping its DOM)
-  // drops edge wiring whole rather than mis-wiring it.
+  // increasing in statement order — but not *equal* to it: note edges share
+  // the counter (their paths carry a different id shape and drop out of the
+  // match, yet they consume a number), so the join sorts the arrow paths by
+  // `n` and zips them against the generator's `edgeOrder` by rank. The zip is
+  // verified by count before it is trusted — a mismatch (a mermaid upgrade
+  // reshaping its DOM) drops edge wiring whole rather than mis-wiring it.
+  // Labels need no such care: each carries its path's own token in
+  // `data-id="edge<n>"`, an exact join.
   const paths = [...svg.querySelectorAll('.edgePaths > *')]
   const labels = [...svg.querySelectorAll('.edgeLabels > *')]
   const edgePattern = new RegExp(`^${renderId}-edge(\\d+)$`)
+
+  const labelByToken = new Map<string, Element>()
+  for (const label of labels) {
+    const token = label.querySelector('[data-id]')?.getAttribute('data-id')
+    if (token) labelByToken.set(token, label)
+  }
+
   const numbered = paths
-    .map((path, index) => ({
-      path,
-      label: labels.length === paths.length ? labels[index] : undefined,
-      order: Number(path.id.match(edgePattern)?.[1] ?? NaN),
-    }))
+    .map((path) => ({ path, order: Number(path.id.match(edgePattern)?.[1] ?? NaN) }))
     .filter((entry) => Number.isFinite(entry.order))
     .sort((a, b) => a.order - b.order)
 
   const edgeElements = new Map<string, Element[]>()
   if (numbered.length === compiled.edgeOrder.length) {
-    compiled.edgeOrder.forEach((edgeId, index) => {
-      if (!edgeId) return
+    compiled.edgeOrder.forEach((edgeIds, index) => {
+      if (!edgeIds) return
       const entry = numbered[index]
-      const elements = [entry.path, ...(entry.label ? [entry.label] : [])]
-      edgeElements.set(edgeId, elements)
-      byAnchor.set(edgeId, elements)
+      const label = labelByToken.get(`edge${entry.order}`)
+      const elements = [entry.path, ...(label ? [label] : [])]
+      // One statement can stand for several chart edges — the generator merges
+      // parallel self loops, because mermaid draws only the last of them — so
+      // every id of the statement anchors to the same drawn elements.
+      for (const edgeId of edgeIds) {
+        edgeElements.set(edgeId, elements)
+        byAnchor.set(edgeId, elements)
+      }
     })
   }
 
@@ -368,8 +386,14 @@ function decorate(
   }
 
   // ---- pointer wiring ----------------------------------------------------
+  // Merged parallel self loops give several anchor ids the same elements; the
+  // first id wired wins the pointer, so one hover reports one anchor rather
+  // than a burst of them.
+  const wired = new Set<Element>()
   for (const [id, elements] of byAnchor) {
     for (const element of elements) {
+      if (wired.has(element)) continue
+      wired.add(element)
       element.classList.add('smc-hit')
       element.addEventListener('mouseenter', () => {
         dim(id)

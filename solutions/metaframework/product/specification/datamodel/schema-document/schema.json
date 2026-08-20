@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/schema-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/schema-document",
+  "title": "Schema document",
+  "description": "The profile a catalog schema.json must satisfy: JSON Schema draft 2020-12, a canonical $id equal to the entity's schema URL, a required x-srn, no nested $id, and four forbidden keywords at any depth. Specified in framework/spec/kinds/datamodel.md; validated by framework/portal/src/lib/schema/registry.ts. Note that the prohibitions are stated as `not`/`required` rather than as false-valued property schemas: a schema.json may not carry a member named $anchor at any depth, and that includes the member of a `properties` map.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "const": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Exactly one dialect. Anything else is E_DM_DIALECT."
+    },
+    "$id": {
+      "type": "string",
+      "pattern": "^https://schemas\\.metaframework\\.dev/[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$",
+      "description": "The entity's canonical schema URL: the constant host followed by the entity's SRN path verbatim. No version suffix — a URL addresses the current schema. A deployment's own serving address — a localhost origin with the portal's schema-serving path under it — is E_DM_ID_MISMATCH; identity does not vary by deployment (decision-record amendment 2026-08-19-d). The address itself is not spelled here, because a catalog artifact that names one is exactly what fixture-check.test.ts forbids."
+    },
+    "x-srn": {
+      "type": "string",
+      "pattern": "^srn://[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$",
+      "description": "The entity's unversioned SRN, stated so a schema lifted out of the catalog still says where it came from. Checked against the file's own directory, so it cannot drift from $id."
+    },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "deprecated": {
+      "type": "boolean",
+      "description": "The standard 2020-12 meta-data keyword. SHOULD be true at the root when the entity's frontmatter status is deprecated, so the annotation reaches consumers that only ever see the schema."
+    },
+    "$defs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/subschema" },
+      "description": "Entity-private. A $ref from another document into these is E_DM_FOREIGN_DEFS."
+    },
+    "allOf": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/subschema" },
+      "description": "Root-level allOf branches that $ref other datamodels are the entire inheritance layer. There is no extends, no x-inherits, no portal-side merge directive."
+    },
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/subschema" }
+    },
+    "oneOf": { "type": "array", "items": { "$ref": "#/$defs/subschema" } },
+    "anyOf": { "type": "array", "items": { "$ref": "#/$defs/subschema" } },
+    "items": { "$ref": "#/$defs/subschema" }
+  },
+  "required": ["$schema", "$id", "x-srn"],
+  "not": {
+    "anyOf": [
+      { "required": ["$dynamicRef"] },
+      { "required": ["$dynamicAnchor"] },
+      { "required": ["$anchor"] },
+      { "required": ["$vocabulary"] }
+    ]
+  },
+  "$defs": {
+    "no-forbidden-keywords": {
+      "description": "$dynamicRef and $dynamicAnchor make the inheritance graph non-static, so the portal cannot derive it. $anchor is a second way to address a local shape, and #/$defs pointers stay greppable while anchors do not. $vocabulary is dialect authoring, and the dialect is fixed. All four are E_DM_KEYWORD.",
+      "not": {
+        "anyOf": [
+          { "required": ["$dynamicRef"] },
+          { "required": ["$dynamicAnchor"] },
+          { "required": ["$anchor"] },
+          { "required": ["$vocabulary"] }
+        ]
+      }
+    },
+    "subschema": {
+      "description": "Any schema below the root. The four forbidden keywords are forbidden at every depth, and $id is forbidden everywhere except the root — a nested $id would re-base every reference beneath it onto a second identity, which is how one document quietly becomes two (E_DM_ID_FORBIDDEN).",
+      "type": ["object", "boolean"],
+      "allOf": [
+        { "$ref": "#/$defs/no-forbidden-keywords" },
+        { "not": { "required": ["$id"] } }
+      ],
+      "properties": {
+        "$ref": { "$ref": "#/$defs/reference" },
+        "$defs": { "type": "object", "additionalProperties": { "$ref": "#/$defs/subschema" } },
+        "properties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/subschema" } },
+        "allOf": { "type": "array", "items": { "$ref": "#/$defs/subschema" } },
+        "oneOf": { "type": "array", "items": { "$ref": "#/$defs/subschema" } },
+        "anyOf": { "type": "array", "items": { "$ref": "#/$defs/subschema" } },
+        "items": { "$ref": "#/$defs/subschema" }
+      }
+    },
+    "reference": {
+      "type": "string",
+      "description": "Exactly two legal forms. A local JSON Pointer into this document's own $defs, or the canonical schema URL of another datamodel in the same solution. A relative file path, an srn:// URI, a serving address or a foreign host is E_DM_REF_TARGET; a URL that leaves the solution is E_SRN_CROSS_SOLUTION; a URL naming no registered datamodel is E_SRN_DANGLING.",
+      "anyOf": [
+        { "title": "local pointer", "pattern": "^#/\\$defs/" },
+        {
+          "title": "canonical schema URL",
+          "pattern": "^https://schemas\\.metaframework\\.dev/[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$"
+        }
+      ]
+    }
+  }
+}

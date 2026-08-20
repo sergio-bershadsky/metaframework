@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/workflow-document",
+  "title": "Workflow document",
+  "description": "One named, ordered exchange between a protocol's participants: workflows/<name>.yaml. Flat message steps by default, three named fragment forms for structure, nothing else. Specified in framework/spec/kinds/protocol.md; parsed by framework/portal/src/lib/protocol/workflow.ts.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "MUST equal the filename stem (E_PROTO_WF_NAME)."
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "participants": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/alias" },
+      "description": "Lifeline order. A layout hint, never a restriction: an alias used in a step but not listed here is appended after the listed ones. MUST be a subset of the protocol's own participant aliases (E_PROTO_WF_ALIAS)."
+    },
+    "steps": { "$ref": "#/$defs/steps" }
+  },
+  "required": ["name", "title", "steps"],
+  "additionalProperties": false,
+  "$defs": {
+    "alias": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 32,
+      "description": "A participant alias declared in the protocol's index.md. The alias namespace is the protocol's, never the workflow's."
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" },
+      "description": "Every steps list — the workflow's own and every fragment's — MUST hold at least one step (E_PROTO_WF_EMPTY_BRANCH)."
+    },
+    "step": {
+      "description": "Exactly one discriminator key from message, alt, opt, loop (E_PROTO_WF_STEP_SHAPE). `otherwise` is the one permitted companion key, and only alongside `alt`. Steps have no ids: the portal's stable key is the positional path, e.g. steps[4].alt[0].steps[2].",
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/$defs/message-step" },
+        { "$ref": "#/$defs/alt-step" },
+        { "$ref": "#/$defs/opt-step" },
+        { "$ref": "#/$defs/loop-step" }
+      ]
+    },
+    "message-step": {
+      "title": "message",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "maxLength": 64,
+          "description": "Logical message name; the arrow label."
+        },
+        "from": { "$ref": "#/$defs/alias" },
+        "to": {
+          "description": "One alias, or a list of aliases when kind is event. A list on a non-event step is E_PROTO_WF_FANOUT. from and to MAY be the same alias — a self-call.",
+          "anyOf": [{ "$ref": "#/$defs/alias" }, { "type": "array", "items": { "$ref": "#/$defs/alias" } }]
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["call", "return", "event", "error"],
+          "default": "call"
+        },
+        "payload": {
+          "type": "string",
+          "description": "An SRN reference that MUST resolve to a datamodel (E_PROTO_PAYLOAD_KIND) and SHOULD carry an @version pin — this is one of the few places a pin can still live, since a schema URL cannot carry one."
+        },
+        "channel": {
+          "type": "string",
+          "description": "Topic, queue, routing key or path. Cross-checked against the transport's surface list when one exists (W_PROTO_WF_CHANNEL_UNKNOWN); the check is skipped entirely when transport.yaml is absent or links an external spec instead."
+        },
+        "condition": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "A display-only guard label on one arrow. It creates no branch — this is the most common authoring mistake in the format, and alt or opt is what changes the sequence."
+        },
+        "note": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["message", "from", "to"],
+      "additionalProperties": false
+    },
+    "alt-step": {
+      "title": "alt",
+      "description": "Mutually exclusive branches. At least two compartments, counting otherwise as one (E_PROTO_WF_SCHEMA): alt with a single branch and no otherwise is an opt, and the two mean different things.",
+      "type": "object",
+      "properties": {
+        "alt": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "when": { "type": "string", "maxLength": 120 },
+              "steps": { "$ref": "#/$defs/steps" }
+            },
+            "required": ["when", "steps"],
+            "additionalProperties": false
+          }
+        },
+        "otherwise": { "$ref": "#/$defs/steps" }
+      },
+      "required": ["alt"],
+      "additionalProperties": false
+    },
+    "opt-step": {
+      "title": "opt",
+      "description": "A single conditional branch: the steps may be skipped.",
+      "type": "object",
+      "properties": {
+        "opt": {
+          "type": "object",
+          "properties": {
+            "when": { "type": "string", "maxLength": 120 },
+            "steps": { "$ref": "#/$defs/steps" }
+          },
+          "required": ["when", "steps"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["opt"],
+      "additionalProperties": false
+    },
+    "loop-step": {
+      "title": "loop",
+      "type": "object",
+      "properties": {
+        "loop": {
+          "type": "object",
+          "properties": {
+            "while": { "type": "string", "maxLength": 120 },
+            "max": { "type": "integer", "minimum": 1 },
+            "steps": { "$ref": "#/$defs/steps" }
+          },
+          "required": ["while", "steps"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["loop"],
+      "additionalProperties": false
+    }
+  }
+}
