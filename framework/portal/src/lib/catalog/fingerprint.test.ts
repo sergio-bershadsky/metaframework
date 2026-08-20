@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rename, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -53,10 +53,37 @@ describe('catalogFingerprint', () => {
   })
 
   it('moves when a directory is renamed', async () => {
-    // Neither the file mtimes nor the entry count change here — only the mtime
-    // of the parent directory does, which is why directories are stat'ed too.
+    // Neither the file mtimes nor the entry count change here — only the path
+    // set does, which is why the key digests paths and not just times.
     const before = catalogFingerprint(dir)
     await rename(path.join(dir, 'acme/product/shop'), path.join(dir, 'acme/product/store'))
+    expect(catalogFingerprint(dir)).not.toBe(before)
+  })
+
+  it('moves when a directory is renamed and no clock has advanced', async () => {
+    // The case above passes for the wrong reason on a filesystem whose clock is
+    // fine-grained: the rename bumps the parent's mtime, and the key moves on
+    // *time* rather than on the rename. Linux stamps mtimes from a coarse clock
+    // (one timer tick, order 1–4ms), so there the same rename can land on the
+    // identical mtime and the key must move anyway. That is what broke the
+    // previous `max(mtime):count` key — green on macOS for its whole life, red
+    // on the first CI run.
+    //
+    // Freezing every mtime to one constant before *and* after reproduces the
+    // coarse clock exactly, on any host, with no sleeping and no flakiness.
+    const FROZEN = new Date(1_700_000_000_000)
+    const freeze = async (root: string) => {
+      for (const entry of await readdir(root, { recursive: true, withFileTypes: true })) {
+        await utimes(path.join(entry.parentPath, entry.name), FROZEN, FROZEN)
+      }
+      await utimes(root, FROZEN, FROZEN)
+    }
+
+    await freeze(dir)
+    const before = catalogFingerprint(dir)
+    await rename(path.join(dir, 'acme/product/shop'), path.join(dir, 'acme/product/store'))
+    await freeze(dir)
+
     expect(catalogFingerprint(dir)).not.toBe(before)
   })
 
@@ -76,6 +103,10 @@ describe('catalogFingerprint', () => {
   })
 
   it('survives a catalog directory that does not exist', () => {
-    expect(catalogFingerprint(path.join(dir, 'nope'))).toBe('0:0')
+    // No throw, and an answer that is stable and distinct from a real tree —
+    // the digest of nothing. Asserting the literal would pin the hash function.
+    const absent = catalogFingerprint(path.join(dir, 'nope'))
+    expect(absent).toBe(catalogFingerprint(path.join(dir, 'also-nope')))
+    expect(absent).not.toBe(catalogFingerprint(dir))
   })
 })
