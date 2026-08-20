@@ -6,15 +6,18 @@ regions:
   - name: hel1
     zones: []
     notes: >-
-      Hetzner Cloud, Helsinki, Finland. A single instance; `zones` is empty
-      because there is no distribution to describe, not because it is unknown.
+      Hetzner, Helsinki, Finland. A Kubernetes cluster on a single machine, so
+      `zones` is empty because there is no distribution to describe, not because
+      it is unknown. The orchestrator is real; the redundancy is not, and every
+      `replicas` below says max 1 for reasons that are design constraints
+      rather than capacity choices.
 
 # Every limit below is a DECISION NOT YET MADE, recorded with its reasoning
 # rather than left to a chart default. Nothing here has been sized, because
 # there is no traffic to size against — and the three workloads compete for one
 # box, so the defaults are exactly what must not be inherited silently.
 hosts:
-  - component: /product/hub/component/catalog-router
+  - component: /product/devops/component/catalog-router
     regions: [hel1]
     replicas: { min: 1, max: 1 }
     scaling: none — one instance, no autoscaler
@@ -24,7 +27,7 @@ hosts:
       out at random — which is why max is 1 by design and not by omission.
       TLS termination is unresolved.
 
-  - component: /product/hub/component/repo-sync
+  - component: /product/devops/component/repo-sync
     regions: [hel1]
     replicas: { min: 1, max: 1 }
     scaling: >-
@@ -39,7 +42,7 @@ hosts:
       breaks branches already on disk, so this is availability and not
       housekeeping (git-state-survives-a-restart, AC-5).
 
-  - component: /product/hub/component/signoz
+  - component: /product/devops/component/signoz
     regions: [hel1]
     replicas: { min: 1, max: 1 }
     scaling: none

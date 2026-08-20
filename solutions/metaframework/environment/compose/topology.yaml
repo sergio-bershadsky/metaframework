@@ -2,14 +2,14 @@
 # environment/local/topology.yaml takes. What differs from that entity is the
 # count — one `next dev` process there, a container graph here.
 hosts:
-  - component: /product/hub/component/catalog-router
+  - component: /product/devops/component/catalog-router
     replicas: { min: 1, max: 1 }
     scaling: none — one container, started by `docker compose up`
     notes: >-
       The only published port. No TLS, no ingress; localhost only. Sessions are
       in memory, so restarting this container signs the developer out.
 
-  - component: /product/hub/component/repo-sync
+  - component: /product/devops/component/repo-sync
     replicas: { min: 1, max: 1 }
     scaling: none
     notes: >-
@@ -19,7 +19,7 @@ hosts:
       any-git-repository-is-a-catalog-source AC-1 requires — and this is the
       only environment where exercising it is convenient.
 
-  - component: /product/hub/component/signoz
+  - component: /product/devops/component/signoz
     replicas: { min: 1, max: 1 }
     scaling: none
     notes: >-

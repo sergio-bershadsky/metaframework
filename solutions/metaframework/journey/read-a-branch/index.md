@@ -34,12 +34,12 @@ GitHub for that.
 
 ## Preconditions
 
-A deployed hub, a GitHub account, and — the one that bites — the App already
+A deployed instance, a GitHub account, and — the one that bites — the App already
 installed on the repository by somebody with admin rights on it. That
 installation step is not part of this walk and cannot be performed by this
 actor; it belongs to [operator](srn://metaframework/actor/operator) and to
 whoever owns the repository.
-[0003-a-github-app-not-an-oauth-app](srn://metaframework/product/hub/adr/0003-a-github-app-not-an-oauth-app)
+[0003-a-github-app-not-an-oauth-app](srn://metaframework/product/devops/adr/0003-a-github-app-not-an-oauth-app)
 records it as the largest piece of friction the product accepts, and this
 journey is where the cost is actually felt: a reviewer who follows a link to an
 uninstalled repository gets a request-somebody-else form rather than a catalog.
@@ -49,7 +49,7 @@ uninstalled repository gets a request-somebody-else form rather than a catalog.
 Step three is the one that blocks. Selecting a branch nobody has read recently
 forces a `git fetch` before anything renders, and on a cold repository it forces
 the clone —
-[repo-sync](srn://metaframework/product/hub/component/repo-sync) chose that over
+[repo-sync](srn://metaframework/product/devops/component/repo-sync) chose that over
 a webhook deliberately, and
 [branch-freshness-lag](srn://metaframework/metric/branch-freshness-lag) is the
 number that says whether the choice was right. Every subsequent step reads a
@@ -58,7 +58,7 @@ directory that is already correct.
 The second place it can be slow is invisible to the reader and visible in a
 trace: whether the render paid for a catalog rebuild or was served off the
 fingerprint cache — ~18ms against ~2.2s on the loader's own measurements.
-[every-request-is-traced](srn://metaframework/product/hub/requirement/every-request-is-traced)
+[every-request-is-traced](srn://metaframework/product/devops/requirement/every-request-is-traced)
 AC-2 exists so that this journey's slow steps are attributable after the fact.
 
 ## What this journey deliberately does not do
@@ -77,7 +77,7 @@ AC-2 exists so that this journey's slow steps are attributable after the fact.
 ## The honest gap
 
 Steps four and five are the same two surfaces `audit-a-catalog` already walks,
-and this journey adds nothing to them. That is correct — the hub's contribution
+and this journey adds nothing to them. That is correct — devops's contribution
 is *getting there*, and once a reader is on an entity page the experience is the
 portal's, unchanged. A journey whose last steps duplicate another journey's is
 usually a sign of over-modelling; here it is the accurate shape, because the new

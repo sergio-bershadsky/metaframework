@@ -63,7 +63,7 @@ diff — which is precisely the reading this whole framework exists to replace.
 - **Not a public gallery.** Nothing here is about publishing a catalog to
   readers who have no repository access. That is a coherent product and it is
   not this one.
-- **One realizer, and it is unbuilt.** [hub](srn://metaframework/product/hub) is
+- **One realizer, and it is unbuilt.** [devops](srn://metaframework/product/devops) is
   `lifecycle: concept`. This capability is currently realized by nothing, which
   makes it the only capability in this solution that describes an ability the
   system does not have.
@@ -76,7 +76,7 @@ The kind's contract expects a capability to be an ability the solution
 it is worth flagging, because a catalog that accumulates aspirational
 capabilities becomes a roadmap wearing a description's clothes.
 
-The test to apply at review: if [hub](srn://metaframework/product/hub) is
+The test to apply at review: if [devops](srn://metaframework/product/devops) is
 rejected, this entity should be deprecated rather than left standing as an
 intention. It exists to be the thing the product realizes, and it should not
 outlive it.

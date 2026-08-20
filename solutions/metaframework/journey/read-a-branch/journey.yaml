@@ -1,20 +1,20 @@
 name: read-a-branch
 steps:
   - actor: /actor/reviewer
-    touches: /product/hub/component/catalog-router
+    touches: /product/devops/component/catalog-router
     note: >-
       Follows a link and is not signed in. The edge is the only thing addressable
       from outside; everything below it is on a private network.
 
   - actor: /actor/reviewer
-    touches: /product/hub/component/github
+    touches: /product/devops/component/github
     note: >-
       Signs in. Identity only — the user-to-server half. It says who they are and
       grants this server nothing, which is the whole reason 0003 split identity
       from access.
 
   - actor: /actor/reviewer
-    touches: /product/hub/component/repo-sync
+    touches: /product/devops/component/repo-sync
     note: >-
       Picks a repository and a branch. The step that blocks: a branch nobody has
       read recently forces a fetch, and a cold one forces the clone.
@@ -22,7 +22,7 @@ steps:
   - actor: /actor/reviewer
     touches: /product/portal/component/console/component/catalog-tree
     protocol: none
-    # hub -> portal, and this hop is NOT carried by the person: the router
+    # devops -> portal, and this hop is NOT carried by the person: the router
     # forwards the request to the renderer. It is a real integration with no
     # protocol entity, because what crosses is an ordinary HTTP proxy hop to a
     # surface whose contract is HTML. Writing a protocol for "a reverse proxy
@@ -32,7 +32,7 @@ steps:
     # adr/0002 — not something this journey should restate.
     note: >-
       The catalog as that branch proposes it. From here the experience is the
-      portal's, unchanged — the hub's contribution was getting here.
+      portal's, unchanged — devops's contribution was getting here.
 
   - actor: /actor/reviewer
     touches: /product/portal/component/console/component/entity-view
@@ -42,9 +42,9 @@ steps:
       here exactly as it is locally.
 
   - actor: /actor/reviewer
-    touches: /product/hub/component/github
+    touches: /product/devops/component/github
     protocol: none
-    # hub -> GitHub, carried by the person: they leave the product entirely.
+    # devops -> GitHub, carried by the person: they leave the product entirely.
     # There is no write path here — no comment, no approval, nothing.
     note: >-
       Has read the description and wants to respond. Leaves. This product has no

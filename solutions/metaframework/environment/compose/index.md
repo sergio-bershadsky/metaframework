@@ -3,7 +3,7 @@ name: compose
 kind: environment
 version: 1
 title: Compose
-summary: The whole hub on a laptop under Docker Compose, from files under docker/ — a second local environment, deliberately not a rehearsal for production.
+summary: The whole of devops on a laptop under Docker Compose, from files under docker/ — a second local environment, deliberately not a rehearsal for production.
 status: review
 owner: sergio-bershadsky
 environment-type: local
@@ -15,7 +15,7 @@ tags:
 **Nothing runs here.** `docker/` does not exist.
 
 `docker compose up` from the repository root brings up the whole of
-[hub](srn://metaframework/product/hub) — router, syncer, the portal it fronts,
+[devops](srn://metaframework/product/devops) — router, syncer, the portal it fronts,
 and the SigNoz stack — against a named volume and, optionally, a git repository
 mounted from the host.
 
@@ -37,7 +37,7 @@ data of record, anyone may break it at any moment".
 
 The tempting reading is that this is production's rehearsal, since it runs the
 same images in the same shape
-([0005](srn://metaframework/product/hub/adr/0005-one-image-two-topologies)).
+([0005](srn://metaframework/product/devops/adr/0005-one-image-two-topologies)).
 Typing it `staging` would be false: staging means *production-shaped, same
 topology and same protocol versions, the last gate before real users*, and this
 has no TLS, no ingress, no real GitHub App, no persistence guarantee and one
@@ -54,7 +54,7 @@ Two things, and the second is the one that keeps the product honest:
   shape.
 - Exercising the case that has no GitHub in it. A host directory mounted in is
   the path
-  [any-git-repository-is-a-catalog-source](srn://metaframework/product/hub/requirement/any-git-repository-is-a-catalog-source)
+  [any-git-repository-is-a-catalog-source](srn://metaframework/product/devops/requirement/any-git-repository-is-a-catalog-source)
   AC-1 requires to work with no App configured and no network — and this is the
   only environment where that is convenient to check.
 
@@ -67,7 +67,7 @@ Two things, and the second is the one that keeps the product honest:
 - **No persistence guarantee.** The volume is named, so it survives
   `docker compose down` and not `down -v`, and destroying it is a supported
   operation
-  ([git-state-survives-a-restart](srn://metaframework/product/hub/requirement/git-state-survives-a-restart)
+  ([git-state-survives-a-restart](srn://metaframework/product/devops/requirement/git-state-survives-a-restart)
   AC-3) rather than an accident.
 - **SigNoz is heavy here.** The same stack that dominates the production
   instance also dominates a laptop. Whether it is in the default compose profile

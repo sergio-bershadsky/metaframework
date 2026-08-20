@@ -17,7 +17,7 @@ tags:
   - operations
 ---
 
-New with [hub](srn://metaframework/product/hub), and the reason the product
+New with [devops](srn://metaframework/product/devops), and the reason the product
 needed to exist as a product: this is the first actor in this solution who is
 answerable for something being *up*.
 
@@ -32,7 +32,7 @@ paged. This one can — in principle.
 
 There is no on-call, no alerting, no SLO and no rota; the environments this
 solution declares state in writing that they guarantee nothing, and
-[0004](srn://metaframework/product/hub/adr/0004-signoz-runs-beside-the-workload)
+[0004](srn://metaframework/product/devops/adr/0004-signoz-runs-beside-the-workload)
 says plainly that SigNoz here is something opened *after* somebody complains.
 So the goals above describe a role that exists structurally and is, today,
 performed by the same one person who wrote everything else in the repository.
@@ -45,7 +45,7 @@ listed as the person who will ask them.
 
 ## What distinguishes them from a reviewer
 
-A [reviewer](srn://metaframework/actor/reviewer) is a *user* of the hub: they
+A [reviewer](srn://metaframework/actor/reviewer) is a *user* of devops: they
 sign in, pick a branch, and read. That path is
 [read-a-branch](srn://metaframework/journey/read-a-branch), and an operator
 walks it too.
@@ -74,6 +74,6 @@ says so explicitly: a pipeline is not a deployment target, and a runner is
 this catalog needs to point at it.
 
 GitHub is not an actor either. It is
-[github](srn://metaframework/product/hub/component/github), an `external`
+[github](srn://metaframework/product/devops/component/github), an `external`
 component, because things this solution calls are components and things that
-call this solution are actors — and the hub calls GitHub, not the reverse.
+call this solution are actors — and devops calls GitHub, not the reverse.

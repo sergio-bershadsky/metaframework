@@ -39,11 +39,11 @@ Two corrections to that paragraph, both dated 2026-08-20. **`.github/` now
 exists** — it used to be named above as evidence of no deployment, and it is a
 CI workflow rather than a deployment, so the conclusion stands and the evidence
 had to go. And **this product is about to acquire a second environment it does
-not declare**: [hub](srn://metaframework/product/hub) runs the portal on a
+not declare**: [devops](srn://metaframework/product/devops) runs the portal on a
 Hetzner instance, and both of that product's `topology.yaml` files carry a
 comment saying why they may not list it here — membership is authored on the
 component side, and correcting this page's declaration is a change to this
-product that the work describing the hub deliberately did not make. Until it
+product that the work describing devops deliberately did not make. Until it
 does, "the only environment is local" is true of what is *declared* and will
 stop being true of what *runs*.
 

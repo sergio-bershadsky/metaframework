@@ -25,7 +25,7 @@ scope:
     - This repository's own decisions, filed as ADRs against the container each one binds.
     - The hosted deployment that serves a catalog from a GitHub repository at a chosen branch, described ahead of being built.
   out:
-    - Running the hosted deployment. The hub is described here and built nowhere; no container image, no chart and no server exist.
+    - Running the hosted deployment. devops is described here and built nowhere; no image, no chart and no cluster exist.
     - A validator binary separate from the portal. Integrity is enforced at portal load, by decision — see adr/0011-no-cli-in-v1, whose "no CLI" half that record no longer holds.
     - Full-text search, a cross-catalog ADR timeline, cross-solution sharing, and an extensible ontology; all four are deferred in the founding decision record.
     - The fixture catalogs solutions/acme and solutions/brass. They are the portal's test data and its contact-with-reality check, not deliverables.
@@ -49,7 +49,7 @@ This catalog describes the repository it lives in. Four deliverables, three of
 which exist: [specification](srn://metaframework/product/specification) says what
 a catalog must be, [portal](srn://metaframework/product/portal) renders one,
 [authoring-kit](srn://metaframework/product/authoring-kit) teaches a model or a
-person to write one, and [hub](srn://metaframework/product/hub) — `lifecycle:
+person to write one, and [devops](srn://metaframework/product/devops) — `lifecycle:
 concept`, not one line of it built — would serve one at a URL from any branch of
 a GitHub repository. The portal `implements` the spec; the kit distils it. Those
 two arrows are the reason the spec is modelled as a product rather than as a
@@ -73,7 +73,7 @@ portal's own diagnostics page
 
 Thirty of this catalog's one hundred and nine entities are ADRs — thirteen
 constitutional ones in this bucket, eleven binding only the portal, five binding
-only the hub, one binding only the kit.
+only devops, one binding only the kit.
 `find solutions/metaframework -name index.md | wc -l` returns 109 and the same
 command narrowed with `-path '*/adr/*'` returns 30, so a little over a quarter of
 the pages here are a decision rather than a description.
