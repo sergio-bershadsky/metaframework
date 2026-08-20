@@ -126,6 +126,14 @@ function everyView(root: string) {
  * the rule can do, not a failure to apply it. They are listed rather than
  * waved through: if a fourth one appears, or an existing one gets worse, this
  * assertion is what says so.
+ *
+ * The numbers move when the catalog does, and that is the point rather than a
+ * maintenance cost: adding `srn://metaframework/product/hub` gave `portal` a
+ * twelfth neighbour and `catalog-loader` an eleventh, so both got tighter and
+ * this list had to be re-measured. Updating it is only ever legitimate when the
+ * structural assertion above — nothing under the floor with rings left to drop
+ * — still holds on its own, which is what distinguishes "the catalog grew" from
+ * "the rule stopped working".
  */
 const KNOWN_TIGHT: Record<string, string[]> = {
   'srn://brass': [
@@ -134,8 +142,8 @@ const KNOWN_TIGHT: Record<string, string[]> = {
   ],
   'srn://acme': [],
   'srn://metaframework': [
-    '1024x720 focus=portal: 11 neighbours, zoom 0.58 (7.0px)',
-    '1024x720 focus=catalog-loader: 10 neighbours, zoom 0.66 (7.9px)',
+    '1024x720 focus=portal: 12 neighbours, zoom 0.56 (6.7px)',
+    '1024x720 focus=catalog-loader: 11 neighbours, zoom 0.58 (7.0px)',
   ],
 }
 

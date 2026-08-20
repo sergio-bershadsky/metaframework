@@ -1,0 +1,56 @@
+# The same key names as environment/production, because the two topologies run
+# the same images (0005-one-image-two-topologies) — what differs is which keys
+# are required. No secret value appears here; the template under docker/ names
+# keys and the developer fills them in.
+config:
+  - key: HUB_DATA_DIR
+    value: /var/lib/metaframework
+    description: >-
+      Identical to production on purpose. The two environments differ in
+      placement, not in layout, so a path that differed would be a difference
+      with nothing behind it.
+
+  - key: HUB_LOCAL_REPO
+    description: >-
+      Host directory mounted read-only, for the no-GitHub path. Present only in
+      this environment: production has no host to mount from. This is the key
+      that makes any-git-repository-is-a-catalog-source AC-1 checkable.
+
+  - key: HUB_DATA_MAX_BYTES
+    description: >-
+      Volume cap. Optional here, where the failure is a developer's laptop, and
+      required in production. Setting it locally is how the eviction path gets
+      exercised at all — otherwise nobody meets it until Helsinki does.
+
+  - key: GITHUB_APP_ID
+    description: Optional. Unset, the GitHub path is simply unavailable and the local mount still works.
+
+  - key: GITHUB_APP_PRIVATE_KEY
+    description: >-
+      SECRET. Optional here. A developer wanting the GitHub path registers their
+      own App against a test repository rather than sharing production's key —
+      one key, one deployment, which is what makes revocation mean anything.
+
+  - key: GITHUB_APP_CLIENT_ID
+    description: Optional, with the same reading as above.
+
+  - key: GITHUB_APP_CLIENT_SECRET
+    description: SECRET, optional. Identity flow only; grants no repository access.
+
+  - key: HUB_SESSION_SECRET
+    description: >-
+      SECRET. May be any value locally; production's is supplied at deploy time.
+      A default committed under docker/ would be the classic way a development
+      secret reaches production, so the template names it and leaves it empty.
+
+  - key: OTEL_EXPORTER_OTLP_ENDPOINT
+    description: >-
+      The collector container on the compose network. Unset, the exporter drops
+      — which is every-request-is-traced AC-5's behaviour, and is what lets the
+      SigNoz profile be opt-in without anything else changing.
+
+  - key: SCHEMA_BASE_URL
+    description: >-
+      Where this stack serves schema bytes. Defaults to the published localhost
+      port. Never identity: $id is built from the canonical host constant
+      regardless (framework/portal/src/lib/schema/url.ts:46).

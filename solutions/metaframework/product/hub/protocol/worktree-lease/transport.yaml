@@ -1,0 +1,45 @@
+kind: http
+summary: >-
+  JSON over HTTP on a private container network. Never routed from the ingress —
+  the only client is the router, in the same compose project or the same
+  namespace.
+encoding: json
+auth:
+  - network-isolation
+http:
+  base-path: /lease
+  tls: false
+  operations:
+    - name: acquire
+      method: POST
+      path: /
+      summary: >-
+        Ask for a path holding {owner}/{repo} at {branch}, no staler than
+        max-age seconds. Blocks for the duration of a git fetch when the
+        worktree is older than that, which on a cold repository is the clone.
+        Answers a path and a lease id, or one of the four named failures.
+
+    - name: release
+      method: DELETE
+      path: /{leaseId}
+      summary: >-
+        Give the worktree back. Required rather than best-effort: an unreleased
+        lease is storage eviction cannot reclaim. The server expires leases on
+        its own clock too, because the caller will sometimes die mid-render.
+
+    - name: renew
+      method: POST
+      path: /{leaseId}/renew
+      summary: >-
+        Extend a lease whose render is taking longer than the default window.
+        Exists so that the expiry above can be short — without it the server
+        clock has to be set long enough for the slowest possible render, which
+        is the same as not expiring at all.
+
+    - name: health
+      method: GET
+      path: /health
+      summary: >-
+        Liveness for the orchestrator. Reports whether the volume is writable
+        and how much of it is free, because a full volume is the failure this
+        component has that a process check cannot see.

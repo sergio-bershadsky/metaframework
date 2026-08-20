@@ -1,0 +1,51 @@
+name: read-a-branch
+steps:
+  - actor: /actor/reviewer
+    touches: /product/hub/component/catalog-router
+    note: >-
+      Follows a link and is not signed in. The edge is the only thing addressable
+      from outside; everything below it is on a private network.
+
+  - actor: /actor/reviewer
+    touches: /product/hub/component/github
+    note: >-
+      Signs in. Identity only — the user-to-server half. It says who they are and
+      grants this server nothing, which is the whole reason 0003 split identity
+      from access.
+
+  - actor: /actor/reviewer
+    touches: /product/hub/component/repo-sync
+    note: >-
+      Picks a repository and a branch. The step that blocks: a branch nobody has
+      read recently forces a fetch, and a cold one forces the clone.
+
+  - actor: /actor/reviewer
+    touches: /product/portal/component/console/component/catalog-tree
+    protocol: none
+    # hub -> portal, and this hop is NOT carried by the person: the router
+    # forwards the request to the renderer. It is a real integration with no
+    # protocol entity, because what crosses is an ordinary HTTP proxy hop to a
+    # surface whose contract is HTML. Writing a protocol for "a reverse proxy
+    # forwards to an app" would manufacture a conversation out of a deployment
+    # detail. The dependency that IS load-bearing across this boundary is the
+    # request-scoped catalog root, and that is an edge on catalog-router plus
+    # adr/0002 — not something this journey should restate.
+    note: >-
+      The catalog as that branch proposes it. From here the experience is the
+      portal's, unchanged — the hub's contribution was getting here.
+
+  - actor: /actor/reviewer
+    touches: /product/portal/component/console/component/entity-view
+    note: >-
+      One entity, and every reference on the page navigates. Version history
+      works because a worktree has a real .git (0001), so ?v=N is answerable
+      here exactly as it is locally.
+
+  - actor: /actor/reviewer
+    touches: /product/hub/component/github
+    protocol: none
+    # hub -> GitHub, carried by the person: they leave the product entirely.
+    # There is no write path here — no comment, no approval, nothing.
+    note: >-
+      Has read the description and wants to respond. Leaves. This product has no
+      surface for saying anything about what was read, by design.

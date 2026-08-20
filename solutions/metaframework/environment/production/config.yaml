@@ -1,0 +1,81 @@
+# Key names and where the value comes from. Never a value that is a secret —
+# deployment-files-live-under-docker AC-3 says the same thing about docker/, and
+# the rule is the environment kind's: this file is reviewable in git, so
+# anything in it is public.
+config:
+  - key: CATALOG_DIR
+    description: >-
+      Read by the portal today as a process-wide root
+      (framework/portal/src/lib/catalog/index.ts:21). Under
+      0002-the-catalog-root-becomes-a-request-value it becomes the FALLBACK,
+      with the leased worktree path supplied per request. Set here only so an
+      unrouted request fails visibly rather than resolving to a stale tree.
+
+  - key: HUB_DATA_DIR
+    value: /var/lib/metaframework
+    description: >-
+      Mount point of the named volume holding mirrors and worktrees. One path,
+      declared identically in the compose environment, per
+      git-state-survives-a-restart AC-1.
+
+  - key: HUB_DATA_MAX_BYTES
+    description: >-
+      Volume cap. UNSET AND REQUIRED — an uncapped volume does not fail as "disk
+      full", it fails as every git fetch breaking at once, including branches
+      already materialised (AC-5).
+
+  - key: HUB_WORKTREE_IDLE_TTL
+    description: >-
+      How long an unleased worktree survives before eviction. Trades disk
+      against the cold-start cost of re-materialising a branch somebody is
+      still clicking between.
+
+  - key: HUB_LEASE_TTL
+    description: >-
+      Server-side expiry for a worktree lease. Must exceed the slowest render or
+      a page dies mid-stream; the renew operation on the worktree-lease protocol
+      exists so this can stay short rather than being sized for the worst case.
+
+  - key: GITHUB_APP_ID
+    description: Numeric id of the GitHub App. Not a secret.
+
+  - key: GITHUB_APP_PRIVATE_KEY
+    description: >-
+      SECRET, supplied at deploy time, never committed and never on the volume.
+      The most sensitive thing this product holds — it mints the installation
+      tokens rather than being one (0003-a-github-app-not-an-oauth-app). Named
+      in the telemetry redaction list for the same reason.
+
+  - key: GITHUB_APP_CLIENT_ID
+    description: Public half of the user-to-server sign-in flow.
+
+  - key: GITHUB_APP_CLIENT_SECRET
+    description: SECRET, supplied at deploy time. Identity flow only; grants no repository access.
+
+  - key: HUB_SESSION_SECRET
+    description: >-
+      SECRET, supplied at deploy time. Signs the session cookie. Rotating it
+      signs everyone out, which is the intended blast radius — sessions are the
+      only thing this product holds that a restart may lose.
+
+  - key: OTEL_EXPORTER_OTLP_ENDPOINT
+    description: >-
+      The collector in the SigNoz stack, on the private network. The single
+      point where this deployment names a vendor; the instrumentation itself
+      names none (0004-signoz-runs-beside-the-workload).
+
+  - key: OTEL_SERVICE_NAME
+    description: Per-process, so a trace can tell the router from the syncer.
+
+  - key: SIGNOZ_TRACE_RETENTION_DAYS
+    description: >-
+      UNSET AND REQUIRED. every-request-is-traced AC-6. ClickHouse shares this
+      machine with the workload it observes; unbounded retention is an
+      availability risk, not a storage bill.
+
+  - key: SCHEMA_BASE_URL
+    description: >-
+      Where this deployment serves schema bytes. Not identity — $id is built
+      from the canonical host constant either way
+      (framework/portal/src/lib/schema/url.ts:46), and fixture-check asserts it.
+      Unresolved here because this environment has no DNS name yet.

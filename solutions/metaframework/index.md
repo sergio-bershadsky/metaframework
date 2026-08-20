@@ -1,7 +1,7 @@
 ---
 name: metaframework
 kind: solution
-version: 2
+version: 3
 title: Metaframework
 summary: The repository that describes itself — the catalog specification, the portal that renders a catalog, and the plugin that teaches an author to write one.
 status: review
@@ -23,9 +23,10 @@ scope:
     - The portal that renders a catalog, derives its diagrams, and reports its integrity violations.
     - The authoring kit that teaches a human or a model to write and audit a catalog.
     - This repository's own decisions, filed as ADRs against the container each one binds.
+    - The hosted deployment that serves a catalog from a GitHub repository at a chosen branch, described ahead of being built.
   out:
-    - Deployment. There is no CI, no container image, no host configuration; the only environment is one developer's machine.
-    - A CLI and a validator binary. Integrity is enforced at portal load, by decision — see adr/0011-no-cli-in-v1.
+    - Running the hosted deployment. The hub is described here and built nowhere; no container image, no chart and no server exist.
+    - A validator binary separate from the portal. Integrity is enforced at portal load, by decision — see adr/0011-no-cli-in-v1, whose "no CLI" half that record no longer holds.
     - Full-text search, a cross-catalog ADR timeline, cross-solution sharing, and an extensible ontology; all four are deferred in the founding decision record.
     - The fixture catalogs solutions/acme and solutions/brass. They are the portal's test data and its contact-with-reality check, not deliverables.
 contacts:
@@ -36,17 +37,21 @@ contacts:
 relations:
   uses:
     - /environment/local
+    - /environment/compose
+    - /environment/production
 tags:
   - self-describing
   - catalog
   - meta
 ---
 
-This catalog describes the repository it lives in. Three deliverables:
-[specification](srn://metaframework/product/specification) says what a catalog
-must be, [portal](srn://metaframework/product/portal) renders one, and
+This catalog describes the repository it lives in. Four deliverables, three of
+which exist: [specification](srn://metaframework/product/specification) says what
+a catalog must be, [portal](srn://metaframework/product/portal) renders one,
 [authoring-kit](srn://metaframework/product/authoring-kit) teaches a model or a
-person to write one. The portal `implements` the spec; the kit distils it. Those
+person to write one, and [hub](srn://metaframework/product/hub) — `lifecycle:
+concept`, not one line of it built — would serve one at a URL from any branch of
+a GitHub repository. The portal `implements` the spec; the kit distils it. Those
 two arrows are the reason the spec is modelled as a product rather than as a
 paragraph on this page — a paragraph cannot be the target of a relation edge.
 
@@ -66,11 +71,12 @@ fixed it at nine, and decision-record amendment `2026-08-20-a` appended
 portal's own diagnostics page
 ([0011-no-cli-in-v1](srn://metaframework/adr/0011-no-cli-in-v1)).
 
-Twenty-five of this catalog's ninety-three entities are ADRs — thirteen
-constitutional ones in this bucket, eleven binding only the portal, one binding
-only the kit. `find solutions/metaframework -name index.md | wc -l` returns 93
-and the same command narrowed with `-path '*/adr/*'` returns 25, so a little over
-a quarter of the pages here are a decision rather than a description.
+Thirty of this catalog's one hundred and nine entities are ADRs — thirteen
+constitutional ones in this bucket, eleven binding only the portal, five binding
+only the hub, one binding only the kit.
+`find solutions/metaframework -name index.md | wc -l` returns 109 and the same
+command narrowed with `-path '*/adr/*'` returns 30, so a little over a quarter of
+the pages here are a decision rather than a description.
 That proportion is deliberate and is the directive this solution was written to:
 the decisions are as prominent as the structure, filed in the bucket of the
 container each one binds rather than collected in one chronological pile.
@@ -118,12 +124,28 @@ organised lives in the kit's.
 
 ## What is absent, stated once
 
-- **No deployment.** No `.github/`, no Dockerfile, no `vercel.json`, no
-  `fly.toml`, no deploy script. `find` returns nothing for any of them. The only
-  environment entity is [local](srn://metaframework/environment/local), and it is
-  not an omission — it is the complete list.
-- **No CI.** Every "the tests pass" claim in this catalog and in every commit
-  body is a human or an agent having run a command. Nothing gates a commit.
+- **No deployment, and now three environment entities describing one.** There is
+  still no Dockerfile, no `docker/` directory, no chart, no `vercel.json` and no
+  deploy script — `find` returns nothing for any of them.
+  [compose](srn://metaframework/environment/compose) and
+  [production](srn://metaframework/environment/production) describe targets that
+  do not exist, which the environment kind permits and which every page in that
+  subtree says out loud. [local](srn://metaframework/environment/local) remains
+  the only environment anything has ever run in.
+- **CI exists now, and most of this catalog still says it does not.**
+  `.github/workflows/ci.yml` gates every push and pull request: install,
+  typegen, typecheck, lint, the test suite, the packaged build, `metaframework
+  check` over this tree, a run of the packaged CLI on the declared engines
+  floor, and a pack audit. So "nothing gates a commit" is false as of
+  2026-08-20.
+
+  It is false in roughly seventeen other places too — `grep -rn 'no CI'
+  solutions/metaframework` finds them, across the portal's ADRs, its
+  requirements, the specification and the kit. Those sentences were true when
+  written and are now stale, and they are listed here rather than quietly
+  corrected because correcting them is an edit to each entity's prose and
+  version, which is a reviewable change per page and not a sweep. This
+  paragraph is the forward pointer until somebody makes it.
 - **`https://schemas.metaframework.dev` resolves nowhere.** It is an identity
   constant at `framework/portal/src/lib/schema/url.ts:46`, deliberately not
   configuration. Bytes are served only by the portal's own `/schemas` route at

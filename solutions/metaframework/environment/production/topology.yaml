@@ -1,0 +1,69 @@
+# One region because there is one machine. Named rather than left blank so the
+# location is reviewable: Helsinki is Hetzner's `hel1`, and it was chosen for
+# EU residency of the trace store, which holds a map of somebody's private
+# repository structure (see 0004-signoz-runs-beside-the-workload).
+regions:
+  - name: hel1
+    zones: []
+    notes: >-
+      Hetzner Cloud, Helsinki, Finland. A single instance; `zones` is empty
+      because there is no distribution to describe, not because it is unknown.
+
+# Every limit below is a DECISION NOT YET MADE, recorded with its reasoning
+# rather than left to a chart default. Nothing here has been sized, because
+# there is no traffic to size against — and the three workloads compete for one
+# box, so the defaults are exactly what must not be inherited silently.
+hosts:
+  - component: /product/hub/component/catalog-router
+    regions: [hel1]
+    replicas: { min: 1, max: 1 }
+    scaling: none — one instance, no autoscaler
+    notes: >-
+      The only component reachable from outside. Holds sessions in memory today
+      (no datastore entity exists), so more than one replica would sign readers
+      out at random — which is why max is 1 by design and not by omission.
+      TLS termination is unresolved.
+
+  - component: /product/hub/component/repo-sync
+    regions: [hel1]
+    replicas: { min: 1, max: 1 }
+    scaling: >-
+      none, and horizontal scaling is a correctness change rather than a knob:
+      two replicas would both write the same mirrors on the same volume, and
+      git's own locking would serialise them at best and corrupt worktree
+      administration at worst.
+    notes: >-
+      Owns the volume. Memory is dominated by git itself during a fetch of a
+      large repository; nobody has measured one. The volume cap is the limit
+      that matters and it is unset — a full volume breaks every fetch, which
+      breaks branches already on disk, so this is availability and not
+      housekeeping (git-state-survives-a-restart, AC-5).
+
+  - component: /product/hub/component/signoz
+    regions: [hel1]
+    replicas: { min: 1, max: 1 }
+    scaling: none
+    notes: >-
+      Collector, ClickHouse and query UI. By a wide margin the largest consumer
+      of memory and disk here, and it shares the machine with the workload it
+      observes. Retention and a memory limit are REQUIRED and unset: unbounded,
+      ClickHouse evicts the product it is watching, which would invert its
+      criticality: 4 grading. Trace retention is also the limit
+      every-request-is-traced AC-6 points at.
+
+# The portal runs here too, and is deliberately NOT a host entry above.
+#
+# Membership is authored on the component side — a component declares the
+# environments it is deployed to, and this file may only annotate members, never
+# create them (kinds/environment.md). srn://metaframework/product/portal
+# declares only /environment/local, and its own page states in writing that
+# local is "the complete list". Adding a host entry here would be this file
+# asserting a membership the member does not claim, which is the exact double
+# bookkeeping the inverse-edge rule exists to prevent.
+#
+# Changing portal's declaration is the correct fix and is out of scope for this
+# work. Until it is made, the fact lives here as a comment: the renderer runs on
+# this instance, its heap grows ~250MB per catalog rebuild, and under
+# 0002-the-catalog-root-becomes-a-request-value one process holds several
+# catalogs at once — so the cache bound chosen there is the number that decides
+# this instance's memory. It has not been chosen.

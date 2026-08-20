@@ -1,0 +1,35 @@
+# No `regions`: a developer machine is a single unnamed place, the same reading
+# environment/local/topology.yaml takes. What differs from that entity is the
+# count — one `next dev` process there, a container graph here.
+hosts:
+  - component: /product/hub/component/catalog-router
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container, started by `docker compose up`
+    notes: >-
+      The only published port. No TLS, no ingress; localhost only. Sessions are
+      in memory, so restarting this container signs the developer out.
+
+  - component: /product/hub/component/repo-sync
+    replicas: { min: 1, max: 1 }
+    scaling: none
+    notes: >-
+      Owns the named volume, mounted at the same path production uses so that
+      the two topologies differ in placement and not in layout. Optionally also
+      mounts a host directory read-only, which is the no-GitHub path
+      any-git-repository-is-a-catalog-source AC-1 requires — and this is the
+      only environment where exercising it is convenient.
+
+  - component: /product/hub/component/signoz
+    replicas: { min: 1, max: 1 }
+    scaling: none
+    notes: >-
+      Collector, ClickHouse and query UI, same as production and just as heavy.
+      Whether it sits in the default compose profile or an opt-in one is
+      unresolved; opt-in is probably right, because a developer rendering a
+      catalog should not be required to run ClickHouse to do it.
+
+# The portal is not a host entry here, for the same reason it is not one in
+# production: membership is authored on the component side, and
+# srn://metaframework/product/portal declares only /environment/local. It runs
+# in this stack as the container the router fronts. Correcting the declaration
+# means changing that product, which is out of scope for this work.
