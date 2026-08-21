@@ -9,4 +9,8 @@ node_modules/
 .playwright-mcp/
 validate_fixture.py
 portal-protocol.png
+# Stray screenshots and scratch images stay out of the repository. The README
+# gallery is the deliberate exception: those files are referenced by absolute
+# raw.githubusercontent URLs, so they only render once they are committed here.
 *.png
+!docs/screenshots/*.png
