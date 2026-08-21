@@ -215,6 +215,35 @@ Skeleton — every keyword here is load-bearing:
 }
 ```
 
+**`$schema` here is the dialect discriminator, and it was already there.** Every
+addressable artifact in the framework declares, in its own bytes, which grammar
+it is written in, under a key fixed per role: `transport.yaml`, `states.json`,
+`workflows/*.yaml`, `journey.yaml`, `topology.yaml` and `config.yaml` carry a
+`$schema` holding the canonical URL of a *framework* meta-schema. A
+`schema.json` needs no such invention. `$schema` on a JSON Schema document
+already means the meta-schema of the dialect it is written in — natively, and
+before this framework existed — so the discriminator this kind owes is already
+written, and the value stays **exactly**
+`https://json-schema.org/draft/2020-12/schema`. Pointing it at a framework URL is
+`E_DM_DIALECT` and would break every stock validator that reads the file. Three
+consequences follow:
+
+- **The key is native, so it is never stripped.** On the framework-owned rows the
+  loader reads the header and deletes it before the artifact's own validator is
+  handed the document, so the strict validators stay strict. Here it must not:
+  the registry validates the schema *against* the dialect this key names.
+- **Absence is an error, not a warning.** `W_ARTIFACT_DIALECT` — what a
+  headerless `transport.yaml` gets — is never raised on a `schema.json`. This
+  kind has answered the same question with `E_DM_DIALECT` since v1, which is the
+  terminal state the warned roles are only being nudged toward.
+- **`examples/*.json` carries no discriminator at all**, by rule rather than by
+  omission. An example is an *instance* of the schema beside it, so its dialect
+  is that schema's and it has none of its own. A `$schema` there is one more
+  property the schema would have to admit, and `additionalProperties: false` is
+  ordinary in a catalog schema — the header would make the example fail the very
+  document it exemplifies (`E_DM_EXAMPLE_INVALID`). Nothing warns about its
+  absence either.
+
 Prose in `index.md` earns its place by carrying what JSON Schema cannot: ordering
 invariants, cross-field constraints, why a representation was chosen, and the
 version history in words. Link with full `srn://…` form; prose links may pin.
@@ -246,6 +275,11 @@ version history in words. Link with full `srn://…` form; prose links may pin.
   of the directory the file sits in (`E_DM_SRN_MISMATCH`). It is not a leftover
   of an older convention — it is checked against the path, so it is the one field
   that keeps identity legible when a schema leaves the catalog.
+- **`$schema` is JSON Schema's key, not the framework's.** Never point it at a
+  meta-schema under `https://schemas.metaframework.dev/metaframework/product/specification/datamodel`
+  (`E_DM_DIALECT`), and never add one to a file in `examples/`. Those headers
+  belong to the artifacts that had no native way to say which grammar they are
+  in; a datamodel had one from the start.
 - **Forbidden keywords** (`E_DM_KEYWORD`): `$dynamicRef` and `$dynamicAnchor`
   make the inheritance graph late-bound, so the portal cannot derive it
   statically; `$anchor` is a second, ungreppable way to address a local shape;

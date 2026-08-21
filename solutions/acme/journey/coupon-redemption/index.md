@@ -1,7 +1,7 @@
 ---
 name: coupon-redemption
 kind: journey
-version: 1
+version: 2
 title: Coupon redemption
 summary: A code a customer already holds turned into a smaller total and, eventually, into a line in a marketer's spend report.
 status: draft

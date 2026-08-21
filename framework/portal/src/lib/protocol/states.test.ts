@@ -205,6 +205,35 @@ describe('parseStates — subset violations', () => {
   })
 })
 
+describe('parseStates — the dialect header', () => {
+  /*
+   * The loader strips `$schema` before this parser is reached (ADR 0015), so
+   * none of this is load-bearing for the catalog. It is load-bearing for the
+   * *meta-schema*, which is generated from `machineSchema`: a document that
+   * cannot name the schema describing it has no discriminator at all.
+   */
+  const HEADER =
+    'https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document'
+
+  it('admits the header without a diagnostic', () => {
+    expect(parseStates({ $schema: HEADER, ...ORDER_PLACEMENT }, { entityName: 'order-placement' }).diagnostics).toEqual(
+      [],
+    )
+  })
+
+  it('reads the same machine with the header as without it', () => {
+    expect(chartOf({ $schema: HEADER, ...ORDER_PLACEMENT })).toEqual(chartOf(machine()))
+  })
+
+  it('admits it whatever it holds — an unknown dialect is a warning elsewhere, never an error here', () => {
+    expect(parseStates({ $schema: 'https://example.com/foo', ...ORDER_PLACEMENT }).diagnostics).toEqual([])
+  })
+
+  it('admits exactly one key and no more — the object is still strict', () => {
+    expect(codes({ $id: HEADER, ...ORDER_PLACEMENT })).toEqual(['E_PROTO_STATES_SUBSET'])
+  })
+})
+
 describe('parseStates — references', () => {
   it('flags an id that is not the protocol name', () => {
     expect(codes(machine(), { entityName: 'order-events' })).toEqual(['E_PROTO_STATES_ID'])

@@ -401,9 +401,31 @@ that case.
 The one artifact this skill owns, and it is REQUIRED
 (`E_JRN_ARTIFACT_MISSING`): a journey's frontmatter says nothing about the path,
 so a journey without it asserts nothing at all. Bare, fixed filename. Full format
-in `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/journeys.md`; the four rules
+in `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/journeys.md`; the five rules
 that decide whether it is right:
 
+- **The first line declares the dialect.** A role names a file, never a format,
+  so `journey.yaml` says in its own bytes which grammar it is written in, under
+  a top-level `$schema`:
+
+  ```yaml
+  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+  name: first-purchase
+  steps:
+    - actor: /actor/customer
+      touches: /product/shop
+  ```
+
+  No `@version` on that URL — it names the grammar, never a revision of the file,
+  and a top-level `version:` is still `E_JRN_SCHEMA`. The key is framework-owned
+  and admitted **by name** at the top level, so it is not an unknown key there;
+  the loader records the dialect and deletes the key before the mini-spec parser
+  is handed the document. Admission is top-level **only** — a step is not an
+  artifact root, so a `$schema` inside a step is `E_JRN_SCHEMA` exactly like
+  `channel:`. A file declaring nothing is read as the legacy dialect, the format
+  `journeys.md` describes, and warned with `W_ARTIFACT_DIALECT` on the journey
+  entity; it is never broken. Adding the line to a journey that already exists
+  bumps that entity's `version` by exactly 1.
 - **`name` equals the entity directory name** (`E_JRN_NAME`), and `steps` is a
   flat list of **2 to 12** entries (`E_JRN_STEP_COUNT` — both bounds are errors,
   because a legible derived diagram is an acceptance criterion of the kind, not

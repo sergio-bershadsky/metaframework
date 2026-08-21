@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: book-shipment
 title: Book one parcel with a carrier
 summary: The orchestrator asks for a parcel to be taken; the gateway works down its carrier preference list until one accepts.

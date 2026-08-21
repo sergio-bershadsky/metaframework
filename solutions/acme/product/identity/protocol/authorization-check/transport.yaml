@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: JSON over mutually-authenticated HTTPS, on the internal service network only.
 encoding: json

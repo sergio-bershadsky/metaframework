@@ -1,9 +1,9 @@
 ---
 name: reference-bundle
 kind: component
-version: 3
+version: 4
 title: Reference bundle
-summary: Nine distilled reference files carried inside the plugin, because an installed plugin cannot see framework/spec on disk.
+summary: Ten distilled reference files carried inside the plugin, because an installed plugin cannot see framework/spec on disk.
 status: review
 owner: sergio
 component-type: library
@@ -19,10 +19,11 @@ tags:
   - distillation
 ---
 
-`skills/_shared/references/` — nine markdown files, 3,562 lines:
-`environments.md` (650), `protocols.md` (648), `journeys.md` (481),
-`frontmatter.md` (451), `schemas.md` (388), `structure.md` (354), `srn.md`
-(273), `evolution.md` (181), `decomposition.md` (136).
+`skills/_shared/references/` — ten markdown files, 4,497 lines, measured
+2026-08-21 with `wc -l`: `protocols.md` (760), `environments.md` (698),
+`structure.md` (583), `journeys.md` (545), `schemas.md` (469), `frontmatter.md`
+(458), `srn.md` (326), `evolution.md` (325), `philosophy.md` (177),
+`decomposition.md` (156).
 
 Responsibility in one sentence: **carry the spec where the spec cannot travel.**
 
@@ -47,10 +48,10 @@ Nothing else in the plugin can fail that way.
 
 ## What it is a distillation of
 
-9,832 lines of `framework/spec/` become 3,562 — a 2.8× compression (9,832 /
-3,562 = 2.76) that drops worked examples, rationale and the spec's own
+11,765 lines of `framework/spec/` become 4,497 — a 2.6× compression (11,765 /
+4,497 = 2.62) that drops worked examples, rationale and the spec's own
 cross-referencing, and keeps the rules an author must not get wrong. Eight of
-the nine files name a spec document in their opening blockquote and concede
+the ten files name a spec document in their opening blockquote and concede
 precedence to it. `srn.md` opens:
 
 > Distilled from `framework/spec/srn.md` (and the placement projection in
@@ -69,13 +70,25 @@ once — environment, actor, ADR and requirement — because those four are the
 kinds whose contract is entirely frontmatter fields plus one enforced body
 heading, and an author meets them together.
 
-The ninth file, `decomposition.md`, is the exception it declares itself to be:
-distilled not from a spec document but "from this repository's own
-recomposition history and a measured comparison against Atlassian Compass …
-and the Backstage system model", carrying the calls "the spec deliberately
-leaves open: `structure.md` says where a component may live, never whether it
-deserves to exist." It still opens by conceding precedence to `framework/spec/`
-wherever the two overlap.
+**Two of the ten name no spec document, and they are different exceptions.**
+`decomposition.md` is the one that declares itself: distilled not from a spec
+document but "from this repository's own recomposition history and a measured
+comparison against Atlassian Compass … and the Backstage system model", carrying
+the calls "the spec deliberately leaves open: `structure.md` says where a
+component may live, never whether it deserves to exist." It still opens by
+conceding precedence to `framework/spec/` wherever the two overlap.
+
+`philosophy.md` concedes nothing, because there is nothing to concede to: it is
+the only file here that distils no rule at all. It says what the catalog is
+*for* — component-driven product management, the catalog as an intermediate
+representation as well as a knowledge base, and state living here while
+transition lives in the task manager — and it names no `framework/spec/`
+document anywhere in its 177 lines, which is why the precedence blockquote every
+other file opens with is absent. It is also the file read first:
+`skills/solution-design/SKILL.md` and `skills/review-solution/SKILL.md` both open
+by requiring it, and `commands/solution-new.md` puts it at the head of the
+reading order, ahead of `srn.md`. A rules digest with no entry point is a
+reference; this one has an entry point, and that is the file.
 
 ## The duplication is deliberate, and it is the risk
 
@@ -93,12 +106,13 @@ which this component claims, and which is currently met by discipline alone.
 
 ## What it does not carry
 
-No procedure. The bundle is rules; the ordering, the judgement calls and the
-traps live in the skills that read it, and every skill says "do not restate
-those rules back at the user". No `kinds/solution.md`, `kinds/product.md` or
-`kinds/component.md` distillation exists as its own file either — the container
-kinds' *contracts* are folded into `structure.md` and `frontmatter.md`, because
-what an author needs from them is placement and fields; the judgement of what
+No procedure. The bundle is rules and one statement of purpose; the ordering, the
+judgement calls and the traps live in the skills that read it, and every skill
+says "do not restate those rules back at the user". No `kinds/solution.md`,
+`kinds/product.md` or `kinds/component.md` distillation exists as its own file
+either — the container kinds' *contracts* are folded into `structure.md` and
+`frontmatter.md`, because what an author needs from them is placement and
+fields; the judgement of what
 deserves to be a component is `decomposition.md`'s, and that judgement is
 precisely what the kind documents do not legislate.
 

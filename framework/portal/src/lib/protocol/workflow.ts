@@ -128,6 +128,15 @@ const loopSchema = z.strictObject({
 })
 
 const workflowFileSchema = z.strictObject({
+  /**
+   * The dialect header (ADR 0015). The loader strips it before this parser runs,
+   * so nothing in the catalog depends on the admission; it is here so a caller
+   * holding raw file bytes — a fixture, an external consumer — gets the legacy
+   * dialect read rather than an unknown-key error on a file the spec told the
+   * author to write. `x-` stays the hatch for *authors'* keys; a
+   * framework-owned key is admitted by name or not at all.
+   */
+  $schema: z.string().min(1).optional(),
   name: messageName,
   title: z.string().min(1).max(80),
   summary: z

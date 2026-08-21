@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: compose-build
 title: Compose a build
 summary: Slot, then card, then industry only if the card is ambiguous — and a source prompt only where a real choice exists.

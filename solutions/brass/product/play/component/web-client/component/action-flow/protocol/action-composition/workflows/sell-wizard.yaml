@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: sell-wizard
 title: Walk the sell wizard
 summary: Sell bypasses the flow machine entirely — a paged wizard picks tiles, then a merchant and its barrels for each tile in turn.

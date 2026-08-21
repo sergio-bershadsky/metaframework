@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: redeem-coupon
 title: Burn a coupon and charge it to a campaign
 summary: Coupon-service burns a code inside one transaction, publishes the fact, and three consumers catch up.

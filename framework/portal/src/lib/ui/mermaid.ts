@@ -20,6 +20,14 @@ import { CONSOLE_TOKEN as TOKEN } from './console-tokens'
  * theme reads — so a chart sits on the same ramp as every other panel. Font
  * families go through the CSS custom properties instead: the SVG lives in the
  * document, so `var()` resolves against the console's own font tokens.
+ *
+ * `layout` is left at its default, and that is a decision rather than an
+ * omission. The state renderer does honour `config.layout`, but `elk` is not a
+ * layout mermaid carries: it arrives only with `@mermaid-js/layout-elk`, whose
+ * published build externalises `d3` and `elkjs` and inlines *mermaid itself*
+ * — a second copy of the rendering core, on top of the second `elkjs` its
+ * `^0.9.3` pin nests beside our `^0.12.0`. A layout improvement is not worth
+ * shipping the renderer twice; revisit when the package externalises its peer.
  */
 
 type MermaidModule = typeof import('mermaid').default

@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: compose-discard-action
 title: Compose loan, scout or pass
 summary: The three actions with no map target — the only input is which card or cards leave the hand.

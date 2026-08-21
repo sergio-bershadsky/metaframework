@@ -1,7 +1,7 @@
 ---
 name: carrier-booking
 kind: protocol
-version: 2
+version: 3
 title: Carrier booking
 summary: Synchronous booking of one parcel with one carrier, including the retry across carriers when the first refuses.
 status: approved

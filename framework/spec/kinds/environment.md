@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: environment
-version: 4
+version: 5
 status: review
 title: Kind — Environment
-summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts and their SRN addresses, membership derivation, validation, and derived views.
+summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts, their SRN addresses and dialect header, membership derivation, validation, and derived views.
 ---
 
 # Kind: environment
@@ -159,7 +159,10 @@ version field of their own**, and any change to either bumps the entity's
 frontmatter `version` in the same commit ([evolution.md](../evolution.md)).
 
 In both artifacts, unknown keys — at the top level and inside entries — are
-rejected unless prefixed `x-`, mirroring the frontmatter rule.
+rejected unless prefixed `x-`, mirroring the frontmatter rule. The one
+framework-owned key either file may carry — the `$schema` dialect header — is
+admitted **by name** at the artifact root and is therefore not an unknown key
+([The dialect header](#the-dialect-header)).
 
 ### Artifact addresses
 
@@ -199,10 +202,92 @@ the one addressability serves: a `config.yaml` that tools outside the catalog
 can cite by SRN is what lets it grow into the solution's single point of
 configuration.
 
+### The dialect header
+
+Each sibling declares, in its own bytes, which grammar it is written in, under
+the key `$schema`:
+
+```yaml
+# solutions/acme/environment/production/topology.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+regions:
+  - name: eu-west-1
+```
+
+```yaml
+# solutions/acme/environment/production/config.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
+config:
+  - key: LOG_LEVEL
+```
+
+The value is the canonical `$id` of the meta-schema that defines the role's
+format — [topology-document](srn://metaframework/product/specification/datamodel/topology-document)
+for the `topology` role,
+[config-document](srn://metaframework/product/specification/datamodel/config-document)
+for the `config` role — built by the same rule as every other datamodel's
+([datamodel.md](datamodel.md)). Two roles, two URLs, and the second is not
+decoration: a `config.yaml` carrying the topology URL is not a config file with
+a typo in it, it is a file claiming to be written in a grammar it is not, and
+the loader reads it as the legacy dialect rather than guessing which half of the
+claim to believe.
+
+The URL carries no `@version`. It names the **grammar this file is written in**,
+never a revision of this file; an artifact has no clock of its own, and the
+entity's `version` is the only one ([evolution.md](../evolution.md)).
+
+**The key is admitted by name, and it is not an unknown key.** The `x-` rule
+above is untouched by the header, because the two never meet: `$schema` is a
+framework-owned key that this section and both role meta-schemas name at the
+artifact root, so ENV4 and ENV5 read a known key rather than a stranger, and the
+hatch stays what it is — a hatch for *authors'* keys. Admission is by name and
+**at the artifact root only**. A region map, a host map, a `replicas` map and a
+`config` entry are not artifact roots and gain nothing from a header, so there
+the key is as unknown as any other:
+
+```yaml
+hosts:
+  - component: /product/shop/component/checkout
+    $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+                                              # E_ENV_TOPOLOGY_SCHEMA — the header
+                                              # belongs to the file, not to an entry
+                                              # inside it
+```
+
+The loader reads the header once, records the dialect on the artifact, and
+deletes the key from the parse product before anything downstream is handed the
+document. Two things follow. The **bytes are untouched** — `/artifacts` and the
+portal's source pane serve the file as authored, header included; the residue is
+an internal parse product and is never served as the document. And the two
+surfaces that describe a `topology.yaml` describe different things, which is why
+they differ by exactly one key: the published meta-schema validates the file
+**as authored**, so it carries `$schema` among its properties, while the key
+tables below define the artifact's **content model**, which is what the loader
+hands downstream and what the `x-` rule and ENV4/ENV5 judge. No `$schema` row
+appears in those tables for that reason, and the header's whole job is to be the
+key they differ by.
+
+A file carrying no `$schema`, or one whose value is not a recognised dialect of
+its role, is read as the **legacy dialect** — the format this document defines —
+and is warned, never broken. The warning is `W_ARTIFACT_DIALECT`, raised on the
+owning environment entity and pathed at the artifact; it is a cross-kind class
+introduced by [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects),
+not an `E_ENV_*` code, because the same fact is true of every artifact in the
+catalog. That record also settles what the canonical host does and does not
+promise: the URL is an identifier first, and retrieval from
+`schemas.metaframework.dev` is a separate obligation it names.
+
+Adding the header is a content change to a sibling, so it bumps the entity's
+`version` like any other ([evolution.md](../evolution.md)) — and **once**, not
+twice. An environment is the kind most likely to gain two headers in one commit,
+and a version is a snapshot of all the entity's files at that commit: adding
+both is one change to one entity, not two.
+
 ### `topology.yaml`
 
 ```yaml
 # solutions/acme/environment/production/topology.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
 regions:
   - name: eu-west-1
     zones: [a, b, c]
@@ -224,7 +309,8 @@ hosts:
     regions: [eu-west-1]
 ```
 
-Top-level keys:
+Top-level keys of the content model — the dialect header sits above them and is
+not one of them ([above](#the-dialect-header)):
 
 | Key       | Type                | Required | Meaning                                                                |
 | --------- | ------------------- | -------- | ---------------------------------------------------------------------- |
@@ -308,6 +394,7 @@ carries a secret value.**
 
 ```yaml
 # solutions/acme/environment/production/config.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
 config:
   - key: LOG_LEVEL
     value: warn
@@ -323,7 +410,9 @@ config:
     description: Kill switch for instant refunds.
 ```
 
-Top-level key `config` — a list of entries, REQUIRED if the file exists:
+Top-level key `config` — a list of entries, REQUIRED if the file exists, and the
+only key of the content model ([the dialect header](#the-dialect-header) sits
+above it):
 
 | Key           | Type                  | Required           | Rule                                                                                      |
 | ------------- | --------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
@@ -424,7 +513,8 @@ and the configuration keys it provides**. Per
 [evolution.md](../evolution.md):
 
 - Legal at `version: N+1` — add a region, add a host entry, widen a replica
-  range, add a config key, clarify prose or scaling notes.
+  range, add a config key, add the dialect header to a sibling that lacks one
+  ([above](#the-dialect-header)), clarify prose or scaling notes.
 - ILLEGAL in place — repurposing the name (`staging` becoming the real
   production target) or changing `environment-type` to a class with different
   guarantees. Both are swaps: create the successor environment, add
@@ -458,6 +548,14 @@ resolved catalog. Common SRN rules (syntax, dangling targets, cross-solution
 sealing) apply to both artifacts unchanged — an unknown role or a suffix on a
 kind with no roles is `E_SRN_ARTIFACT` before ENV11 is ever reached
 ([srn.md](../srn.md)).
+
+ENV4 and ENV5 judge the **content model** of their artifact, and the `$schema`
+dialect header is not part of it: the key is admitted by name at the artifact
+root and removed before either rule is reached, so it is never the unknown key
+they reject ([The dialect header](#the-dialect-header)). A header that is absent
+or names an unrecognised dialect is `W_ARTIFACT_DIALECT` — a warning of the
+cross-kind class, on the environment entity — and neither ENV4 nor ENV5 has
+anything to say about it.
 
 ## What the portal derives
 

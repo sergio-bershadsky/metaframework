@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: Four read-only reads over the entity's git history, all GET on one path and separated by an op query parameter.
 encoding: json

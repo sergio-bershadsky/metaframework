@@ -1,7 +1,7 @@
 ---
 name: first-purchase
 kind: journey
-version: 1
+version: 2
 title: First purchase
 summary: A new customer's path from the storefront to a parcel in their hands — three products, one account they did not have this morning, and not one system conversation between them.
 status: review

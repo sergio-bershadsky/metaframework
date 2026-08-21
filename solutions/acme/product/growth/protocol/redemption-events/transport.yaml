@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: kafka
 summary: Redemption facts published by coupon-service and consumed by everything in growth that keeps a total.
 encoding: avro

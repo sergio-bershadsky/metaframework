@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: take-a-turn
 title: An agent takes one turn
 summary: Woken by the live-state notification, the model reads the state, reads the legal moves, plays one or two, then commits.

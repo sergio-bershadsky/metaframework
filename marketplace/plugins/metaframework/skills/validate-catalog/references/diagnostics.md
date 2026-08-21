@@ -33,21 +33,91 @@ paths and on `relations` references) and the schema registry (on `$ref` URLs).
 What `metaframework check` reports. The `error` rows are the ones that make it
 exit non-zero; the `warning` rows print and are counted, and pass.
 
-| Code                     | Severity | Raised when                                                                                       |
-|--------------------------|----------|-----------------------------------------------------------------------------------------------------|
-| `E_FM_SCHEMA`            | error    | The common frontmatter schema rejects the document (**aborts the entity**), or the kind-specific schema does (does not abort). Message is `field.path: constraint`. |
-| `E_FM_UNKNOWN_FIELD`     | error    | A top-level key that is neither a common field, nor a field of the kind implied by disk position, nor `x-` prefixed. |
-| `E_FM_NAME_MISMATCH`     | error    | `name` ≠ the directory's basename.                                                                  |
-| `E_FM_KIND_LOCATION`     | error    | `kind` ≠ the kind implied by disk position.                                                         |
-| `E_FM_EDGE_SOURCE`       | error    | The entity's kind may not author that edge type.                                                    |
-| `E_FM_EDGE_TARGET`       | error    | The resolved target's kind is illegal for that edge type.                                           |
-| `E_SRN_DANGLING`         | error    | A relation reference resolves to an SRN with no entity in the map.                                  |
-| `E_STRUCT_NESTED_ENTITY` | error    | A child `index.md` directly below a non-container entity.                                           |
-| `E_STRUCT_MISSING_INDEX` | error    | An entity's computed parent SRN has no entity behind it.                                            |
-| `E_STRUCT_DUPLICATE_SRN` | error    | A second directory resolving to an already-registered SRN.                                          |
-| `E_STRUCT_BODY_H1`       | error    | A level-1 heading in the prose; the page already renders `title` as the h1.                         |
-| `W_REF_DEPRECATED`       | warning  | The relation target has `status: deprecated`.                                                       |
-| `W_REF_STALE_PIN`        | warning  | A `@N` pin that resolves but is behind the target's current `version`.                              |
+| Code                       | Severity   | Raised when                                                                                                                                                         |
+|----------------------------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_FM_SCHEMA`              | error      | The common frontmatter schema rejects the document (**aborts the entity**), or the kind-specific schema does (does not abort). Message is `field.path: constraint`. |
+| `E_FM_UNKNOWN_FIELD`       | error      | A top-level key that is neither a common field, nor a field of the kind implied by disk position, nor `x-` prefixed.                                                |
+| `E_FM_NAME_MISMATCH`       | error      | `name` ≠ the directory's basename.                                                                                                                                  |
+| `E_FM_KIND_LOCATION`       | error      | `kind` ≠ the kind implied by disk position.                                                                                                                         |
+| `E_FM_EDGE_SOURCE`         | error      | The entity's kind may not author that edge type.                                                                                                                    |
+| `E_FM_EDGE_TARGET`         | error      | The resolved target's kind is illegal for that edge type.                                                                                                           |
+| `E_SRN_DANGLING`           | error      | A relation reference resolves to an SRN with no entity in the map.                                                                                                  |
+| `E_STRUCT_NESTED_ENTITY`   | error      | A child `index.md` directly below a non-container entity.                                                                                                           |
+| `E_STRUCT_MISSING_INDEX`   | error      | An entity's computed parent SRN has no entity behind it.                                                                                                            |
+| `E_STRUCT_DUPLICATE_SRN`   | error      | A second directory resolving to an already-registered SRN.                                                                                                          |
+| `E_STRUCT_BODY_H1`         | error      | A level-1 heading in the prose; the page already renders `title` as the h1.                                                                                         |
+| `W_ARTIFACT_DIALECT`       | warning    | An artifact whose role carries a discriminator declares none, or declares one that role does not recognise. Pathed at the file, raised on the entity that owns it.  |
+| `W_REF_DEPRECATED`         | warning    | The relation target has `status: deprecated`.                                                                                                                       |
+| `W_REF_STALE_PIN`          | warning    | A `@N` pin that resolves but is behind the target's current `version`.                                                                                              |
+
+**`W_ARTIFACT_DIALECT` — the fix is one line, and the line differs per role.**
+A role names a *file*, never a format, so every addressable artifact declares in
+its own bytes which grammar it is written in. The cross-kind contract is
+`framework/spec/structure.md`, "The dialect behind the role", distilled into the
+shared bundle's `structure.md` as "Artifact dialects — the grammar inside the
+file"; the per-kind half sits in `protocols.md`, `journeys.md` and
+`environments.md` beside each artifact it applies to. The loader reads that
+declaration in the same pass that reads
+the artifacts, records it, and — for the framework's own key — deletes it before
+any mini-spec parser is handed the document, which is why
+`E_PROTO_STATES_SUBSET` and `E_JRN_SCHEMA` stay strict with nothing carved out
+for it. Writing `{meta}` for
+`https://schemas.metaframework.dev/metaframework/product/specification/datamodel`,
+the declaration to add is:
+
+| Artifact                | Key       | Value to add                    |
+|-------------------------|-----------|---------------------------------|
+| `transport.yaml`        | `$schema` | `{meta}/transport-document`     |
+| `states.json`           | `$schema` | `{meta}/state-machine-document` |
+| `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`      |
+| `journey.yaml`          | `$schema` | `{meta}/journey-document`       |
+| `topology.yaml`         | `$schema` | `{meta}/topology-document`      |
+| `config.yaml`           | `$schema` | `{meta}/config-document`        |
+| `openapi.yaml`          | `openapi` | `3.1.0`                         |
+
+`openapi:` is OpenAPI's own key, so the whole `3.1` line is recognised — a file
+tracking a patch release to `3.1.1` is the same dialect and is not warned — and
+it is never stripped, because a native discriminator belongs to its own format.
+The six framework URLs carry **no `@version`**: they name a dialect, not a
+revision of one.
+
+Two roles never raise this code. `schema.json` answers the same question with an
+error already — `$schema` there is JSON Schema's own key and any value but
+`https://json-schema.org/draft/2020-12/schema` is `E_DM_DIALECT` — and
+`examples/*.json` carries no discriminator **at all, by rule**: an example is an
+instance of its sibling schema, so a `$schema` in it is one more property the
+schema would have to admit.
+
+There are two message forms, and both end in the same clause — that clause is
+the contract:
+
+```text
+warning W_ARTIFACT_DIALECT  acme/protocol/settlement/transport.yaml
+        transport.yaml declares no dialect — read as the legacy dialect; add
+        `$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document`
+
+warning W_ARTIFACT_DIALECT  acme/protocol/settlement/states.json
+        states.json declares dialect "https://example.com/foo", which is not a
+        known dialect of the states role — read as the legacy dialect
+```
+
+The path is the **artifact file**, not the entity's `index.md` — an artifact is
+not an entity and has no diagnostics of its own, so the finding is raised on the
+entity that owns it and pathed at the file that caused it. The file is still
+parsed, still rendered and still checked against the grammar the spec defines
+today, so nothing in this class can make a catalog that loads today stop
+loading — treat a run full of them as a migration queue, not as breakage.
+
+On a native-discriminator role the absent form names that role's own key
+instead, because that is what an author has to paste:
+
+```text
+openapi.yaml declares no dialect — read as the legacy dialect; add `openapi: 3.1.0`
+```
+
+Adding the line is a content change to a sibling artifact, so it bumps the
+owning entity's `version` by exactly 1, **once per entity** however many of its
+files gain a header in the same commit.
 
 Graph-shape checks the loader gained with the `capability`, `journey` and
 `metric` kinds (`checkGraphShape` in the same module; `E_MET_TARGET` and

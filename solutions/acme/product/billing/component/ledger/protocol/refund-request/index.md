@@ -1,7 +1,7 @@
 ---
 name: refund-request
 kind: protocol
-version: 1
+version: 2
 title: Refund request
 summary: Support-facing HTTP surface for requesting and tracking a refund against a settled order.
 status: review

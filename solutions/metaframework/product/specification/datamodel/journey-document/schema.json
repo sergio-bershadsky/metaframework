@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/journey-document",
+  "title": "Journey document",
+  "description": "journey.yaml — one actor's path across the solution, in order: a flat list of 2 to 12 steps, no ids, no branches. Specified in framework/spec/kinds/journey.md; parsed by framework/portal/src/lib/journey/journey.ts.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key before parseJourney is handed the document, so nothing in the catalog depends on the parser tolerating it. parseJourney admits it regardless: $schema is listed in KNOWN_FILE_KEYS beside name and steps, at the top level only, so a caller holding raw file bytes and no loader — a fixture, an editor, a consumer reading this schema — gets the legacy dialect read rather than E_JRN_SCHEMA on the header this schema tells them to write. Admitted by name and not by widening the x- hatch: x- is the author's namespace and stays open-ended, $schema is one framework-owned literal, so the parser's set of legal top-level keys grew by exactly one and every other unknown key is still an error."
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64,
+      "description": "MUST equal the entity's name, i.e. its directory name (E_JRN_NAME) — the filename is fixed, so it carries no identity. Checked against the entity and never against the filename stem: a file copied into the wrong entity directory says so instead of silently becoming that entity's path."
+    },
+    "steps": { "$ref": "#/$defs/steps" }
+  },
+  "required": ["name", "steps"],
+  "patternProperties": {
+    "^x-": {
+      "description": "The escape hatch reaches into this artifact, at the top level and inside a step. Tolerated and ignored by the portal; any other unknown key is E_JRN_SCHEMA. There is no title and no summary — index.md already carries both, and a second copy in the artifact would only drift — and no top-level version: the entity's frontmatter governs the whole directory."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "steps": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/step" },
+      "description": "The list order IS the order: no order key, no step ids, no timestamps, no durations. Both bounds are errors and not warnings (E_JRN_STEP_COUNT) — one step is a touch rather than a path, twelve rows is where the derived ladder stops fitting one screen, and a cap that only warns is a cap every catalog eventually ignores. The portal's stable key for a step is its positional path, steps[3], 0-based."
+    },
+    "step": {
+      "type": "object",
+      "description": "A described position, not an observed event. Exactly four keys are recognised, and each step carries its own subject: actor is written on every step rather than defaulting from the frontmatter protagonist, because a hand-off is the row a reader most needs to see and a field that defaults is a field that hides its exceptions.",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/srn-ref",
+          "description": "Who takes this step. MUST resolve to an entity of kind actor (E_JRN_ACTOR_KIND). The frontmatter protagonist MUST be the actor of at least one step (W_JRN_ACTOR_ABSENT); every other actor here is a counterpart the path hands off to or waits on."
+        },
+        "touches": {
+          "$ref": "#/$defs/srn-ref",
+          "description": "What they touch. MUST resolve to a component or a product (E_JRN_TOUCHES_KIND). Its owning product — the product/{name} pair at the head of the pair chain — is what makes a product crossing decidable from the grammar alone."
+        },
+        "protocol": {
+          "description": "How the step reaches what it touches. Three states, not two: an SRN resolving to a protocol (E_JRN_PROTOCOL_KIND); the literal none, the documented negative, meaning the actor carries the crossing and there is nothing to write down; or omitted, meaning not written down yet — which on a product crossing is W_JRN_UNDOCUMENTED_INTEGRATION, the check the kind exists for.",
+          "anyOf": [
+            { "title": "the documented negative", "const": "none" },
+            { "title": "a protocol reference", "$ref": "#/$defs/srn-ref" }
+          ]
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\n]+$",
+          "description": "One line, display only, rendered as a note anchored to the step. The place a fork in the path is named, since the second branch is a second journey."
+        }
+      },
+      "required": ["actor", "touches"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false,
+      "not": {
+        "description": "A journey is exactly one linear sequence. A branch-shaped key gets its own error class (E_JRN_BRANCH) rather than the generic E_JRN_SCHEMA, because the code is the lesson: a journey that branches is two journeys. The distinction is a diagnostic class and not a validity difference, so this clause restates a rejection additionalProperties already makes — what it adds is the seven names.",
+        "anyOf": [
+          { "required": ["alt"] },
+          { "required": ["opt"] },
+          { "required": ["loop"] },
+          { "required": ["when"] },
+          { "required": ["otherwise"] },
+          { "required": ["branches"] },
+          { "required": ["parallel"] }
+        ]
+      }
+    },
+    "srn-ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "An ordinary SRN reference, absolute or relative, resolved from the entity's own directory and never crossing into another solution. A journey sits at solution level and points almost entirely outward, so the solution-absolute form (/product/shop/component/checkout) is the readable one everywhere. Version pins parse but SHOULD be omitted — a pinned component would freeze the description of a thing that is still moving. An artifact suffix is refused on every step field (JRN16): a step means an entity, and an artifact has no kind."
+    }
+  }
+}

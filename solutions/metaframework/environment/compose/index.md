@@ -1,7 +1,7 @@
 ---
 name: compose
 kind: environment
-version: 1
+version: 2
 title: Compose
 summary: The whole of devops on a laptop under Docker Compose, from files under docker/ — a second local environment, deliberately not a rehearsal for production.
 status: review

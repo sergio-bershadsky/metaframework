@@ -140,7 +140,14 @@ const fileSchema = z
   })
   .catchall(z.unknown())
 
-const KNOWN_FILE_KEYS = ['name', 'steps']
+/**
+ * `$schema` is the dialect header of ADR 0015, admitted at the top level only.
+ * The loader strips it before this parser runs, so nothing in the catalog
+ * depends on the admission; it is here so a caller holding raw file bytes reads
+ * the legacy dialect instead of raising `E_JRN_SCHEMA` on a header the spec told
+ * the author to write. A step is not an artifact root and gains nothing.
+ */
+const KNOWN_FILE_KEYS = ['$schema', 'name', 'steps']
 const KNOWN_STEP_KEYS = ['actor', 'touches', 'protocol', 'note']
 
 function zodMessage(error: z.ZodError): string {

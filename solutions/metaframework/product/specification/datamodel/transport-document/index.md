@@ -1,7 +1,7 @@
 ---
 name: transport-document
 kind: datamodel
-version: 1
+version: 2
 title: Transport document
 summary: The transport.yaml mini-spec — one protocol, one wire, six binding blocks and the spec-XOR-surface-list rule; fully specified and read by no code at all.
 status: review
@@ -19,10 +19,10 @@ the wire**, one protocol, one transport. Specified in
 `framework/spec/kinds/protocol.md` §"`transport.yaml`" (lines 263–493) — a
 closed six-value `kind` enum, a binding block per kind, six surface lists, an
 external-spec link and an exclusivity rule between the last two. Measured
-2026-08-20 with `find solutions -name transport.yaml`: **15 instances** — 9 in
-`solutions/acme`, 4 in `solutions/brass`, 2 in this solution.
+2026-08-21 with `find solutions -name transport.yaml`: **16 instances** — 9 in
+`solutions/acme`, 4 in `solutions/brass`, 3 in this solution.
 
-It is one of the five formats this product owns, and the only one whose entry in
+It is one of the eight formats this product owns, and the only one whose entry in
 the catalog is justified by an absence rather than by a mechanism.
 
 ## No code reads it
@@ -55,8 +55,8 @@ nowhere, and `lib/protocol/` contains modules for workflows and state machines
 and none for transports.
 
 This is the format's whole reason for having an entity. A documented format with
-15 authored instances and no reader is a real state of affairs, and a catalog
-that listed four of the five spec formats and quietly dropped the one nothing
+16 authored instances and no reader is a real state of affairs, and a catalog
+that listed seven of the eight spec formats and quietly dropped the one nothing
 implements would be describing a tidier repository than this one. The gap is
 also load-bearing elsewhere: `W_PROTO_WF_CHANNEL_UNKNOWN` — a workflow step's
 `channel` cross-checked against the transport's surface list — is unimplementable
@@ -66,7 +66,11 @@ records from the other side.
 
 ## Why `usage: storage`
 
-The only `storage` value in this product's five datamodels, and it is a
+The first of the three `storage` values among this product's eight datamodels —
+[topology-document](srn://metaframework/product/specification/datamodel/topology-document)
+and
+[config-document](srn://metaframework/product/specification/datamodel/config-document)
+are the other two, and both cite this entry for the reasoning — and it is a
 statement rather than a hedge.
 
 The file is persisted in the tree and read by people and models out of the tree.
@@ -106,16 +110,16 @@ schema detail:
   an entity version is a snapshot of all its files at one commit.
 
 The `x-` escape hatch reaches into the artifact, at the top level and inside
-entries — the same rule frontmatter carries. It is used in 4 of the 15 files on
+entries — the same rule frontmatter carries. It is used in 4 of the 16 files on
 disk.
 
-## What the 15 instances actually exercise
+## What the 16 instances actually exercise
 
-Measured 2026-08-20 across all three solutions:
+Measured 2026-08-21 across all three solutions:
 
 | `kind`       | instances | surface list key | instances using it |
 | ------------ | --------- | ---------------- | ------------------ |
-| `http`       | 8         | `operations`     | 6                  |
+| `http`       | 9         | `operations`     | 7                  |
 | `kafka`      | 3         | `topics`         | 3                  |
 | `in-process` | 3         | `functions`      | 3                  |
 | `websocket`  | 1         | `channels`       | 1                  |
@@ -127,8 +131,8 @@ and two of the six surface lists, have **no instance anywhere in the
 repository**. They are specified, described in the spec's field tables, and
 untested by any authored file.
 
-The exclusivity rule holds across all 15: the two files carrying `spec` (both
-`http`, both in acme) carry no surface list, and the 13 carrying a surface list
+The exclusivity rule holds across all 16: the two files carrying `spec` (both
+`http`, both in acme) carry no surface list, and the 14 carrying a surface list
 carry no `spec`. Nothing checked that — it is author discipline, which is the
 general condition of this format.
 
@@ -142,7 +146,7 @@ general condition of this format.
   conversation out of a library calling a binary, and
   [0003-closed-ontology-of-nine-kinds](srn://metaframework/adr/0003-closed-ontology-of-nine-kinds)
   records the mismatch instead.
-- **stdio JSON-RPC has no value either.** One of the 15 files takes
+- **stdio JSON-RPC has no value either.** One of the 16 files takes
   `in-process` as the nearest neighbour and records the truth in `x-wire`, with
   a four-line comment above `kind:` explaining the compromise. It is in a
   fixture outside this solution, so it cannot be cited by SRN here, and the
@@ -170,8 +174,9 @@ absolute and MUST NOT contain `..` (`E_PROTO_SPEC_FILE`). The schema catches the
 absolute form with a pattern and nothing else: no schema resolves a filesystem,
 and path containment is a decision about a tree, not about a string.
 
-Checked 2026-08-20 with `ajv` 2020: all 15 `transport.yaml` files in the
-repository validate, and eleven hand-written cases behave. Rejected: two binding
+Checked 2026-08-20 with `ajv` 2020 and re-run against the corpus on 2026-08-21:
+all 16 `transport.yaml` files in the repository validate, and eleven
+hand-written cases behave. Rejected: two binding
 blocks in one document, a block that disagrees with `kind`, `spec` alongside a
 surface list, an unknown non-`x-` top-level key, a `kind` outside the enum, a
 `version:` key, an `http` block with no `base-path`, a `kafka` block with
@@ -182,3 +187,38 @@ That check was a one-off run of a throwaway test, not something the repository
 does. Nothing parses `transport.yaml`, so nothing validates it against this
 schema either. It is a statement of the contract rather than an enforcement of
 it — the same position the format itself is in.
+
+## The header the schema had to be reopened for
+
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) makes a
+`transport.yaml` name its dialect in its own bytes, and the URL it names is this
+entity's canonical schema URL — the `$id` at the top of the sibling file:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+http:
+  base-path: /v1
+```
+
+Admitting that key was not a courtesy. Re-measured 2026-08-21 with `ajv` 2020
+against all 16 `transport.yaml` files in the repository, each run twice — once
+with the `$schema` line and once with it stripped. Against the schema as it
+stood before this change: **16 of 16** validated stripped and **0 of 16**
+validated headed. The root `additionalProperties: false` rejected the very key
+that points at this document — which is the fault 0015 disqualified Stately's
+`xstate.json` on, and it applied to this schema identically. A schema a document
+cannot name is not a discriminator. With `$schema` admitted, both runs pass 16
+of 16, and it is now the *stripped* run that is hypothetical: every
+`transport.yaml` on disk carries the header.
+
+The value is typed as a non-empty string and **not** pinned with `const` to the
+`$id` above, and that is a ruling rather than an omission. A file naming some
+other dialect is `W_ARTIFACT_DIALECT` — a warning, read as the legacy dialect,
+never broken — so a `const` would state one fact at two severities, and JSON
+Schema has no dial for turning the harder one down. It would also not fire where
+it is imagined to: an editor follows the URL the *file* names, so a
+`transport.yaml` carrying the `journey-document` URL is judged by that schema and
+never reaches this one. The join that would reach it — pick the schema from the
+role, then compare — is the portal's, and the portal already warns. All six
+framework meta-schemas encode the key the same way for the same reason.

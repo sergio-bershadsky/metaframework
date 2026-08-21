@@ -1,14 +1,21 @@
 # Worked examples — one complete `index.md` per kind
 
-> Every file below is reproduced **verbatim** from the reference solution at
-> `solutions/acme/` in the metaframework repository. When that repository is
-> present, read the originals; this bundled copy exists because an installed
-> plugin cannot see them. Nothing here is invented — if a field, heading or
-> phrasing looks surprising, it is because the fixture is deliberately teaching
-> something at that spot.
+> Every block under a kind heading below is one whole file, reproduced
+> **verbatim** from the reference solution at `solutions/acme/` in the
+> metaframework repository — frontmatter and body, nothing trimmed. When that
+> repository is present, read the originals; this bundled copy exists because an
+> installed plugin cannot see them. Nothing here is invented — if a field,
+> heading or phrasing looks surprising, it is because the fixture is deliberately
+> teaching something at that spot.
+>
+> Exactly one block is **not** a whole file: the `relations` fragment inside the
+> `capability` note, which says so in its own first comment line. Anything else
+> you find here can be copied and it will be what is on disk.
 >
 > Ten kinds, one section each. `journey` is the only one that carries a second
-> file: its `journey.yaml` is REQUIRED and is reproduced with it.
+> file: its `journey.yaml` is REQUIRED and is reproduced with it — including the
+> `$schema` dialect header on its first line, which is part of the file and part
+> of what you copy.
 
 Read the file for the kind being written, then the note under it, which names
 the decision the example demonstrates. The rules themselves live in
@@ -24,9 +31,9 @@ present, which wins).
 ---
 name: acme
 kind: solution
-version: 3
+version: 4
 title: Acme Retail Platform
-summary: The retail platform describing acme's storefront, checkout, and billing systems as one reviewable catalog.
+summary: The retail platform describing acme's storefront, checkout, fulfilment, promotions, identity and billing systems as one reviewable catalog.
 status: approved
 owner: team-platform
 vision: |
@@ -68,13 +75,26 @@ is a description, not an implementation: every repository that builds one of
 these components is expected to match what is written here, and a divergence is
 a defect in one of the two.
 
-Two products divide the universe. [shop](srn://acme/product/shop) owns everything a
-customer touches — cart, checkout, payment orchestration, stock availability.
-[billing](srn://acme/product/billing) owns everything that happens after the money moves
-— the double-entry ledger and the reconciliation job that proves it balances.
-The two meet on exactly one surface, the solution-level
+Five products divide the universe, and they divide it along the order's own
+path. [shop](srn://acme/product/shop) owns everything a customer touches — cart,
+checkout, payment orchestration, stock availability.
+[billing](srn://acme/product/billing) owns everything that happens after the
+money moves — the double-entry ledger and the reconciliation job that proves it
+balances. Those two meet on exactly one surface, the solution-level
 [settlement](srn://acme/protocol/settlement) bus, which is why that protocol
 lives at the solution root rather than inside either product.
+
+Three more sit across that line rather than on it.
+[fulfilment](srn://acme/product/fulfilment) takes a paid order to a parcel in
+somebody's hands; [growth](srn://acme/product/growth) decides what an offer is
+worth before shop decides what is charged; and
+[identity](srn://acme/product/identity) is the horizontal every other product
+leans on to know who it is talking to. The three solution-level capabilities —
+[order-fulfilment](srn://acme/capability/order-fulfilment),
+[promotion-pricing](srn://acme/capability/promotion-pricing) and
+[identity-verification](srn://acme/capability/identity-verification) — are where
+those crossings are stated as one doing rather than five products' worth of
+parts, and each one's realizers are derived rather than listed here.
 
 ## Reading order
 
@@ -362,7 +382,7 @@ toward the component the customer actually touches.
 ---
 name: production
 kind: environment
-version: 4
+version: 5
 title: Production
 summary: Primary customer-facing target for the acme solution — EU-West with a US-East read region.
 status: approved
@@ -732,7 +752,9 @@ The entity authors **no realization edge**. Realizers point at it from their own
 side, and any number of them may — this is `checkout`, which carries two:
 
 ````yaml
-# solutions/acme/product/shop/component/checkout/index.md
+# EXCERPT, not a whole file — solutions/acme/product/shop/component/checkout/index.md
+# `relations` there also carries `uses`, `exposes` and `depends-on`, and two
+# further `implements` entries; only the realization edge is shown.
 relations:
   implements:
     - /product/shop/component/checkout/requirement/idem-cap
@@ -765,7 +787,7 @@ grep -rn "capability/order-fulfilment" solutions/ --include=index.md
 ---
 name: first-purchase
 kind: journey
-version: 1
+version: 2
 title: First purchase
 summary: A new customer's path from the storefront to a parcel in their hands — three products, one account they did not have this morning, and not one system conversation between them.
 status: review
@@ -851,6 +873,7 @@ nothing the customer does waits for it.
 `solutions/acme/journey/first-purchase/journey.yaml`
 
 ````yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: first-purchase
 steps:
   - actor: /actor/customer
@@ -932,6 +955,14 @@ protagonist must still take at least one step (`W_JRN_ACTOR_ABSENT`).
 legal and is the right call when no component below claims the surface; a
 `touches` may name a product or a component, and nothing else
 (`E_JRN_TOUCHES_KIND`).
+
+The first line of `journey.yaml` is the `$schema` dialect header, above `name:`,
+and copying the block without it is the one way to get a file that still loads
+and is still wrong — the loader reads a header-less artifact as the legacy
+dialect and warns `W_ARTIFACT_DIALECT` on the journey entity rather than failing
+it. The key is framework-owned and admitted **by name** at the top level only; a
+`$schema` inside a step is `E_JRN_SCHEMA`, and no `@version` is ever appended to
+that URL. SKILL.md §7a states the rule; this file is the file it describes.
 
 Frontmatter carries exactly one kind field, `actor`, and it is a single SRN, not
 a list. `relations.uses` names the **environment only**: every component the path

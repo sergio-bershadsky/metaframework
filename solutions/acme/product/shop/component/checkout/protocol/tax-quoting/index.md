@@ -1,7 +1,7 @@
 ---
 name: tax-quoting
 kind: protocol
-version: 1
+version: 2
 title: Tax quoting
 summary: In-process function calls from checkout into the tax-engine library — no network hop.
 status: approved

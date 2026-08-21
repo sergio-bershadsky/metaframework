@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import matter from 'gray-matter'
 import { parse as parseYaml } from 'yaml'
+import { adoptDialect } from './dialects'
 import {
   EDGE_SOURCE_KINDS,
   EDGE_TARGET_KINDS,
@@ -238,6 +239,24 @@ async function readEntity(
     return null
   }
 
+  // The single point where every artifact has been read and parsed and nothing
+  // downstream has been handed the document yet — so it is where the dialect is
+  // interpreted and the framework's own key removed from the parse product
+  // (ADR 0015). `raw` is untouched: /artifacts and the source pane serve the
+  // file as authored, discriminator included.
+  const artifacts = await readArtifacts(dir)
+  for (const artifact of artifacts) {
+    const legacy = adoptDialect(expectedKind, artifact)
+    if (legacy === null) continue
+    diagnostics.push({
+      code: 'W_ARTIFACT_DIALECT',
+      severity: 'warning',
+      message: legacy,
+      path: path.join(relDir, artifact.file),
+      srn,
+    })
+  }
+
   const entity: Entity = {
     srn,
     parsed,
@@ -246,7 +265,7 @@ async function readEntity(
     dir,
     frontmatter,
     body: content.trim(),
-    artifacts: await readArtifacts(dir),
+    artifacts,
     relations: collectRelations(frontmatter, srn, diagnostics, docPath),
     parent: null,
     children: [],

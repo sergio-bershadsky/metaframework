@@ -1,7 +1,7 @@
 ---
 name: order-placement
 kind: protocol
-version: 2
+version: 3
 title: Order placement
 summary: Synchronous order placement between the customer, checkout, inventory, and payment.
 status: approved

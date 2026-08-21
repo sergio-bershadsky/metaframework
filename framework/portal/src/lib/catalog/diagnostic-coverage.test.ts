@@ -173,6 +173,12 @@ const UNIMPLEMENTED: Record<string, string> = {
  * Codes the source emits that no spec table defines. An entry here is spec debt
  * in the other direction — the portal complains in a vocabulary the spec does
  * not publish, so a reader who hits the code has nothing to look up.
+ *
+ * Empty, and the empty state is the goal rather than an accident: the ratchet
+ * below retires an entry the moment the spec defines its code, so a row here is
+ * always a debt with a name. `W_ARTIFACT_DIALECT` was the last one out —
+ * `framework/spec/structure.md` now publishes it beside the artifact role table,
+ * which is where a cross-kind class about a file's bytes belongs.
  */
 const UNDOCUMENTED: Record<string, string> = {}
 
@@ -448,6 +454,28 @@ beforeAll(async () => {
   // E_JRN_ACTOR_KIND — a protagonist that is not an actor.
   await entity('acme/journey/broken-path', base('broken-path', 'journey', { actor: '/product/shop' }))
 
+  // --- loader: the dialect header -------------------------------------------
+  // W_ARTIFACT_DIALECT, both message forms. `transport.yaml` says nothing about
+  // which grammar it is in; `states.json` names one the framework does not know.
+  // Neither is fatal — that is the class's whole contract — so the protocol is
+  // otherwise well-formed and both files still parse.
+  await entity(
+    'acme/product/shop/protocol/order-events',
+    base('order-events', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact('acme/product/shop/protocol/order-events', 'transport.yaml', 'kind: kafka\n')
+  await artifact('acme/product/shop/protocol/order-events', 'states.json', {
+    $schema: 'https://example.com/not-a-dialect-of-ours',
+    id: 'order-events',
+    initial: 'open',
+    states: { open: { type: 'final' } },
+  })
+
   // --- registry: datamodel schemas -----------------------------------------
   // E_DM_SCHEMA_MISSING — a datamodel with no schema is prose.
   await entity('acme/datamodel/wordy', base('wordy', 'datamodel'))
@@ -585,6 +613,7 @@ const PIPELINE_CODES = [
   'E_STRUCT_NESTED_ENTITY',
   'E_STRUCT_MISSING_INDEX',
   'E_STRUCT_BODY_H1',
+  'W_ARTIFACT_DIALECT',
   'W_REF_DEPRECATED',
   'W_REF_STALE_PIN',
   'W_CAP_UNREALIZED',

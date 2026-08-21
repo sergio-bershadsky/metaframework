@@ -1120,3 +1120,217 @@ project keeps finding). No catalog entity was edited: the plugin,
 rules-briefing, portal-console and specification components adopt their new
 types during the owner's item-by-item review, not before it. Everything is
 additive; nothing that was legal yesterday is illegal today.
+
+## Amendment 2026-08-21-a — artifacts declare their dialect, and the legacy one keeps working
+
+Every addressable artifact now says, in its own bytes, which dialect it is
+written in. Where the format already has a discriminator, that one is used and
+nothing is invented; where it does not, the artifact carries `$schema:` holding
+the canonical URL of the framework meta-schema for its role. An artifact with no
+recognisable discriminator is the **legacy dialect** — warned, never broken.
+[ADR 0015](../solutions/metaframework/adr/0015-artifact-dialects/index.md)
+carries the full argument and the rejected alternatives; this section is the
+record.
+
+This is the cross-cutting machinery of 0.2.0 and it is deliberately settled
+before any payload lane. The release plan standardizes the payloads behind the
+roles one dialect at a time — `transport.yaml` to AsyncAPI, typed values in
+`config.yaml`, `states.json` already XState — and a reader cannot perform an
+additive migration it cannot detect. Measured at the time of writing, no
+proprietary artifact in the catalog announces itself: `transport.yaml` opens
+with `kind: kafka`, which names the wire protocol and not the document; workflow
+files and `journey.yaml` open with `name:`, `topology.yaml` with `regions:`,
+`config.yaml` with `config:`, `states.json` with `{"id": …}`. Only
+`openapi.yaml` says what it is, and only because OpenAPI made it mandatory.
+
+### The discriminator, per role
+
+With `{meta}` standing for
+`https://schemas.metaframework.dev/metaframework/product/specification/datamodel`:
+
+| Kind          | Role               | File                    | Key       | Value                            |
+| ------------- | ------------------ | ----------------------- | --------- | -------------------------------- |
+| `datamodel`   | `schema`           | `schema.json`           | `$schema` | the 2020-12 dialect URI (native) |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | none      | never — see below                |
+| `protocol`    | `transport`        | `transport.yaml`        | `$schema` | `{meta}/transport-document`      |
+| `protocol`    | `states`           | `states.json`           | `$schema` | `{meta}/state-machine-document`  |
+| `protocol`    | `openapi`          | `openapi.yaml`          | `openapi` | `3.1.x` (native)                 |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`       |
+| `journey`     | `journey`          | `journey.yaml`          | `$schema` | `{meta}/journey-document`        |
+| `environment` | `topology`         | `topology.yaml`         | `$schema` | `{meta}/topology-document`       |
+| `environment` | `config`           | `config.yaml`           | `$schema` | `{meta}/config-document`         |
+
+Five of those meta-schemas already exist as ordinary datamodel entities under
+`solutions/metaframework/product/specification/datamodel/` and are already
+served by `/schemas`, which whitelists `kind: datamodel` and asks nothing else;
+`journey-document`, `topology-document` and `config-document` are the three this
+release authors. No route work, no new host, no new URL shape — a meta-schema's
+canonical `$id` *is* the discriminator value.
+
+Two rows are rules rather than defaults. `schema.json`'s `$schema` is spoken for
+by JSON Schema itself and stays the 2020-12 dialect URI, already enforced as
+`E_DM_DIALECT` — which is the precedent this amendment generalises rather than
+invents: one role out of nine has had a dialect discriminator and an error class
+for its absence since v1. And `examples/*.json` carry **no** discriminator ever:
+an example is an instance of its sibling schema, its dialect is that schema's,
+and injecting `$schema` would add a property the schema must then admit, which
+`additionalProperties: false` normally forbids. `W_ARTIFACT_DIALECT` MUST NOT be
+raised on an example.
+
+The `openapi` row reads `3.1.x` rather than a fixed `3.1.0` on purpose. OpenAPI
+versions the *document*, so `3.1.1` is the same dialect with errata applied, and
+a reader recognising only the exact string would warn on a correct file whose
+author had done nothing but track a patch release. `lib/catalog/dialects.ts`
+therefore matches `/^3\.1\.\d+$/`, while the advice a headerless file gets still
+names one pasteable value, `openapi: 3.1.0` — which is what both catalog files
+declare today. The framework rows need no such latitude: a meta-schema URL
+carries no version at all.
+
+`index.md` is out of scope by construction — not an artifact, not in the role
+table, and already discriminated by `kind:`.
+
+### Why `$schema`, and why never `version:`
+
+Three of the reasons stand whether or not a URL is ever fetched. `$schema` is
+the conventional key for exactly this job — `yaml-language-server`, VS Code and
+the SchemaStore convention all read a top-level `$schema` as "the schema that
+validates this document" — so the framework invents no vocabulary. It is already
+native on `schema.json`, so the seven roles that carry it spell one idea one way
+instead of the framework adding a second spelling beside the one it has enforced
+as `E_DM_DIALECT` since v1. And it is an HTTP URL rather than a short token
+because a token names a registry that does not exist while a URL is identity in
+a form a stock resolver can be pointed at — the same bet amendments 2026-08-19-c
+and 2026-08-19-d already made for schema identity.
+
+The fourth reason is editor tooling, and it is **asymmetric**, so it is recorded
+in both halves. `schemas.metaframework.dev` is registered and held by this
+project as of 2026-08-21, which is new: the canonical host is one the framework
+controls rather than an identifier it hopes stays free, and amendment
+2026-08-19-d's ruling that the host is a canonical constant and not
+`SCHEMA_BASE_URL` is now backed by ownership rather than intent alone. Every discriminator value in the table is a
+**framework-owned** meta-schema under
+`metaframework/product/specification/datamodel/` — part of the published
+framework, nobody's private catalog content — so the project can serve those
+documents at their own `$id` unilaterally, and once it has, an author editing
+`transport.yaml`, `journey.yaml` or `config.yaml` gets completion and inline
+validation from a stock editor for the price of a header. **That benefit is
+contingent on the publishing step, which has not happened**: nothing in this
+repository serves the canonical host today, so for now the header helps a
+machine that already knows the framework and does nothing in an editor.
+
+The other half must not be claimed at all. A catalog's *own* datamodels — an
+`acme` model at `https://schemas.metaframework.dev/acme/datamodel/money` — carry
+canonical identity on the same host by the same rule and will never resolve
+there, because `acme`'s models are not the framework's to serve; they are served
+by that catalog's own portal at `{SCHEMA_BASE_URL}/schemas/…`, reached by one
+line of resolver config. Identity is global and owned for everything; retrieval
+is global for the framework's meta-schemas and local for catalog content. A
+dialect discriminator only ever names the first sort.
+
+It is **not** `version:` and not any spelling containing one. `evolution.md`
+states that the frontmatter is the only place a version lives and that a
+top-level `version:` in a sibling artifact is a shape violation for the kind;
+that rule is what makes an entity `version` a snapshot of the whole directory,
+which is what makes an artifact pin resolvable at all. A dialect is also simply
+not a revision — it is the grammar the document is written in, and a file can
+move three versions without its dialect changing once.
+
+The URL carries no `@N`, so it names a dialect and never a revision of one. An
+additive dialect change extends the meta-schema entity in place and the
+discriminator string does not move; a non-additive one is a swap — a new
+meta-schema entity, a new name, a new URL, a `supersedes` edge — which is what
+"a new dialect lands beside the old" means at the meta-schema level.
+
+### Legacy is a dialect, not a defect
+
+An artifact with no recognisable discriminator is read as the legacy dialect and
+raises `W_ARTIFACT_DIALECT`, a **warning**, on the owning entity. Two message
+forms, one class — the absent case naming the header to add, the unrecognised
+case naming the value it did not know — and both ending in the same clause,
+`read as the legacy dialect`, because that clause is the contract. Nothing here
+can make a catalog that loads today stop loading. The warning has no forcing
+function on purpose; promoting it to an error is a separate decision available
+once every file carries a header, and `E_DM_DIALECT` is what that terminal state
+looks like.
+
+### Filenames stay
+
+A dialect is a property of a file's contents. The artifact role table in
+`framework/spec/structure.md` is untouched by this amendment, and
+`transport.yaml` holding AsyncAPI is still `transport.yaml`, still
+`srn://…/settlement.transport`, still one row. The ruling that matters is the
+converse: **a lane that wants a new filename comes back for a role-table
+amendment.** `arazzo.yaml` beside `workflows/` would be a new role and needs
+one; a new dialect inside an existing filename does not. A new row mints
+addresses and obliges every SRN parser; a new dialect obliges only the reader of
+that one file. Collapsing the two would let a payload lane rewrite the identity
+grammar as a side effect.
+
+### The key is stripped once, and named by the three parsers
+
+`readEntity` in `framework/portal/src/lib/catalog/load.ts` calls `readArtifacts`
+to read and parse every sibling file, then loops over the result calling
+`adoptDialect` — before the entity is assembled and before anything downstream
+sees a document. That loop is where the dialect is recorded on the `Artifact`
+record and where the framework-owned `$schema` key is deleted from the parsed
+data; it is deleted whether or not the value was recognised, since a leftover
+key would turn a warning into an unknown-key error downstream. A native
+discriminator — `openapi:`, `schema.json`'s own `$schema`, later `asyncapi:` —
+is part of its own format and is never stripped. `Artifact.raw` keeps the bytes
+as authored, so the source pane and artifact retrieval serve the file, not the
+residue.
+
+**Three validators were nonetheless relaxed, by name, and the record should say
+so.** `parseStates`, `parseWorkflow` and `parseJourney` are exported functions
+over an already-parsed document, and the loader is not their only caller — a
+fixture, a test, an external consumer holding one file's raw bytes calls them
+directly, without having been through `adoptDialect`. Rejecting the header there
+would report an error against a file the spec itself instructed the author to
+write. So `machineSchema` admits `$schema` as an optional bare string (with
+`MachineConfig` now `Omit<…, '$schema'>` and a `subsetOf()` that drops it before
+the config is returned), `workflowFileSchema` admits the same optional string at
+the file root, and `journey.ts` adds `$schema` to `KNOWN_FILE_KEYS` — not to
+`KNOWN_STEP_KEYS`, because a step is not an artifact root. `machineSchema` had a
+second, independent reason: the published `state-machine-document` meta-schema
+is generated from it, and a meta-schema whose `additionalProperties: false`
+forbids the key that points at it cannot validate the file it describes — the
+exact ground on which Stately's `xstate.json` was disqualified.
+
+Admitting a framework-owned key by name is not the `x-` hatch and does not
+weaken it. `x-` is open-ended and belongs to *authors*; what landed is one key,
+spelled as the spec spells it, at the artifact root only, optional, and typed as
+a bare string rather than pinned to the canonical URL — bare deliberately,
+because an unrecognised dialect is a warning from the loader and pinning the
+value in zod would re-raise it as a parse error in the wrong layer. Every other
+unknown top-level key is rejected exactly as before. Stripping at the loader is
+still what keeps "`states.json` *is* an XState config" literally true: the
+residue, not the file, is what `createMachine()` receives in the
+proof-of-contract test, and the residue is what Stately's published schema
+validates, its `additionalProperties: false` forbidding the key outright.
+
+### The version ruling
+
+**Adding a discriminator to an existing artifact bumps the owning entity's
+`version` by exactly 1.** `evolution.md` admits no reading in which it does not:
+any content change to an entity — its `index.md` or *any sibling artifact* —
+bumps in the same commit, and the only exemption is a commit touching `status:`
+alone. The bump is per entity, not per file, so a protocol gaining headers in
+`transport.yaml`, `states.json` and two workflow files bumps once. Computed at
+the time of writing: **70 files across 33 entities** — 17 protocols, 9 journeys,
+7 environments. The change is legal at N+1 for every kind in the table (it adds
+a key and removes nothing), and it is enforced rather than requested —
+`E_VER_UNBUMPED` and `metaframework check --since` reject an artifact edit that
+does not move the number, which is exactly what the constancy theorem requires
+of a header landing under a fixed `@N`.
+
+### What this amendment does not settle
+
+Whether the portal ever validates an artifact *against* the meta-schema it
+names. The discriminator identifies the grammar; the hand-written parsers remain
+the authority, and running both would require them to agree exactly — a project
+with its own diagnostics, not a side effect of a header.
+
+And which dialects follow. Every payload lane — AsyncAPI for `transport.yaml`,
+Arazzo as a sibling role, typed `config.yaml` values — is ruled on its own
+merits and on its own schedule. This machinery is what makes each of them
+additive; it commits to none of them.

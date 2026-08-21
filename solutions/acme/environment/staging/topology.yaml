@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
 regions:
   - name: eu-west-1
     zones: [a]

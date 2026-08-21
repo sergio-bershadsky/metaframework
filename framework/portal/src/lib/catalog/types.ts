@@ -14,11 +14,34 @@ export interface Diagnostic {
   srn?: string
 }
 
+/**
+ * The dialect an artifact declares — ADR 0015, "Artifacts declare their
+ * dialect". A role's payload standardizes one dialect at a time, additively, so
+ * a reader has to be able to tell which grammar a file is written in *before* it
+ * parses it. The discriminator is a single top-level key, fixed per role.
+ */
+export interface ArtifactDialect {
+  /** The role as prose names it: `transport`, `states`, `workflows`. */
+  role: string
+  /** The key that declares it — `$schema` for the framework's own roles. */
+  key: string
+  /** The value the file declares; null when it declares none. */
+  declared: string | null
+  /** The declared value names a dialect this framework knows. */
+  known: boolean
+}
+
 export interface Artifact {
   /** File name relative to the entity directory, e.g. `workflows/place-order.yaml`. */
   file: string
   extension: '.json' | '.yaml' | '.yml' | '.md'
-  /** Parsed content for json/yaml; raw text for md. Null when parsing failed. */
+  /**
+   * Parsed content for json/yaml; raw text for md. Null when parsing failed.
+   *
+   * A *framework-owned* discriminator is deleted from this value once
+   * {@link dialect} has recorded it, so every downstream validator stays strict
+   * and unchanged. `raw` is untouched — the file is served as authored.
+   */
   data: unknown
   raw: string
   /**
@@ -28,6 +51,13 @@ export interface Artifact {
    * an unparseable file is exactly the one somebody needs to look at.
    */
   error?: string
+  /**
+   * The dialect this file declares, for the roles that carry a discriminator.
+   * Absent on a free-named file, on `examples/*.json` (an instance has its
+   * schema's dialect and none of its own), and on anything that did not parse
+   * into a mapping.
+   */
+  dialect?: ArtifactDialect
 }
 
 export interface Relation {

@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: journey
-version: 3
+version: 4
 status: review
 title: Kind — Journey
-summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec and its SRN address, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
+summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec, its SRN address and dialect header, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
 ---
 
 # Kind: journey
@@ -47,15 +47,15 @@ Three consequences follow, and they are the whole reason the kind exists:
 The boundary is the most useful paragraph in this document, because a journey
 is coarse and sits next to four kinds that are not.
 
-| A journey is not…      | Because                                                                                                                                                                                                                        |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| a **protocol**         | A protocol is *one* exchange between named participants, placed at their nearest common ancestor, with message-level fidelity ([protocol.md](protocol.md)). A journey spans many protocols and describes none of them; it *names* one per step and moves on. |
-| a **workflow file**    | `workflows/*.yaml` lives inside a protocol and speaks in that protocol's participant aliases. A journey speaks in SRNs, crosses protocol boundaries, and has no aliases at all.                                                |
-| a **requirement**      | A journey states no obligation. Nothing `implements` a journey, it has no acceptance criteria, and it is never a `must`. A step note that contains the word "must" is a requirement in the wrong file ([requirement.md](requirement.md)). |
-| a **capability**       | A capability is what the business can do, standing still. A journey is one route by which some capability reaches one actor. The same capability shows up in several journeys, and a journey usually crosses several capabilities. |
-| a **metric**           | Numbers about a path — completion rate, drop-off, elapsed time — are a metric ([metric.md](metric.md)). A journey carries no measurement, no timing, and no volume.                                                            |
-| a **process model**    | No branching, no gateways, no swimlanes, no parallelism, no compensation. Those turn a path into BPMN, and BPMN is a modelling exercise the catalog does not want ([below](#no-branching-in-v1-and-why)).                       |
-| a **runtime trace**    | Steps are described positions, not observed events. A journey is what the solution says happens; what actually happened is telemetry, and telemetry has no SRN.                                                                |
+| A journey is not…   | Because                                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| a **protocol**      | A protocol is *one* exchange between named participants, placed at their nearest common ancestor, with message-level fidelity ([protocol.md](protocol.md)). A journey spans many protocols and describes none of them; it *names* one per step and moves on. |
+| a **workflow file** | `workflows/*.yaml` lives inside a protocol and speaks in that protocol's participant aliases. A journey speaks in SRNs, crosses protocol boundaries, and has no aliases at all.                                                                              |
+| a **requirement**   | A journey states no obligation. Nothing `implements` a journey, it has no acceptance criteria, and it is never a `must`. A step note that contains the word "must" is a requirement in the wrong file ([requirement.md](requirement.md)).                    |
+| a **capability**    | A capability is what the business can do, standing still. A journey is one route by which some capability reaches one actor. The same capability shows up in several journeys, and a journey usually crosses several capabilities.                           |
+| a **metric**        | Numbers about a path — completion rate, drop-off, elapsed time — are a metric ([metric.md](metric.md)). A journey carries no measurement, no timing, and no volume.                                                                                          |
+| a **process model** | No branching, no gateways, no swimlanes, no parallelism, no compensation. Those turn a path into BPMN, and BPMN is a modelling exercise the catalog does not want ([below](#no-branching-in-v1-and-why)).                                                    |
+| a **runtime trace** | Steps are described positions, not observed events. A journey is what the solution says happens; what actually happened is telemetry, and telemetry has no SRN.                                                                                              |
 
 ## Placement
 
@@ -136,12 +136,12 @@ the frontmatter diff.
 
 A journey is a leaf in the relation graph, in both directions.
 
-| Edge                          | From a journey                                                                                                                              |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `uses`                        | Legal, toward a **datamodel**, **protocol**, **environment**, or **component** — but see the anti-duplication rule below.                  |
-| `supersedes`                  | Legal, toward another journey — the successor of a path that could not be extended ([evolution.md](../evolution.md)).                      |
+| Edge                                  | From a journey                                                                                                                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `uses`                                | Legal, toward a **datamodel**, **protocol**, **environment**, or **component** — but see the anti-duplication rule below.                 |
+| `supersedes`                          | Legal, toward another journey — the successor of a path that could not be extended ([evolution.md](../evolution.md)).                     |
 | `exposes`, `depends-on`, `implements` | Not available: their legal source kinds are component/product ([frontmatter.md](../frontmatter.md)). Authoring one is `E_FM_EDGE_SOURCE`. |
-| `realizes`                    | Not available from a journey: its legal source kinds are product/component. A journey does not realize a capability, it demonstrates one.  |
+| `realizes`                            | Not available from a journey: its legal source kinds are product/component. A journey does not realize a capability, it demonstrates one. |
 
 **Do not mirror the artifact into `relations`.** Every component, product and
 protocol a journey touches is already named in `journey.yaml`, and the portal
@@ -218,7 +218,10 @@ Rules:
 - **The `x-` escape hatch reaches into the artifact.** At the top level and
   inside a step, an unknown key is rejected unless it is prefixed `x-` — the
   same rule [frontmatter.md](../frontmatter.md) states for frontmatter and
-  [protocol.md](protocol.md) states for its YAML artifacts.
+  [protocol.md](protocol.md) states for its YAML artifacts. The one
+  framework-owned key the file may carry — the `$schema` dialect header — is
+  admitted **by name** at the top level and is therefore not an unknown key
+  ([The dialect header](#the-dialect-header)).
 
   ```yaml
   - actor: /actor/customer
@@ -276,12 +279,14 @@ one family.
 
 ### Top-level fields
 
-| Field   | Type               | Required | Rule                                                                 |
-| ------- | ------------------ | -------- | -------------------------------------------------------------------- |
+| Field   | Type               | Required | Rule                                                                    |
+| ------- | ------------------ | -------- | ----------------------------------------------------------------------- |
 | `name`  | kebab-case string  | yes      | MUST equal the entity's `name`, i.e. its directory name (`E_JRN_NAME`). |
-| `steps` | list of step nodes | yes      | Between 2 and 12 entries inclusive (`E_JRN_STEP_COUNT`).             |
+| `steps` | list of step nodes | yes      | Between 2 and 12 entries inclusive (`E_JRN_STEP_COUNT`).                |
 
-That is the whole top level. Two divergences from the workflow mini-spec:
+That is the whole top level of the path itself. One further key sits above it —
+the `$schema` dialect header, which names the grammar rather than adding to it
+([below](#the-dialect-header)). Two divergences from the workflow mini-spec:
 
 - **`name` is checked against the entity, not against the filename stem.** The
   filename is fixed, so it can carry no identity; `name` exists for exactly one
@@ -292,6 +297,75 @@ That is the whole top level. Two divergences from the workflow mini-spec:
   its own diagram heading. A journey entity has exactly one path, and
   `index.md` already carries `title` and `summary`; a second copy in the
   artifact would only drift.
+
+### The dialect header
+
+`journey.yaml` declares, in its own bytes, which grammar it is written in, under
+the key `$schema`:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+name: place-an-order
+steps:
+  - actor: /actor/customer
+    touches: /product/identity/component/authentication
+```
+
+The value is the canonical `$id` of the
+[journey-document](srn://metaframework/product/specification/datamodel/journey-document)
+meta-schema — the machine-readable form of the field tables in this section —
+built by the same rule as every other datamodel's ([datamodel.md](datamodel.md)).
+It carries no `@version`, and that is not an omission: it names the **grammar
+this file is written in**, never a revision of this file. The artifact has no
+clock of its own; the entity's `version` is the only one
+([evolution.md](../evolution.md)), and a `version:` at the top level is still
+`E_JRN_SCHEMA` ([above](#entity-directory-shape)).
+
+**The key is admitted by name, and it is not an unknown key.** The `x-` rule
+above is untouched by the header, because the two never meet: `$schema` is a
+framework-owned key that this section and the `journey-document` meta-schema both
+name at the artifact root, so JRN5 reads a known key rather than a stranger, and
+the hatch stays what it is — a hatch for *authors'* keys. Admission is by name
+and **at the top level only**. A step is not an artifact root and has no grammar
+of its own to name, so inside one the key is as unknown as `channel:`
+([above](#entity-directory-shape)):
+
+```yaml
+- actor: /actor/customer
+  touches: /product/shop/component/checkout
+  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+                                   # E_JRN_SCHEMA — the header names the grammar
+                                   # of the file; a step has none of its own
+```
+
+The loader reads the header once, records the dialect on the artifact, and
+deletes the key from the parsed document before the mini-spec parser is handed
+it. Two things follow. The **bytes are untouched** — `/artifacts` and the
+portal's source pane serve the file as authored, header included; the residue is
+an internal parse product and is never served as the document. And the two
+surfaces that describe a `journey.yaml` differ by exactly one key, deliberately:
+the published meta-schema validates the file **as authored**, so it carries
+`$schema` among its properties, while the field tables here define the
+artifact's **content model**, which is what the parser is handed and what JRN5
+judges. The header is the key they differ by, and it appears in no table above
+for that reason.
+
+A file carrying no `$schema`, or one whose value is not a recognised dialect of
+the `journey` role, is read as the **legacy dialect** — the format this document
+defines — and is warned, never broken. The warning is `W_ARTIFACT_DIALECT`,
+raised on the owning journey entity and pathed at `journey.yaml`; it is a
+cross-kind class introduced by
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects), not an
+`E_JRN_*` code, because the same fact is true of every artifact in the catalog.
+That record also settles what the canonical host does and does not promise: the
+URL is an identifier first, and retrieval from `schemas.metaframework.dev` is a
+separate obligation it names.
+
+Adding the header is a content change to the artifact, so it bumps the entity's
+`version` like any other ([evolution.md](../evolution.md)). It is not a change
+to the contract surface — the ordered step list is untouched — so it is a bump
+and never a swap, which is the same reading the [Evolution](#evolution) table
+gives a `note`.
 
 ### Step nodes
 
@@ -391,10 +465,10 @@ change, and it should have to argue against both reasons above.
 
 ### The step cap: 2 to 12
 
-| Bound        | Value | Why                                                                                                                                                                                   |
-| ------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum      | 2     | A single step is a touch, not a path: nothing is ordered, nothing crosses, and the entity claims nothing the touched component's own page does not already say.                       |
-| maximum      | 12    | The derived diagram is one ladder, one row per step, with a lane per product crossed. Twelve rows is where the ladder stops fitting one screen beside its lanes, and where a reader stops holding the sequence in mind. |
+| Bound   | Value | Why                                                                                                                                                                                                                     |
+| ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum | 2     | A single step is a touch, not a path: nothing is ordered, nothing crosses, and the entity claims nothing the touched component's own page does not already say.                                                         |
+| maximum | 12    | The derived diagram is one ladder, one row per step, with a lane per product crossed. Twelve rows is where the ladder stops fitting one screen beside its lanes, and where a reader stops holding the sequence in mind. |
 
 **Both bounds are errors, not warnings**, and that is deliberate: diagram
 tractability is an explicit acceptance criterion of this kind, and a cap that
@@ -527,6 +601,7 @@ path.
 `solutions/acme/journey/place-an-order/journey.yaml`:
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: place-an-order
 steps:
   - actor: /actor/customer
@@ -575,7 +650,9 @@ Seven steps, three product crossings: one documented by `/protocol/settlement`,
 one deliberately actor-carried, one undocumented — and that last row is why the
 kind exists. The hand-off at `steps[5]` is why `actor` is written on every step
 rather than defaulted: it is the step a reader most needs to notice, and it
-would be invisible by inheritance.
+would be invisible by inheritance. Dialect audit: the header names the
+`journey-document` meta-schema, so no `W_ARTIFACT_DIALECT`, and removing it
+leaves exactly the two keys the top-level table defines.
 
 Counter-examples, all in `journey.yaml`:
 
@@ -616,14 +693,14 @@ The journey's contract surface is **the ordered step list**: each step's
 prose, and relations are metadata — they still bump `version`, but they are not
 bound by the non-reduction rule ([evolution.md](../evolution.md)).
 
-| Change                                                              | Contract surface? | Consequence                                                            |
-| ------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------- |
-| Adding a step, anywhere in the list                                 | additive          | Legal at `version: N+1`. Positional keys of later steps shift; that is what the version bump announces. |
-| Adding or changing a `note`; adding a `protocol` to an existing step | no                | Metadata: bump `version`, no swap. Naming a protocol that was already carrying the hop is the normal way a `W_JRN_UNDOCUMENTED_INTEGRATION` is cleared. |
-| Repointing `touches` or `actor` on an existing step                 | yes               | The path now claims something else happened. Swap.                     |
-| Removing a step                                                     | yes               | A narrowing, forbidden in place. Swap.                                 |
-| Reordering steps                                                    | yes               | Order **is** the entity here — unlike a protocol workflow, where step order is metadata among several artifacts. A reordered path is a different path. Swap. |
-| Changing the frontmatter `actor`                                    | yes               | The same route walked by someone else is a different journey. Swap.    |
+| Change                                                               | Contract surface? | Consequence                                                                                                                                                  |
+| -------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adding a step, anywhere in the list                                  | additive          | Legal at `version: N+1`. Positional keys of later steps shift; that is what the version bump announces.                                                      |
+| Adding or changing a `note`; adding a `protocol` to an existing step | no                | Metadata: bump `version`, no swap. Naming a protocol that was already carrying the hop is the normal way a `W_JRN_UNDOCUMENTED_INTEGRATION` is cleared.      |
+| Repointing `touches` or `actor` on an existing step                  | yes               | The path now claims something else happened. Swap.                                                                                                           |
+| Removing a step                                                      | yes               | A narrowing, forbidden in place. Swap.                                                                                                                       |
+| Reordering steps                                                     | yes               | Order **is** the entity here — unlike a protocol workflow, where step order is metadata among several artifacts. A reordered path is a different path. Swap. |
+| Changing the frontmatter `actor`                                     | yes               | The same route walked by someone else is a different journey. Swap.                                                                                          |
 
 The swap is the ordinary one ([evolution.md](../evolution.md)): a new journey
 entity that `supersedes` the old, then the old set to `status: deprecated`. It
@@ -665,6 +742,14 @@ JRN1–JRN9 and JRN16 are checkable from the entity alone; JRN10–JRN15 need th
 resolved catalog. Common SRN rules — syntax, dangling targets, cross-solution
 sealing — apply to every reference in `journey.yaml` unchanged
 ([srn.md](../srn.md)).
+
+JRN5 judges the **content model** of the artifact, and the `$schema` dialect
+header is not part of it: the key is admitted by name at the top level and
+removed before the parser is handed the document, so it is never the unknown key
+JRN5 rejects ([The dialect header](#the-dialect-header)). A header that is absent
+or names an unrecognised dialect is `W_ARTIFACT_DIALECT` — a warning of the
+cross-kind class, on the journey entity — and JRN5 has nothing to say about it.
+Inside a step the key is unknown like any other, and there JRN5 does reject it.
 
 ## What the portal derives
 
@@ -716,19 +801,19 @@ New codes introduced by this document. Codes from [srn.md](../srn.md),
 covers every type violation of the frontmatter field added here, and
 `E_SRN_DANGLING` covers every unresolvable reference.
 
-| Code                             | Meaning                                                                                                     |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `E_JRN_ARTIFACT_MISSING`         | The journey entity directory has no `journey.yaml`.                                                         |
-| `E_JRN_SCHEMA`                   | `journey.yaml` fails its schema (shape, types, unknown non-`x-` key, a top-level `version:`).               |
-| `E_JRN_NAME`                     | `journey.yaml` `name` ≠ the entity's directory name.                                                        |
-| `E_JRN_STEP_COUNT`               | Fewer than 2 or more than 12 steps.                                                                         |
-| `E_JRN_BRANCH`                   | A step carries a branch-shaped key. A journey that branches is two journeys.                                |
-| `E_JRN_ACTOR_KIND`               | The frontmatter `actor`, or a step's `actor`, resolves to a kind other than `actor`.                        |
-| `E_JRN_TOUCHES_KIND`             | A `touches` reference resolves to a kind other than `component` or `product`.                               |
-| `E_JRN_PROTOCOL_KIND`            | A `protocol` reference is neither the literal `none` nor an SRN resolving to a `protocol`.                  |
+| Code                             | Meaning                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `E_JRN_ARTIFACT_MISSING`         | The journey entity directory has no `journey.yaml`.                                                                |
+| `E_JRN_SCHEMA`                   | `journey.yaml` fails its schema (shape, types, unknown non-`x-` key, a top-level `version:`).                      |
+| `E_JRN_NAME`                     | `journey.yaml` `name` ≠ the entity's directory name.                                                               |
+| `E_JRN_STEP_COUNT`               | Fewer than 2 or more than 12 steps.                                                                                |
+| `E_JRN_BRANCH`                   | A step carries a branch-shaped key. A journey that branches is two journeys.                                       |
+| `E_JRN_ACTOR_KIND`               | The frontmatter `actor`, or a step's `actor`, resolves to a kind other than `actor`.                               |
+| `E_JRN_TOUCHES_KIND`             | A `touches` reference resolves to a kind other than `component` or `product`.                                      |
+| `E_JRN_PROTOCOL_KIND`            | A `protocol` reference is neither the literal `none` nor an SRN resolving to a `protocol`.                         |
 | `W_JRN_UNDOCUMENTED_INTEGRATION` | Consecutive steps cross a product boundary and the later one names no protocol — an integration nobody wrote down. |
-| `W_JRN_PROTOCOL_UNRELATED`       | A step's protocol lists neither end of the hop among its participants.                                      |
-| `W_JRN_ACTOR_ABSENT`             | The frontmatter protagonist takes none of the steps.                                                        |
-| `W_JRN_ARTIFACT_UNKNOWN`         | Unrecognised file in the journey entity directory.                                                          |
+| `W_JRN_PROTOCOL_UNRELATED`       | A step's protocol lists neither end of the hop among its participants.                                             |
+| `W_JRN_ACTOR_ABSENT`             | The frontmatter protagonist takes none of the steps.                                                               |
+| `W_JRN_ARTIFACT_UNKNOWN`         | Unrecognised file in the journey entity directory.                                                                 |
 
 All are enforced by the catalog loader, which `metaframework check` runs.

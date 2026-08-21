@@ -1,3 +1,5 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
 # No `regions`: a developer machine is a single unnamed place, the same reading
 # environment/local/topology.yaml takes. What differs from that entity is the
 # count — one `next dev` process there, a container graph here.

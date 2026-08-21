@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: protocol
-version: 5
+version: 6
 status: review
 title: Protocol kind
-summary: The protocol entity contract — participants and style frontmatter, transport.yaml, the workflow YAML mini-spec, XState-subset states.json, artifact addressing, payload binding, and derived diagrams.
+summary: The protocol entity contract — participants and style, transport.yaml, the workflow mini-spec, XState-subset states.json, artifact addressing and dialects, payload binding, and derived diagrams.
 ---
 
 # Protocol kind
@@ -80,9 +80,22 @@ Rules:
   [frontmatter.md](../frontmatter.md) states for frontmatter and
   [environment.md](environment.md) states for its artifacts. `states.json` is
   exempt: it is an XState machine configuration, and unknown keys there are
-  `E_PROTO_STATES_SUBSET`.
+  `E_PROTO_STATES_SUBSET` — `x-` ones included.
+- **The dialect header is framework-owned and admitted by name, not through the
+  hatch.** Read the rule above on its own and `$schema` — required at the root of
+  `transport.yaml`, `states.json` and every workflow file
+  ([Artifact dialects](#artifact-dialects)) — is an unknown non-`x-` key, so this
+  document would forbid what the dialect contract demands. It does not. The
+  header is one framework-owned key, named, at the artifact root and nowhere
+  else, and the loader removes it from the parsed document before any rule here
+  is applied; `x-` stays what it always was, a hatch for *authors'* keys
+  ([structure.md](../structure.md#the-framework-owned-key-is-read-once-then-removed)).
+  `openapi.yaml` needs no carve-out at all — `openapi:` is its own format's key,
+  in a document this framework does not validate.
 
   ```yaml
+  # the dialect header — named, never an unknown key
+  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
   kind: http
   x-gateway-route: shop-edge   # tolerated, ignored by the portal
   gateway-route: shop-edge     # E_PROTO_TRANSPORT_SCHEMA
@@ -171,6 +184,92 @@ participants:
                                                # legal artifact SRN, but an
                                                # artifact has no kind
 ```
+
+### Artifact dialects
+
+A role names a **file, never a format**. `transport.yaml` is the transport role
+whatever grammar its bytes turn out to hold, and the table above would not move
+if that grammar became AsyncAPI tomorrow. So every artifact declares, in its own
+bytes, **which grammar it is written in**: a reader cannot perform a migration it
+cannot detect, and inferring the format from its shape is a second grammar nobody
+wrote down.
+
+The contract is cross-kind and is stated once, in
+[structure.md](../structure.md#the-dialect-behind-the-role) — the key each role
+carries, the value as an identity that is compared and never fetched, what an
+absent or unrecognised one means (`W_ARTIFACT_DIALECT`: read as the legacy
+dialect, warned, never broken), the deletion of a framework-owned key before any
+kind validator is handed the document, and the `version` bump the header costs.
+None of that is restated here. This document supplies the four rows that are
+*this* kind's, and says where each one meets a rule stated in this document.
+
+Writing `{meta}` for
+`https://schemas.metaframework.dev/metaframework/product/specification/datamodel`:
+
+| Artifact                | Key       | Value                           | Owned by                 |
+| ----------------------- | --------- | ------------------------------- | ------------------------ |
+| `transport.yaml`        | `$schema` | `{meta}/transport-document`     | the framework            |
+| `states.json`           | `$schema` | `{meta}/state-machine-document` | the framework            |
+| `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`      | the framework            |
+| `openapi.yaml`          | `openapi` | `3.1.x`                         | OpenAPI itself, natively |
+
+Spelled out, at the root of each file:
+
+```yaml
+# transport.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+```
+
+```yaml
+# workflows/place-order.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: place-order
+```
+
+```json
+/* states.json */
+{ "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document" }
+```
+
+```yaml
+# openapi.yaml — the format already names itself, so the framework adds nothing
+openapi: 3.1.0
+```
+
+Three of the four carry the framework's own `$schema`, holding the canonical
+schema URL of the meta-schema that defines the dialect — an ordinary datamodel
+entity, addressed by the rule [kinds/datamodel.md](datamodel.md) states for every
+schema, because a meta-schema is a datamodel like any other. The fourth carries
+the key OpenAPI already defines, and only that one key is read out of
+`openapi.yaml`: nothing else in it is interpreted, so it stays the bytes-only
+artifact it always was.
+
+Each of the three framework rows lands on a rule this document states, and lands
+outside it:
+
+- **`transport.yaml`** — the top-level field table below ends "any other
+  top-level key that is not `x-` prefixed … is `E_PROTO_TRANSPORT_SCHEMA`".
+  `$schema` is not one of those: it is named, it carries no row in that table
+  because it is not a transport field, and it is gone from the parsed document
+  before the rule is applied.
+- **`workflows/<name>.yaml`** — same shape against `E_PROTO_WF_SCHEMA`, with one
+  restriction of its own: the header is admitted at the **file root only**. A
+  step is not an artifact root, so a `$schema` there names the grammar of nothing
+  and is an ordinary unknown key.
+- **`states.json`** — the sharpest case, because this artifact has no `x-` hatch
+  at all: every unknown key is `E_PROTO_STATES_SUBSET`, and the subset is a
+  foreign standard's rather than this framework's to widen. The header is
+  therefore not *tolerated* by the subset; it never meets it
+  ([The dialect header](#the-dialect-header)).
+
+`openapi.yaml` meets no rule of this document, because v1 does not parse it.
+
+Two fields that are not discriminators, and are easy to mistake for one.
+`transport.kind` names the wire technology — content, and a second dialect of the
+transport role could carry it unchanged. `spec.version` is a display label on the
+transport card: never read as anybody's dialect, and free to disagree with the
+document it links without a diagnostic.
 
 ## Frontmatter additions
 
@@ -364,7 +463,18 @@ AsyncAPI, or a `.proto` file already expresses.
 | `spec`     | mapping, see below                                     | no       | Link to an external spec file in the entity directory.              |
 
 Any other top-level key that is not `x-` prefixed, or a type violation of the
-above, is `E_PROTO_TRANSPORT_SCHEMA`.
+above, is `E_PROTO_TRANSPORT_SCHEMA`. `$schema` is not "any other key" — it is
+the dialect header ([Artifact dialects](#artifact-dialects)) — but a key that
+merely resembles it is:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: kafka
+schema: transport-document     # E_PROTO_TRANSPORT_SCHEMA — an unknown key that
+                               # merely resembles the header
+kafka:
+  cluster: shop-events
+```
 
 **One transport per protocol.** A protocol offered over two wire technologies
 is two protocol entities, both listed by the participating components. A
@@ -626,6 +736,7 @@ in a step are appended after the listed ones, so the field is a layout hint,
 never a restriction.
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: place-order              # file is workflows/place-order.yaml
 title: Place an order
 summary: Customer submits a cart; checkout reserves stock, authorizes payment, confirms.
@@ -634,6 +745,21 @@ steps:
   - message: submit-order
     from: customer
     to: checkout
+```
+
+`$schema` carries no row in the table above and violates none of it: it is the
+dialect header ([Artifact dialects](#artifact-dialects)), and it binds to the
+**file root only**. A step is not an artifact root, so a `$schema` there names
+the grammar of nothing and is an ordinary unknown key:
+
+```yaml
+steps:
+  - message: submit-order
+    from: customer
+    to: checkout
+    $schema: https://schemas.metaframework.dev/…/datamodel/workflow-document
+                             # E_PROTO_WF_SCHEMA — the header binds to the file,
+                             # never to a step
 ```
 
 ### Step nodes
@@ -811,18 +937,18 @@ label in the transport's styling.
 
 ### Workflow validation rules
 
-| #  | Rule                                                                  | Error class                 |
-| -- | --------------------------------------------------------------------- | --------------------------- |
-| W1 | File parses and matches the field tables above.                       | `E_PROTO_WF_SCHEMA`         |
-| W2 | `name` equals the filename stem.                                      | `E_PROTO_WF_NAME`           |
-| W3 | Exactly one discriminator key per step node.                          | `E_PROTO_WF_STEP_SHAPE`     |
-| W4 | Every `from` / `to` / `participants` alias is declared in the protocol.| `E_PROTO_WF_ALIAS`          |
-| W5 | Every `steps` list is non-empty.                                      | `E_PROTO_WF_EMPTY_BRANCH`   |
-| W6 | Fragment nesting depth ≤ 3.                                           | `E_PROTO_WF_DEPTH`          |
-| W7 | List-valued `to` only on `kind: event`.                               | `E_PROTO_WF_FANOUT`         |
-| W8 | `payload` resolves (per [srn.md](../srn.md)) to a `datamodel`.        | `E_SRN_DANGLING` / `E_PROTO_PAYLOAD_KIND` |
-| W9 | `channel` matches a `name` / `queue` / `routing-key` / `path` declared in `transport.yaml`. | `W_PROTO_WF_CHANNEL_UNKNOWN` |
-| W10| A `return` / `error` step is preceded, in the same fragment or an enclosing one, by a `call` in the opposite direction. | `W_PROTO_WF_ORPHAN_RETURN` |
+| #   | Rule                                                                                                                    | Error class                               |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| W1  | File parses and matches the field tables above (the `$schema` header aside).                                            | `E_PROTO_WF_SCHEMA`                       |
+| W2  | `name` equals the filename stem.                                                                                        | `E_PROTO_WF_NAME`                         |
+| W3  | Exactly one discriminator key per step node.                                                                            | `E_PROTO_WF_STEP_SHAPE`                   |
+| W4  | Every `from` / `to` / `participants` alias is declared in the protocol.                                                 | `E_PROTO_WF_ALIAS`                        |
+| W5  | Every `steps` list is non-empty.                                                                                        | `E_PROTO_WF_EMPTY_BRANCH`                 |
+| W6  | Fragment nesting depth ≤ 3.                                                                                             | `E_PROTO_WF_DEPTH`                        |
+| W7  | List-valued `to` only on `kind: event`.                                                                                 | `E_PROTO_WF_FANOUT`                       |
+| W8  | `payload` resolves (per [srn.md](../srn.md)) to a `datamodel`.                                                          | `E_SRN_DANGLING` / `E_PROTO_PAYLOAD_KIND` |
+| W9  | `channel` matches a `name` / `queue` / `routing-key` / `path` declared in `transport.yaml`.                             | `W_PROTO_WF_CHANNEL_UNKNOWN`              |
+| W10 | A `return` / `error` step is preceded, in the same fragment or an enclosing one, by a `call` in the opposite direction. | `W_PROTO_WF_ORPHAN_RETURN`                |
 
 W9 is skipped entirely when `transport.yaml` is absent or declares no surface
 list (a linked OpenAPI/AsyncAPI file is not parsed in v1, so there is nothing
@@ -849,8 +975,74 @@ single participant. A participant's own state machine belongs to that component.
 Exactly one machine per protocol; a `states/` subdirectory for several is a
 plausible additive extension, not v1.
 
-The file is directly loadable by `createMachine()` — that is the point of
-pinning a subset rather than inventing a format.
+**The contract is a strict, setup-free subset of XState v5 `createMachine`
+config: the file MUST load unchanged.** `createMachine(JSON.parse(bytes))` —
+that call and nothing else — constructs every `states.json` in a catalog.
+*Unchanged* is meant literally: no pre-processing pass, no normalization step,
+no `setup({ … })` wrapper, no implementations object. That is the point of
+pinning a subset rather than inventing a format, and it is a claim CI settles
+rather than one this document asserts: the proof-of-contract test constructs
+every `states.json` under `solutions/`, and a construction failure is a build
+failure.
+
+Both qualifiers carry weight.
+
+- **Strict** — a *proper* subset, so the implication runs one way only. Every
+  `states.json` is a valid XState v5 config; the converse is false, and the
+  constructs the subset leaves out are left out deliberately
+  ([Explicitly outside the subset](#explicitly-outside-the-subset)). A file
+  XState would happily accept is still `E_PROTO_STATES_SUBSET` here.
+- **Setup-free** — `setup({ guards, actions }).createMachine(…)` is XState's
+  form for binding typed implementations, and it is exactly the form this
+  contract forbids, because it makes the configuration meaningless without the
+  TypeScript object standing beside it. A catalog artifact travels alone —
+  served by `/artifacts`, pasted into an editor, vendored by a consumer — so it
+  has to be complete in its own bytes.
+
+### The dialect header
+
+`states.json` declares its dialect the way every artifact of this kind does
+([Artifact dialects](#artifact-dialects)) — `$schema` at the root, holding the
+canonical schema URL of the `state-machine-document` meta-schema:
+
+```json
+{
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "id": "order-placement",
+  "initial": "submitted"
+}
+```
+
+What is specific to this artifact is what the key would collide with if it
+stayed. `states.json` has no `x-` hatch at all — every unknown key is
+`E_PROTO_STATES_SUBSET`, and the subset is a foreign standard's, not this
+framework's to widen. So the header is not *tolerated* by the subset; it never
+meets it: the loader deletes it before the subset is checked
+([structure.md](../structure.md#the-framework-owned-key-is-read-once-then-removed)).
+Two things follow, and together they are the reason for doing it in that order:
+
+- The tables below carry no `$schema` row and need none. The key is not part of
+  an XState configuration, and it is not an unknown key either — by the time the
+  subset is checked it is gone, so nothing is carved out of
+  `E_PROTO_STATES_SUBSET` and the validator stays strict.
+- The `createMachine()` contract above stays **literally** true. What CI
+  constructs is the residue, and the residue is the file minus exactly one
+  framework key. Stripping is not a workaround for XState's strictness; it is
+  what keeps "a `states.json` *is* an XState config" a statement about the whole
+  document rather than about most of it.
+
+The parser names the key out loud anyway, because stripping is the *loader's*
+step and the loader is not the only caller. The function that reads a machine
+configuration is exported over an already-parsed document, so a fixture, a test,
+or a consumer holding one file's bytes reaches it without passing through
+`adoptDialect` — with the header still in hand, on a file this document told the
+author to write. Rejecting it there would make the framework's own instruction
+illegal in the framework's own parser, so the configuration schema admits
+`$schema` as an optional bare string at the root and drops it itself. The
+published `state-machine-document` meta-schema is generated from that same
+schema, which forces the identical answer independently: a meta-schema whose
+`additionalProperties: false` forbids the very key that points at it cannot
+validate the file it describes.
 
 ### Supported subset
 
@@ -909,6 +1101,71 @@ belong to the implementing component.
 { "states": { "root": { "type": "parallel" } } }        /* E_PROTO_STATES_SUBSET */
 { "on": { "payment_ok": "confirmed" } }                 /* E_PROTO_STATES_EVENT_NAME */
 ```
+
+That rationale covers most of the list, and the exceptions are worth naming
+because a reader cannot tell from the list which reason applies where.
+`context`, `input` and `output` hold data. `assign` and the object forms of
+actions and guards are functions, which JSON cannot carry at all. `invoke` names
+an actor only the implementing component can supply. `always` moves the machine
+with no event naming the move, so no workflow message can correspond to the
+edge, and `"*"` names no event for the same reason. `type: "parallel"` and
+`type: "history"` describe a conversation in several states at once, or one that
+remembers where it was — bookkeeping an implementation does, not a shape two
+parties agree on.
+
+**`after` and `meta` are excluded by policy, not by serializability**, and the
+distinction is load-bearing. Both are plain JSON — `{ "5000": "expired" }` is a
+delay keyed by milliseconds, `meta` is an arbitrary object — neither hides a
+function, and `createMachine()` would construct either without complaint.
+`after` is out because a timeout is an implementation commitment rather than a
+contract: the file can already say a conversation expires — as an ordinary
+event (`EXPIRED`) with a target — while how long a given deployment waits before
+sending that event belongs to the implementing component.
+`meta` is out because it is an unschema'd side channel standing next to
+schema'd fields: `description` and `tags` already carry what a reader needs, and
+a free-form bag beside them absorbs the fields the portal renders and then
+drifts from them. Because both are legal XState, admitting either later widens
+the subset without breaking a single existing file — an ordinary additive spec
+change, with nothing to migrate.
+
+### Guards and actions are references, not implementations
+
+A `guard` and an `action` are plain strings, and the subset admits no other
+form. The string is a **reference**: a name the implementing component resolves,
+and prose for every reader of the catalog. `states.json` never says what a guard
+tests or what an action does — it says which decision and which effect the
+conversation contract names, the same discipline `condition` follows on a
+workflow arrow.
+
+For a consumer that only *renders* the machine, that is the end of it. For one
+that *runs* it, the two halves behave differently, and the asymmetry is XState's
+rather than this document's:
+
+| Reference | Left unimplemented      | Consequence for the consumer                 |
+| --------- | ----------------------- | -------------------------------------------- |
+| `guard`   | **errors at send time** | every guard name in the file needs a stub    |
+| `actions` | **silent no-op**        | nothing to supply; the transition still runs |
+
+The guard half is fatal rather than merely blocking. XState raises *"unable to
+evaluate guard … not implemented"* while resolving the transition: the machine
+does not move, and the actor ends in `status: "error"` — dead, recoverable only
+by building another. Whether that surfaces as a throw at the caller or on the
+actor's error channel is a detail of the consumer (an error subscriber is
+attached or it is not), never of the file.
+
+So anything that sends events into a catalog machine — a simulator, a test
+harness, a walkthrough generator — MUST supply a stub for every guard name the
+file mentions (`createMachine(config).provide({ guards: … })`), or the first
+guarded transition it exercises ends the run. Actions need nothing supplied: an
+unimplemented one is skipped and the transition proceeds regardless.
+Construction is unaffected either way — the failure lands on the event, never on
+`createMachine()` — which is why the proof-of-contract test constructs every
+machine while providing nothing at all.
+
+A stub is a **hypothesis, not evidence.** The guard string is prose, so whatever
+a consumer makes it return is that consumer's choice about a branch this file
+deliberately leaves undecided; a UI offering those toggles has to say so, and
+must not present the path it took as what the protocol does.
 
 ### Correspondence with workflow messages
 
@@ -1018,8 +1275,10 @@ payload: /product/shop/datamodel/order-request.schema@1 # E_PROTO_PAYLOAD_KIND �
 ```
 
 `states.json` carries no SRN references at all — it names events and states
-only. Payload shapes are attached to the messages that carry those events, in
-the workflows.
+only, and its one URL is the dialect header, which addresses a meta-schema
+rather than a catalog entity ([The dialect header](#the-dialect-header)).
+Payload shapes are attached to the messages that carry those events, in the
+workflows.
 
 ## What the portal derives
 
@@ -1052,14 +1311,15 @@ authored on the datamodel.
 the protocol's contract surface as "the operations, messages, and states". This
 document only says which files hold each part:
 
-| Element                                                                   | Contract surface? | Consequence                       |
-| -------------------------------------------------------------------------- | ----------------- | ---------------------------------- |
-| A `participants` entry                                                     | yes               | Removing one requires a swap.     |
-| A surface list entry in `transport.yaml`, and its `request`/`response`/`message` | yes         | Removing or repointing requires a swap. |
-| `transport.kind` and the binding block's addressing fields                 | yes               | Changing the wire requires a swap.|
-| A message `name` and its `payload` ref, anywhere in `workflows/`           | yes               | Removing or repointing requires a swap. |
-| A state, its `type: final`, and a transition's event + target              | yes               | Removing requires a swap.         |
-| `title`, `summary`, `note`, `condition`, `when`, `while`, `role`, `tags`, `description`, prose, step order within a workflow | no | Metadata: bump `version`, no swap. |
+| Element                                                                                                                      | Contract surface? | Consequence                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------- |
+| A `participants` entry                                                                                                       | yes               | Removing one requires a swap.                                  |
+| A surface list entry in `transport.yaml`, and its `request`/`response`/`message`                                             | yes               | Removing or repointing requires a swap.                        |
+| `transport.kind` and the binding block's addressing fields                                                                   | yes               | Changing the wire requires a swap.                             |
+| A message `name` and its `payload` ref, anywhere in `workflows/`                                                             | yes               | Removing or repointing requires a swap.                        |
+| A state, its `type: final`, and a transition's event + target                                                                | yes               | Removing requires a swap.                                      |
+| `title`, `summary`, `note`, `condition`, `when`, `while`, `role`, `tags`, `description`, prose, step order within a workflow | no                | Metadata: bump `version`, no swap.                             |
+| The dialect header on any artifact ([Artifact dialects](#artifact-dialects))                                                 | no                | Bump `version` once for the whole commit, whatever it touched. |
 
 Every change in either row bumps the entity's `version`, per
 [evolution.md](../evolution.md). Adding a participant, a workflow file, a step,
@@ -1153,6 +1413,7 @@ bookkeeping the absolute form removes.
 ### `transport.yaml`
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: JSON over HTTPS, served by checkout at the storefront edge.
 encoding: json
@@ -1171,6 +1432,7 @@ http:
 ### `workflows/place-order.yaml`
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: place-order
 title: Place an order
 summary: Customer submits a cart; checkout reserves stock, authorizes payment, confirms.
@@ -1255,12 +1517,21 @@ Depth audit of this workflow: `loop` = 1; outer `alt` = 1; inner `alt` = 2;
 where the ceiling sits. Style audit: `style: request-response` and the workflow
 does contain matched `call`/`return` pairs, so no `W_PROTO_STYLE_MISMATCH`.
 Channel audit: no step declares `channel`, and the transport declares no surface
-list, so W9 does not apply.
+list, so W9 does not apply. Dialect audit: the header names the
+`workflow-document` meta-schema and sits at the file root, so no
+`W_ARTIFACT_DIALECT`; it is removed before the field tables are applied, so it is
+not an `E_PROTO_WF_SCHEMA` unknown key either. `transport.yaml` above carries the
+`transport-document` header on the same terms, and both — with the one on
+`states.json` below — arrived in the single commit that took this entity to
+`version: 2`: three files, one bump. The linked `openapi.yaml` needed no edit at
+all, because `openapi: 3.1.0` is required by OpenAPI and has stood at the top of
+that file since it was written.
 
 ### `states.json`
 
 ```json
 {
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
   "id": "order-placement",
   "initial": "submitted",
   "description": "State of one order-placement conversation, as seen by checkout.",
@@ -1300,6 +1571,12 @@ Consistency audit: `id` equals the entity `name`; every event name matches
 `payment-authorized`, `payment-declined`), so no
 `W_PROTO_STATES_EVENT_UNKNOWN`; `reserved`, `confirmed`, and `rejected` are all
 reachable, so no `W_PROTO_STATES_UNREACHABLE`; both final states carry no `on`.
+Dialect audit: the header names the `state-machine-document` meta-schema, so no
+`W_ARTIFACT_DIALECT`, and stripping it leaves exactly the argument
+`createMachine()` takes. Reference audit: one guard name
+(`reservation granted in full`) and four action names (`assign-order-id`,
+`emit-problem`, `capture-funds`, `release-stock`). A consumer that sends events
+into this machine must stub the guard; the four actions it may ignore.
 
 ### Datamodels this protocol expects
 

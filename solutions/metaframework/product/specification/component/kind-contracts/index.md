@@ -1,7 +1,7 @@
 ---
 name: kind-contracts
 kind: component
-version: 3
+version: 4
 title: Kind contracts
 summary: One document per ontology kind — twelve files, 7,323 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
 status: review
@@ -16,6 +16,9 @@ relations:
     - /product/specification/datamodel/workflow-document
     - /product/specification/datamodel/state-machine-document
     - /product/specification/datamodel/transport-document
+    - /product/specification/datamodel/journey-document
+    - /product/specification/datamodel/topology-document
+    - /product/specification/datamodel/config-document
   realizes:
     - /capability/schema-interoperability
 tags:
@@ -26,20 +29,20 @@ tags:
 `framework/spec/kinds/` — twelve documents, 7,323 lines, one per ontology kind.
 Versions and line counts measured 2026-08-20:
 
-| Document         | Version | Lines | Adds                                                         |
-| ---------------- | ------- | ----- | ------------------------------------------------------------ |
-| `solution.md`    | 5       | 328   | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7.   |
-| `product.md`     | 4       | 286   | `lifecycle`, `primary-actors`.                               |
-| `component.md`   | 4       | 526   | `component-type`, `lifecycle`, environment declaration.      |
-| `datamodel.md`   | 6       | 1216  | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.    |
-| `protocol.md`    | 4       | 1242  | `participants`/`style`, `transport.yaml`, workflows, states. |
-| `actor.md`       | 4       | 446   | `actor-type`, `goals`, protocol participation.               |
-| `environment.md` | 3       | 448   | `environment-type`, `topology.yaml`, `config.yaml`.          |
-| `adr.md`         | 3       | 418   | `decision-status`, `date`, `deciders`, the body template.    |
-| `requirement.md` | 3       | 493   | `requirement-type`, `priority`, `## Acceptance criteria`.    |
+| Document         | Version | Lines | Adds                                                            |
+| ---------------- | ------- | ----- | --------------------------------------------------------------- |
+| `solution.md`    | 5       | 328   | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7.      |
+| `product.md`     | 4       | 286   | `lifecycle`, `primary-actors`.                                  |
+| `component.md`   | 4       | 526   | `component-type`, `lifecycle`, environment declaration.         |
+| `datamodel.md`   | 6       | 1216  | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.       |
+| `protocol.md`    | 4       | 1242  | `participants`/`style`, `transport.yaml`, workflows, states.    |
+| `actor.md`       | 4       | 446   | `actor-type`, `goals`, protocol participation.                  |
+| `environment.md` | 3       | 448   | `environment-type`, `topology.yaml`, `config.yaml`.             |
+| `adr.md`         | 3       | 418   | `decision-status`, `date`, `deciders`, the body template.       |
+| `requirement.md` | 3       | 493   | `requirement-type`, `priority`, `## Acceptance criteria`.       |
 | `capability.md`  | 2       | 584   | Nothing — zero kind fields, deliberately; target of `realizes`. |
-| `journey.md`     | 2       | 686   | `actor`, and the ordered unbranched `journey.yaml`.          |
-| `metric.md`      | 2       | 650   | `metric-type`, `target`, `window`, `direction`; `measures`.  |
+| `journey.md`     | 2       | 686   | `actor`, and the ordered unbranched `journey.yaml`.             |
+| `metric.md`      | 2       | 650   | `metric-type`, `target`, `window`, `direction`; `measures`.     |
 
 The last three arrived together in decision-record amendment `2026-08-20-a`.
 They are 1,920 of these 7,323 lines — a quarter of the component, written in a
@@ -72,8 +75,11 @@ exist beyond the closed enum it declares.
 
 ## Where the artifact contracts live
 
-Four of the five formats this product owns are specified here, and their weight
-is why two of these documents are twice the size of the rest:
+Seven of the eight formats this product owns are specified here — every one
+except
+[entity-frontmatter](srn://metaframework/product/specification/datamodel/entity-frontmatter),
+which is a core contract — and their weight is why two of these documents are
+twice the size of the rest:
 
 - `datamodel.md` §"Entity directory shape" through §"The schema registry" is
   [schema-document](srn://metaframework/product/specification/datamodel/schema-document).
@@ -83,17 +89,28 @@ is why two of these documents are twice the size of the rest:
   [state-machine-document](srn://metaframework/product/specification/datamodel/state-machine-document);
   §"`transport.yaml`" is
   [transport-document](srn://metaframework/product/specification/datamodel/transport-document).
+- `journey.md` §"The journey.yaml mini-spec" is
+  [journey-document](srn://metaframework/product/specification/datamodel/journey-document).
+- `environment.md` §"`topology.yaml`" is
+  [topology-document](srn://metaframework/product/specification/datamodel/topology-document);
+  §"`config.yaml` — the configuration surface" is
+  [config-document](srn://metaframework/product/specification/datamodel/config-document).
 
-**A fifth format is specified here and has no datamodel entity.**
-`journey.md` §"The journey.yaml mini-spec" defines a required artifact with its
-own top-level fields, step schema, `x-` escape hatch and twelve error codes —
-the same weight as the workflow mini-spec next to it — and there is no
-`datamodel/journey-document` in this product's bucket to match
+**The gap this page used to record is closed, and not by this page.**
+`journey.md`'s mini-spec — its own top-level fields, step schema, `x-` escape
+hatch and twelve error codes, the same weight as the workflow mini-spec next to
+it — arrived with amendment `2026-08-20-a` and had no datamodel entity to match
 [workflow-document](srn://metaframework/product/specification/datamodel/workflow-document).
-The gap arrived with amendment `2026-08-20-a` and is stated here rather than
-closed, because adding the datamodel is a decision about what this product
-exposes and not a correction to this page. The portal parses the format anyway:
-`framework/portal/src/lib/journey/journey.ts` is its only implementation.
+That was stated here rather than fixed, on the grounds that adding the datamodel
+is a decision about what this product exposes and not a correction to a page.
+The decision came from
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects), which
+makes every artifact name its dialect by URL and therefore needs an entity
+behind each URL: `journey-document` now exists, and so do `topology-document`
+and `config-document`, which the same ruling admitted out of `environment.md`
+well below the instance bar the first five cleared. The implementations did not
+move — `framework/portal/src/lib/journey/journey.ts` is still the only code that
+parses a `journey.yaml`, and no code parses the other two.
 
 Eight of the twelve kinds define no sibling artifact at all. `adr.md` says so
 outright — "The ADR kind defines no sibling artifacts. An ADR is `index.md`" —
@@ -119,15 +136,23 @@ this catalog are checked by author discipline alone.
 
 `transport.yaml` has a complete mini-spec in `protocol.md` — a closed `kind`
 enum, six binding blocks, six surface lists, the `spec`/surface-list exclusivity
-rule — and thirteen authored instances. Grepping all of `framework/portal/src`
-for "transport" returns one comment in `components/code/artifact-block.tsx`, a
-line in `lib/ui/kind.ts`, and test fixtures. The file renders as generic YAML;
-`E_PROTO_TRANSPORT_*` is implemented nowhere. `environment.md`'s `topology.yaml`
-is in the same position with four instances and zero mentions in `src`.
+rule — and sixteen authored instances (`find solutions -name transport.yaml`,
+2026-08-21). Nothing in `framework/portal/src` validates one: the file renders as
+generic YAML and `E_PROTO_TRANSPORT_*` is implemented nowhere.
+`environment.md`'s `topology.yaml` is in the same position with seven instances.
+
+What both formats now have in `src` is an *identity*, not a reader.
+`lib/srn/artifacts.ts` gives each a role row so it can be addressed, and
+`lib/catalog/dialects.ts` gives each a dialect row so the `$schema` header
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) requires
+can be recognised and stripped. Neither row looks at a single field of the
+document beneath it.
 
 That gap is why
 [transport-document](srn://metaframework/product/specification/datamodel/transport-document)
-is modelled at all.
+is modelled at all, and
+[topology-document](srn://metaframework/product/specification/datamodel/topology-document)
+records the same gap from the environment side.
 
 ## `component-type: library`
 

@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: fetch-schema
 title: Fetch a schema, then follow a reference out of it
 summary: One GET is unremarkable; the second one is the whole point, and its else-branch is where the canonical host stops resolving.

@@ -1,7 +1,7 @@
 ---
 name: mcp-surface
 kind: protocol
-version: 1
+version: 2
 title: MCP surface
 summary: Six tools and four resources over stdio JSON-RPC — everything an LLM host can see of a Brass seat.
 status: review

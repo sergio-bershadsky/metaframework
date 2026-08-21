@@ -80,6 +80,27 @@ export function srnToSchemaUrl(srn: string | Srn): string {
 }
 
 /**
+ * The `datamodel` bucket the framework's own meta-schemas live in — the
+ * documents an artifact's `$schema` discriminator names
+ * ([ADR 0015](srn://metaframework/adr/0015-artifact-dialects)). They are
+ * ordinary datamodel entities of the `specification` product, so their URLs are
+ * ordinary canonical schema URLs and nothing here is a second address form.
+ */
+export const META_SCHEMA_SRN = 'srn://metaframework/product/specification/datamodel'
+
+/**
+ * The canonical URL of one framework meta-schema, by entity name —
+ * `transport-document`, `state-machine-document`, `workflow-document`, … .
+ *
+ * No `@version`, exactly as {@link srnToSchemaUrl} carries none: the URL names a
+ * *dialect*, and a dialect that changes non-additively is a new entity with a
+ * new name, not a new revision of this one.
+ */
+export function metaSchemaUrl(name: string): string {
+  return srnToSchemaUrl(`${META_SCHEMA_SRN}/${name}`)
+}
+
+/**
  * Where *this* portal serves that same schema from — the `/schemas` route under
  * the configured `SCHEMA_BASE_URL`. This is a retrieval address and appears in
  * no artifact: a resolver that prefers fetching over trusting its cache maps

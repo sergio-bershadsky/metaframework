@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: settle-order
 title: Settle a paid order
 summary: Payment publishes a paid order; the ledger posts it and reconciliation proves the batch balances.

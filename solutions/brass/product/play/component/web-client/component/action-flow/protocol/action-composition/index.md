@@ -1,7 +1,7 @@
 ---
 name: action-composition
 kind: protocol
-version: 1
+version: 2
 title: Action composition
 summary: How a player turns clicks on the map, a card and an industry into exactly one of the moves the engine already offered.
 status: review

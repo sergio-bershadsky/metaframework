@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: document-a-solution
 steps:
   - actor: /actor/catalog-author

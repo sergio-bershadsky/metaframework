@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: play-a-match-in-a-browser
 steps:
   - actor: /actor/host

@@ -1,4 +1,5 @@
 {
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
   "id": "game-transport",
   "initial": "lobby",
   "description": "The life of one match as the transport sees it: the in-game lobby, the two eras, and the turn machine repeated inside each. Not the internal state of any participant.",

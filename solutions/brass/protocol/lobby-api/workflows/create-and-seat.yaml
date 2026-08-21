@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: create-and-seat
 title: Create a room and seat a guest
 summary: The host creates a match, takes seat 0, and shares one link; a guest opens it and claims the first free seat.

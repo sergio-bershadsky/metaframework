@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: datamodel
-version: 7
+version: 8
 status: review
 title: DataModel kind
-summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, artifact addresses (.schema, examples.*) and the .schema normalization rule, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
+summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, artifact addresses (.schema, examples.*) and the .schema normalization rule, how the artifact-dialect contract lands on a kind that already declared its dialect, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
 ---
 
 # DataModel kind
@@ -137,7 +137,9 @@ relations:
 is a validated instance document (`E_DM_EXAMPLE_INVALID`, above), so a
 downstream test suite can pin
 `srn://acme/datamodel/money.examples.canonical@2` and receive bytes the build
-already validated against that same snapshot's schema.
+already validated against that same snapshot's schema. Those bytes are the
+instance and nothing else: an example carries no dialect header, by rule and not
+by omission ([below](#the-artifact-dialect-contract-already-satisfied-here)).
 
 ### `.schema` normalizes to the entity
 
@@ -297,6 +299,61 @@ The following 2020-12 keywords MUST NOT appear anywhere in a `schema.json`
 A *nested* `$id` is forbidden too, but under its own code
 (`E_DM_ID_FORBIDDEN`, above) — it is an identity rule, not a dialect-surface
 restriction.
+
+### The artifact-dialect contract, already satisfied here
+
+Every artifact in the framework declares which grammar it is written in, in its
+own bytes; the contract, the key each role carries and the `W_ARTIFACT_DIALECT`
+class are stated once, in
+[structure.md](../structure.md#the-dialect-behind-the-role). This kind is the one
+that was already doing it, and its two artifacts land on opposite sides of that
+rule — so both belong here, rather than leaving a reader to wonder whether the
+new contract collides with the single dialect this section opens with.
+
+**On `schema.json` the discriminator is the key this section already governs.**
+`$schema` on a JSON Schema document names the meta-schema of the *JSON Schema
+dialect* — exactly the job the framework-wide contract asks a discriminator to
+do, arrived at independently and long before this framework existed. So nothing
+above weakens: the value stays exactly
+`https://json-schema.org/draft/2020-12/schema`, `E_DM_DIALECT` otherwise, and
+pointing the key at a framework meta-schema instead would break every stock
+validator in exchange for nothing. Two consequences follow that this document
+must not contradict. The key is **native**, so it is never stripped from the
+parsed document the way a framework-owned `$schema` is — the registry validates
+*against* it, and removing it would break the validation it enables. And absence
+is **not** also warned: `E_DM_DIALECT` has been the error for that same fact
+since v1, so this kind already sits at the terminal state the other roles are
+only nudged toward, and `W_ARTIFACT_DIALECT` is not raised on a `schema.json`.
+
+```json
+{ "$schema": "https://json-schema.org/draft/2020-12/schema" }
+                    /* the only legal value                                    */
+{ "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/schema-document" }
+                    /* E_DM_DIALECT — the framework's description of this file
+                       is not the dialect this file is written in              */
+{ }                 /* E_DM_DIALECT — and never W_ARTIFACT_DIALECT             */
+```
+
+The framework's own `schema-document` meta-schema keeps doing what it always
+did: it describes what a catalog `schema.json` must *additionally* satisfy, and
+no instance ever names it.
+
+**`examples/*.json` carry no discriminator at all**, by rule and not by
+omission. An example is an *instance* of its sibling schema: its dialect is that
+schema's dialect and it has none of its own, so there is nothing for a header to
+name. A `$schema` added there is an ordinary unknown property — and
+`E_DM_EXAMPLE_INVALID` the moment that schema closes itself, turning a
+documentation aid into a build failure. `W_ARTIFACT_DIALECT` is never raised on
+a file under `examples/`, whatever it does or does not contain.
+
+```json
+/* examples/minimal.json — correct: an instance, and nothing but */
+{ "id": "0f6f0f2a-1a6b-4a0e-9c3a-6a2f4a0c1d55", "total": { "amount": "49.90", "currency": "EUR" } }
+
+/* wrong: a header the schema must then admit, on the very document that exists
+   to demonstrate that schema */
+{ "$schema": "https://schemas.metaframework.dev/acme/datamodel/order", "id": "0f6f0f2a-…" }
+```
 
 ## References and inheritance
 
@@ -1305,5 +1362,9 @@ target — [above](#artifact-addresses));
 `E_FM_SCHEMA`, `E_FM_UNKNOWN_FIELD`, `E_FM_NAME_MISMATCH`, `E_FM_KIND_LOCATION`
 ([frontmatter.md](../frontmatter.md)); `E_VER_REGRESSION`, `W_REF_DEPRECATED`
 ([evolution.md](../evolution.md)); `E_STRUCT_*`
-([structure.md](../structure.md)).
+([structure.md](../structure.md)). `W_ARTIFACT_DIALECT`
+([structure.md](../structure.md#the-legacy-dialect-and-its-warning)) is reused
+only in the negative on this kind: it is raised on neither of its artifacts, for
+the two different reasons given
+[above](#the-artifact-dialect-contract-already-satisfied-here).
 All are enforced by the catalog loader, which `metaframework check` runs.

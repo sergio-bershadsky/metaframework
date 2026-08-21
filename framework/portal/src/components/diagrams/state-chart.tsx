@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Play } from 'lucide-react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ExpandButton } from '@/components/diagrams/expand-button'
+import { CopyMachineButton, StateSimulator } from '@/components/diagrams/state-simulator'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
 import { compileStates } from '@/lib/protocol/mermaid'
 import { stateChartSummary, type StateChart } from '@/lib/protocol/states'
@@ -37,6 +39,14 @@ import { cn } from '@/lib/utils'
  *   join exactly, by the `data-id="edge<n>"` they carry themselves.
  * - **Hover dimming** recedes everything not adjacent to the hovered state or
  *   transition, computed from the chart model, applied as a class.
+ * - **The simulation highlight** rides the same `byAnchor` map but carries its
+ *   own class, `smc-active`. It cannot share `smc-linked`: that class is
+ *   rewritten in full on every anchor-hover pass, so a run would vanish the
+ *   moment the pointer touched the source pane.
+ *
+ * `state-simulator.tsx` is statically imported and only *rendered* on the
+ * Simulate click; `xstate` itself is behind a further dynamic import inside it,
+ * so a page whose state chart is never simulated ships no runtime at all.
  */
 
 export interface StateChartDiagramProps {
@@ -51,6 +61,16 @@ export interface StateChartDiagramProps {
   onAnchorHover?: (id: string | null) => void
   /** A state or transition was clicked; the selection outlives the pointer. */
   onAnchorSelect?: (id: string | null) => void
+  /**
+   * Chart node ids to light as the active configuration — leaf and ancestors.
+   *
+   * Separate from `activeAnchors` on purpose: that prop is the source pane's
+   * pointer, rewritten several times a second, while this one is a run someone
+   * is reading. Supplied here it overrides the built-in simulator, which is
+   * what a driver outside this component (a live inspector receiving a running
+   * app's snapshots) needs to light the same drawing.
+   */
+  simulatedStates?: readonly string[]
   className?: string
 }
 
@@ -59,6 +79,7 @@ export function StateChartDiagram({
   activeAnchors,
   onAnchorHover,
   onAnchorSelect,
+  simulatedStates,
   className,
 }: StateChartDiagramProps) {
   const compiled = useMemo(() => compileStates(chart), [chart])
@@ -70,6 +91,10 @@ export function StateChartDiagram({
   const joinRef = useRef<SvgJoin | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [rendered, setRendered] = useState(false)
+  /** How many chart states the SVG actually yielded elements for. */
+  const [mappedStates, setMappedStates] = useState(0)
+  const [simulating, setSimulating] = useState(false)
+  const [simulated, setSimulated] = useState<readonly string[]>([])
   const renderId = `smc${useId().replace(/[^a-zA-Z0-9]/g, '')}`
 
   // The callbacks live in a ref so the render effect keys on the chart alone:
@@ -88,14 +113,18 @@ export function StateChartDiagram({
       .then((root) => {
         if (cancelled) return
         host.replaceChildren(root)
-        joinRef.current = decorate(host, chart, compiled, renderId, callbacks.current)
+        const join = decorate(host, chart, compiled, renderId, callbacks.current)
+        joinRef.current = join
+        setMappedStates(join.states.size)
         setFailure(null)
         setRendered(true)
       })
       .catch((error: unknown) => {
         // A failed render can leave mermaid's scratch element in the document.
         document.getElementById(renderId)?.remove()
-        if (!cancelled) setFailure(error instanceof Error ? error.message : String(error))
+        if (cancelled) return
+        setMappedStates(0)
+        setFailure(error instanceof Error ? error.message : String(error))
       })
 
     return () => {
@@ -114,6 +143,32 @@ export function StateChartDiagram({
       for (const element of elements) element.classList.toggle('smc-linked', linked.has(id))
     }
   }, [activeAnchors, rendered])
+
+  // The simulation's active configuration, on its own class and its own pass —
+  // a run has to survive every hover the anchor effect above processes.
+  const lit = simulatedStates ?? simulated
+  useEffect(() => {
+    const join = joinRef.current
+    if (!join) return
+    const active = new Set(lit)
+    for (const [id, elements] of join.byAnchor) {
+      for (const element of elements) element.classList.toggle('smc-active', active.has(id))
+    }
+  }, [lit, rendered])
+
+  const closeSimulation = useCallback(() => {
+    setSimulating(false)
+    setSimulated([])
+  }, [])
+
+  // What the panel is told about its own highlight. While mermaid is still
+  // drawing there is nothing to join to yet, and reporting the empty join then
+  // would be a false alarm — so the shortfall is only real once a pass landed.
+  const highlight = useMemo(() => {
+    const total = chart.nodes.length
+    if (failure) return { mapped: 0, total }
+    return { mapped: rendered ? mappedStates : total, total }
+  }, [chart.nodes.length, failure, rendered, mappedStates])
 
   if (chart.nodes.length === 0) {
     return (
@@ -156,7 +211,24 @@ export function StateChartDiagram({
             )}
           </>
         )}
-        <div className="absolute top-2.5 right-2.5">
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+          <CopyMachineButton
+            chart={chart}
+            className="rounded-md border border-border bg-surface/90 backdrop-blur-sm hover:bg-surface-raised"
+          />
+          <button
+            type="button"
+            onClick={() => (simulating ? closeSimulation() : setSimulating(true))}
+            aria-pressed={simulating}
+            aria-label={simulating ? 'Close the simulation' : 'Simulate this machine in the browser'}
+            title="Simulate"
+            className={cn(
+              'focusable rounded-md border border-border bg-surface/90 p-1 backdrop-blur-sm transition',
+              'text-muted-foreground hover:bg-surface-raised hover:text-foreground aria-pressed:text-primary',
+            )}
+          >
+            <Play className="size-3.5" aria-hidden />
+          </button>
           <ExpandButton
             expanded={expanded}
             onToggle={toggleExpanded}
@@ -164,6 +236,16 @@ export function StateChartDiagram({
           />
         </div>
       </div>
+
+      {simulating && (
+        <StateSimulator
+          chart={chart}
+          onStatesChange={setSimulated}
+          highlight={highlight}
+          onClose={closeSimulation}
+          className={cn(expanded && 'max-h-[45%]')}
+        />
+      )}
 
       <figcaption className="sr-only">
         <p>{summary.headline}</p>
@@ -187,6 +269,13 @@ export function StateChartDiagram({
 interface SvgJoin {
   /** Anchor id (state node id or transition edge id) → its SVG elements. */
   byAnchor: Map<string, Element[]>
+  /**
+   * Chart node ids that resolved to at least one SVG element. Counted rather
+   * than assumed: the simulation highlight is the one feature whose silent
+   * failure is indistinguishable from "the machine is not moving", so the panel
+   * compares this against the chart and says which of the two it is.
+   */
+  states: Set<string>
 }
 
 /**
@@ -205,7 +294,7 @@ function decorate(
 ): SvgJoin {
   const svg = host.querySelector('svg')
   const byAnchor = new Map<string, Element[]>()
-  if (!svg) return { byAnchor }
+  if (!svg) return { byAnchor, states: new Set<string>() }
 
   svg.classList.add('smc-svg')
 
@@ -337,7 +426,7 @@ function decorate(
     }
   }
 
-  return { byAnchor }
+  return { byAnchor, states: new Set(stateElements.keys()) }
 }
 
 /**

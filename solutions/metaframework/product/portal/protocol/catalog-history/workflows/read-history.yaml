@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: read-history
 title: Open the history panel and compare two revisions
 summary: The sequence the built panel would run if anything mounted it — log first, then a diff, then a file at a revision.

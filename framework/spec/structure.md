@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: structure
-version: 5
+version: 6
 status: review
 title: Directory structure
-summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, naming rules, and the artifact role table.
+summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, naming rules, the artifact role table, and the dialect each role's file declares.
 ---
 
 # Directory structure
@@ -108,7 +108,10 @@ journey, metric) alike — is a directory holding:
   a kind defines is the artifact role table
   ([below](#the-artifact-role-table)), stated normatively there for all kinds; each
   kind's `kinds/*.md` document carries its own rows as an excerpt, together
-  with the semantics and requiredness of each file.
+  with the semantics and requiredness of each file. Which *dialect* the bytes of
+  such a file are written in is a separate question, answered by the file itself
+  under a key this document fixes per role
+  ([below](#the-dialect-behind-the-role)).
 - Asset subdirectories — OPTIONAL. An entity directory MAY contain
   subdirectories to organize its artifacts (e.g. `workflows/`, `examples/` —
   the depth-2 rows of the role table, [below](#the-artifact-role-table)). An
@@ -500,6 +503,237 @@ Rules:
   guarantees — the path from the SRN, the SRN from the path, with the spec
   alone — holds unbroken.
 
+## The dialect behind the role
+
+The role table is a spec constant, and it answers exactly one question: **where a
+file is and what it is called**. It says nothing about the bytes inside. A
+`transport.yaml` is a `transport.yaml` whether it holds the mini-spec
+[kinds/protocol.md](kinds/protocol.md) defines today or, one release later, an
+AsyncAPI document — one role, one filename, one SRN, two grammars. Which of the
+two a given file is written in is that file's **dialect**, and the answer lives
+in the file, never in the table.
+
+Keeping the two apart is exactly what artifact addressing bought. A role names a
+file, never a format: `.transport` is *the transport role of this protocol*, not
+*the transport mini-spec*. Had the role named the format, standardizing that
+format would have moved the address, and every referrer would have had to be
+rewritten to keep saying the same thing about the same file. Because the role is
+the address, a payload may standardize inside a filename that stays put — and
+then the one thing missing is a way for a reader to tell which of the two it is
+holding. Inferring it from which keys happen to be present is not that way:
+shape-sniffing is a second grammar nobody wrote down, kept in step with the real
+ones by hand, and two dialects sharing a prefix of keys are indistinguishable
+under it right up until the day they are not.
+
+**Rule:** every addressable artifact declares its own dialect, in its own bytes,
+under one key fixed per role by the table below (decision-record amendment
+2026-08-21-a). Where the format already discriminates itself the native key is
+used and the framework invents nothing; where it does not, the artifact carries
+`$schema` holding the canonical URL of the framework meta-schema that defines
+the dialect. Those meta-schemas are ordinary datamodel entities of the
+framework's own `specification` product, so their URLs are ordinary canonical
+schema URLs ([srn.md](srn.md)) on the one canonical host, and they share one
+prefix:
+
+```text
+{meta} = https://schemas.metaframework.dev/metaframework/product/specification/datamodel
+```
+
+| Kind          | Role               | File                    | Key       | Value                            |
+| ------------- | ------------------ | ----------------------- | --------- | -------------------------------- |
+| `datamodel`   | `schema`           | `schema.json`           | `$schema` | the 2020-12 dialect URI (native) |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | none      | — never carries one              |
+| `protocol`    | `transport`        | `transport.yaml`        | `$schema` | `{meta}/transport-document`      |
+| `protocol`    | `states`           | `states.json`           | `$schema` | `{meta}/state-machine-document`  |
+| `protocol`    | `openapi`          | `openapi.yaml`          | `openapi` | `3.1.x` (native)                 |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`       |
+| `journey`     | `journey`          | `journey.yaml`          | `$schema` | `{meta}/journey-document`        |
+| `environment` | `topology`         | `topology.yaml`         | `$schema` | `{meta}/topology-document`       |
+| `environment` | `config`           | `config.yaml`           | `$schema` | `{meta}/config-document`         |
+
+The row order is the role table's own, and that is not decoration: this table is
+**total** over that one, every row of it answered, `none` included. A role added
+above without a ruling here would be a role whose dialect nobody decided, which
+is indistinguishable from a role that carries none — so the two tables grow
+together or neither does.
+
+The value is an **identity**, and it is read as one. Recognition is a string
+comparison against this table: no URL is fetched, and a reader that cannot reach
+the host loses nothing at all. It carries no `@version` either, for the reason
+every canonical schema URL carries none — it names a *dialect*, not a revision of
+one. An additive dialect change is a superset extension of the same meta-schema
+entity, which keeps its name, its URL, and therefore this string; a non-additive
+one is a swap to a new meta-schema entity with a new name and a new URL
+([evolution.md](evolution.md)), which is what "a new dialect lands beside the
+old" means one level up.
+
+Three rows carry their reasons rather than implying them.
+
+- **A datamodel's `$schema` is not the framework's to spend.** On a JSON Schema
+  document `$schema` already means the meta-schema of the *JSON Schema dialect*,
+  and [kinds/datamodel.md](kinds/datamodel.md) already REQUIRES it to be exactly
+  `https://json-schema.org/draft/2020-12/schema` (`E_DM_DIALECT`). Pointing it
+  at a framework URL instead would break every stock validator and buy nothing.
+  The row is in the table because the role has a discriminator, not because the
+  framework supplied one.
+
+- **`examples/<name>.json` carries no discriminator, ever.** That is a rule, not
+  an omission. An example is an *instance* of its sibling `schema.json`: its
+  dialect is that schema's dialect and it has none of its own. Injecting
+  `$schema` would add a property the schema must then admit, and
+  `additionalProperties: false` is ordinary in a catalog schema — so the
+  discriminator would make the example fail the very document it exemplifies.
+  `W_ARTIFACT_DIALECT` ([below](#the-legacy-dialect-and-its-warning)) MUST NOT
+  be raised on an `examples/*` file.
+
+- **`openapi.yaml` is the shape every future standard takes.** A format that
+  already names itself keeps doing so, and the framework adds nothing beside it.
+  The value is written `3.1.x` rather than `3.1.0` because OpenAPI versions the
+  *document*: `3.1.1` is the same dialect with errata applied, and a reader that
+  recognised only the exact string would complain about a correct file whose
+  author had done nothing but track a patch release. Recognition is therefore
+  the whole `3.1` line, while the advice a headerless file gets still names one
+  concrete, pasteable value. The framework rows need no such latitude — a
+  meta-schema URL carries no version to widen.
+
+### An artifact that declares one, and one that does not
+
+`solutions/acme/protocol/settlement/transport.yaml` is the worked pair, and both
+halves of it are real: the file below is what the fixture held at
+`settlement@2`, before this rule landed. It is in the legacy dialect. Nothing in
+it is a discriminator — `kind: kafka` names the wire protocol the transport
+uses, which is content, and a second dialect of this same role could carry that
+key unchanged.
+
+```yaml
+# solutions/acme/protocol/settlement/transport.yaml — the legacy dialect
+kind: kafka
+summary: Settlement facts published by shop and consumed by billing.
+encoding: avro
+```
+
+The same artifact at `settlement@3`, declaring its dialect. One line is added at
+the top and no other line changes; the filename, the SRN
+`srn://acme/protocol/settlement.transport`, and every reference written against
+it are untouched:
+
+```yaml
+# solutions/acme/protocol/settlement/transport.yaml — the transport-document dialect
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: kafka
+summary: Settlement facts published by shop and consumed by billing.
+encoding: avro
+```
+
+In a JSON artifact the key is a member of the root object, in the same position
+and to the same effect:
+
+```json
+{
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "id": "order-placement",
+  "initial": "requested"
+}
+```
+
+The `2 → 3` in that pair is the rest of the rule. Adding the line is a content
+change to a sibling artifact, so it bumps the owning entity's `version` by
+exactly 1, in the same commit, like any other change to any other artifact
+([evolution.md](evolution.md)) — and the bump is per **entity**, not per file. A
+protocol that gains a header in `transport.yaml`, `states.json` and two workflow
+files in one commit bumps once.
+
+### The legacy dialect, and its warning
+
+An artifact carrying no recognisable discriminator is read as the **legacy
+dialect** — the format this specification and the relevant kind document define
+today — and is warned, never broken.
+
+| Code                 | Meaning                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `W_ARTIFACT_DIALECT` | An artifact declares no dialect, or one unknown for its role; read as the legacy dialect. |
+
+The class is a warning, and it is raised on the entity that **owns** the file,
+because an artifact is not an entity and has no diagnostics of its own. It has
+two message forms, both ending in the same clause, because that clause is the
+contract:
+
+```text
+transport.yaml declares no dialect — read as the legacy dialect; add
+  `$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document`
+
+transport.yaml declares dialect "https://example.com/foo", which is not a
+  known dialect of the transport role — read as the legacy dialect
+```
+
+On a native-discriminator role the absent form names that role's own key, since
+that is what an author has to paste:
+
+```text
+openapi.yaml declares no dialect — read as the legacy dialect; add `openapi: 3.1.0`
+```
+
+Whatever the header says or fails to say, the file is still parsed, still
+rendered, and still checked against the legacy grammar: nothing in this rule can
+make a catalog that loads today stop loading. Two rows are silent rather than
+warned — `examples/<name>.json`, which has no dialect to declare, and
+`schema.json`, whose missing header is already the error `E_DM_DIALECT` and needs
+no second complaint about one fact. The warning has no forcing function on
+purpose; `E_DM_DIALECT` is what a terminal state looks like, and promoting the
+other roles to it is a later decision, available only once every file carries a
+header.
+
+### The framework-owned key is read once, then removed
+
+`$schema` on the six framework-owned rows is not part of any kind's grammar, and
+no kind document carries a row for it. The loader reads it, records the dialect
+on the artifact, and deletes the key from the parsed document before the kind's
+own validator is handed anything — so `states.json` still rejects every unknown
+key under `E_PROTO_STATES_SUBSET`, a `journey.yaml` still rejects one under
+`E_JRN_SCHEMA`, and neither carves out an exception for the header. Deletion
+happens whether or not the value was recognised: leaving an unrecognised one in
+place would convert this warning into an unknown-key *error* downstream, which is
+the one outcome "never broken" forbids.
+
+A **native** discriminator is never stripped. `openapi:` and a datamodel's
+`$schema` belong to their own formats, and a document that arrived without them
+would be the poorer document. The bytes are untouched in every case: what the
+portal serves as the file — its source pane, its artifact route — is the file as
+authored, header included, and the stripped document is an internal parse
+product that is never served as the document.
+
+The distinction from the `x-` extension hatch is the point rather than a
+technicality. `x-` is open-ended and belongs to **authors**: any key, any shape,
+any number of them, and the framework promises only not to look. What this rule
+adds is one key, spelled one way, at the artifact root and nowhere else,
+optional, owned by the framework and removed by it. Spelling the discriminator
+`x-schema` to slip it past the strict validators would have been the framework
+hiding inside the mechanism it gave its users.
+
+### Filenames stay
+
+**A dialect change touches no row of the role table.** A dialect is a property of
+a file's contents; the table maps kind × role to a fixed name, and a new dialect
+inside an existing filename is not an amendment to it. `transport.yaml` holding
+AsyncAPI is still `transport.yaml`, still `srn://acme/protocol/settlement.transport`,
+still one row.
+
+The converse is the ruling that matters: **a lane that wants a new filename must
+come back for a role-table amendment**, under the additive-growth rule that
+governs every other row ([above](#the-artifact-role-table)).
+
+```text
+transport.yaml grows an AsyncAPI dialect   # no row moves, no address moves
+arazzo.yaml beside workflows/              # a new role — append a row above first
+```
+
+The two are different changes with different blast radii. A new row mints
+addresses and obliges every SRN parser, in this document and in each of its
+mirrors; a new dialect obliges only the reader of that one file. Collapsing them
+would let any payload lane rewrite the identity grammar as a side effect of
+changing a payload, which is exactly what separating role from dialect exists to
+prevent.
+
 ## Annotated example tree
 
 Abridged from the real fixture under `solutions/` — every path below exists on
@@ -680,6 +914,12 @@ Notes on each, because the grammar overlaps them:
 `E_STRUCT_KIND_PLACEMENT` is **retired**. Every placement violation it used to
 cover is now `E_SRN_PLACEMENT`, raised by the parser, and is listed in
 [srn.md](srn.md#placement-is-grammar) as rules P1–P4.
+
+`W_ARTIFACT_DIALECT` is defined in this document too, beside the table it
+belongs to ([above](#the-legacy-dialect-and-its-warning)), and not in the table
+here: it is about the bytes of a file rather than about where anything sits, and
+it is the one class in this document that is cross-kind by construction — the
+same warning on a protocol, a journey and an environment.
 
 SRN-level naming and artifact-addressing violations (`E_SRN_SYNTAX`,
 `E_SRN_RESERVED`, `E_SRN_ARTIFACT`, `E_SRN_DANGLING`) are defined in

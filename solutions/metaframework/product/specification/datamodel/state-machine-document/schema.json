@@ -6,6 +6,11 @@
   "description": "states.json — an XState v5 machine configuration describing the state of one conversation as the protocol sees it, not the internal state of any participant. Pinned to a subset that createMachine() accepts verbatim. Specified in framework/spec/kinds/protocol.md; validated by framework/portal/src/lib/protocol/states.ts.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key before parseStates is handed the document, which is why the pinned subset stays exactly an XState config and E_PROTO_STATES_SUBSET stays strict."
+    },
     "id": {
       "type": "string",
       "description": "MUST equal the protocol entity's name (E_PROTO_STATES_ID). It is also the root of every absolute target path, e.g. #order-placement.rejected."

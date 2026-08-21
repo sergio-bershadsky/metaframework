@@ -1,7 +1,7 @@
 ---
 name: ship-a-release
 kind: journey
-version: 1
+version: 2
 title: Ship a release
 summary: The operator's path from a merged change to a live one — four gate steps that are not his, one hand deploy that ends every game in progress, and three checks.
 status: review

@@ -1,7 +1,7 @@
 ---
 name: local
 kind: environment
-version: 1
+version: 2
 title: Local
 summary: One developer's machine running next dev — the only environment this solution has, and the complete list rather than the first entry in it.
 status: review

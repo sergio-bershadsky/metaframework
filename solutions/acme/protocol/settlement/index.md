@@ -1,7 +1,7 @@
 ---
 name: settlement
 kind: protocol
-version: 2
+version: 3
 title: Settlement
 summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
 status: approved

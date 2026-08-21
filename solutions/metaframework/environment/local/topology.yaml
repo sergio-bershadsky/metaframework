@@ -1,3 +1,5 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
 # No `regions`: a developer machine is a single unnamed place. One entry,
 # because the whole solution is one process — the console, the schema route and
 # the history route are handlers inside it, not deployments beside it.

@@ -1,7 +1,7 @@
 ---
 name: catalog-history
 kind: protocol
-version: 1
+version: 2
 title: Catalog history
 summary: The four-operation conversation between the history panel and /api/history — fully implemented on both sides, and held by nobody.
 status: review

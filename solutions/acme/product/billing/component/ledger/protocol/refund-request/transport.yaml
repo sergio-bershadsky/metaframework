@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: Internal JSON API reached from the support console, behind the corporate proxy.
 encoding: json

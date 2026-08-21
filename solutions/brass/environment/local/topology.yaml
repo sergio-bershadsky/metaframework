@@ -1,3 +1,5 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
 # No `regions`: a developer machine is a single unnamed place. Every entry is
 # fixed at one instance because nothing here is load-balanced.
 hosts:

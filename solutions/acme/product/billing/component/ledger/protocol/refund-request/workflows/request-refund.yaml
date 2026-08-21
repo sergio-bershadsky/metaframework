@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: request-refund
 title: Request a refund on a settled order
 summary: A support agent asks for a refund; the ledger checks the position and posts the reversing legs.

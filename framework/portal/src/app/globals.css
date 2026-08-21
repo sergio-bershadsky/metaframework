@@ -479,6 +479,25 @@
   }
 
   /*
+   * A simulation is standing in this state (state-simulator.tsx), leaf and
+   * ancestors alike. Its own class, not `.smc-linked`: that one is rewritten in
+   * full on every anchor-hover pass, which would erase the run under the
+   * pointer. Stroke only — mermaid sets fills inline, and an outline would read
+   * as the source-pane link.
+   */
+  .smc-active rect,
+  .smc-active polygon,
+  .smc-active circle {
+    stroke: var(--primary);
+    stroke-width: 2.25;
+  }
+
+  /* Adjacency dimming may not hide the run; it only recedes it. */
+  .smc-active.smc-dim {
+    opacity: 0.55;
+  }
+
+  /*
    * A named final state keeps the UML double edge in the protocol hue —
    * colour stays ontology, exactly as the old renderer drew it.
    */

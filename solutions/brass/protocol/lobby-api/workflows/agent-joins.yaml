@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: agent-joins
 title: An agent finds a match and takes a seat
 summary: The MCP server discovers an open match with a free seat and claims it, using the same routes a browser uses.

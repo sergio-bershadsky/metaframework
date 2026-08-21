@@ -41,6 +41,13 @@ Exactly one dialect: **JSON Schema draft 2020-12**. One filename, bare:
 schema route looks for that exact name, so a renamed file 404s at every address
 that points at it.
 
+Other artifacts in the framework — `transport.yaml`, `states.json`,
+`workflows/*.yaml`, `journey.yaml`, `topology.yaml`, `config.yaml` — carry a
+`$schema` naming a *framework* meta-schema (`protocols.md`, `journeys.md`,
+`environments.md`). **Do not do that here, and never in `examples/`**; the two
+conventions meet on this one key and the difference matters, so it has a
+subsection of its own below.
+
 Two identity keywords, both required at the root:
 
 ```json
@@ -87,6 +94,19 @@ identifier; retrieval is a resolver's problem. A local validator that wants to
 fetch rather than trust its cache maps the canonical host onto the portal's
 `/schemas` route in its resolver config — one line, outside the artifacts.)
 
+**Two kinds of URL live on that host, and only one of them could ever answer.**
+The framework's own meta-schemas — the `…/specification/datamodel/…-document`
+values a dialect header names — are part of the published framework, so serving
+them at their own `$id` is a step this project can take and has undertaken to
+take. A catalog's own schemas are not: no `$id` under
+`https://schemas.metaframework.dev/acme/…` resolves there now or later, because
+`acme` is not the framework's content to serve. That one is served by the
+catalog's own portal, at `SCHEMA_BASE_URL` + `/schemas/…` — the resolver line
+above. So identity is global for everything, while *retrieval* can only ever be
+global for the framework's own documents and stays local for a catalog's. Author
+neither expecting a fetch: the framework compares these URLs as identities and
+never dereferences one.
+
 The artifact SRN `srn://acme/datamodel/money.schema` (`srn.md`) is legal for
 uniformity and **normalizes to the entity**: its URL projection IS this
 canonical URL. No `…/money.schema` URL ever exists, and mapping a URL back to
@@ -129,6 +149,60 @@ which need no identity.
 `x-srn` and `$id` cannot disagree without a diagnostic: both are checked against
 the same directory path, so they are two spellings of one derived fact rather
 than two hand-maintained fields.
+
+### The artifact-dialect contract, already satisfied here
+
+Every artifact in the framework declares, in its own bytes, which grammar it is
+written in; the contract, and the key each role carries, are in `structure.md`.
+This kind is the one that was already doing it, and its two artifacts land on
+opposite sides of that contract — so both belong here, rather than leaving you to
+wonder whether the framework's rule collides with the single dialect this section
+opens with.
+
+**On `schema.json` the discriminator is the key above.** `$schema` on a JSON
+Schema document names the meta-schema of the *JSON Schema dialect* — exactly the
+job the framework-wide contract asks a discriminator to do, arrived at
+independently and long before this framework existed. So nothing weakens: the
+value stays exactly `https://json-schema.org/draft/2020-12/schema`,
+`E_DM_DIALECT` otherwise, and pointing the key at a framework meta-schema would
+break every stock validator in exchange for nothing. Two consequences follow.
+The key is **native**, so it is never stripped from the parsed document the way a
+framework-owned `$schema` is — the registry validates *against* it, and removing
+it would break the validation it enables. And absence is **not also warned**:
+`E_DM_DIALECT` has been the error for that same fact since v1, so this kind
+already sits at the terminal state the other roles are only nudged toward, and
+`W_ARTIFACT_DIALECT` is never raised on a `schema.json`.
+
+```json
+{ "$schema": "https://json-schema.org/draft/2020-12/schema" }
+                    /* the only legal value                                    */
+{ "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/schema-document" }
+                    /* E_DM_DIALECT — the framework's description of this file
+                       is not the dialect this file is written in              */
+{ }                 /* E_DM_DIALECT — and never W_ARTIFACT_DIALECT             */
+```
+
+The framework's own `schema-document` meta-schema keeps doing what it always did:
+it describes what a catalog `schema.json` must *additionally* satisfy, and no
+instance ever names it.
+
+**`examples/*.json` carry no discriminator at all**, by rule and not by omission.
+An example is an *instance* of its sibling schema: its dialect is that schema's
+and it has none of its own, so there is nothing for a header to name. A `$schema`
+added there is an ordinary unknown property — and `E_DM_EXAMPLE_INVALID` the
+moment that schema closes itself, turning a documentation aid into a build
+failure. `W_ARTIFACT_DIALECT` is never raised on a file under `examples/`,
+whatever it does or does not contain.
+
+```json
+/* examples/minimal.json — correct: an instance, and nothing but */
+{ "amount": "49.90", "currency": "EUR" }
+
+/* wrong: a header the schema must then admit, on the very document that exists
+   to demonstrate that schema */
+{ "$schema": "https://schemas.metaframework.dev/acme/datamodel/money",
+  "amount": "49.90", "currency": "EUR" }
+```
 
 ## `$ref` is a canonical schema URL
 

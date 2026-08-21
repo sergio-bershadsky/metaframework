@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: cancel-booking
 title: Cancel a booking before collection
 summary: The orchestrator withdraws a parcel; the gateway can only honour it while the carrier has not taken custody.

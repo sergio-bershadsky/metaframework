@@ -1,7 +1,7 @@
 ---
 name: lobby-api
 kind: protocol
-version: 1
+version: 2
 title: Lobby API
 summary: HTTP/JSON lobby served by boardgame.io — create a match, list the open ones, read one, and claim a seat.
 status: review

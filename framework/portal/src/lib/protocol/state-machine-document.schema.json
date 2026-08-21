@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/state-machine-document",
+  "title": "State machine document",
+  "description": "states.json — an XState v5 machine configuration describing the state of one conversation as the protocol sees it, never the internal state of any single participant. Pinned to a subset that createMachine() accepts verbatim, plus the dialect header of ADR 0015, which is not part of the configuration and is removed before the residue is handed to XState. Generated from the zod validator in framework/portal/src/lib/protocol/states.ts; the reference rules a schema cannot express — initial resolves, targets resolve, states are reachable, id equals the protocol name — are checked there and specified in framework/spec/kinds/protocol.md.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key before parseStates is handed the document, which is why the pinned subset stays exactly an XState config and E_PROTO_STATES_SUBSET stays strict."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "initial": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "states": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/state"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "initial",
+    "states"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "state": {
+      "type": "object",
+      "properties": {
+        "states": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state"
+          }
+        },
+        "initial": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "final"
+        },
+        "on": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "guard": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "actions": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "target": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "guard": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "actions": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      ]
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            ]
+          }
+        },
+        "entry": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "exit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "dependentRequired": {
+        "states": [
+          "initial"
+        ]
+      }
+    }
+  }
+}

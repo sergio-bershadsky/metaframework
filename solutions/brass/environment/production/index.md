@@ -1,7 +1,7 @@
 ---
 name: production
 kind: environment
-version: 1
+version: 2
 title: Production
 summary: The live target — a single-node k3s cluster on Hetzner serving brass.bershadsky.dev behind Traefik.
 status: review

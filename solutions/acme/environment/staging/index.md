@@ -1,7 +1,7 @@
 ---
 name: staging
 kind: environment
-version: 2
+version: 3
 title: Staging
 summary: Production-shaped rehearsal target with synthetic data — the last gate before real users.
 status: approved

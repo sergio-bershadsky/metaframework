@@ -1,3 +1,5 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+
 # The wire is stdio JSON-RPC, which transport.kind cannot express: the closed enum
 # is http | grpc | amqp | kafka | websocket | in-process. `in-process` is the
 # nearest neighbour — the server is a subprocess of the host with no network hop

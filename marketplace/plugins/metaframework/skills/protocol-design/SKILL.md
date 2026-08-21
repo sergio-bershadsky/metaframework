@@ -152,7 +152,7 @@ the required fields per transport kind, the two `message` traps and the XState
 subset boundary are all in **`references/artifacts.md`** — read it before
 writing any of the three.
 
-Three things worth knowing before you get there:
+Four things worth knowing before you get there:
 
 - **One protocol, one transport.** A protocol offered over two wire technologies
   is two protocol entities (`E_PROTO_TRANSPORT_BINDING`).
@@ -162,7 +162,33 @@ Three things worth knowing before you get there:
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml` or a workflow file is a shape violation; the entity's
   frontmatter `version` covers the whole directory. Unknown keys anywhere need
-  the `x-` prefix, except in `states.json`, where they are errors.
+  the `x-` prefix, except in `states.json`, where they are errors — and except
+  the one framework-owned key below, which is admitted by name.
+- **Every artifact declares its dialect as its first key.** A role names a file,
+  never a format, so the file itself says which grammar it is written in.
+  Nothing is inferred from which keys happen to be present. The value is fixed
+  per artifact and there is nothing to choose — one line each, and no two of
+  them ever share a file:
+
+  ```text
+  transport.yaml         $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+  workflows/<name>.yaml  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+  states.json            "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document"
+  openapi.yaml           openapi: 3.1.0
+  ```
+
+  In `states.json` it is a member of the root object, in the same position and
+  to the same effect. `openapi:` is OpenAPI's own key and the framework adds
+  nothing beside it; the whole `3.1` line is recognised, so a file tracking a
+  patch release is not warned.
+
+  No `@version` on those URLs: they name a grammar, not a revision of one. The
+  key sits at the artifact **root** and nowhere else. A file that declares
+  nothing is read as the legacy dialect — the format described in
+  `references/artifacts.md` — and warned on the protocol entity with
+  `W_ARTIFACT_DIALECT`, never broken. The reasoning, the strip rule and the
+  traps are in `references/artifacts.md`, "The dialect header — first key of
+  every artifact".
 
 ## 9. Payload binding
 
@@ -236,6 +262,13 @@ workflow.
 Adding a participant, a workflow file, a step, a surface entry, a state, or a
 transition is additive and always legal. Every change in either category bumps
 the entity's `version`, including a change to a single artifact file.
+
+A dialect header is neither: it is not contract surface, because it describes the
+grammar the file is written in rather than anything the file says. Adding one is
+additive — a key appears, nothing is removed and nothing is repointed — so it is
+legal at `N+1` and never a swap. The bump is **per entity, not per file**: a
+protocol that gains the header in `transport.yaml`, `states.json` and three
+workflow files in one commit bumps `version` once.
 
 ## Finish
 

@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: websocket
 summary: socket.io on the fixed path /socket.io, namespace /brass; JSON frames, no compression, no delta encoding.
 encoding: json

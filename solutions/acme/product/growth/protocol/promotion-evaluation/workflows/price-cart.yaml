@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: price-cart
 title: Price a cart
 summary: Checkout asks the engine what a cart is worth; the engine loops candidate promotions and answers with a quote.

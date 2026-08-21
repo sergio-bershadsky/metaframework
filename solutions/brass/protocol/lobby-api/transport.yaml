@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: JSON over HTTP on the same origin as the SPA; the ingress path-splits /games to the game server.
 encoding: json

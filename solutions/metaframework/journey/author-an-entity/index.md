@@ -1,7 +1,7 @@
 ---
 name: author-an-entity
 kind: journey
-version: 2
+version: 3
 title: Author an entity
 summary: A model's loop from a slash command to a green check — three crossings between the plugin and the portal, every one of them carried by the model itself.
 status: review

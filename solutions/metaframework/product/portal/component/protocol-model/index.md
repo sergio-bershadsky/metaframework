@@ -1,9 +1,9 @@
 ---
 name: protocol-model
 kind: component
-version: 3
+version: 4
 title: Protocol model
-summary: The workflow mini-spec parser, the XState-subset validator, and the pure mermaid compiler — three files answering one question, and none of their diagnostics reaches /diagnostics.
+summary: Workflow mini-spec parser, XState-subset validator, mermaid compiler, generated meta-schema and XState normalizer — five modules, one question, and none of their diagnostics reaches /diagnostics.
 status: review
 owner: sergio
 component-type: library
@@ -12,8 +12,8 @@ relations:
   depends-on:
     - ../srn
   uses:
-    - /product/specification/datamodel/workflow-document@1
-    - /product/specification/datamodel/state-machine-document@1
+    - /product/specification/datamodel/workflow-document@2
+    - /product/specification/datamodel/state-machine-document@2
   realizes:
     - /capability/derived-visualization
 tags:
@@ -21,10 +21,21 @@ tags:
   - diagrams
 ---
 
-`src/lib/protocol/` — `workflow.ts` (1,091 lines), `states.ts` (569),
-`mermaid.ts` (241), with 1,287 lines of tests across the three. One component,
-because all three answer the same question: turn a protocol's sibling artifact
-into something that can be drawn *and* stated in prose.
+`src/lib/protocol/` — five source modules, 2,187 lines: `workflow.ts` (1,109),
+`states.ts` (613), `mermaid.ts` (241), `state-machine-document.ts` (118) and
+`xstate.ts` (106), against 1,658 lines of tests in five suites. A `vendor/`
+directory beside them holds one third-party schema, pinned and licensed.
+Measured 2026-08-21 with `wc -l`. One component, because all five answer the
+same question: turn a protocol's sibling artifact into something that can be
+drawn, stated in prose, and handed to somebody else's parser unchanged.
+
+`state-machine-document.ts`, `xstate.ts` and `vendor/` all arrived with
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) and are
+described together below. The three older modules kept their jobs: `mermaid.ts`
+is untouched, and `workflow.ts` and `states.ts` each moved by one thing only —
+admitting `$schema` by name, so a caller holding raw file bytes gets the legacy
+dialect read instead of an unknown-key error on a file the spec told the author
+to write.
 
 ## `workflow.ts` — two halves, deliberately apart
 
@@ -87,6 +98,62 @@ statement with one label line each, because mermaid keys a state's loop edges by
 their shared endpoints and of N separate loop statements only the last is drawn
 (verified against mermaid 11.17).
 
+## `state-machine-document.ts` — the meta-schema is generated, not written
+
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) makes a
+`states.json` name its dialect by URL, and that URL has to dereference to a
+schema that accepts the document — otherwise the header a catalog was told to
+add turns every file red in the first editor that follows it. So the framework
+publishes its own, and `buildStateMachineDocumentSchema()` emits it from
+`machineSchema`: the zod validator `parseStates` actually runs, plus an overlay
+of the rules JSON Schema can express and zod cannot, reading `KEBAB` and
+`EVENT_NAME` out of the validator rather than restating the patterns.
+
+Generated rather than hand-written for one reason, stated in the module's own
+header: a hand-written meta-schema beside the validator is a second statement of
+one contract, and the two drift the first time the subset moves. A golden test
+holds the checked-in `state-machine-document.schema.json` byte-identical to
+today's emission, and a second pair of tests runs the schema over every
+`states.json` in `solutions/` twice — as authored and again with the header — and
+then checks that the schema and `parseStates` agree on the same corpus. One
+contract, two engines.
+
+What the schema still cannot decide is the list `states.ts` keeps: that `initial`
+names a key of its own `states`, that a target resolves, that a state is
+reachable, that the machine id equals the entity name. Those stay
+`E_PROTO_STATES_TARGET`, `E_PROTO_STATES_ID` and `W_PROTO_STATES_UNREACHABLE`.
+
+## `xstate.ts` and `vendor/` — proving the subset really is XState
+
+The spec's claim about `states.json` is that `createMachine()` accepts the file
+verbatim, and nothing checked it until this release. Stately publishes a JSON
+Schema for XState and it cannot be pointed at an authored file as-is, for two
+separate reasons. It describes only XState's **normalized** surface, so every
+piece of shorthand the subset is written in — a bare string target, a single
+action name where a list is allowed, one transition where an array is allowed —
+is rejected. And every object in it is closed with `additionalProperties: false`,
+which forbids the `$schema` key that would point an author at it; that second
+fault is exactly what disqualified it as this format's discriminator.
+
+`toXStateJson()` answers the first. It is a one-way expansion from the authored
+subset to the normalized surface, built key by key from the authored keys rather
+than by spreading the input, so the dialect header can never leak into an export
+that XState's own schema would then reject. The same function used forward is the
+export-to-XState-JSON action. It is never a way back: the shorthand an author
+wrote is not recoverable from the expansion, and guard and action names stay
+prose references a consumer must `.provide()` before a guarded transition will
+fire.
+
+`vendor/xstate.schema.json` is the target — the schema shipped in
+`@statelyai/sdk@0.21.0`, MIT, pinned by sha256 with its provenance and licence
+recorded in `vendor/README.md`. Vendored rather than fetched because the portal's
+guarantee is that a catalog renders with no external network, and a conformance
+test that fetched would make CI depend on a third party's CDN. It is a
+downstream check and must not become the authority — that is `states.ts` and the
+meta-schema published at
+[state-machine-document](srn://metaframework/product/specification/datamodel/state-machine-document),
+which is the only one of the two that a `states.json` can name.
+
 ## Where these diagnostics go
 
 Nowhere. **No `E_PROTO_*` code ever reaches
@@ -100,13 +167,20 @@ Its suites run against hermetic fixtures and are never pointed at `solutions/`.
 `transport.yaml` has a full mini-spec in the protocol kind document — a closed
 `kind` enum, binding blocks, the `spec`/surface-list exclusivity rule — and
 **this component has no parser for it**. Grepping `src` for `transport` outside
-tests returns two hits, neither of them a parser: a sizing comment in
-`artifact-block.tsx:149` and the protocol kind's blurb string in
-`lib/ui/kind.ts:69`. The file renders as generic YAML like any other, and
-`E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
-`E_PROTO_TRANSPORT_SPEC_CONFLICT` and `E_PROTO_SPEC_FILE` are implemented
-nowhere. The catalog has 15 authored `transport.yaml` files — nine in acme, four
-in brass, and the two in this product — and not one of them has ever been
+tests returns 17 hits across eleven files on 2026-08-21, and not one is a
+parser: comments, the protocol kind's blurb string in `lib/ui/kind.ts`, the
+role-table row in `lib/srn/artifacts.ts` that makes the file addressable, and
+the dialect-registry row in `lib/catalog/dialects.ts` that lets the `$schema`
+header of [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects)
+be recognised and stripped. Identity, in other words, and no reader: none of
+those lines looks at a field of the document beneath. The file still renders as
+generic YAML like any other, and `E_PROTO_TRANSPORT_SCHEMA`,
+`E_PROTO_TRANSPORT_BINDING`, `E_PROTO_TRANSPORT_SPEC_CONFLICT` and
+`E_PROTO_SPEC_FILE` appear in `src` only as four rows of the debt register in
+`lib/catalog/diagnostic-coverage.test.ts`. The catalog has 16 authored
+`transport.yaml` files (`find solutions -name transport.yaml`, 2026-08-21) —
+nine in acme, four in brass, two in this product and one under
+[devops](srn://metaframework/product/devops) — and not one of them has ever been
 validated by anything.
 
 Two more gaps in the same direction: `W_PROTO_WF_CHANNEL_UNKNOWN` — which would

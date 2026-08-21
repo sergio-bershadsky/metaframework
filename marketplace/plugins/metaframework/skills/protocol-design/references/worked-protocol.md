@@ -1,13 +1,19 @@
 # A complete protocol — `srn://acme/protocol/settlement`
 
-> Reproduced **verbatim** from `solutions/acme/protocol/settlement/` (the
-> `states.json` has its per-state `description` strings elided for width). When
-> the repository is present, read the originals; this copy exists because an
-> installed plugin cannot see them.
+> Reproduced **verbatim** from `solutions/acme/protocol/settlement/`: the
+> `index.md` frontmatter (its prose body is not reproduced — the heading below
+> says so) and then all three artifact files, complete and unabridged, dialect
+> header included. Nothing is elided. When the repository is present, read the
+> originals; this copy exists because an installed plugin cannot see them.
 
 A `bus` protocol at the solution root: Kafka transport with an authoritative
 surface list, one workflow with fan-out, and a compound state machine. Read it
 alongside `references/artifacts.md`, which carries the rules each file obeys.
+
+Each of the three artifacts opens with its `$schema` dialect header, and that
+first line is part of what you are copying. The three URLs differ — one names
+`transport-document`, one `workflow-document`, one `state-machine-document` —
+because the key declares the grammar of *that file*, not of the protocol.
 
 ## `index.md` frontmatter
 
@@ -15,7 +21,7 @@ alongside `references/artifacts.md`, which carries the rules each file obeys.
 ---
 name: settlement
 kind: protocol
-version: 2
+version: 3
 title: Settlement
 summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
 status: approved
@@ -53,6 +59,7 @@ because the message × datamodel matrix is derived from the artifacts below.
 ## `transport.yaml`
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: kafka
 summary: Settlement facts published by shop and consumed by billing.
 encoding: avro
@@ -84,6 +91,7 @@ kafka:
 ## `workflows/settle-order.yaml`
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: settle-order
 title: Settle a paid order
 summary: Payment publishes a paid order; the ledger posts it and reconciliation proves the batch balances.
@@ -123,11 +131,13 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
 
 ```json
 {
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
   "id": "settlement",
   "initial": "awaiting-payment",
   "description": "State of the settlement of one order, as the billing side sees it.",
   "states": {
     "awaiting-payment": {
+      "description": "The order exists in shop but no payment fact has arrived.",
       "on": {
         "ORDER_PAID": {
           "target": "posting",
@@ -137,10 +147,12 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
       }
     },
     "posting": {
+      "description": "The ledger is turning the payment fact into double-entry legs.",
       "initial": "entry-pending",
       "entry": ["reserve-batch-slot"],
       "states": {
         "entry-pending": {
+          "description": "Legs computed, not yet acknowledged by the ledger store.",
           "on": {
             "LEDGER_ENTRY_POSTED": [
               { "target": "entry-posted", "guard": "debit and credit both accepted" },
@@ -149,6 +161,7 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
           }
         },
         "entry-posted": {
+          "description": "Both legs are durable; the batch awaits reconciliation.",
           "on": {
             "RECONCILIATION_REPORT": [
               { "target": "#settlement.settled", "guard": "batch balances to zero" },
@@ -158,8 +171,16 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
         }
       }
     },
-    "settled":  { "type": "final", "tags": ["success"] },
-    "disputed": { "type": "final", "tags": ["failure"] }
+    "settled": {
+      "type": "final",
+      "tags": ["success"],
+      "description": "Order and ledger agree; the settlement window is closed."
+    },
+    "disputed": {
+      "type": "final",
+      "tags": ["failure"],
+      "description": "A human owns it now — see the audit-trail requirement."
+    }
   }
 }
 ```
@@ -170,6 +191,12 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
   + component/payment`, `product/billing + component/ledger`, and
   `product/billing + component/reconciliation`. The common prefix is empty, so
   the NCA is the solution root — which is where the directory sits.
+- **Dialect.** Each of `transport.yaml`, `workflows/settle-order.yaml` and
+  `states.json` carries its `$schema` as its **first** key, naming that file's
+  grammar and no revision of it. An artifact that declares nothing still loads —
+  it is read as the legacy dialect and warned with `W_ARTIFACT_DIALECT` on the
+  entity, never broken — so this bullet is the one the checker cannot fail for
+  you with an error.
 - **Back-edges.** All three component participants declare `exposes` or `uses`
   for this protocol, so no `W_PROTO_PARTICIPANT_UNLINKED`.
 - **Style.** `bus`, and every step is `kind: event` with no `call` anywhere — no

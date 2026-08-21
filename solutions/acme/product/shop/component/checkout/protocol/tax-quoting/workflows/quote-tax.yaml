@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: quote-tax
 title: Quote tax for a cart
 summary: Checkout asks the embedded tax engine for the tax due on a cart before authorizing payment.

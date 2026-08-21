@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: read-a-branch
 steps:
   - actor: /actor/reviewer

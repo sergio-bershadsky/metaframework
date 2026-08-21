@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: JSON over HTTPS on both hops — internal from the orchestrator, mutual-TLS outward to the carrier.
 encoding: json

@@ -1,4 +1,5 @@
 {
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
   "id": "settlement",
   "initial": "awaiting-payment",
   "description": "State of the settlement of one order, as the billing side sees it.",

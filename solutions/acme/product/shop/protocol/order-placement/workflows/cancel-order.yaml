@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: cancel-order
 title: Cancel an order before dispatch
 summary: Customer cancels; checkout releases the reservation and refunds any capture already taken.

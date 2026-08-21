@@ -1,7 +1,7 @@
 ---
 name: local
 kind: environment
-version: 1
+version: 2
 title: Local
 summary: A developer machine — server on 8000, Vite dev server on 5173, and the MCP server spoken to over stdio.
 status: review

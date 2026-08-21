@@ -1,7 +1,7 @@
 ---
 name: audit-a-catalog
 kind: journey
-version: 2
+version: 3
 title: Audit a catalog
 summary: A reviewer's path through the portal to a judgement — five surfaces, one crossing out of the product, and a loop that never closes.
 status: review

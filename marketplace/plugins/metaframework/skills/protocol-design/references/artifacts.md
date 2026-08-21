@@ -17,7 +17,81 @@ Two shape rules bind `transport.yaml` and `workflows/*.yaml` alike: **no
 top-level `version:` key** (artifacts carry no version of their own; the
 entity's frontmatter governs the whole directory), and unknown keys at any level
 are rejected unless `x-` prefixed. `states.json` is the exception to the second
-— see its section.
+— see its section. The one framework-owned key, the `$schema` dialect header
+below, is admitted **by name** at the artifact root, so neither rule reaches it.
+
+## The dialect header — first key of every artifact
+
+A role names a **file, never a format**. `transport.yaml` is *the transport role
+of this protocol*, not *the transport mini-spec*, which is what lets the payload
+standardize one day inside a filename that does not move. The price of that is
+that a reader cannot tell the two grammars apart by looking — so each artifact
+says which one it is written in, in its own bytes, under a fixed key. Writing
+`{meta}` for
+`https://schemas.metaframework.dev/metaframework/product/specification/datamodel`:
+
+| Artifact                | Key       | Value                           | Whose key is it          |
+|-------------------------|-----------|---------------------------------|--------------------------|
+| `transport.yaml`        | `$schema` | `{meta}/transport-document`     | the framework's          |
+| `states.json`           | `$schema` | `{meta}/state-machine-document` | the framework's          |
+| `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`      | the framework's          |
+| `openapi.yaml`          | `openapi` | `3.1.x`                         | OpenAPI's own, natively  |
+
+Written out, in the two file formats a protocol uses — both the real opening of
+their file in `solutions/acme/protocol/settlement/`, cut off a few keys in:
+
+```yaml
+# transport.yaml — the header is the first key, then nothing else changed
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: kafka
+summary: Settlement facts published by shop and consumed by billing.
+encoding: avro
+```
+
+```json
+{
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "id": "settlement",
+  "initial": "awaiting-payment"
+}
+```
+
+In JSON it is a member of the root object, in the same position and to the same
+effect. In neither case does the filename move, the SRN
+(`srn://acme/protocol/settlement.transport`) change, or any reference written
+against the file need touching — which is the whole reason the role and the
+dialect are separate things.
+
+Six things decide whether you get this right.
+
+- **No `@version` on the URL.** It is the canonical `$id` of a meta-schema
+  *entity*, and it names the grammar the file is written in, never a revision of
+  the file. `transport-document@2` is wrong for the same reason a `$ref` never
+  carries a pin. The entity's frontmatter `version` remains the only clock, and
+  a top-level `version:` here is still a shape violation.
+- **Root only.** A `$schema` on a workflow *step*, a surface entry, or a state
+  node is an ordinary unknown key — `E_PROTO_WF_SCHEMA`,
+  `E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_STATES_SUBSET` respectively. The header
+  is admitted at exactly one position and nowhere else.
+- **The framework's key is read once and deleted.** The loader records the
+  dialect and removes `$schema` from the parsed document before the mini-spec
+  parser is handed anything, which is why the strict validators stay strict and
+  `x-` stays a hatch for *authors'* keys. `openapi:` is OpenAPI's own and is
+  never stripped. The bytes on disk are untouched in both cases, so the source
+  pane and the artifact route still serve the file as authored.
+- **`openapi: 3.1.x` means the whole `3.1` line.** OpenAPI versions the
+  *document*, so `3.1.1` is the same dialect and is not warned; `3.1.0` is the
+  value to paste when writing a new one. The framework rows need no such
+  latitude — a meta-schema URL has no version to widen.
+- **Absent or unrecognised is the legacy dialect**, warned and never broken:
+  `W_ARTIFACT_DIALECT` on the owning *protocol entity*, pathed at the file, with
+  the message ending `— read as the legacy dialect`. The file is still parsed,
+  still rendered, still checked against the grammar described in the rest of
+  this document. A catalog full of them loads exactly as it did before.
+- **Adding the header bumps `version` by exactly 1, per entity.** A protocol that
+  gains a header in `transport.yaml`, `states.json` and three workflow files in
+  one commit bumps once. It is additive metadata, never a swap: it adds a key,
+  removes nothing, and repoints nothing.
 
 ## `transport.yaml` — the wire binding
 
@@ -187,5 +261,12 @@ catalog documents contracts, not runtime behaviour — anything carrying data or
 executing is out. Data shapes belong to datamodels; timers and invocations belong
 to the implementing component. `states.json` is the one artifact exempt from the
 `x-` escape hatch: unknown keys there are errors, not extensions.
+
+The root `$schema` dialect header is the single key that is not XState's, and it
+is why "directly loadable by `createMachine()`" stays *literally* true rather
+than nearly true: the loader strips it before anything downstream sees the
+machine, so what a runtime receives is the file minus exactly one framework key,
+and `E_PROTO_STATES_SUBSET` keeps rejecting every other stranger with nothing
+carved out of it. Inside a state node it is a stranger like any other.
 
 `states.json` carries no SRN references at all — it names events and states only.

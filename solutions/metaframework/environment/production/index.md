@@ -1,7 +1,7 @@
 ---
 name: production
 kind: environment
-version: 1
+version: 2
 title: Production
 summary: A Kubernetes cluster on Hetzner in Helsinki running the public demo from a Helm chart — the first environment this solution has ever had that is not somebody's laptop, and it still guarantees nothing.
 status: review

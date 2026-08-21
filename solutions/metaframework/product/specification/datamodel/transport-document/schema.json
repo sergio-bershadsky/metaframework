@@ -6,6 +6,11 @@
   "description": "transport.yaml — how one protocol's conversation reaches the wire. One protocol, one transport: the binding block is keyed by exactly the kind value, and `spec` and the block's surface list are mutually exclusive. Specified in framework/spec/kinds/protocol.md; no portal code parses it.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key before anything downstream is handed the document, which is why additionalProperties below still means what it says and E_PROTO_TRANSPORT_SCHEMA stays strict."
+    },
     "kind": {
       "type": "string",
       "enum": ["http", "grpc", "amqp", "kafka", "websocket", "in-process"],

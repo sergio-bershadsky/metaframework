@@ -1,7 +1,7 @@
 ---
 name: read-a-branch
 kind: journey
-version: 1
+version: 2
 title: Read a branch
 summary: A reviewer opens a link, signs in with GitHub, picks the branch a change was proposed on, and reads the description as it would be — five steps, none of which exist yet.
 status: review

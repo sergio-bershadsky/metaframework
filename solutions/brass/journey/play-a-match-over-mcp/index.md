@@ -1,7 +1,7 @@
 ---
 name: play-a-match-over-mcp
 kind: journey
-version: 1
+version: 2
 title: Play a match over MCP
 summary: A model's path from reading this engine's rulebook to leaving a seat it cannot release — nine steps and six crossings of the one product boundary.
 status: review

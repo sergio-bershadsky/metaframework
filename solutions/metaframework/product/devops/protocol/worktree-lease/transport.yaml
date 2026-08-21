@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: >-
   JSON over HTTP on a private container network. Never routed from the ingress —

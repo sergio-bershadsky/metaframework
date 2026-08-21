@@ -6,6 +6,11 @@
   "description": "One named, ordered exchange between a protocol's participants: workflows/<name>.yaml. Flat message steps by default, three named fragment forms for structure, nothing else. Specified in framework/spec/kinds/protocol.md; parsed by framework/portal/src/lib/protocol/workflow.ts.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key before parseWorkflow is handed the document, so nothing in the catalog depends on the parser tolerating it. parseWorkflow admits it regardless: workflowFileSchema is still a strict object and now carries $schema as an optional non-empty string at the root and nowhere else, so a caller holding raw file bytes and no loader — a fixture, an editor, a consumer reading this schema — gets the legacy dialect read rather than E_PROTO_WF_SCHEMA on the header this schema tells them to write. This format has no x- hatch and the header did not smuggle one in: one framework-owned literal was added to an enumerable set of root keys, so a misspelled steps: is still an error where an open extension point would have swallowed it."
+    },
     "name": {
       "type": "string",
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",

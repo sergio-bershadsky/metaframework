@@ -13,9 +13,13 @@ import type { Diagnostic } from '../catalog/types'
  * tests without a DOM.
  */
 
-/** Event keys are SCREAMING_SNAKE — protocol.md, `E_PROTO_STATES_EVENT_NAME`. */
-const EVENT_NAME = /^[A-Z][A-Z0-9_]*$/
-const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
+/**
+ * Event keys are SCREAMING_SNAKE — protocol.md, `E_PROTO_STATES_EVENT_NAME`.
+ * Exported because the generated meta-schema states the same rule in JSON
+ * Schema; a second copy of the pattern there would be a second thing to forget.
+ */
+export const EVENT_NAME = /^[A-Z][A-Z0-9_]*$/
+export const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 /**
  * Constructs protocol.md names as explicitly outside the subset. Listing them
@@ -81,14 +85,54 @@ const stateNodeSchema: z.ZodType<StateNodeConfig> = z.lazy(() =>
   }),
 )
 
-const machineSchema = z.strictObject({
+/**
+ * The document as authored — the pinned subset plus the dialect header of
+ * ADR 0015. Exported because `./state-machine-document` generates the published
+ * meta-schema from it: derivation is what keeps the schema a `states.json` names
+ * and the validator that actually judges it from drifting apart.
+ *
+ * `$schema` is admitted here for one reason, and it is not that the parser needs
+ * to tolerate it — the loader strips the key before this module is ever handed
+ * the document. It is that a meta-schema whose `additionalProperties: false`
+ * forbids the very key pointing at it cannot validate the file it describes.
+ * That is the ground ADR 0015 rejected Stately's schema on, and it applies to
+ * ours identically. It is a bare optional string, never the exact URL: an
+ * unrecognised dialect is `W_ARTIFACT_DIALECT`, a warning, and pinning the value
+ * here would make it an error instead — the ruling the other five framework
+ * meta-schemas now encode the same way.
+ *
+ * The `describe()` is not decoration: it is the only route a sentence has into
+ * the generated meta-schema, and that document is served to readers who will
+ * never open this file.
+ */
+export const machineSchema = z.strictObject({
+  $schema: z
+    .string()
+    .min(1)
+    .describe(
+      "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. " +
+        'Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a ' +
+        'warning, read as the legacy dialect and never broken — a const here would restate that ruling as a ' +
+        'hard rejection in the one place a severity cannot be relaxed. The loader strips the key before ' +
+        'parseStates is handed the document, which is why the pinned subset stays exactly an XState config ' +
+        'and E_PROTO_STATES_SUBSET stays strict.',
+    )
+    .optional(),
   id: z.string().min(1),
   initial: z.string().min(1),
   description: z.string().optional(),
   states: z.record(z.string(), stateNodeSchema),
 })
 
-export type MachineConfig = z.infer<typeof machineSchema>
+/** The pinned subset itself: the document minus its header — an XState config. */
+export type MachineConfig = Omit<z.infer<typeof machineSchema>, '$schema'>
+
+/** The residue `createMachine()` is handed. The header is not part of the config. */
+function subsetOf(document: z.infer<typeof machineSchema>): MachineConfig {
+  const config = { ...document }
+  delete config.$schema
+  return config
+}
 
 export interface StateChartNode {
   /** Dot path from the machine root — `reserved.settled`. The chart's node id. */
@@ -194,7 +238,7 @@ export function parseStates(input: unknown, options: ParseStatesOptions = {}): P
     return { chart: null, diagnostics: subsetDiagnostics(parsed.error, input, at) }
   }
 
-  const machine = parsed.data
+  const machine = subsetOf(parsed.data)
   const diagnostics: Diagnostic[] = []
 
   if (options.entityName && machine.id !== options.entityName) {

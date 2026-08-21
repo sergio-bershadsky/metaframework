@@ -1,7 +1,7 @@
 ---
 name: worktree-lease
 kind: protocol
-version: 1
+version: 2
 title: Worktree lease
 summary: The router asks for a filesystem path holding a repository at a branch, fresh enough to serve, and holds a lease on it for the life of a render.
 status: review

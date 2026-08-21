@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: place-order
 title: Place an order
 summary: Customer submits a cart; checkout reserves stock, authorizes payment, and confirms.

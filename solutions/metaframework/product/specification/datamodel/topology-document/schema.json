@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/topology-document",
+  "title": "Topology document",
+  "description": "topology.yaml — where an environment's hosted components actually run: regions, zones, replica ranges and one sentence of scaling intent. A description for a reviewer, not an infrastructure manifest, and never a second membership channel. Specified in framework/spec/kinds/environment.md; no portal code parses it.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key once it has recorded the dialect, so nothing downstream ever sees it — including on the day something finally parses this file."
+    },
+    "regions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/region" },
+      "description": "The regions this environment occupies. Absent means a single unnamed region — not an unknown one."
+    },
+    "hosts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/host" },
+      "description": "Placement detail, one entry per hosted component or subtree. It ANNOTATES members and never creates them: membership is authored on the component side as a uses edge to this environment, and an entry for a component that does not declare it is W_ENV_HOST_UNDECLARED — a warning, because during a rollout the topology may legitimately lead the component's own declaration by a commit or two."
+    }
+  },
+  "required": ["hosts"],
+  "patternProperties": {
+    "^x-": {
+      "description": "The escape hatch reaches into this artifact, at the top level and inside entries. Tolerated and ignored by the portal; any other unknown key is E_ENV_TOPOLOGY_SCHEMA. No top-level version: both environment siblings are part of the entity's version snapshot and carry no version field of their own."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "region": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/kebab",
+          "description": "Unique within the file — a fact about the list, and therefore not statable here: uniqueItems compares whole entries, not one member of each. Free-form beyond the casing (eu-west-1, store-berlin)."
+        },
+        "zones": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Failure domains inside the region ([a, b, c]). An empty list and an absent one are indistinguishable to this schema, though they are not the same claim — one catalog file says so in its own notes."
+        },
+        "notes": { "type": "string", "description": "Prose; may be multi-line. The only field here with no length bound." }
+      },
+      "required": ["name"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "host": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "$ref": "#/$defs/srn-ref",
+          "description": "MUST resolve to a component or a product (E_ENV_TARGET_KIND). A product target is shorthand for every component beneath it, with these settings; the most specific entry wins, so a subtree entry plus an explicit entry for one descendant is an override rather than a conflict."
+        },
+        "regions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kebab" },
+          "description": "Each name MUST be declared in the document's own regions list (E_ENV_REGION_UNKNOWN) — a cross-reference inside one document, which stock 2020-12 cannot make. Absent means placement is NOT RECORDED, and specifically not \"everywhere\"."
+        },
+        "replicas": { "$ref": "#/$defs/replicas" },
+        "scaling": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\n]+$",
+          "description": "One human sentence: the trigger, not the YAML of an autoscaler."
+        },
+        "notes": { "type": "string", "description": "Prose; may be multi-line." }
+      },
+      "required": ["component"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "replicas": {
+      "type": "object",
+      "description": "A fixed count is { min: n, max: n } — the format has one way to write a number and it is a range with equal ends. min MUST be <= max (E_ENV_TOPOLOGY_SCHEMA), which is the one clause of ENV4 no stock 2020-12 document can state: comparing two sibling properties is outside the vocabulary.",
+      "properties": {
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["min", "max"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "kebab": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64
+    },
+    "srn-ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An ordinary SRN reference. Relative forms resolve against the artifact's own URI, srn://{solution}/environment/{name}/topology.yaml, so the solution-absolute form is strongly preferred — it is shorter and it survives the environment being renamed. An artifact suffix is refused (ENV11): hosts name entities, and an artifact has no kind."
+    }
+  }
+}

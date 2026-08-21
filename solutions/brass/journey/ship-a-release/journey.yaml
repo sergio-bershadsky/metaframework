@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: ship-a-release
 steps:
   - actor: /actor/ci-runner

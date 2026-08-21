@@ -1,6 +1,6 @@
 # Protocols — participants, transport, workflows, states
 
-> Distilled from `framework/spec/kinds/protocol.md` (version 5). **When
+> Distilled from `framework/spec/kinds/protocol.md` (version 6). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec.
@@ -47,15 +47,98 @@ solutions/acme/product/shop/protocol/order-placement/
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml` or a workflow file is a shape violation; the entity's
   frontmatter `version` is a snapshot of the whole directory.
-- The **`x-` escape hatch** reaches into `transport.yaml` and `workflows/*.yaml`
-  — top level and inside entries. `states.json` is exempt: it is an XState
-  machine configuration and an unknown key there is `E_PROTO_STATES_SUBSET`.
+- The **`x-` escape hatch** is what `kinds/protocol.md` states for
+  `transport.yaml` and `workflows/*.yaml`, top level and inside entries.
+  `states.json` is exempt by design: it is an XState machine configuration and
+  an unknown key there is `E_PROTO_STATES_SUBSET`.
 
   ```yaml
+  # transport.yaml
   kind: http
-  x-gateway-route: shop-edge   # tolerated, ignored by the portal
-  gateway-route: shop-edge     # E_PROTO_TRANSPORT_SCHEMA
+  x-gateway-route: shop-edge   # legal by the rule above
+  gateway-route: shop-edge     # E_PROTO_TRANSPORT_SCHEMA by the rule above
   ```
+
+  **In a workflow file, do not write `x-` at all — the rule is unimplemented
+  there and the parser is strict.** `x-anything` at a workflow root, or inside a
+  step or fragment, is `E_PROTO_WF_SCHEMA: Unrecognized key`
+  (`framework/portal/src/lib/protocol/workflow.ts` builds every one of those
+  schemas as a `z.strictObject` with no catchall). Measured 2026-08-21 against a
+  scratch catalog; the spec rule stands and the implementation is what is behind
+  it. Two further gaps sit in the same place: nothing validates `transport.yaml`
+  at all, so **neither** line in the block above raises anything today, and
+  `E_PROTO_TRANSPORT_SCHEMA` has no emitter. Where the hatch *is* implemented and
+  can be relied on: entity frontmatter, and `journey.yaml` at both root and step.
+
+- The **dialect header is framework-owned and admitted by name**, not through
+  the `x-` hatch — so the bullet above never applies to it (see below).
+
+## Artifact dialects
+
+A role names a **file, never a format**, so each artifact says in its own bytes
+which grammar it is written in. The contract is cross-kind and `structure.md`
+states it once — every role's key, the warning class, the strip rule, the
+`version` bump. What follows is the four rows that are this kind's, and where
+each meets a rule stated in this file. Writing `{meta}` for
+`https://schemas.metaframework.dev/metaframework/product/specification/datamodel`:
+
+| Artifact                | Key       | Value                           | Owned by                 |
+| ----------------------- | --------- | ------------------------------- | ------------------------ |
+| `transport.yaml`        | `$schema` | `{meta}/transport-document`     | the framework            |
+| `states.json`           | `$schema` | `{meta}/state-machine-document` | the framework            |
+| `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`      | the framework            |
+| `openapi.yaml`          | `openapi` | `3.1.x`                         | OpenAPI itself, natively |
+
+Spelled out, at the root of each file — three framework headers and one native
+key:
+
+```yaml
+# transport.yaml — first line of the file
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+```
+
+```yaml
+# workflows/place-order.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: place-order
+```
+
+```json
+/* states.json */
+{ "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document" }
+```
+
+```yaml
+# openapi.yaml — the format already names itself, so the framework adds nothing
+openapi: 3.1.0
+```
+
+- The URL carries **no `@version`**: it names the grammar the file is written
+  in, not a revision of the file. The entity's `version` is the only clock. It
+  is the canonical schema URL of an ordinary meta-schema datamodel entity
+  (`schemas.md`), compared as an identity and never fetched.
+- The key is **framework-owned and admitted by name**, at the **artifact root
+  only** — not through the `x-` hatch, which stays a hatch for *authors'* keys.
+  A `$schema` on a workflow step names the grammar of nothing and is an ordinary
+  unknown key (`E_PROTO_WF_SCHEMA`).
+- The loader **reads it once and deletes it** from the parsed document, so every
+  validator underneath stays strict and nothing is carved out of it. A native
+  discriminator (`openapi:`) belongs to its own format and is never stripped —
+  it is the only key read out of `openapi.yaml`, which stays the bytes-only
+  artifact it always was. Raw bytes are untouched either way.
+- No header, or an unrecognised value, is the **legacy dialect**: read as the
+  format the spec defines today, `W_ARTIFACT_DIALECT` on the owning protocol, a
+  warning that never breaks a catalog that loads.
+- Adding a header bumps the entity's `version` by exactly 1, **per entity, not
+  per file** — headers on `transport.yaml`, `states.json` and three workflow
+  files in one commit is one bump.
+
+Two fields sit near the header and are not discriminators. `transport.kind`
+names the wire technology, which is *content*: a second dialect of the transport
+role could carry it unchanged. `spec.version` is a display label on the transport
+card — never read as anybody's dialect, and free to disagree with the document it
+links without a diagnostic.
 
 ## Participants and aliases
 
@@ -172,7 +255,17 @@ not a shortcut.
 | `spec`     | `{ format, file, version? }`                                | no       | Link to an external spec file in the entity directory. |
 
 Any other non-`x-` top-level key, or a type violation, is
-`E_PROTO_TRANSPORT_SCHEMA`.
+`E_PROTO_TRANSPORT_SCHEMA`. **`$schema` is not "any other key"** — it is the
+dialect header, which carries no row above because it is not a transport field,
+and it is gone from the parsed document before this rule is applied. A key that
+merely resembles it is an ordinary stranger:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: kafka
+schema: transport-document   # E_PROTO_TRANSPORT_SCHEMA — an unknown key that
+                             # merely resembles the header
+```
 
 ### Binding blocks and surface lists
 
@@ -244,7 +337,8 @@ tables is deferred — which is also why the `channel` check below is skipped wh
 a protocol links a spec instead of listing a surface.
 
 ```yaml
-# the smallest useful transport
+# the smallest useful transport — the dialect header is part of it
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: in-process
 in-process:
   language: typescript
@@ -272,6 +366,23 @@ default, three named fragment forms, nothing else.
 
 `participants` is a **layout hint, never a restriction**: omit it and lifelines
 order by first appearance; list a subset and unlisted aliases are appended.
+
+`$schema` carries no row above and violates none of it: it is the dialect header,
+and it binds to the **file root only**. A step is not an artifact root, so a
+`$schema` inside one names the grammar of nothing and is an ordinary unknown key:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: place-order                # ✓ the header, at the file root
+title: Place an order
+steps:
+  - message: submit-order
+    from: customer
+    to: checkout
+    $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+                                 # E_PROTO_WF_SCHEMA — a step is not an artifact
+                                 # root; this names the grammar of nothing
+```
 
 ### Step nodes
 
@@ -402,18 +513,18 @@ the ordering constraint in `states.json`.
 
 ### Workflow validation
 
-| #   | Rule                                                                     | Class                       |
-|-----|---------------------------------------------------------------------------|------------------------------|
-| W1  | Parses and matches the field tables (unknown non-`x-` key, bad type).    | `E_PROTO_WF_SCHEMA`          |
-| W2  | `name` equals the filename stem.                                          | `E_PROTO_WF_NAME`            |
-| W3  | Exactly one discriminator key per step node.                              | `E_PROTO_WF_STEP_SHAPE`      |
-| W4  | Every `from`/`to`/`participants` alias is declared in the protocol.       | `E_PROTO_WF_ALIAS`           |
-| W5  | Every `steps` list is non-empty.                                          | `E_PROTO_WF_EMPTY_BRANCH`    |
-| W6  | Fragment nesting depth ≤ 3.                                               | `E_PROTO_WF_DEPTH`           |
-| W7  | List-valued `to` only on `kind: event`.                                   | `E_PROTO_WF_FANOUT`          |
-| W8  | `payload` resolves to a `datamodel`.                                      | `E_SRN_DANGLING` / `E_PROTO_PAYLOAD_KIND` |
-| W9  | `channel` matches a `name`/`queue`/`routing-key`/`path` in the transport surface list. | `W_PROTO_WF_CHANNEL_UNKNOWN` |
-| W10 | A `return`/`error` is preceded, in the same or an enclosing fragment, by a `call` in the opposite direction. | `W_PROTO_WF_ORPHAN_RETURN` |
+| #   | Rule                                                                                                         | Class                                     |
+|-----|--------------------------------------------------------------------------------------------------------------|-------------------------------------------|
+| W1  | Parses and matches the field tables — unknown non-`x-` key (the `$schema` header aside), bad type.           | `E_PROTO_WF_SCHEMA`                       |
+| W2  | `name` equals the filename stem.                                                                             | `E_PROTO_WF_NAME`                         |
+| W3  | Exactly one discriminator key per step node.                                                                 | `E_PROTO_WF_STEP_SHAPE`                   |
+| W4  | Every `from`/`to`/`participants` alias is declared in the protocol.                                          | `E_PROTO_WF_ALIAS`                        |
+| W5  | Every `steps` list is non-empty.                                                                             | `E_PROTO_WF_EMPTY_BRANCH`                 |
+| W6  | Fragment nesting depth ≤ 3.                                                                                  | `E_PROTO_WF_DEPTH`                        |
+| W7  | List-valued `to` only on `kind: event`.                                                                      | `E_PROTO_WF_FANOUT`                       |
+| W8  | `payload` resolves to a `datamodel`.                                                                         | `E_SRN_DANGLING` / `E_PROTO_PAYLOAD_KIND` |
+| W9  | `channel` matches a `name`/`queue`/`routing-key`/`path` in the transport surface list.                       | `W_PROTO_WF_CHANNEL_UNKNOWN`              |
+| W10 | A `return`/`error` is preceded, in the same or an enclosing fragment, by a `call` in the opposite direction. | `W_PROTO_WF_ORPHAN_RETURN`                |
 
 W9 is skipped entirely when `transport.yaml` is absent or declares no surface
 list — a linked OpenAPI file is not parsed in v1, so there is nothing to check
@@ -426,6 +537,12 @@ that is the point of pinning a subset rather than inventing a format. It
 describes the state of **one conversation as the protocol sees it**, never the
 internal state of a participant (that belongs to the implementing component).
 Exactly one machine per protocol.
+
+The one key that is not XState's is the `$schema` dialect header, and it is why
+"directly loadable" stays literally true: the loader strips it before anything
+downstream sees the machine, so what `createMachine()` receives is the file minus
+exactly one framework key, and `E_PROTO_STATES_SUBSET` stays strict with nothing
+carved out of it.
 
 Root: `id` (MUST equal the protocol entity `name` — `E_PROTO_STATES_ID`),
 `initial` (a key of `states`), `states`, optional `description`.
@@ -457,6 +574,7 @@ supported — it is the form that most often silently resolves to the wrong node
 
 ```json
 {
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
   "id": "order-placement",
   "initial": "submitted",
   "states": {
@@ -588,14 +706,15 @@ catch for you.
 The contract surface is **the operations, messages, and states**
 (`evolution.md`). Which file holds each part:
 
-| Element                                                                    | Contract surface? | Consequence                             |
-|-----------------------------------------------------------------------------|-------------------|------------------------------------------|
-| A `participants` entry                                                     | yes               | Removing one requires a swap.            |
-| A surface entry and its `request`/`response`/`message`                     | yes               | Removing or repointing requires a swap.  |
-| `transport.kind` and the binding block's addressing fields                 | yes               | Changing the wire requires a swap.       |
-| A message `name` and its `payload`, anywhere in `workflows/`               | yes               | Removing or repointing requires a swap.  |
-| A state, its `type: final`, a transition's event + target                  | yes               | Removing requires a swap.                |
-| `title`, `summary`, `note`, `condition`, `when`, `while`, `role`, `tags`, `description`, prose, step order | no | Metadata: bump `version`, no swap. |
+| Element                                                                                                    | Contract surface? | Consequence                                                    |
+|------------------------------------------------------------------------------------------------------------|-------------------|----------------------------------------------------------------|
+| A `participants` entry                                                                                     | yes               | Removing one requires a swap.                                  |
+| A surface entry and its `request`/`response`/`message`                                                     | yes               | Removing or repointing requires a swap.                        |
+| `transport.kind` and the binding block's addressing fields                                                 | yes               | Changing the wire requires a swap.                             |
+| A message `name` and its `payload`, anywhere in `workflows/`                                               | yes               | Removing or repointing requires a swap.                        |
+| A state, its `type: final`, a transition's event + target                                                  | yes               | Removing requires a swap.                                      |
+| `title`, `summary`, `note`, `condition`, `when`, `while`, `role`, `tags`, `description`, prose, step order | no                | Metadata: bump `version`, no swap.                             |
+| The dialect header on any artifact (**Artifact dialects** above)                                           | no                | Bump `version` once for the whole commit, whatever it touched. |
 
 Adding a participant, a workflow file, a step, a surface entry, a state, or a
 transition is additive and always legal. Every change in either row bumps the

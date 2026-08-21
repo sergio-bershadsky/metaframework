@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: compose-double-rail
 title: Compose a double rail link
 summary: The one interaction where the flow has to ask a question the map cannot express — one road or two.

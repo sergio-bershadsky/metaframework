@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: kafka
 summary: Normalized carrier scans published by the gateway, and derived delivery status published by tracking.
 encoding: avro

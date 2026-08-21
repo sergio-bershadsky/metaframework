@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: enumerate-and-plan
 title: Enumerate, then plan the resources
 summary: Both consumers call the same two functions in the same order — enumerate the legal set, then plan what one chosen move would consume.

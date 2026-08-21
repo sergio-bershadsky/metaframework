@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: play-a-turn
 title: Play one turn
 summary: A seat submits its actions, each broadcast as a full state, then commits the turn — and, at the end of an era, triggers scoring.

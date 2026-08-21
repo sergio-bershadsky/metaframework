@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: evolution
-version: 7
+version: 8
 status: review
 title: Evolution and history
-summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, artifact pins and the constancy theorem, and the status states.
+summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, artifact pins and the constancy theorem, dialect migration, and the status states.
 ---
 
 # Evolution and history
@@ -55,6 +55,20 @@ git.
   `E_DM_ID_FORBIDDEN` has a narrower subject: an `$id` nested *below* the root,
   which would re-base every `$ref` beneath it onto a second identity. It never
   applies to the root.
+
+  An artifact does carry one other framework-owned key at its top level, and it
+  is not this one. `$schema:` in a `transport.yaml` holds the canonical URL of
+  the meta-schema that defines the **grammar the file is written in**
+  ([below](#artifact-dialects)); a reader who takes it for a second version
+  number is misreading it, and the two rules do not collide. The URL carries no
+  `@N`, exactly as a `$id` carries none.
+
+  ```yaml
+  # solutions/acme/product/shop/protocol/order-placement/transport.yaml
+  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+                          # correct — names the dialect, not a revision of it
+  version: 2              # shape violation — the frontmatter is the only clock
+  ```
 
 ## The additive-only principle
 
@@ -346,6 +360,129 @@ commits the pin lands on — the constancy theorem, doing its work.
 filesystem; `worktree-lease.transport@3` is `E_SRN_VERSION`, exactly as
 `order@5` was.
 
+## Artifact dialects
+
+A sibling artifact declares, in its own bytes, the grammar it is written in.
+Where the format already names itself the native key does that work — `openapi:`
+on an `openapi.yaml`, and a `schema.json`'s own `$schema`, which is REQUIRED to
+be 2020-12 whatever else moves. Where it does not, the file carries a top-level
+`$schema:` holding the canonical URL of the framework meta-schema that defines
+the dialect. Which key belongs to which role, which single role declares none
+(`examples/<name>.json`, an instance of its sibling schema and so of that
+schema's dialect), the two message forms of the warning, and the reader that
+records the dialect and removes the framework-owned key before any validator is
+handed the document are all
+[structure.md](structure.md#the-dialect-behind-the-role)'s (decision-record
+amendment 2026-08-21-a). What belongs here is what a dialect does to the version
+number, and to the history that number indexes.
+
+**A dialect is not a version.** The discriminator is a top-level key in an
+artifact and this document calls a top-level `version:` key in an artifact a
+shape violation, so the two rules have to be read together or they look like a
+contradiction. They are about different things. `$schema:` names the grammar the
+document is written in, never a revision of the document: it holds the canonical
+URL of a meta-schema *entity*, which carries no `@N` for the same reason no
+schema URL does, and whose own version lives in its own frontmatter like every
+other entity's. Two `transport.yaml` files in one dialect differ in version
+constantly, and one file can move three versions without its dialect changing
+once. The frontmatter remains the only place a version lives, and it still ticks
+for the whole directory at a time.
+
+**Adding a discriminator bumps the owning entity's `version` by exactly 1.**
+That is the rule this document opens with, applied without amendment: a header
+written into `transport.yaml` is a content change to a sibling artifact, and the
+only exemption is a commit touching `status:` alone. Two consequences meet an
+author on the first day of a migration. The bump is per **entity**, not per
+file — `order-placement` gaining a header in `transport.yaml`, `states.json` and
+two files under `workflows/` in one commit bumps once, from `N` to `N+1`,
+because a version is a snapshot of the whole directory and there is only one
+number to move. And the change is legal at `N+1` for every kind in the table
+above: it adds a key and removes nothing, so no operation, message, state or
+step moves, and a discriminator is metadata besides — bound to bump, not bound
+by the superset rule. Measured over this repository on 2026-08-21, the whole
+migration is 70 artifact files across 33 entities — 17 protocols, 9 journeys, 7
+environments — and therefore 33 bumps.
+
+**A new dialect lands beside the old, never instead of it.** A dialect changes
+in exactly the two ways anything else here changes, and neither needs new
+machinery. An additive change — `config.yaml` admitting native-typed scalars,
+say — is a superset extension of the meta-schema entity: same entity, same
+canonical URL, the same discriminator string in every file that already carries
+it, and that entity bumps its own `version` like any other datamodel. A
+non-additive change is a **swap**: a new meta-schema entity with its own name,
+its own URL, and a `supersedes` edge to the one it replaces, exactly as the swap
+procedure above describes. After a swap both URLs are recognised, and that is
+what "beside" means concretely — a file naming the old meta-schema is read by
+the old grammar, a migrated file names the new one, and a reader can tell which
+document it is holding. Files migrate one at a time, each bumping its own
+entity, the way referrers migrate one at a time after any other swap.
+
+**The old dialect is warned, never broken**, and here the reason is peculiar to
+this document rather than a matter of taste. An artifact carrying no
+recognisable discriminator is read as the **legacy dialect** — the format the
+kind document defines today — and raises `W_ARTIFACT_DIALECT` on the entity that
+owns the file. Making that an error would demand a header from documents that
+can never grow one, because history is immutable: every snapshot committed
+before a dialect existed was committed without its header, `X.transport@1` reads
+those bytes back through `git show`, and nothing an author can edit reaches
+them. The only way to make the past comply is to rewrite it, which moves every
+commit and voids the version→commit index — refused here for exactly the reason
+a directory may not be moved. A rule the past cannot satisfy has to be one the
+past can carry, and that is a warning. (The loader judges the working tree
+today, so the warning lands where someone can act on it; the class has to stay a
+warning for the day a snapshot is judged too.) The second reason is smaller and
+sooner: the class exists to make a migration visible, and an error on the
+un-migrated state would fail every file in the corpus on the day the check
+ships, turning a sweep into a flag day. Promotion stays available once every
+file carries a header — `E_DM_DIALECT`, already an error on a `schema.json` that
+declares no dialect, is the shape it would take.
+
+**A migration is judged on the contract surface, not on the bytes.** A file
+rewritten out of the legacy grammar into a successor dialect changes almost
+every line, and the additive-only principle does not count lines — it asks what
+a referrer could depend on, which for a protocol is the operations, messages and
+states:
+
+```yaml
+# solutions/acme/product/shop/protocol/order-placement/transport.yaml at v4
+kind: http
+http:
+  base-path: /api/v1/orders
+  operations:
+    - name: create-order
+      method: POST
+      path: /
+    - name: cancel-order
+      method: DELETE
+      path: /{order-id}
+```
+
+A version 5 that writes those same two operations under a successor dialect's
+keys is legal, however little of the old text survives: the wire contract is
+unchanged and only the grammar moved. A version 5 carrying `create-order` alone
+is not a dialect migration at all — it is the removal of an operation, ILLEGAL
+at any version number by the table above, and it takes the escape hatch every
+reduction takes, a successor entity and the swap procedure. The discriminator
+makes the question decidable; it never answers it.
+
+**Only the repair trips `E_VER_UNBUMPED`.** The warning and the audit ask
+different questions and are worth keeping apart: `W_ARTIFACT_DIALECT` asks
+whether a file says which grammar it is in, `E_VER_UNBUMPED` asks whether the
+number moved when the bytes did. A catalog that never adds a header is warned
+indefinitely and never trips the audit — nothing changed, so nothing was owed.
+It is the fix that is a content change, so a commit writing headers into an
+entity's artifacts while leaving `version` where it was is `E_VER_UNBUMPED`, and
+`metaframework check --since <ref>` fails the branch at the gate. A quiet
+header-only sweep is therefore not available, which is the right outcome rather
+than an inconvenience: the constancy theorem says an artifact's bytes are
+constant within a version number, and a `transport.yaml` whose header appeared
+under a fixed `@N` would falsify it — a pinned reference and an unpinned one
+resolving to different bytes for one version. The two shapes still differ as
+they always do ([below](#evolution-error-classes)): the gate judges the net
+change per entity, so a sweep may add the headers in one commit and the bump in
+the next, while the audit, walking every commit of one entity, reports the
+intermediate state. Both are behaving correctly.
+
 ## The `status` states
 
 `status` is REQUIRED in every entity's frontmatter. It is the review state of
@@ -417,16 +554,26 @@ and the portal build's validation.
 
 ## Evolution error classes
 
-| Code                  | Meaning                                                        |
-| --------------------- | -------------------------------------------------------------- |
-| `E_VER_REGRESSION`    | `version` decreased, or increased by more than 1, in a commit. |
-| `E_VER_UNBUMPED`      | An entity's content changed between two commits while `version` stayed the same. |
-| `E_SRN_VERSION`       | Pinned `@N` not on filesystem nor in the version→commit index. |
-| `W_REF_DEPRECATED`    | Reference targets a `status: deprecated` entity.               |
-| `W_REF_STALE_PIN`     | Pinned `@N` resolves, but the target has moved past it.        |
+| Code                 | Meaning                                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `E_VER_REGRESSION`   | `version` decreased, or increased by more than 1, in a commit.                                                  |
+| `E_VER_UNBUMPED`     | An entity's content changed between two commits while `version` stayed the same.                                |
+| `E_SRN_VERSION`      | Pinned `@N` not on filesystem nor in the version→commit index.                                                  |
+| `W_REF_DEPRECATED`   | Reference targets a `status: deprecated` entity.                                                                |
+| `W_REF_STALE_PIN`    | Pinned `@N` resolves, but the target has moved past it.                                                         |
+| `W_ARTIFACT_DIALECT` | A sibling artifact declares no dialect, or one unknown for its role — read as the legacy dialect, never broken. |
 
 (`E_VER_REGRESSION` is checkable only where history is available — the portal
 checks it while building the version→commit index.)
+
+`W_ARTIFACT_DIALECT` is the one code here that is not about a version at all.
+The loader raises it per artifact file, on the entity that owns the file, and it
+is listed among these because the migration it nudges is this document's
+subject: a dialect lands beside the old one, the file that has not moved yet is
+warned rather than broken, and the move itself is an ordinary content change
+that bumps ([above](#artifact-dialects)). Its per-role vocabulary and its two
+message forms belong to
+[structure.md](structure.md#the-dialect-behind-the-role).
 
 `E_VER_UNBUMPED` is the enforcement of the rule this document opens with: every
 content change bumps `version`, and the only exemption is a commit touching

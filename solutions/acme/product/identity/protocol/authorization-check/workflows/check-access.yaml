@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: check-access
 title: Check whether a session may perform an action
 summary: A relying component asserts a permission; acl resolves the session and answers allow or deny.

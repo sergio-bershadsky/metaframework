@@ -1,7 +1,7 @@
 ---
 name: tracking-events
 kind: protocol
-version: 1
+version: 2
 title: Tracking events
 summary: Kafka bus carrying normalized carrier scans inward and derived delivery status outward to everyone who cares.
 status: approved

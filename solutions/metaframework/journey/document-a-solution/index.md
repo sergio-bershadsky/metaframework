@@ -1,7 +1,7 @@
 ---
 name: document-a-solution
 kind: journey
-version: 2
+version: 3
 title: Document a solution
 summary: A person's path from an empty directory to a described system — spec, kit, model, and the one page that says whether any of it is legal.
 status: review

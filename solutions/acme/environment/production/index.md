@@ -1,7 +1,7 @@
 ---
 name: production
 kind: environment
-version: 4
+version: 5
 title: Production
 summary: Primary customer-facing target for the acme solution — EU-West with a US-East read region.
 status: approved

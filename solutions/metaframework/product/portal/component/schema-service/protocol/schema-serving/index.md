@@ -1,7 +1,7 @@
 ---
 name: schema-serving
 kind: protocol
-version: 1
+version: 2
 title: Schema serving
 summary: How a JSON Schema tool that has never heard of this framework fetches a catalog schema, and what happens when it follows a $ref out of one.
 status: review

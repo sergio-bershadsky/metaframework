@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 7
+version: 8
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, the twelve kinds, document map, and reading order.
@@ -64,6 +64,16 @@ example. A rule without an example is an incomplete rule and a spec defect.
    ([structure.md](structure.md#the-artifact-role-table)); `@{version}` stays a
    coordinate of the entity, never of the file
    ([srn.md](srn.md#artifact-addresses)).
+
+   A role is an **address and a filename**, never a format. What grammar the
+   bytes behind it are written in is the file's **dialect**, and the file says so
+   itself — under a native key where its format has one, and otherwise under
+   `$schema` naming a framework meta-schema
+   ([structure.md](structure.md#the-dialect-behind-the-role)). The separation is
+   what lets a payload standardize without moving a single address:
+   `transport.yaml` may become AsyncAPI and stay
+   `srn://acme/protocol/settlement.transport`. A file that declares nothing is
+   read as the legacy dialect and warned, never broken.
 
    The eleven kind buckets are `product`, `component`, `datamodel`, `protocol`,
    `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`, and
@@ -135,14 +145,14 @@ example. A rule without an example is an incomplete rule and a spec defect.
 
 **Core contracts** — binding on every kind:
 
-| Document                         | Status  | Contents                                                                     |
-| -------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| [index.md](index.md)             | review  | This overview: purpose, principles, document map, reading order.             |
-| [structure.md](structure.md)     | review  | Directory layout contract: monorepo, kind buckets, entity directories.       |
+| Document                         | Status  | Contents                                                                                                                                                           |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [index.md](index.md)             | review  | This overview: purpose, principles, document map, reading order.                                                                                                   |
+| [structure.md](structure.md)     | review  | Layout contract: buckets, entity directories, role table, artifact dialects.                                                                                       |
 | [srn.md](srn.md)                 | review  | The consolidating principle (SRN / schema URL / disk path), SRN grammar (bucket/name pairs), parsing, disk resolution, relative references, placement, validation. |
-| [frontmatter.md](frontmatter.md) | review  | Common frontmatter contract for every entity `index.md`.                     |
-| [evolution.md](evolution.md)     | review  | Versioning, additive-only rules, swap procedure, git-backed history, status. |
-| `portal.md`                      | planned | Portal loader contract: validation pipeline, derived-diagram inputs.         |
+| [frontmatter.md](frontmatter.md) | review  | Common frontmatter contract for every entity `index.md`.                                                                                                           |
+| [evolution.md](evolution.md)     | review  | Versioning, additive-only rules, swap procedure, git-backed history, status.                                                                                       |
+| `portal.md`                      | planned | Portal loader contract: validation pipeline, derived-diagram inputs.                                                                                               |
 
 **Kind contracts** — one document per ontology kind, each adding frontmatter
 fields, sibling artifacts, and validation rules *on top of* the core contracts,

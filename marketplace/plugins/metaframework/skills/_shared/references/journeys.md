@@ -1,6 +1,6 @@
 # Journeys — the `journey.yaml` ordered path
 
-> Distilled from `framework/spec/kinds/journey.md` (version 3). **When
+> Distilled from `framework/spec/kinds/journey.md` (version 4). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec — the same reason `protocols.md` exists.
@@ -76,6 +76,10 @@ solutions/acme/journey/first-purchase/
     channel: mobile-web        # E_JRN_SCHEMA
   ```
 
+  The one framework-owned key the file may carry, the `$schema` dialect header,
+  is admitted **by name** at the top level and is therefore not an unknown key
+  (below).
+
 ## Artifact address
 
 `journey.yaml` is SRN-addressable by a dot suffix on the entity (`srn.md`
@@ -108,7 +112,8 @@ are deliberately the same: a flat list of steps, no ids, positional keys, the
 | `name`  | kebab-case string  | yes      | MUST equal the entity's `name`, i.e. its directory name (`E_JRN_NAME`).   |
 | `steps` | list of step nodes | yes      | Between 2 and 12 entries inclusive (`E_JRN_STEP_COUNT`).                  |
 
-That is the whole top level. Two divergences from the workflow mini-spec, both
+That is the whole top level of the path itself; the `$schema` dialect header
+sits above it (below). Two divergences from the workflow mini-spec, both
 deliberate:
 
 - **`name` is checked against the entity, not the filename stem.** The filename
@@ -118,6 +123,41 @@ deliberate:
 - **No `title` and no `summary`.** A protocol has many workflows and each needs
   its own diagram heading. A journey entity has exactly one path, and `index.md`
   already carries both; a second copy would only drift.
+
+### The dialect header
+
+`journey.yaml` declares, in its own bytes, which grammar it is written in, under
+a top-level `$schema` holding the canonical `$id` of the `journey-document`
+meta-schema. The cross-kind contract behind that sentence — every role's key, the
+warning class, the strip rule — is in `structure.md`; what follows is the journey
+half:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+name: place-an-order
+steps:
+  - actor: /actor/customer
+    touches: /product/identity/component/authentication
+```
+
+No `@version` on the URL: it names the **grammar the file is written in**, never
+a revision of the file — the artifact has no clock of its own, and a top-level
+`version:` is still `E_JRN_SCHEMA`.
+
+**`$schema` is framework-owned and admitted by name at the top level, so it is
+not an unknown key**: the `x-` rule never meets it and `E_JRN_SCHEMA` does not
+fire on it there. The loader records the dialect and deletes the key before the
+mini-spec parser is handed the document; the bytes are untouched, so
+`/artifacts` still serves the file as authored. Admission is at the top level
+**only** — a step is not an artifact root, so `$schema` inside a step is
+`E_JRN_SCHEMA` exactly like `channel:`.
+
+A file with no header, or one naming a dialect that is not recognised for the
+`journey` role, is read as the **legacy dialect** — the format described here —
+and warned, never broken: `W_ARTIFACT_DIALECT`, a cross-kind class, raised on
+the journey entity and pathed at `journey.yaml`. Adding the header is a content
+change to the artifact: it bumps the entity's `version`, and it is never a swap,
+because the ordered step list is untouched.
 
 ### Step nodes
 
@@ -281,6 +321,7 @@ is a copy-paste from the step above.
 crossings, and every one of them carried by the customer.
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: first-purchase
 steps:
   - actor: /actor/customer
@@ -490,11 +531,15 @@ frontmatter `actor` field, and `E_SRN_DANGLING` every unresolvable reference in
 
 **Where they are raised.** `E_JRN_SCHEMA`, `E_JRN_NAME`, `E_JRN_STEP_COUNT`,
 `E_JRN_BRANCH`, `W_JRN_ACTOR_ABSENT` and `W_JRN_UNDOCUMENTED_INTEGRATION` come
-from the `journey.yaml` parser, which the portal runs when it **renders** the
-journey entity. The catalog loader reads the file only as a generic artifact and
-never validates it, so `metaframework check` does not see any of them — only a
-YAML *syntax* error surfaces there. `E_JRN_ACTOR_KIND` on the frontmatter
-protagonist is a graph check and *does* come from the loader, so the check does
-report that one. After writing or editing a `journey.yaml`, open that entity's
-page — `metaframework` with no subcommand serves the portal on port 6363 —
-exactly as you would after touching a `states.json` (`validate-catalog` skill).
+from the `journey.yaml` parser — everything decidable from the file itself, plus
+the frontmatter protagonist the caller hands it. Whether a reference resolves,
+and to what kind, is a question about the built graph and belongs to the loader;
+`E_JRN_ACTOR_KIND` on the protagonist is the clearest of those.
+
+**Both halves reach `metaframework check`.** The catalog folds the parser's
+findings in beside the loader's, the way it folds in the datamodel schema
+registry, so a `journey.yaml` with an unknown key fails the check and not merely
+the page that renders it. A validator that reports only to a page nobody is on is
+not a gate. Opening the entity's page — `metaframework` with no subcommand serves
+the portal on port 6363 — is still the fastest way to *read* a path you have just
+written, exactly as after touching a `states.json` (`validate-catalog` skill).

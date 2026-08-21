@@ -1,3 +1,5 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
+
 # The same key names as environment/production, because the two topologies run
 # the same images (0005-one-image-two-topologies) — what differs is which keys
 # are required. No secret value appears here; the template under docker/ names
@@ -12,15 +14,15 @@ config:
 
   - key: HUB_LOCAL_REPO
     description: >-
-      Host directory mounted read-only, for the no-GitHub path. Present only in
-      this environment: production has no host to mount from. This is the key
-      that makes any-git-repository-is-a-catalog-source AC-1 checkable.
+      Host directory mounted read-only, for the no-GitHub path. Only here:
+      production has no host to mount from. This is the key that makes
+      any-git-repository-is-a-catalog-source AC-1 checkable.
 
   - key: HUB_DATA_MAX_BYTES
     description: >-
       Volume cap. Optional here, where the failure is a developer's laptop, and
       required in production. Setting it locally is how the eviction path gets
-      exercised at all — otherwise nobody meets it until Helsinki does.
+      exercised at all, rather than first in Helsinki.
 
   - key: GITHUB_APP_ID
     description: Optional. Unset, the GitHub path is simply unavailable and the local mount still works.
@@ -29,7 +31,7 @@ config:
     description: >-
       SECRET. Optional here. A developer wanting the GitHub path registers their
       own App against a test repository rather than sharing production's key —
-      one key, one deployment, which is what makes revocation mean anything.
+      one key per deployment is what revocation needs.
 
   - key: GITHUB_APP_CLIENT_ID
     description: Optional, with the same reading as above.
@@ -39,15 +41,15 @@ config:
 
   - key: HUB_SESSION_SECRET
     description: >-
-      SECRET. May be any value locally; production's is supplied at deploy time.
-      A default committed under docker/ would be the classic way a development
-      secret reaches production, so the template names it and leaves it empty.
+      SECRET. Any value works locally; production's is supplied at deploy time.
+      A default committed under docker/ is how a development secret reaches
+      production, so the template leaves it empty.
 
   - key: OTEL_EXPORTER_OTLP_ENDPOINT
     description: >-
       The collector container on the compose network. Unset, the exporter drops
-      — which is every-request-is-traced AC-5's behaviour, and is what lets the
-      SigNoz profile be opt-in without anything else changing.
+      — every-request-is-traced AC-5's behaviour, and what lets the SigNoz
+      profile be opt-in without anything else changing.
 
   - key: SCHEMA_BASE_URL
     description: >-

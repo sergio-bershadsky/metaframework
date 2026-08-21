@@ -1,7 +1,7 @@
 ---
 name: promotion-evaluation
 kind: protocol
-version: 4
+version: 5
 title: Promotion evaluation
 summary: Synchronous pricing conversation — checkout asks the engine what a cart is worth and gets a short-lived quote.
 status: review

@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: author-an-entity
 steps:
   - actor: /actor/ai-author

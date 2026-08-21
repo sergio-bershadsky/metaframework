@@ -1,3 +1,5 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
+
 # Key names and where the value comes from. Never a value that is a secret —
 # deployment-files-live-under-docker AC-3 says the same thing about docker/, and
 # the rule is the environment kind's: this file is reviewable in git, so
@@ -5,11 +7,9 @@
 config:
   - key: CATALOG_DIR
     description: >-
-      Read by the portal today as a process-wide root
-      (framework/portal/src/lib/catalog/index.ts:21). Under
-      0002-the-catalog-root-becomes-a-request-value it becomes the FALLBACK,
-      with the leased worktree path supplied per request. Set here only so an
-      unrouted request fails visibly rather than resolving to a stale tree.
+      Process-wide catalog root (framework/portal/src/lib/catalog/index.ts:21);
+      the fallback once 0002-the-catalog-root-becomes-a-request-value lands. Set
+      so an unrouted request fails visibly, not stale.
 
   - key: HUB_DATA_DIR
     value: /var/lib/metaframework
@@ -33,18 +33,17 @@ config:
   - key: HUB_LEASE_TTL
     description: >-
       Server-side expiry for a worktree lease. Must exceed the slowest render or
-      a page dies mid-stream; the renew operation on the worktree-lease protocol
-      exists so this can stay short rather than being sized for the worst case.
+      a page dies mid-stream; the worktree-lease protocol's renew operation lets
+      it stay short rather than worst-case sized.
 
   - key: GITHUB_APP_ID
     description: Numeric id of the GitHub App. Not a secret.
 
   - key: GITHUB_APP_PRIVATE_KEY
     description: >-
-      SECRET, supplied at deploy time, never committed and never on the volume.
-      The most sensitive thing this product holds — it mints the installation
-      tokens rather than being one (0003-a-github-app-not-an-oauth-app). Named
-      in the telemetry redaction list for the same reason.
+      SECRET, deploy time only — never committed, never on the volume, redacted
+      in telemetry. Nothing outranks it: it mints installation tokens rather
+      than being one (0003-a-github-app-not-an-oauth-app).
 
   - key: GITHUB_APP_CLIENT_ID
     description: Public half of the user-to-server sign-in flow.
@@ -75,7 +74,7 @@ config:
 
   - key: SCHEMA_BASE_URL
     description: >-
-      Where this deployment serves schema bytes. Not identity — $id is built
-      from the canonical host constant either way
-      (framework/portal/src/lib/schema/url.ts:46), and fixture-check asserts it.
-      Unresolved here because this environment has no DNS name yet.
+      Serves schema bytes for this deployment; never identity — $id uses the
+      canonical host constant either way
+      (framework/portal/src/lib/schema/url.ts:46), asserted by fixture-check.
+      No DNS name yet.

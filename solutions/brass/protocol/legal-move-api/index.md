@@ -1,7 +1,7 @@
 ---
 name: legal-move-api
 kind: protocol
-version: 1
+version: 2
 title: Legal-move API
 summary: The in-process enumerate-and-plan surface of @brass/rules that the browser, the MCP seat and the bot all call.
 status: review

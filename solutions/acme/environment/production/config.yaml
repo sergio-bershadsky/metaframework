@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
 config:
   - key: LOG_LEVEL
     value: warn

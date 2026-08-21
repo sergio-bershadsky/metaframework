@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document",
+  "x-srn": "srn://metaframework/product/specification/datamodel/config-document",
+  "title": "Config document",
+  "description": "config.yaml — the configuration surface an environment provides: which keys it declares and where their values come from. It never carries a secret value. Specified in framework/spec/kinds/environment.md; no portal code parses it.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key once it has recorded the dialect, so nothing downstream ever sees it — including on the day something finally parses this file."
+    },
+    "config": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" },
+      "description": "REQUIRED if the file exists. The whole top level: there is no environment-wide preamble and no grouping key, because a key's scope is carried by its own `for:` and nothing else."
+    }
+  },
+  "required": ["config"],
+  "patternProperties": {
+    "^x-": {
+      "description": "The escape hatch reaches into this artifact, at the top level and inside entries. Tolerated and ignored by the portal; any other unknown key is E_ENV_CONFIG_SCHEMA. No top-level version: both environment siblings are part of the entity's version snapshot and carry no version field of their own."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "description": "One declared key. Unique per (key, for) pair — a fact about the list, and therefore not statable here: uniqueItems compares whole entries, so two declarations of one key differing only in their description are distinct to a validator.",
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "SCREAMING_SNAKE_CASE on purpose, and not kebab-case: config keys belong to the runtime's namespace, not to the catalog's. Env-var casing is what an operator copy-pastes, and it makes `grep -r DATABASE_URL solutions/` unambiguous against SRN segments, which are kebab-case by grammar."
+        },
+        "for": {
+          "$ref": "#/$defs/srn-ref",
+          "description": "The component or product the key applies to (E_ENV_TARGET_KIND). Absent means environment-wide. A `for:` naming a component that does not run in this environment is dead configuration, W_ENV_CONFIG_ORPHAN."
+        },
+        "secret": {
+          "type": "boolean",
+          "default": false,
+          "description": "Marks the value as sensitive. It is the discriminator between the two shapes an entry may take, and the only field here that changes which other fields are legal."
+        },
+        "value": {
+          "type": "string",
+          "description": "The literal value, for a key that has one in the open. FORBIDDEN when secret is true (E_ENV_SECRET_VALUE) — at any status, in any environment, because this file is reviewable in git and anything in it is public."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A locator for the value and never the value: vault:kv/acme/production/checkout#database-url. Free-form but stable. REQUIRED when secret is true."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\n]+$",
+          "description": "One line: what the key controls."
+        }
+      },
+      "required": ["key"],
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false,
+      "if": {
+        "properties": { "secret": { "const": true } },
+        "required": ["secret"]
+      },
+      "then": {
+        "description": "The three-layer rule, stated where a schema can hold it: the contract lives in git, the declaration lives in git, and the value lives only in a vault or at deploy time. Keyed on `secret: true` rather than on the presence of `secret`, so an explicit `secret: false` is the ordinary shape and not a special case.",
+        "required": ["source"],
+        "not": { "required": ["value"] }
+      }
+    },
+    "srn-ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An ordinary SRN reference. Relative forms resolve against the artifact's own URI, srn://{solution}/environment/{name}/config.yaml, so the solution-absolute form is strongly preferred. An artifact suffix is refused (ENV11): `for:` names an entity, and an artifact has no kind."
+    }
+  }
+}

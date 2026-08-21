@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: re-quote
 title: Re-quote before conversion
 summary: Checkout re-reads the quote immediately before turning the cart into an order, and reconciles a price that moved underneath it.

@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: seat-and-start
 title: Sync a seat and start the game
 summary: A client syncs, sits down in game state, picks colour and avatar, readies up, and the host starts the match.

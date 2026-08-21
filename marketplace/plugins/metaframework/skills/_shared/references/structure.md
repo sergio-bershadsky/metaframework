@@ -1,7 +1,7 @@
 # Directory structure — layout, artifacts, placement
 
-> Distilled from `framework/spec/structure.md`, the container rules in
-> `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
+> Distilled from `framework/spec/structure.md` (version 6), the container rules
+> in `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
 > "Sibling artifacts" / "Body template" sections of the other
 > `framework/spec/kinds/*.md`. **When `framework/spec/` is present in the
 > repository, it is authoritative and wins over this file.** This bundled copy
@@ -206,11 +206,18 @@ Rules that catch authors out:
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml`, `topology.yaml`, `config.yaml`, or a workflow file is a
   shape violation. The entity's frontmatter `version` covers the whole
-  directory.
+  directory. The one framework-owned key those files *do* carry at the top level
+  is the `$schema` dialect header below, and it is not a second version number:
+  it names the grammar the file is written in and carries no `@N`.
 - The `x-` escape hatch reaches into `transport.yaml`, `workflows/*.yaml`,
   `topology.yaml` and `config.yaml`: unknown keys at any level are rejected
   unless `x-` prefixed. `states.json` is exempt — it is an XState machine
   configuration and unknown keys there are `E_PROTO_STATES_SUBSET`.
+- The **dialect header is admitted by name**, not through the `x-` hatch: the
+  bullet above never applies to it, because the loader removes it before any
+  kind's validator sees the document. `x-` stays the hatch for *authors'* keys;
+  `$schema` is one key, spelled one way, at the artifact root and nowhere else,
+  and it belongs to the framework.
 - An ADR body MUST carry exactly these four level-2 headings, exact text and
   casing (`E_ADR_SECTIONS`); order is not enforced and extra sections are fine:
 
@@ -249,6 +256,182 @@ Every other kind has **no roles at all**. Fixed roles are depth 1;
 outside the table is `E_SRN_ARTIFACT` (static — no catalog read); a legal role
 whose file is absent is `E_SRN_DANGLING` (`transport.yaml` is optional on a
 protocol).
+
+### Artifact dialects — the grammar inside the file
+
+A **role** is an address: which file, under which name. It is a spec constant,
+answered by the table above with no disk read. A **dialect** is the grammar of
+the bytes behind that address, and only the file can answer it — `transport.yaml`
+holds the mini-spec `protocols.md` defines today or, one release later, an
+AsyncAPI document. One role, one filename, one SRN, two grammars.
+
+Keeping the two apart is what artifact addressing bought. `.transport` is *the
+transport role of this protocol*, never *the transport mini-spec*: had the role
+named the format, standardizing that format would have moved the address, and
+every referrer would have been rewritten to keep saying the same thing about the
+same file. Inferring the dialect from which keys happen to be present is not the
+alternative — that is a second grammar nobody wrote down, and two dialects
+sharing a prefix of keys are indistinguishable under it right up until they are
+not.
+
+**Every addressable artifact declares its own dialect, in its own bytes**, under
+one key fixed per role. Where the format already discriminates itself the native
+key does the work and the framework invents nothing; where it does not, the file
+carries `$schema` holding the canonical URL of the framework meta-schema that
+defines the dialect. Those meta-schemas are ordinary datamodel entities of the
+framework's own `specification` product, so the URLs are ordinary canonical
+schema URLs sharing one prefix:
+
+```text
+{meta} = https://schemas.metaframework.dev/metaframework/product/specification/datamodel
+```
+
+| Kind          | Role               | File                    | Key       | Value                            |
+|---------------|--------------------|-------------------------|-----------|----------------------------------|
+| `datamodel`   | `schema`           | `schema.json`           | `$schema` | the 2020-12 dialect URI (native) |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | none      | — never carries one              |
+| `protocol`    | `transport`        | `transport.yaml`        | `$schema` | `{meta}/transport-document`      |
+| `protocol`    | `states`           | `states.json`           | `$schema` | `{meta}/state-machine-document`  |
+| `protocol`    | `openapi`          | `openapi.yaml`          | `openapi` | `3.1.x` (native)                 |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`       |
+| `journey`     | `journey`          | `journey.yaml`          | `$schema` | `{meta}/journey-document`        |
+| `environment` | `topology`         | `topology.yaml`         | `$schema` | `{meta}/topology-document`       |
+| `environment` | `config`           | `config.yaml`           | `$schema` | `{meta}/config-document`         |
+
+The rows are the role table's own, in its order, and that is a rule: this table
+is **total** over that one, `none` included. A role given a filename without a
+dialect ruling would be a role whose dialect nobody decided, which reads exactly
+like a role that carries none — so the two tables grow together or neither does.
+
+In YAML the header is the first line of the file; in JSON it is the first member
+of the root object. Nothing else about the file changes:
+
+```yaml
+# solutions/acme/protocol/settlement/transport.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: kafka
+summary: Settlement facts published by shop and consumed by billing.
+encoding: avro
+```
+
+```json
+{
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "id": "order-placement",
+  "initial": "submitted"
+}
+```
+
+Where a file opens on a comment that documents the key beneath it, put the header
+first and leave a blank line, so the comment keeps annotating what it was written
+for:
+
+```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# No `regions`: a developer machine is a single unnamed place.
+hosts:
+  - component: /product/portal
+    replicas: { min: 1, max: 1 }
+```
+
+Rules an author has to get right:
+
+- **The URL carries no `@version`**, for the reason no canonical schema URL
+  does: it names a *dialect*, not a revision of one. An additive dialect change
+  is a superset extension of the same meta-schema entity — same name, same URL,
+  same string in every file that already carries it; a non-additive one is a
+  swap to a new meta-schema entity with a new URL (`evolution.md`).
+- **Recognition is a string comparison**, never a fetch. The host is the
+  project's own, so a framework meta-schema URL is one it can serve — but
+  nothing here depends on that: a reader that cannot reach
+  `schemas.metaframework.dev` loses nothing, and a catalog's *own* schema URLs
+  on that host are served by that catalog's portal, never by this one.
+- **Artifact root only.** `$schema` on a workflow step, a topology host entry or
+  a journey step is an ordinary unknown key — `E_PROTO_WF_SCHEMA`,
+  `E_ENV_TOPOLOGY_SCHEMA`, `E_JRN_SCHEMA`, exactly as `channel:` or `tier:`
+  would be there.
+- **Read once, then removed.** The loader records the dialect and deletes the
+  framework-owned `$schema` from the parsed document before the kind's validator
+  is handed anything — which is why `states.json` still rejects every unknown key
+  under `E_PROTO_STATES_SUBSET` and why no strict shape had to be loosened.
+  Deletion happens whether or not the value was recognised: leaving an
+  unrecognised value in place would turn this warning into an unknown-key
+  *error* downstream, the one outcome "never broken" forbids. A **native**
+  discriminator (`openapi:`, a `schema.json`'s `$schema`) is never stripped — it
+  belongs to its own format. The bytes on disk, and everything served from them,
+  are untouched in every case.
+- **The key is still admitted by name at the root**, by each role's published
+  meta-schema and by the parser behind it, because a meta-schema whose
+  `additionalProperties: false` forbade the very key pointing at it could not
+  validate the file it describes. It is admitted as an optional, *unpinned*
+  string, never a `const`: a value naming some other dialect is a warning, and
+  pinning it would restate that ruling as a hard rejection in the one place a
+  severity cannot be relaxed. So the file validates as authored, and the
+  validators still see it stripped.
+- **`examples/<name>.json` carries no discriminator, ever** — a rule, not an
+  omission. An example is an *instance* of its sibling `schema.json` and so has
+  that schema's dialect, not one of its own; and since `additionalProperties:
+  false` is ordinary in a catalog schema, a header would make the example fail
+  the very document it exemplifies (`E_DM_EXAMPLE_INVALID`).
+- **`schema.json`'s `$schema` is not the framework's to spend.** It already
+  means the JSON Schema dialect and MUST stay exactly
+  `https://json-schema.org/draft/2020-12/schema` (`E_DM_DIALECT`, `schemas.md`).
+  Pointing it at a framework URL would break every stock validator.
+- **`openapi:` reads as the whole `3.1` line.** OpenAPI versions the *document*,
+  so `3.1.1` is the same dialect with errata applied; recognising only one exact
+  string would complain about a correct file whose author tracked a patch
+  release. Only the advice below names one pasteable value. Reading that key is
+  not interpreting the document: `openapi.yaml` stays bytes-only to the
+  framework, which looks at one root key and nothing else.
+
+**No header, or one unknown for the role, is the legacy dialect** — the format
+this bundle describes today. The file is still parsed, still rendered, still
+checked; nothing here can make a catalog that loads stop loading. The diagnostic
+is `W_ARTIFACT_DIALECT`, a **warning**, raised on the entity that *owns* the file
+(an artifact is not an entity and has no diagnostics of its own), in two message
+forms:
+
+```text
+transport.yaml declares no dialect — read as the legacy dialect; add
+  `$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document`
+
+transport.yaml declares dialect "https://example.com/foo", which is not a
+  known dialect of the transport role — read as the legacy dialect
+```
+
+On a native-discriminator role the absent form names that role's own key, since
+that is what an author has to paste:
+
+```text
+openapi.yaml declares no dialect — read as the legacy dialect; add `openapi: 3.1.0`
+```
+
+Two rows are silent rather than warned: `examples/<name>.json`, which has no
+dialect to declare, and `schema.json`, whose missing header is already the error
+`E_DM_DIALECT` and needs no second complaint about one fact.
+
+**Adding a header bumps the owning entity's `version` by exactly 1** — it is a
+content change to a sibling artifact like any other — and the bump is per
+**entity**, not per file. A protocol gaining headers in `transport.yaml`,
+`states.json` and two workflow files in one commit bumps once. Details, and what
+a dialect migration does to the additive-only rule, are in `evolution.md`.
+
+**Filenames stay.** A dialect change touches no row of the role table: a dialect
+is a property of a file's contents, and a new grammar inside an existing filename
+is not an amendment to the map. The converse is the ruling that matters — a lane
+that wants a *new filename* must come back for a role-table amendment, under the
+additive-growth rule that governs every other row.
+
+```text
+transport.yaml grows an AsyncAPI dialect   # no row moves, no address moves
+arazzo.yaml beside workflows/              # a new role — append a row first
+```
+
+A new row mints addresses and obliges every SRN parser; a new dialect obliges
+only the reader of that one file. Collapsing the two would let a payload change
+rewrite the identity grammar as a side effect, which is exactly what separating
+role from dialect exists to prevent.
 
 ## Naming
 
@@ -387,6 +570,12 @@ products.
 | `W_STRUCT_PROTOCOL_NCA`  | Protocol not at the NCA of its component/product participants.                             |
 | `E_JRN_ARTIFACT_MISSING` | A journey entity directory with no `journey.yaml` (`journeys.md`).                         |
 | `W_JRN_ARTIFACT_UNKNOWN` | Unrecognised file in a journey entity directory.                                           |
+
+`W_ARTIFACT_DIALECT` is this document's too, but it is defined beside the table
+it belongs to ("Artifact dialects", above) rather than here: it is about the
+bytes of a file rather than about where anything sits, and it is the one class
+here that is cross-kind by construction — the same warning on a protocol, a
+journey and an environment.
 
 `E_STRUCT_KIND_PLACEMENT` is **retired** — every placement violation is now
 `E_SRN_PLACEMENT` (`srn.md`, P1–P4). A directory without `index.md` and without

@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: in-process
 summary: Direct function calls inside the checkout process — no network hop.
 encoding: json

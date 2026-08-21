@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: in-process
 summary: A workspace import, not a network hop — the same compiled functions run inside the browser bundle, the server process and the MCP subprocess.
 in-process:

@@ -1,7 +1,7 @@
 ---
 name: authorization-check
 kind: protocol
-version: 3
+version: 4
 title: Authorization check
 summary: Synchronous "may this session do this" between a relying component, the ACL, and the session store.
 status: approved

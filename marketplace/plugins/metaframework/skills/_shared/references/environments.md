@@ -1,6 +1,6 @@
 # Environments — and the artifact-free kinds (actor, ADR, requirement)
 
-> Distilled from `framework/spec/kinds/environment.md` (version 4), with the
+> Distilled from `framework/spec/kinds/environment.md` (version 5), with the
 > field and body detail of `framework/spec/kinds/actor.md` (2),
 > `framework/spec/kinds/adr.md` (2) and `framework/spec/kinds/requirement.md`
 > (2). **When `framework/spec/` is present in the repository, it is
@@ -141,6 +141,47 @@ unless `x-` prefixed. Each is SRN-addressable by a dot suffix on the entity
 (`srn.md` reference): `….topology` and `….config`; `@N` on such an address is
 the **entity's** version, never the file's.
 
+### The dialect header
+
+Each sibling declares, in its own bytes, which grammar it is written in, under a
+top-level `$schema` holding the canonical `$id` of the meta-schema for its role.
+The cross-kind contract behind that sentence — every role's key, the warning
+class, the strip rule — is in `structure.md`; what follows is the environment
+half:
+
+```yaml
+# topology.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# config.yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
+```
+
+No `@version` on the URL: it names the **grammar the file is written in**, never
+a revision of the file — the artifact has no clock of its own.
+
+**`$schema` is framework-owned and admitted by name at the artifact root, so it
+is not an unknown key**: the `x-` rule never meets it, and neither
+`E_ENV_TOPOLOGY_SCHEMA` nor `E_ENV_CONFIG_SCHEMA` fires on it. The loader
+records the dialect and deletes the key before anything downstream reads the
+document; the bytes are untouched, so `/artifacts` still serves the file as
+authored. Admission is at the root **only** — inside a region map, a host map, a
+`replicas` map or a `config` entry the key is as unknown as `tier:` and is a
+schema error.
+
+A file with no header, or one naming a dialect that is not recognised for its
+role, is read as the **legacy dialect** — the format described here — and
+warned, never broken: `W_ARTIFACT_DIALECT`, a cross-kind class, raised on the
+environment entity and pathed at the artifact. Adding the header is a content
+change to a sibling and bumps the entity's `version` — **once**, even when both
+siblings gain one in the same commit.
+
+Neither key table below carries a `$schema` row, and neither needs one: they
+describe the **content model** the loader hands downstream, which is the document
+after the header has been read and removed. The published meta-schema for each
+role describes the same file *as authored*, so it does list `$schema` among its
+properties. Two descriptions of one file at two moments, not a disagreement.
+
 ### `topology.yaml`
 
 | Top-level key | Type                | Required | Meaning                                                                |
@@ -163,6 +204,7 @@ Host map:
 | `notes`     | string                           | no       | Prose; may be multi-line.                                                   |
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
 regions:
   - name: eu-west-1
     zones: [a, b, c]
@@ -241,6 +283,7 @@ Top-level key `config`, a list of entries, REQUIRED if the file exists:
 | `description` | one-line string ≤ 200 | no                 | What the key controls.                                                  |
 
 ```yaml
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
 config:
   - key: LOG_LEVEL
     value: warn

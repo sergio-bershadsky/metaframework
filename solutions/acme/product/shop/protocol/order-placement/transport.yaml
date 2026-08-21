@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: JSON over HTTPS, served by checkout at the storefront edge.
 encoding: json

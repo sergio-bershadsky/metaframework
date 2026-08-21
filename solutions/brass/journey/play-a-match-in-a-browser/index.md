@@ -1,7 +1,7 @@
 ---
 name: play-a-match-in-a-browser
 kind: journey
-version: 1
+version: 2
 title: Play a match in a browser
 summary: A human's path from a link somebody sent them to a decided winner — eight steps, two hand-offs to the host, and not one product boundary crossed.
 status: review

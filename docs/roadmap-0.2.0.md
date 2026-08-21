@@ -106,7 +106,9 @@ cannot carry. An "Open in Stately" button would therefore be a bare advert.
 **Their JSON schema is real but cannot be our authority** — and this corrects
 the earlier pass, which found only the draft-07 *serialized-definition* file.
 `https://stately.ai/schemas/xstate.json` now exists: draft 2020-12, `$id` set,
-live, byte-identical to the MIT copy shipped in `@statelyai/sdk`. But it
+live, and semantically equal to the MIT copy shipped in `@statelyai/sdk` (the
+hosted URL serves it minified — 4176 bytes against the package's 6374 — so the
+two parse equal but are *not* byte-identical, as an earlier draft claimed). But it
 validates only the **normalized** surface (array targets, object guards,
 `{type}` actions), so all 8 catalog files fail it *as authored*; its
 `additionalProperties: false` forbids the very `$schema` key that would point

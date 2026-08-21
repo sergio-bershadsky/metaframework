@@ -1,3 +1,4 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
 kind: http
 summary: Two read-only operations on the portal's own origin — the retrieval half of a schema URL, not the identity half.
 encoding: json
