@@ -178,6 +178,19 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
       )}
 
       <header className="animate-rise">
+        {/* Before the title, not trailing the meta row: tags are classification, read before the name. */}
+        {view.frontmatter.tags && view.frontmatter.tags.length > 0 && (
+          <div className="mb-2.5 flex flex-wrap gap-1.5">
+            {view.frontmatter.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-start gap-3.5">
           <span
             className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${style.border} ${style.bg}`}
@@ -231,14 +244,6 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
               {view.frontmatter.owner}
             </span>
           )}
-          {view.frontmatter.tags?.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
-            >
-              #{tag}
-            </span>
-          ))}
         </div>
       </header>
 
