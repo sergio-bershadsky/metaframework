@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { SCHEME, SrnError, resolveRef } from '../srn/srn'
+import { SCHEME, SrnError, parseSrn, resolveRef } from '../srn/srn'
+import { assertArtifactRole } from '../srn/artifacts'
 
 /**
  * The workflow mini-spec — framework/spec/kinds/protocol.md, "The workflow
@@ -310,7 +311,15 @@ export function parseWorkflow(data: unknown, options: ParseWorkflowOptions = {})
       step.payloadLabel = payloadTail(value.payload)
       if (options.protocolSrn) {
         try {
-          step.payloadSrn = resolveWorkflowRef(options.protocolSrn, value.payload)
+          const resolved = resolveWorkflowRef(options.protocolSrn, value.payload)
+          // A payload names a datamodel entity, and an artifact has no kind. An
+          // illegal role fails here as E_SRN_ARTIFACT; a legal one survives the
+          // role table and is protocol.md's E_PROTO_PAYLOAD_KIND, which needs
+          // the resolved catalog this pure parser is not given — so the shape
+          // is refused on the one ground that is decidable from the SRN alone.
+          const parsed = parseSrn(resolved)
+          if (parsed.artifact !== null) assertArtifactRole(parsed.kind, parsed.artifact, value.payload)
+          step.payloadSrn = resolved
           step.payloadLabel = payloadTail(step.payloadSrn)
         } catch (cause) {
           const code = cause instanceof SrnError ? cause.code : 'E_SRN_SYNTAX'

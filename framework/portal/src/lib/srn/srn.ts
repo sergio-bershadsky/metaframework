@@ -5,7 +5,7 @@
  * reference syntax; it is a hierarchical URI whose path is identical to the
  * entity's directory under `solutions/`.
  *
- *     srn://{solution}( /{kind}/{name} )*  [@{version}]
+ *     srn://{solution}( /{kind}/{name} )*  [.{artifact}]  [@{version}]
  *
  * Every entity below the solution sits in a **kind bucket**, so the path is a
  * strict alternation of bucket and name. That uniformity is the point: an
@@ -13,10 +13,11 @@
  * directory listing shows buckets rather than a mix of buckets and names, and
  * parsing needs no lookahead or reserved-word scan.
  *
- * One artifact is outside this scheme: `schema.json` references other schemas
- * by relative file path so stock JSON Schema tooling can resolve them
- * (decision-record 2026-08-19-b). A schema's identity is still the SRN of the
- * entity whose directory holds it, which {@link dirToSrn} derives.
+ * One artifact *spells* it differently: `schema.json` references other schemas
+ * by their canonical URL — the SRN's dereferenceable projection, a prefix swap
+ * rather than a second scheme (srn.md, "The consolidating principle"). A
+ * schema's identity is still the SRN of the entity whose directory holds it,
+ * which {@link dirToSrn} derives.
  */
 
 /**
@@ -65,6 +66,7 @@ export type SrnErrorCode =
   | 'E_SRN_SYNTAX'
   | 'E_SRN_RESERVED'
   | 'E_SRN_PLACEMENT'
+  | 'E_SRN_ARTIFACT'
   | 'E_SRN_CROSS_SOLUTION'
   | 'E_SRN_DANGLING'
   | 'E_SRN_VERSION'
@@ -96,7 +98,14 @@ export interface Srn {
   kind: ReservedKind | null
   /** `null` exactly when `kind` is null. */
   name: string | null
-  /** `null` means "latest". */
+  /**
+   * Role path of an addressed sibling artifact (`transport`,
+   * `examples.minimal`); `null` when the SRN addresses the entity itself.
+   * Lexed only — whether the role exists for the addressed kind is the role
+   * table's question ({@link ./artifacts}).
+   */
+  artifact: string | null
+  /** `null` means "latest". A pin on an artifact SRN still pins the entity. */
   version: number | null
 }
 
@@ -122,6 +131,11 @@ function splitVersion(body: string, ref: string): { body: string; version: numbe
 
   const raw = body.slice(at + 1)
   if (raw.includes('/') || !VERSION.test(raw)) {
+    // An integer-dot-word tail after `@` is unmistakably the two suffixes
+    // written backwards, so the message names the actual mistake.
+    if (/^[1-9][0-9]*\..+$/.test(raw)) {
+      throw new SrnError('E_SRN_SYNTAX', 'artifact suffix precedes @version', ref)
+    }
     throw new SrnError('E_SRN_SYNTAX', '@version must be a positive integer on the final segment', ref)
   }
   const head = body.slice(0, at)
@@ -129,6 +143,32 @@ function splitVersion(body: string, ref: string): { body: string; version: numbe
     throw new SrnError('E_SRN_SYNTAX', 'multiple @version suffixes', ref)
   }
   return { body: head, version: Number(raw) }
+}
+
+/**
+ * Split the `.{artifact}` suffix off the final segment. Runs after
+ * {@link splitVersion} — the two suffixes compose in exactly one written
+ * order, artifact before version. The first dot of the final segment starts
+ * the artifact; deeper dots separate role segments, same alphabet — which is
+ * why an empty artifact name (`settlement.`) dies here, on the alphabet.
+ *
+ * Only the lexing happens here: the role vocabulary is per-kind and closed,
+ * checked against the role table ({@link ./artifacts}) after the entity parse,
+ * because the legal roles depend on the addressed kind.
+ */
+function splitArtifact(body: string, ref: string): { body: string; artifact: string | null } {
+  const start = body.lastIndexOf('/') + 1
+  const last = body.slice(start)
+  const dot = last.indexOf('.')
+  if (dot === -1) return { body, artifact: null }
+
+  const artifact = last.slice(dot + 1)
+  for (const segment of artifact.split('.')) {
+    if (!SEGMENT.test(segment) || segment.length > MAX_SEGMENT_LENGTH) {
+      throw new SrnError('E_SRN_SYNTAX', `bad artifact segment "${segment}"`, ref)
+    }
+  }
+  return { body: body.slice(0, start) + last.slice(0, dot), artifact }
 }
 
 /**
@@ -171,7 +211,8 @@ export function parseSrn(ref: string): Srn {
     throw new SrnError('E_SRN_SYNTAX', 'query, fragment and percent-encoding are not allowed', ref)
   }
 
-  const { body, version } = splitVersion(ref.slice(SCHEME.length), ref)
+  const { body: versionless, version } = splitVersion(ref.slice(SCHEME.length), ref)
+  const { body, artifact } = splitArtifact(versionless, ref)
   if (body.length === 0) throw new SrnError('E_SRN_SYNTAX', 'empty SRN', ref)
 
   const segments = body.split('/')
@@ -214,14 +255,16 @@ export function parseSrn(ref: string): Srn {
     path,
     kind: last?.kind ?? null,
     name: last?.name ?? null,
+    artifact,
     version,
   }
 }
 
 export function formatSrn(srn: Srn): string {
   const parts = [srn.solution, ...srn.path.flatMap((segment) => [segment.kind, segment.name])]
-  const suffix = srn.version === null ? '' : `@${srn.version}`
-  return `${SCHEME}${parts.join('/')}${suffix}`
+  const artifact = srn.artifact === null ? '' : `.${srn.artifact}`
+  const version = srn.version === null ? '' : `@${srn.version}`
+  return `${SCHEME}${parts.join('/')}${artifact}${version}`
 }
 
 /** Same SRN ignoring the version pin — the identity of the entity itself. */
@@ -239,6 +282,7 @@ export function parentSrn(srn: Srn): string | null {
     path,
     kind: last?.kind ?? null,
     name: last?.name ?? null,
+    artifact: null,
     version: null,
   })
 }
@@ -284,11 +328,23 @@ export function srnToDocument(srn: Srn, catalogDir = 'solutions'): string {
   return `${srnToDir(srn, catalogDir)}/index.md`
 }
 
-/** Inverse of {@link srnToDir}: derive an SRN from a catalog-relative path. */
+/**
+ * Inverse of {@link srnToDir}: derive an SRN from a catalog-relative path.
+ *
+ * A directory name is storage, not a reference — the storage spelling and the
+ * dotted artifact form never meet (srn.md, "Resolution to disk paths") — so a
+ * dot in a directory name is a bad segment, exactly as before artifacts
+ * existed, never an artifact address.
+ */
 export function dirToSrn(dir: string, catalogDir = 'solutions'): Srn {
   const parts = dir.split('/').filter(Boolean)
   const start = parts[0] === catalogDir ? 1 : 0
-  return parseSrn(`${SCHEME}${parts.slice(start).join('/')}`)
+  const ref = `${SCHEME}${parts.slice(start).join('/')}`
+  const srn = parseSrn(ref)
+  if (srn.artifact !== null) {
+    throw new SrnError('E_SRN_SYNTAX', `bad segment "${parts[parts.length - 1]}"`, ref)
+  }
+  return srn
 }
 
 /**
@@ -347,13 +403,28 @@ export function resolveRef(base: string, ref: string): string {
 
   const { body: refBody, version } = splitVersion(ref, ref)
 
-  const merged = refBody.startsWith('/')
-    ? refBody.slice(1).split('/')
-    : [...baseSrn.path.flatMap((s) => [s.kind, s.name]), ...refBody.split('/')]
+  // An artifact suffix rides only the two absolute forms. On a relative
+  // reference the dot-suffix lexing would have to be disentangled from `..`
+  // arithmetic, so the spec forbids the combination outright rather than
+  // deciding which dot belongs to the reference and which to the base.
+  let body = refBody
+  let artifact: string | null = null
+  if (refBody.startsWith('/')) {
+    ;({ body, artifact } = splitArtifact(refBody, ref))
+  } else {
+    const last = refBody.slice(refBody.lastIndexOf('/') + 1)
+    if (last !== '.' && last !== '..' && last.includes('.')) {
+      throw new SrnError('E_SRN_SYNTAX', 'artifact suffix on a relative reference', ref)
+    }
+  }
+
+  const merged = body.startsWith('/')
+    ? body.slice(1).split('/')
+    : [...baseSrn.path.flatMap((s) => [s.kind, s.name]), ...body.split('/')]
 
   const segments = removeDotSegments(merged, ref)
   for (const segment of segments) assertSegment(segment, ref)
 
-  const suffix = version === null ? '' : `@${version}`
+  const suffix = (artifact === null ? '' : `.${artifact}`) + (version === null ? '' : `@${version}`)
   return formatSrn(parseSrn(`${SCHEME}${[baseSrn.solution, ...segments].join('/')}${suffix}`))
 }

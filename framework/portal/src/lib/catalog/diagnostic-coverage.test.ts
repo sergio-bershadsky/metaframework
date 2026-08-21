@@ -95,10 +95,6 @@ async function codesIn(file: string): Promise<string[]> {
  * out of this map.
  */
 const UNIMPLEMENTED: Record<string, string> = {
-  // --- srn: artifact addresses, specified ahead of the parser ----------------
-  E_SRN_ARTIFACT:
-    'V5 (srn.md): parseSrn does not lex the `.{artifact}` suffix yet — the spec landed first (ADR 0014); the ratchet above retires this entry when the parser does',
-
   // --- journey: specified for the loader, emitted by nothing -----------------
   // journey.yaml is parsed by `parseJourney`, which the *entity page component*
   // calls while rendering. Nothing calls it during `loadCatalog`, so no journey
@@ -106,8 +102,13 @@ const UNIMPLEMENTED: Record<string, string> = {
   // by `parseJourney` either, because each needs the resolved catalog, or the
   // entity directory, that a pure parser is not given.
   E_JRN_ARTIFACT_MISSING: 'JRN4: nothing checks a journey entity directory for journey.yaml',
-  E_JRN_TOUCHES_KIND: 'JRN11: parseJourney resolves `touches` to an SRN but never asks the catalog its kind',
-  E_JRN_PROTOCOL_KIND: 'JRN12: parseJourney resolves `protocol` to an SRN but never asks the catalog its kind',
+  // JRN11 and JRN12 are half-implemented and so are NOT listed here: parseJourney
+  // emits both on JRN16's clause (the reference carries an artifact suffix,
+  // decidable from the SRN and the role table alone). What still has no emitter
+  // is each rule's other clause — "the target resolves to the wrong kind" — which
+  // needs the resolved catalog a pure parser is not given. A register keyed by
+  // code cannot express half a rule, so the gap lives in the two `it.todo`s that
+  // name it, next to the tests for the clause that does fire.
   W_JRN_PROTOCOL_UNRELATED: 'JRN15: needs the named protocol’s participants; parseJourney has no catalog',
   W_JRN_ARTIFACT_UNKNOWN: 'JRN9: the loader reads every artifact extension it knows and judges none of them',
 
@@ -378,6 +379,12 @@ beforeAll(async () => {
       },
     }),
   )
+  // E_SRN_ARTIFACT — a suffix outside the addressed kind's role table (V5).
+  // The vocabulary check precedes the edge fence, so this is not E_FM_EDGE_TARGET.
+  await entity(
+    'acme/product/shop/component/dotted',
+    base('dotted', 'component', { relations: { uses: ['/product/shop/datamodel/money.bogus'] } }),
+  )
 
   // --- loader: SRN and structure -------------------------------------------
   // E_SRN_PLACEMENT — a component bucket at solution level.
@@ -572,6 +579,7 @@ const PIPELINE_CODES = [
   'E_SRN_SYNTAX',
   'E_SRN_PLACEMENT',
   'E_SRN_RESERVED',
+  'E_SRN_ARTIFACT',
   'E_SRN_DANGLING',
   'E_SRN_CROSS_SOLUTION',
   'E_STRUCT_NESTED_ENTITY',
@@ -719,15 +727,73 @@ describe('diagnostic emission — the journey mini-spec', () => {
   })
 
   /*
-   * The five codes kinds/journey.md specifies and nothing emits. They are not
-   * written as failing assertions because a permanently red suite stops being
-   * read; the inventory suite carries them instead, as UNIMPLEMENTED entries
-   * that go red the moment an emitter appears — the same ratchet without the
-   * standing failure. Each todo names the rule it waits on.
+   * JRN16's half of the two kind rules. The rules have two clauses each and only
+   * one is decidable here: "the target is not a component/product" needs the
+   * resolved catalog a pure parser is not given, while "the reference carries an
+   * artifact suffix" is decidable from the SRN and the role table alone. So the
+   * code fires, on the artifact clause, and the todos below still name the
+   * catalog clause that does not.
+   */
+  it('fires E_JRN_TOUCHES_KIND — JRN16, a legal artifact role where an entity belongs', () => {
+    expect(
+      journeyCodes(
+        {
+          name: 'walk',
+          steps: [
+            { actor: '/actor/customer', touches: '/product/shop/protocol/order-events.transport' },
+            { actor: '/actor/customer', touches: '/product/shop/component/checkout' },
+          ],
+        },
+        { journeySrn: 'srn://acme/journey/walk' },
+      ),
+    ).toContain('E_JRN_TOUCHES_KIND')
+  })
+
+  it('fires E_JRN_PROTOCOL_KIND — JRN16, a legal artifact role where an entity belongs', () => {
+    expect(
+      journeyCodes(
+        {
+          name: 'walk',
+          steps: [
+            {
+              actor: '/actor/customer',
+              touches: '/product/shop/component/checkout',
+              protocol: '/product/shop/protocol/order-events.transport',
+            },
+            { actor: '/actor/customer', touches: '/product/shop/component/checkout' },
+          ],
+        },
+        { journeySrn: 'srn://acme/journey/walk' },
+      ),
+    ).toContain('E_JRN_PROTOCOL_KIND')
+  })
+
+  it('fires E_SRN_ARTIFACT ahead of the surface class — illegal vocabulary fails first', () => {
+    // An actor owns no roles at all, so the suffix never reaches JRN16's class.
+    const codes = journeyCodes(
+      {
+        name: 'walk',
+        steps: [
+          { actor: '/actor/customer.profile', touches: '/product/shop/component/checkout' },
+          { actor: '/actor/customer', touches: '/product/shop/component/checkout' },
+        ],
+      },
+      { journeySrn: 'srn://acme/journey/walk' },
+    )
+    expect(codes).toContain('E_SRN_ARTIFACT')
+    expect(codes).not.toContain('E_JRN_ACTOR_KIND')
+  })
+
+  /*
+   * The codes kinds/journey.md specifies and nothing emits. They are not written
+   * as failing assertions because a permanently red suite stops being read; the
+   * inventory suite carries them instead, as UNIMPLEMENTED entries that go red
+   * the moment an emitter appears — the same ratchet without the standing
+   * failure. Each todo names the rule it waits on.
    */
   it.todo('fires E_JRN_ARTIFACT_MISSING — JRN4, needs a reader that looks for journey.yaml on disk')
   it.todo('fires W_JRN_ARTIFACT_UNKNOWN — JRN9, needs a reader that judges the entity directory’s other files')
-  it.todo('fires E_JRN_TOUCHES_KIND — JRN11, needs the resolved catalog to kind-check `touches`')
-  it.todo('fires E_JRN_PROTOCOL_KIND — JRN12, needs the resolved catalog to kind-check `protocol`')
+  it.todo('fires E_JRN_TOUCHES_KIND on a wrong-kind target — JRN11 needs the resolved catalog')
+  it.todo('fires E_JRN_PROTOCOL_KIND on a wrong-kind target — JRN12 needs the resolved catalog')
   it.todo('fires W_JRN_PROTOCOL_UNRELATED — JRN15, needs the named protocol’s participants')
 })

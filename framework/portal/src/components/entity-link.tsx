@@ -26,6 +26,7 @@ export function EntityLink({
   target,
   reference: rawRef,
   version,
+  href,
   className,
   showTitle = false,
 }: {
@@ -33,6 +34,11 @@ export function EntityLink({
   /** The reference as authored, shown when it cannot be resolved. */
   reference?: string
   version?: number | null
+  /**
+   * Where the badge navigates instead of the entity page — an artifact
+   * mention's serving route. Defaults to the target's own page.
+   */
+  href?: string | null
   className?: string
   showTitle?: boolean
 }) {
@@ -57,7 +63,7 @@ export function EntityLink({
 
   return (
     <Link
-      href={entityHref(target.srn)}
+      href={href ?? entityHref(target.srn)}
       title={`${style.label} · ${target.title}`}
       className={cn(
         // leading-none plus minimal vertical padding: a badge must stay inside

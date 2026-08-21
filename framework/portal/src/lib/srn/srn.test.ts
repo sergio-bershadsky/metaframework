@@ -90,6 +90,7 @@ describe('parseSrn — shapes', () => {
       path: [],
       kind: null,
       name: null,
+      artifact: null,
       version: null,
     })
   })
@@ -100,6 +101,7 @@ describe('parseSrn — shapes', () => {
       path: [{ kind: 'product', name: 'shop' }],
       kind: 'product',
       name: 'shop',
+      artifact: null,
       version: null,
     })
   })
@@ -113,6 +115,7 @@ describe('parseSrn — shapes', () => {
       ],
       kind: 'component',
       name: 'checkout',
+      artifact: null,
       version: null,
     })
   })
@@ -139,6 +142,7 @@ describe('parseSrn — shapes', () => {
       ],
       kind: 'datamodel',
       name: 'cart',
+      artifact: null,
       version: 1,
     })
   })
@@ -241,6 +245,65 @@ describe('parseSrn — syntax rejections', () => {
 
   it('rejects a segment longer than 64 characters', () => {
     expect(codeOf(() => parseSrn(`srn://acme/product/${'a'.repeat(65)}`))).toBe('E_SRN_SYNTAX')
+  })
+})
+
+describe('parseSrn — artifact addresses (lexing only)', () => {
+  it('splits the artifact off the final segment at the first dot', () => {
+    expect(parseSrn('srn://acme/protocol/settlement.transport')).toEqual({
+      solution: 'acme',
+      path: [{ kind: 'protocol', name: 'settlement' }],
+      kind: 'protocol',
+      name: 'settlement',
+      artifact: 'transport',
+      version: null,
+    })
+  })
+
+  it('strips @version first, then the artifact — the one written order', () => {
+    expect(parseSrn('srn://acme/protocol/settlement.transport@1')).toMatchObject({
+      name: 'settlement',
+      artifact: 'transport',
+      version: 1,
+    })
+  })
+
+  it('keeps deeper dots as role segments — the two-deep families', () => {
+    expect(parseSrn('srn://acme/datamodel/money.examples.minimal')).toMatchObject({
+      name: 'money',
+      artifact: 'examples.minimal',
+    })
+    expect(parseSrn('srn://acme/protocol/settlement.workflows.settle-order')).toMatchObject({
+      name: 'settlement',
+      artifact: 'workflows.settle-order',
+    })
+  })
+
+  it('names the actual mistake when the two suffixes are written backwards', () => {
+    expect(codeOf(() => parseSrn('srn://acme/protocol/settlement@1.transport'))).toBe('E_SRN_SYNTAX')
+    expect(() => parseSrn('srn://acme/protocol/settlement@1.transport')).toThrow(
+      /artifact suffix precedes @version/,
+    )
+  })
+
+  it('rejects an empty artifact name on the alphabet', () => {
+    expect(codeOf(() => parseSrn('srn://acme/protocol/settlement.'))).toBe('E_SRN_SYNTAX')
+    expect(() => parseSrn('srn://acme/protocol/settlement.')).toThrow(/bad artifact segment ""/)
+  })
+
+  it('rejects an alphabet-illegal role segment, wherever it sits', () => {
+    expect(codeOf(() => parseSrn('srn://acme/protocol/settlement.Transport'))).toBe('E_SRN_SYNTAX')
+    expect(codeOf(() => parseSrn('srn://acme/protocol/settlement.workflows.'))).toBe('E_SRN_SYNTAX')
+  })
+
+  it('knows nothing about roles — an unknown role still lexes; V5 is the table\'s job', () => {
+    // srn://acme.anything and actor/customer.profile are E_SRN_ARTIFACT, but
+    // by the role table (artifacts.test.ts), not by the parser.
+    expect(parseSrn('srn://acme.anything')).toMatchObject({ kind: null, artifact: 'anything' })
+    expect(parseSrn('srn://acme/actor/customer.profile')).toMatchObject({
+      kind: 'actor',
+      artifact: 'profile',
+    })
   })
 })
 
@@ -403,6 +466,10 @@ describe('formatSrn', () => {
       'srn://acme/metric/order-conversion',
       'srn://acme/product/shop/metric/checkout-conversion@3',
       'srn://acme/product/shop/component/checkout/metric/p99-latency',
+      'srn://acme/protocol/settlement.transport',
+      'srn://acme/protocol/settlement.transport@1',
+      'srn://acme/protocol/settlement.workflows.settle-order',
+      'srn://acme/environment/production.topology',
     ]) {
       expect(formatSrn(parseSrn(ref))).toBe(ref)
     }
@@ -571,6 +638,15 @@ describe('resolveRef — solution-absolute references', () => {
   it('passes an already-absolute reference through unchanged', () => {
     expect(resolveRef(base, 'srn://acme/datamodel/money@1')).toBe('srn://acme/datamodel/money@1')
   })
+
+  it('carries an artifact suffix on both absolute forms — they are the only two that may', () => {
+    expect(resolveRef(base, '/protocol/settlement.transport@2')).toBe(
+      'srn://acme/protocol/settlement.transport@2',
+    )
+    expect(resolveRef(base, 'srn://acme/protocol/settlement.transport')).toBe(
+      'srn://acme/protocol/settlement.transport',
+    )
+  })
 })
 
 describe('resolveRef — relative references (RFC 3986, base = the referring entity directory)', () => {
@@ -614,6 +690,18 @@ describe('resolveRef — relative references (RFC 3986, base = the referring ent
 
   it('rejects arithmetic that lands on a half pair', () => {
     expect(codeOf(() => resolveRef(base, '../../../datamodel/money'))).toBe('E_SRN_SYNTAX')
+  })
+
+  it('rejects an artifact suffix — dot-suffix lexing stays out of ".." arithmetic', () => {
+    for (const ref of ['../settlement.transport', '../../protocol/settlement.transport@1', 'datamodel/cart.schema']) {
+      expect(codeOf(() => resolveRef(base, ref))).toBe('E_SRN_SYNTAX')
+      expect(() => resolveRef(base, ref)).toThrow(/artifact suffix on a relative reference/)
+    }
+  })
+
+  it('still reads "." and ".." as dot segments, never as artifact dots', () => {
+    expect(resolveRef(base, '../inventory')).toBe('srn://acme/product/shop/component/inventory')
+    expect(resolveRef(base, './datamodel/cart')).toBe('srn://acme/product/shop/component/checkout/datamodel/cart')
   })
 })
 

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: srn
-version: 7
+version: 8
 status: review
 title: SRN — Solution Resource Name
 summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, artifact addresses over the closed per-kind role table, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
@@ -303,11 +303,9 @@ kind. An artifact suffix never reaches the walk: the lexer strips `@version`
 and then splits the suffix off the final segment beforehand
 ([below](#artifact-addresses)), so every segment here is dot-free.
 
-Reference implementation (normative for behavior, not for code style). The
-executable copy is `framework/portal/src/lib/srn/srn.ts`, a line-for-line port
-— except that as of this document's v7 the artifact lexing is stated here
-first, and the port has not caught up; the portal's diagnostic debt register
-tracks that gap until it does:
+Reference implementation (normative for behavior, not for code style). It is a
+line-for-line port of `framework/portal/src/lib/srn/srn.ts`, which is the
+executable copy:
 
 ```python
 import re
@@ -533,7 +531,7 @@ def split_artifact(body: str):
     if not dot:
         return body, None
     for s in artifact.split("."):
-        if not SEGMENT.fullmatch(s):
+        if not SEGMENT.fullmatch(s) or len(s) > 64:
             raise SrnError("E_SRN_SYNTAX", f'bad artifact segment "{s}"')
     return head + slash + name, artifact
 ```

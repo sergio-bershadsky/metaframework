@@ -109,6 +109,13 @@ describe('schemaUrlToSrn', () => {
     expect(schemaUrlToSrn(`${CANONICAL_SCHEMA_HOST}/acme/datamodel/money@1`)).toBeNull()
   })
 
+  it('rejects a dotted path — a URL addresses an entity, never an artifact', () => {
+    // No `….schema` URL exists on the canonical host: the schema document's
+    // canonical URL is the entity's own, and no other role has a projection.
+    expect(schemaUrlToSrn(`${CANONICAL_SCHEMA_HOST}/acme/datamodel/money.schema`)).toBeNull()
+    expect(schemaUrlToSrn(`${CANONICAL_SCHEMA_HOST}/acme/protocol/settlement.transport`)).toBeNull()
+  })
+
   it('rejects a query or fragment — an address, not a request', () => {
     expect(schemaUrlToPath(`${CANONICAL_SCHEMA_HOST}/acme/datamodel/money?v=1`)).toBeNull()
     expect(schemaUrlToPath(`${CANONICAL_SCHEMA_HOST}/acme/datamodel/money#/$defs/x`)).toBeNull()

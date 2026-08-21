@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { SCHEME, SrnError, formatSrn, parseSrn, resolveRef } from '../srn/srn'
+import { assertArtifactRole } from '../srn/artifacts'
 
 /**
  * The journey.yaml mini-spec — framework/spec/kinds/journey.md, "The
@@ -229,11 +230,25 @@ export function parseJourney(data: unknown, options: ParseJourneyOptions = {}): 
     )
   }
 
-  /** An SRN reference as its canonical unversioned SRN, or undefined. */
-  const resolve = (reference: string, path: string): string | undefined => {
+  /**
+   * An SRN reference as its canonical unversioned SRN, or undefined.
+   *
+   * `fence` is JRN16's class for this surface. A step field means an entity and
+   * an artifact has no kind, so a suffix is always refused — but under which
+   * code depends on the suffix: illegal vocabulary for the addressed kind fails
+   * first as `E_SRN_ARTIFACT` (an actor owns no roles at all), while a legal
+   * role on the wrong kind survives the role table and is caught here.
+   */
+  const resolve = (reference: string, path: string, fence: string): string | undefined => {
     if (!options.journeySrn) return undefined
     try {
-      return formatSrn({ ...parseSrn(resolveRef(options.journeySrn, reference)), version: null })
+      const srn = parseSrn(resolveRef(options.journeySrn, reference))
+      if (srn.artifact !== null) {
+        assertArtifactRole(srn.kind, srn.artifact, reference)
+        error(fence, path, `"${reference}" addresses the "${srn.artifact}" artifact of an entity, and a step names entities`)
+        return undefined
+      }
+      return formatSrn({ ...srn, version: null })
     } catch (cause) {
       error(
         cause instanceof SrnError ? cause.code : 'E_SRN_SYNTAX',
@@ -265,7 +280,7 @@ export function parseJourney(data: unknown, options: ParseJourneyOptions = {}): 
 
     const raw = parsed.data
     const previous = steps[steps.length - 1]
-    const touchesSrn = resolve(raw.touches, `${path}.touches`)
+    const touchesSrn = resolve(raw.touches, `${path}.touches`, 'E_JRN_TOUCHES_KIND')
     const owningProduct = touchesSrn ? owningProductOf(touchesSrn) : null
     const protocolNone = raw.protocol === PROTOCOL_NONE
 
@@ -273,7 +288,7 @@ export function parseJourney(data: unknown, options: ParseJourneyOptions = {}): 
       path,
       ordinal: steps.length + 1,
       actor: raw.actor,
-      actorSrn: resolve(raw.actor, `${path}.actor`),
+      actorSrn: resolve(raw.actor, `${path}.actor`, 'E_JRN_ACTOR_KIND'),
       actorLabel: refTail(raw.actor),
       touches: raw.touches,
       touchesSrn,
@@ -281,7 +296,7 @@ export function parseJourney(data: unknown, options: ParseJourneyOptions = {}): 
       ...(raw.protocol && !protocolNone
         ? {
             protocol: raw.protocol,
-            protocolSrn: resolve(raw.protocol, `${path}.protocol`),
+            protocolSrn: resolve(raw.protocol, `${path}.protocol`, 'E_JRN_PROTOCOL_KIND'),
             protocolLabel: refTail(raw.protocol),
           }
         : {}),

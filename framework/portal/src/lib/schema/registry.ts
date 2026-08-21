@@ -481,6 +481,18 @@ function resolveRefUrl(fromId: string, ref: string): { url: string } | { code: s
     }
   }
 
+  // A dotted final segment addresses an artifact, and no artifact has a URL on
+  // the canonical host — a schema's canonical URL is the entity's own (srn.md,
+  // ".schema and the projection"). Pin rejection stays ahead of this, as in the
+  // spec's `schema_url_to_srn`, so `…@1` keeps its own complaint.
+  const tail = ref.slice(ref.lastIndexOf('/') + 1)
+  if (!tail.includes('@') && tail.includes('.')) {
+    return {
+      code: 'E_DM_REF_TARGET',
+      message: `"${ref}" addresses an artifact, not an entity — a schema's canonical URL is the entity's own`,
+    }
+  }
+
   const targetSrn = schemaUrlToSrn(ref)
   if (targetSrn === null) {
     return {

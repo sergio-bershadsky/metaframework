@@ -481,6 +481,12 @@ describe('reference form', () => {
     expect(refCodes(`${url('acme/datamodel/money')}@1`)).toContain('E_DM_REF_TARGET')
   })
 
+  it('rejects an artifact address — no `….schema` URL exists on the canonical host', () => {
+    const diagnostic = probeDiagnostic(`${url('acme/datamodel/money')}.schema`)
+    expect(diagnostic?.code).toBe('E_DM_REF_TARGET')
+    expect(diagnostic?.message).toContain('addresses an artifact, not an entity')
+  })
+
   /** The one diagnostic raised on the probe entity, whatever its code. */
   function probeDiagnostic(ref: string) {
     const registry = buildSchemaRegistry(

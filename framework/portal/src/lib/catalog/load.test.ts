@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { loadCatalog } from './load'
+import { resolveMention } from './mentions'
 import type { Catalog } from './types'
 
 /**
@@ -138,6 +139,7 @@ beforeAll(async () => {
     path.join(catalogDir, 'acme/product/shop/protocol/order-events/transport.yaml'),
     'kind: kafka\nbindings:\n  topic: order-events\n',
   )
+  await writeFile(path.join(catalogDir, 'acme/product/shop/datamodel/money/schema.json'), '{}\n')
   await mkdir(path.join(catalogDir, 'acme/product/shop/protocol/order-events/workflows'), { recursive: true })
   await writeFile(
     path.join(catalogDir, 'acme/product/shop/protocol/order-events/workflows/place-order.yaml'),
@@ -209,6 +211,63 @@ beforeAll(async () => {
   )
   // A protagonist that is not an actor.
   await entity('acme/journey/broken-path', base('broken-path', 'journey', { actor: '/product/shop' }))
+
+  // --- artifact suffixes: the fence, V5, and V7 --------------------------------
+  // A legal role on an edge: the fence rejects the suffix, not the vocabulary.
+  await entity(
+    'acme/product/shop/component/edge-dotted',
+    base('edge-dotted', 'component', { relations: { uses: ['/product/shop/datamodel/money.schema'] } }),
+  )
+  // An illegal role on an edge: V5 is static and precedes the surface class.
+  await entity(
+    'acme/product/shop/component/edge-misrole',
+    base('edge-misrole', 'component', { relations: { uses: ['/product/shop/datamodel/money.bogus'] } }),
+  )
+  // The suffix rides only the absolute forms; a relative reference dies as syntax.
+  await entity(
+    'acme/product/shop/component/edge-relative',
+    base('edge-relative', 'component', { relations: { uses: ['../../datamodel/money.schema'] } }),
+  )
+  // A journey protagonist with a suffix: illegal vocabulary is E_SRN_ARTIFACT,
+  // a legal role is the surface's own class (JRN16).
+  await entity('acme/journey/dotted-actor', base('dotted-actor', 'journey', { actor: '/actor/customer.profile' }))
+  await entity(
+    'acme/journey/schema-actor',
+    base('schema-actor', 'journey', { actor: '/product/shop/datamodel/money.schema' }),
+  )
+  // Prose is the legal surface — a resolving artifact mention is not a finding.
+  await entity(
+    'acme/product/shop/component/prose-links',
+    base('prose-links', 'component'),
+    'Speaks srn://acme/product/shop/protocol/order-events.transport and runs\n' +
+      'srn://acme/product/shop/protocol/order-events.workflows.place-order daily.\n',
+  )
+  // Legal role, absent file: V7. states.json is OPTIONAL and not written above.
+  await entity(
+    'acme/product/shop/component/prose-dangling',
+    base('prose-dangling', 'component'),
+    'Watches srn://acme/product/shop/protocol/order-events.states for stalls.\n',
+  )
+  // A suffix outside the role table is V5 wherever it stands, prose included.
+  await entity(
+    'acme/product/shop/component/prose-misrole',
+    base('prose-misrole', 'component'),
+    'Consults srn://acme/product/shop/protocol/order-events.nonsense hourly.\n',
+  )
+  // An artifact of an entity that does not exist dangles like the entity would.
+  await entity(
+    'acme/product/shop/component/prose-ghost',
+    base('prose-ghost', 'component'),
+    'Trusts srn://acme/protocol/ghost.transport with everything.\n',
+  )
+  // Code is quotation, not reference — fences and inline spans stay unchecked,
+  // exactly as the renderer leaves them unlinkified.
+  await entity(
+    'acme/product/shop/component/prose-quoted',
+    base('prose-quoted', 'component'),
+    '```text\nsrn://acme/protocol/ghost.topology   # an example, not a link\n```\n\n' +
+      'And `srn://acme/product/shop/protocol/order-events.states` is quoted prose.\n',
+  )
 
   // --- document body ----------------------------------------------------------
   // The page renders `title` as the h1, so a `#` in the prose is a second one.
@@ -538,5 +597,109 @@ describe('loadCatalog — capability, journey and metric', () => {
     expect(severity('E_JRN_ACTOR_KIND')).toBe('error')
     expect(severity('W_CAP_UNREALIZED')).toBe('warning')
     expect(severity('W_MET_SUBJECT_SCOPE')).toBe('warning')
+  })
+})
+
+describe('loadCatalog — the artifact-suffix fence', () => {
+  const diagnosticsFor = (srn: string) => catalog.diagnostics.filter((d) => d.srn === srn)
+
+  it('fences a legal role off an edge under the surface class, naming the suffix', () => {
+    const fence = diagnosticsFor('srn://acme/product/shop/component/edge-dotted')
+    expect(fence.map((d) => d.code)).toEqual(['E_FM_EDGE_TARGET'])
+    expect(fence[0].message).toContain('.schema')
+    expect(fence[0].message).toContain('owning entity')
+  })
+
+  it('leaves the fenced edge unresolved rather than pointing it at the entity', () => {
+    const relation = catalog.entities
+      .get('srn://acme/product/shop/component/edge-dotted')
+      ?.relations.find((r) => r.ref === '/product/shop/datamodel/money.schema')
+    expect(relation?.target).toBeNull()
+  })
+
+  it('reports an illegal role as E_SRN_ARTIFACT — vocabulary precedes the surface class', () => {
+    const codes = diagnosticsFor('srn://acme/product/shop/component/edge-misrole').map((d) => d.code)
+    expect(codes).toEqual(['E_SRN_ARTIFACT'])
+    expect(codes).not.toContain('E_FM_EDGE_TARGET')
+  })
+
+  it('rejects a suffix on a relative reference as syntax, before any table is consulted', () => {
+    const codes = diagnosticsFor('srn://acme/product/shop/component/edge-relative').map((d) => d.code)
+    expect(codes).toEqual(['E_SRN_SYNTAX'])
+  })
+
+  it('fences the journey protagonist the same way: V5 first, then the surface class', () => {
+    expect(diagnosticsFor('srn://acme/journey/dotted-actor').map((d) => d.code)).toEqual(['E_SRN_ARTIFACT'])
+    const legal = diagnosticsFor('srn://acme/journey/schema-actor')
+    expect(legal.map((d) => d.code)).toEqual(['E_JRN_ACTOR_KIND'])
+    expect(legal[0].message).toContain('.schema')
+  })
+})
+
+describe('loadCatalog — artifact SRNs in prose', () => {
+  const diagnosticsFor = (srn: string) => catalog.diagnostics.filter((d) => d.srn === srn)
+
+  it('accepts a resolving artifact mention — prose is the legal surface', () => {
+    expect(diagnosticsFor('srn://acme/product/shop/component/prose-links')).toEqual([])
+  })
+
+  it('reports a legal role whose file is absent as E_SRN_DANGLING', () => {
+    const dangling = diagnosticsFor('srn://acme/product/shop/component/prose-dangling')
+    expect(dangling.map((d) => d.code)).toEqual(['E_SRN_DANGLING'])
+    expect(dangling[0].message).toContain('states.json')
+  })
+
+  it('reports a role outside the table as E_SRN_ARTIFACT, in prose as anywhere', () => {
+    expect(diagnosticsFor('srn://acme/product/shop/component/prose-misrole').map((d) => d.code)).toEqual([
+      'E_SRN_ARTIFACT',
+    ])
+  })
+
+  it('reports an artifact of a nonexistent entity as E_SRN_DANGLING', () => {
+    expect(diagnosticsFor('srn://acme/product/shop/component/prose-ghost').map((d) => d.code)).toEqual([
+      'E_SRN_DANGLING',
+    ])
+  })
+
+  it('leaves fenced blocks and inline code spans alone — quotation is not reference', () => {
+    expect(diagnosticsFor('srn://acme/product/shop/component/prose-quoted')).toEqual([])
+  })
+})
+
+describe('resolveMention — artifact addresses navigate to their serving routes', () => {
+  const BASE = 'srn://acme'
+
+  it('resolves a role to the /artifacts route — the SRN path verbatim, suffix included', () => {
+    const mention = resolveMention(catalog, BASE, 'srn://acme/product/shop/protocol/order-events.transport')
+    expect(mention.target?.name).toBe('order-events.transport')
+    expect(mention.target?.kind).toBe('protocol')
+    expect(mention.href).toBe('/artifacts/acme/product/shop/protocol/order-events.transport')
+  })
+
+  it('resolves a depth-2 family member the same way', () => {
+    const mention = resolveMention(catalog, BASE, 'srn://acme/product/shop/protocol/order-events.workflows.place-order')
+    expect(mention.href).toBe('/artifacts/acme/product/shop/protocol/order-events.workflows.place-order')
+  })
+
+  it('projects .schema onto the /schemas URL rather than minting a second one', () => {
+    const mention = resolveMention(catalog, BASE, 'srn://acme/product/shop/datamodel/money.schema')
+    expect(mention.target?.name).toBe('money.schema')
+    expect(mention.href).toBe('/schemas/acme/product/shop/datamodel/money')
+  })
+
+  it('does not resolve a legal role whose file is absent — a dangling address is a broken link', () => {
+    const mention = resolveMention(catalog, BASE, 'srn://acme/product/shop/protocol/order-events.states')
+    expect(mention.target).toBeNull()
+  })
+
+  it('does not resolve a suffix outside the role table', () => {
+    const mention = resolveMention(catalog, BASE, 'srn://acme/product/shop/protocol/order-events.nonsense')
+    expect(mention.target).toBeNull()
+  })
+
+  it('leaves entity mentions exactly as they were — no href, entity page navigation', () => {
+    const mention = resolveMention(catalog, BASE, 'srn://acme/product/shop/datamodel/money')
+    expect(mention.target?.name).toBe('money')
+    expect(mention.href).toBeUndefined()
   })
 })

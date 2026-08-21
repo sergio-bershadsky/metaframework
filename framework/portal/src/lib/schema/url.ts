@@ -107,6 +107,11 @@ export function schemaUrlToSrn(url: string): string | null {
   // current schema — silently serving something other than what was asked for,
   // which is precisely the failure the URL form exists to rule out.
   if (path.includes('@')) return null
+  // The URL→SRN direction rejects any dotted path (srn.md, ".schema and the
+  // projection"): no `….schema` URL exists on the canonical host — a schema's
+  // canonical URL is the entity's own — and no other role has a projection at
+  // all. parseSrn would lex the suffix happily; a URL naming one is not ours.
+  if (path.slice(path.lastIndexOf('/') + 1).includes('.')) return null
   try {
     // parseSrn enforces the whole grammar — bucket alternation, reserved words,
     // placement — so a URL that survives this addresses a possible entity.

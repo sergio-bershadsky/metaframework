@@ -54,6 +54,7 @@ export function Markdown({
                   target={mention?.target ?? null}
                   reference={href}
                   version={mention?.version}
+                  href={mention?.href}
                   className="mx-0.5"
                 />
               )
@@ -174,6 +175,7 @@ function linkifyText(text: string, mentions: Record<string, ResolvedMention>): R
         target={mention?.target ?? null}
         reference={ref}
         version={mention?.version}
+        href={mention?.href}
         className="mx-0.5"
       />,
     )

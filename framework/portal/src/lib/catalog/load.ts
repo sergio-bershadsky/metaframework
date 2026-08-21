@@ -14,6 +14,7 @@ import {
 } from './frontmatter'
 import type { Artifact, Catalog, Diagnostic, Entity, Relation } from './types'
 import { SrnError, type Srn, formatSrn, parentSrn, parseSrn, resolveRef } from '../srn/srn'
+import { artifactFile } from '../srn/artifacts'
 
 const ENTITY_DOCUMENT = 'index.md'
 const ARTIFACT_EXTENSIONS = new Set(['.json', '.yaml', '.yml', '.md'])
@@ -50,6 +51,7 @@ export async function loadCatalog({ catalogDir }: LoadOptions): Promise<Catalog>
   linkHierarchy(entities, diagnostics)
   const inbound = resolveRelations(entities, diagnostics)
   checkGraphShape(entities, inbound, diagnostics)
+  checkProseArtifacts(entities, diagnostics)
 
   return { entities, solutions, diagnostics, inbound }
 }
@@ -115,6 +117,12 @@ async function readEntity(
   let parsed: Srn
   try {
     parsed = parseSrn(`srn://${relDir.split(path.sep).join('/')}`)
+    if (parsed.artifact !== null) {
+      // A directory name is storage, not a reference: the storage spelling and
+      // the dotted artifact form never meet (srn.md), so a dot in a directory
+      // name is a bad segment — never an artifact address, never an entity.
+      throw new SrnError('E_SRN_SYNTAX', `bad segment "${path.basename(dir)}"`)
+    }
   } catch (error) {
     diagnostics.push({
       code: error instanceof SrnError ? error.code : 'E_SRN_SYNTAX',
@@ -367,7 +375,23 @@ function collectRelations(
         const resolved = resolveRef(srn, ref)
         const parsedTarget = parseSrn(resolved)
         version = parsedTarget.version
-        target = formatSrn({ ...parsedTarget, version: null })
+        if (parsedTarget.artifact !== null) {
+          // The fence (frontmatter.md): edges are typed over kinds and an
+          // artifact has no kind, so no edge type can accept one. Vocabulary
+          // first — V5 is static and precedes the surface class, so an illegal
+          // suffix is E_SRN_ARTIFACT (thrown into the catch below) and only a
+          // legal one falls through to E_FM_EDGE_TARGET.
+          artifactFile(parsedTarget.kind, parsedTarget.artifact, ref)
+          diagnostics.push({
+            code: 'E_FM_EDGE_TARGET',
+            severity: 'error',
+            message: `"${edge}" may not target an artifact — ".${parsedTarget.artifact}" addresses a file of ${formatSrn({ ...parsedTarget, artifact: null, version: null })}; point at the owning entity`,
+            path: docPath,
+            srn,
+          })
+        } else {
+          target = formatSrn({ ...parsedTarget, version: null })
+        }
       } catch (error) {
         diagnostics.push({
           code: error instanceof SrnError ? error.code : 'E_SRN_SYNTAX',
@@ -544,7 +568,21 @@ function checkGraphShape(
       if (typeof ref === 'string') {
         let target: string | null = null
         try {
-          target = formatSrn({ ...parseSrn(resolveRef(entity.srn, ref)), version: null })
+          const parsedActor = parseSrn(resolveRef(entity.srn, ref))
+          if (parsedActor.artifact !== null) {
+            // JRN16 (kinds/journey.md): the protagonist surface is typed over
+            // kinds and an artifact has no kind. V5 first — an illegal suffix
+            // is E_SRN_ARTIFACT (thrown into the catch below); a legal one is
+            // the surface's own class.
+            artifactFile(parsedActor.kind, parsedActor.artifact, ref)
+            at(
+              'E_JRN_ACTOR_KIND',
+              'error',
+              `actor "${ref}" carries the artifact suffix ".${parsedActor.artifact}" — an artifact cannot be a protagonist`,
+            )
+          } else {
+            target = formatSrn({ ...parsedActor, version: null })
+          }
         } catch (error) {
           at(
             error instanceof SrnError ? error.code : 'E_SRN_SYNTAX',
@@ -588,6 +626,93 @@ function checkGraphShape(
       }
     }
   }
+}
+
+/**
+ * An absolute SRN carrying at least one dot suffix, anywhere in free text. The
+ * suffix requirement is what keeps this scan additive: entity mentions in
+ * prose are navigational and stay unchecked, exactly as before.
+ */
+const PROSE_ARTIFACT_PATTERN = /srn:\/\/[a-z0-9-]+(?:\/[a-z0-9-]+)*(?:\.[a-z0-9-]+)+(?:@[0-9]+)?/g
+
+/**
+ * Validate the artifact SRNs an entity's prose addresses.
+ *
+ * Prose is the one legal authoring surface for an artifact SRN in v1 (srn.md,
+ * "Where an artifact SRN may stand") — every frontmatter reference surface
+ * fences the suffix out above. Legal is not the same as unchecked: V5 is
+ * static, so a suffix outside the addressed kind's role table is
+ * `E_SRN_ARTIFACT` here exactly as it would be on any surface, and V7 makes a
+ * legal role whose file is absent `E_SRN_DANGLING`, like an entity directory
+ * without its index.md. The artifact index needed for V7 already exists —
+ * {@link readArtifacts} listed every role file while the entity loaded.
+ *
+ * Fenced blocks and inline code spans are skipped for the same reason
+ * {@link hasLevelOneHeading} skips fences: the spec and its ADRs quote broken
+ * SRNs as *examples*, and an example is not a reference. The renderer draws
+ * the same line — code is never linkified — so what this checks is exactly
+ * what navigates.
+ */
+function checkProseArtifacts(entities: Map<string, Entity>, diagnostics: Diagnostic[]): void {
+  for (const entity of entities.values()) {
+    const docPath = path.join(entity.relDir, ENTITY_DOCUMENT)
+    const seen = new Set<string>()
+
+    for (const match of linkableProse(entity.body).matchAll(PROSE_ARTIFACT_PATTERN)) {
+      const ref = match[0]
+      if (seen.has(ref)) continue
+      seen.add(ref)
+
+      try {
+        const parsed = parseSrn(ref)
+        if (parsed.artifact === null) continue
+        const file = artifactFile(parsed.kind, parsed.artifact, ref)
+        const owner = entities.get(formatSrn({ ...parsed, artifact: null, version: null }))
+        if (!owner) {
+          diagnostics.push({
+            code: 'E_SRN_DANGLING',
+            severity: 'error',
+            message: `"${ref}" addresses an artifact of an entity that does not exist`,
+            path: docPath,
+            srn: entity.srn,
+          })
+        } else if (!owner.artifacts.some((artifact) => artifact.file === file)) {
+          diagnostics.push({
+            code: 'E_SRN_DANGLING',
+            severity: 'error',
+            message: `"${ref}" names a legal role, but ${file} is absent from ${owner.srn}`,
+            path: docPath,
+            srn: entity.srn,
+          })
+        }
+      } catch (error) {
+        diagnostics.push({
+          code: error instanceof SrnError ? error.code : 'E_SRN_SYNTAX',
+          severity: 'error',
+          message: error instanceof Error ? error.message : String(error),
+          path: docPath,
+          srn: entity.srn,
+        })
+      }
+    }
+  }
+}
+
+/** The body with fenced blocks and inline code spans removed — what linkifies. */
+function linkableProse(body: string): string {
+  const lines: string[] = []
+  let fenced = false
+  for (const line of body.split('\n')) {
+    // Any indentation, not CommonMark's 0–3: a fence nested inside a list item
+    // sits deeper, and scanning its contents would complain about an SRN the
+    // renderer never linkifies.
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced
+      continue
+    }
+    if (!fenced) lines.push(line.replace(/`[^`]*`/g, ''))
+  }
+  return lines.join('\n')
 }
 
 /** Whether `candidate` sits somewhere above `srn` on the containment chain. */
