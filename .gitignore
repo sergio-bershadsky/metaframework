@@ -1,6 +1,9 @@
 node_modules/
 .next/
+# Secrets stay local. The example is the one exception and is tracked on
+# purpose, so the required variable names are reviewable without their values.
 .env*
+!.env.example
 .DS_Store
 *.log
 .playwright-mcp/

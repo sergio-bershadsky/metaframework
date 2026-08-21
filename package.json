@@ -5,8 +5,8 @@
   "version": "0.0.0",
   "description": "Reviewable, file-based solution descriptions with a catalog portal",
   "scripts": {
-    "release": "cd framework/portal && npm publish",
-    "release:dry": "cd framework/portal && npm publish --dry-run",
+    "release": "bash scripts/release.sh",
+    "release:dry": "bash scripts/release.sh --dry-run",
     "dev": "npm --prefix framework/portal run dev",
     "build": "npm --prefix framework/portal run build",
     "start": "npm --prefix framework/portal run start",
