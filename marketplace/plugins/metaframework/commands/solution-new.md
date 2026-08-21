@@ -13,10 +13,12 @@ Before writing anything:
 
 1. If `framework/spec/` exists in this repository, read it — it is
    authoritative. Otherwise read the distilled reference bundled with this
-   plugin at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/` (`srn.md`,
-   `structure.md`, `frontmatter.md`, `schemas.md`, `protocols.md`,
-   `environments.md`, `evolution.md`). Its absence is the normal case outside
-   the framework monorepo and blocks nothing.
+   plugin at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`
+   (`philosophy.md` first, then `srn.md`, `structure.md`, `frontmatter.md`,
+   `schemas.md`, `protocols.md`, `environments.md`, `journeys.md`,
+   `evolution.md`, `decomposition.md`). The spec's absence is the normal case
+   outside the framework monorepo and blocks nothing — the bundle ships with
+   the plugin.
 2. Confirm the target: which repository, and does `solutions/<name>/` already
    exist? A solution is a sealed universe — never nest one inside another, and
    never let a reference cross from one solution into another.

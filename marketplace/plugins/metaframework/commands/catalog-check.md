@@ -20,7 +20,10 @@ metaframework check
 Run it from anywhere in the catalog repository: it walks **up** from the working
 directory for a `solutions/` directory holding at least one `<name>/index.md`,
 the way git finds `.git`. There is no working-directory requirement. Point it at
-another tree with `metaframework check --dir <path>` or `CATALOG_DIR=<path>`.
+another tree with `metaframework check --dir <path>` (or the environment
+equivalent, `CATALOG_DIR`); `<path>` names the catalog directory itself —
+usually `<repo>/solutions` — and neither explicit form walks. Aimed at the
+repository root by mistake, the error suggests the nested `solutions/`.
 
 If the binary is not on PATH, `npx @bershadsky/metaframework check` runs the same
 thing without installing; `npm install -g @bershadsky/metaframework` makes it
@@ -32,6 +35,9 @@ to recommend and never a prerequisite.)
 
 Zero **error**-severity diagnostics is the pass condition; the command exits
 non-zero when there are any, so the same invocation is the CI gate.
+`metaframework check --since <ref>` adds the evolution gate on top: every
+entity whose files changed since `<ref>` must have bumped its `version`
+(`status:`-only edits exempt). In CI, `<ref>` is the PR base.
 
 Report, in this order:
 
@@ -40,16 +46,16 @@ Report, in this order:
 2. **Every diagnostic**: its code, the file it names (prefix the path with
    `solutions/` — the check prints it catalog-relative), and the fix.
 3. **What was not covered.** A green run proves the tree *loads* — and, since
-   the datamodel schema registry is folded into the catalog load, that every
-   `schema.json` identity and `$ref` checks out too. It does **not** run the
-   protocol validators or the `journey.yaml` parser (`E_PROTO_*` and `E_JRN_*`
-   appear only when the portal renders that entity's page — `metaframework` with
-   no subcommand serves the portal on port 6363, and its `/diagnostics` page
-   lists the same set), and several specified rules — the ADR's four headings,
-   the requirement's `## Acceptance criteria`,
-   protocol NCA placement, a journey entity's missing `journey.yaml` — are
-   implemented nowhere. The skill has the full list; say which of them apply to
-   what was just touched.
+   the schema registry and the artifact mini-spec parsers are folded into the
+   catalog load, that every `schema.json` identity and `$ref` checks out and
+   every present `journey.yaml`, `workflows/*.yaml` and `states.json` parses
+   clean (`E_JRN_*` and `E_PROTO_*` fail the run like any loader code). It does
+   **not** run the git history checks — `E_VER_REGRESSION` and `E_VER_UNBUMPED`
+   surface on the entity page, and `--since` is their gate form — and several
+   specified rules — the ADR's four headings, the requirement's
+   `## Acceptance criteria`, protocol NCA placement, a journey entity with no
+   `journey.yaml` at all — are implemented nowhere. The skill has the full
+   list; say which of them apply to what was just touched.
 
 If `$ARGUMENTS` names an entity or path, still run the whole check — the loader
 has no focus mode — then filter the report to diagnostics touching that entity

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: evolution
-version: 5
+version: 6
 status: review
 title: Evolution and history
 summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, and the status states.

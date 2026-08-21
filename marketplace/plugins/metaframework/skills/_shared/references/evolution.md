@@ -20,7 +20,8 @@ one that could not be extended). Nothing is ever deleted.
 ## The version field
 
 - A plain integer, starting at `1`, incremented **by exactly 1** — monotonic, no
-  gaps, no semver, no strings. Decreasing it or jumping is `E_VER_REGRESSION`.
+  gaps, no semver, no strings. Decreasing it or jumping is `E_VER_REGRESSION`;
+  changing content without bumping is `E_VER_UNBUMPED`.
 - Any content change to the entity — `index.md` frontmatter or prose, or **any
   sibling artifact** — MUST bump `version` in the same commit.
 - Exception: a change to `status` **alone** (`review` → `approved`) does not
@@ -173,9 +174,18 @@ approved → deprecated   # swap completed, or retired without a successor
 | Code               | Meaning                                                            |
 |--------------------|--------------------------------------------------------------------|
 | `E_VER_REGRESSION` | `version` decreased, or increased by more than 1, in a commit.     |
+| `E_VER_UNBUMPED`   | An entity's own files changed between two commits while `version` stayed the same. Commits only, never the working tree; a `status:`-only edit is exempt; children are judged by their own versions. |
 | `E_SRN_VERSION`    | Pinned `@N` not on the filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED` | Reference targets a `status: deprecated` entity.                   |
 | `W_REF_STALE_PIN`  | Pinned `@N` resolves, but the target has moved past it.            |
 
 Datamodel-specific: `E_DM_NOT_ADDITIVE` (`schemas.md`).
 Retired, MUST NOT be emitted: `E_VER_ID_MISMATCH`.
+
+Both `E_VER_*` codes need git, so they surface where history is available: on
+the entity page, where the version check streams in beside the version picker,
+and — as a gate — via `metaframework check --since <ref>`, which exits non-zero
+when an entity's files changed since `<ref>` without a bump. In CI, `<ref>` is
+the branch base. The gate judges the net change only: a branch that breaks the
+rule in one commit and repairs it in the next passes, deliberately. A plain
+`metaframework check` runs neither.

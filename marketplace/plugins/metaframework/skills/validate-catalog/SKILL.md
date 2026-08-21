@@ -104,8 +104,10 @@ declared value. `kind: actor` in a `product/` bucket gives
 
 ## Codes this check emits
 
-Every code below comes from the catalog loader and is what a failing run will
-actually show.
+Every code below comes from the catalog load pipeline and is what a failing
+run will actually show. The artifact mini-spec families (`E_JRN_*`,
+`E_PROTO_*`) run in the same pipeline and fail the same run; their tables live
+in `references/diagnostics.md`.
 
 | Code                     | Severity | Usual cause                                                                              | Fix                                                                                     |
 |--------------------------|----------|------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
@@ -198,18 +200,19 @@ Treating a green run as "the catalog is correct" is the most expensive mistake
 available here. The check proves the tree *loads*. It does not prove the tree is
 *right*, and several specified rules are not machine-checked at all.
 
-- **Not exercised by the check** — the protocol `states.json` and workflow
-  validators (`E_PROTO_*`), the `journey.yaml` parser (`E_JRN_SCHEMA`,
-  `E_JRN_NAME`, `E_JRN_STEP_COUNT`, `E_JRN_BRANCH`, `W_JRN_ACTOR_ABSENT`,
-  `W_JRN_UNDOCUMENTED_INTEGRATION`) and the git version-history check
-  (`E_VER_REGRESSION`) live in separate modules the loader never calls. They are
-  implemented and tested against their own hermetic fixtures, but nothing runs
-  them over your `solutions/` tree. `E_PROTO_*` and `E_JRN_*` meet real content
-  only when the portal *renders* the protocol or journey page, and they do not
-  reach `/diagnostics` either. After touching a
-  `states.json`, a workflow or a `journey.yaml`, open that entity's page.
+- **Outside the check: the git history checks.** `E_VER_REGRESSION` and
+  `E_VER_UNBUMPED` are decidable only from commits, so a plain
+  `metaframework check` cannot see them. They surface on the entity page, where
+  the version check streams in beside the version picker; the gate form is
+  `metaframework check --since <ref>`, which exits non-zero when an entity's
+  files changed since `<ref>` without a `version` bump (a `status:`-only edit
+  is exempt). In CI, `<ref>` is the branch base.
+- **Two edges inside the check worth knowing.** A **missing** `journey.yaml` is
+  not flagged — only artifacts that exist are parsed — and
+  `W_PROTO_STATES_EVENT_UNKNOWN` is deliberately disabled at both call sites,
+  so nothing emits it.
 
-  One thing that used to sit in this list no longer does:
+  Two things that used to sit in this list no longer do:
 
   - **The datamodel schema registry (`E_DM_*`) now runs over whatever catalog
     is loaded.** `getCatalog()` composes `loadCatalog` with `buildSchemaRegistry`

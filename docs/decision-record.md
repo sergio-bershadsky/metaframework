@@ -75,6 +75,10 @@ machines (XState-compatible JSON). All formats chosen to be diagram-derivable.
   git, not the filesystem.
 - No CLI in v1; integrity is enforced at portal build/load: zod frontmatter
   validation, dangling-SRN detection, JSON Schema registry resolution.
+  **Superseded 2026-08-20:** the CLI shipped as `@bershadsky/metaframework` —
+  `metaframework` serves a working tree, `metaframework check` validates and
+  exits non-zero, `--since <ref>` gates version bumps in CI. The enforcement
+  itself is unchanged: the CLI runs the same loader.
 
 ## Portal
 

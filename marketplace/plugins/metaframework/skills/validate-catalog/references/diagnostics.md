@@ -120,8 +120,12 @@ only the portal's `/schemas` serving route.
 
 ### `lib/protocol/states.ts` and `lib/protocol/workflow.ts`
 
-Exercised when the portal renders a protocol page. Not run by `metaframework
-check`.
+Run by `metaframework check` and `/diagnostics` — `withArtifactChecks`
+(`src/lib/catalog/artifact-checks.ts`) folds these parsers into the catalog
+composition with the same dispatch table the entity page uses, so both surfaces
+derive the same findings from the same file. One deliberate gap:
+`W_PROTO_STATES_EVENT_UNKNOWN` needs `workflowMessages`, which neither call
+site passes, so nothing emits it.
 
 | Code                          | Severity | Artifact                                     |
 |-------------------------------|----------|----------------------------------------------|
@@ -142,11 +146,13 @@ check`.
 
 ### `lib/journey/journey.ts` — the `journey.yaml` parser
 
-Same posture as the protocol validators: exercised when the portal **renders** a
-journey entity, never by the catalog loader. The loader does read `journey.yaml`
-— as a generic artifact, so a YAML syntax error in it surfaces — but it never
-validates it against the mini-spec. A green catalog check therefore says nothing
-about a journey's steps.
+Run by the check via the same artifact composition as the protocol validators:
+a broken `journey.yaml` fails `metaframework check` and shows on
+`/diagnostics`. The loader still reads the file as a generic artifact first, so
+a YAML *syntax* error carries the loader's own complaint and the mini-spec
+parser is skipped for that file. What a green check still does not prove is
+that a journey entity *has* a `journey.yaml` — only artifacts that exist are
+parsed.
 
 The module deliberately owns the rules checkable from the file alone, plus the
 two that need only the SRN *grammar* — `W_JRN_ACTOR_ABSENT` compares two resolved
@@ -173,7 +179,14 @@ Needs unshallow git history at the portal's location; degrades gracefully.
 | Code               | Severity | Raised when                                                                        |
 |--------------------|----------|--------------------------------------------------------------------------------------|
 | `E_VER_REGRESSION` | error    | Across the commits of an entity's `index.md`, `version` decreased or jumped by more than 1. Skipped when the log was truncated. |
+| `E_VER_UNBUMPED`   | error    | Between two consecutive commits, the entity's **own** files changed while `version` stayed the same. Commits only — never the working tree, so in-progress edits are not violations — and a `status:`-only edit is exempt. Children are judged by their own versions, never blamed on the parent. Skipped when the log was truncated. |
 | `E_SRN_VERSION`    | error    | A pinned `@N` resolves to no commit. With a shallow clone the message carries a "shallow history" hint — the fix is `git fetch --unshallow`, not a catalog edit. |
+
+The two `E_VER_*` codes surface on the entity page, where the version check
+streams in beside the version picker. The gate form is
+`metaframework check --since <ref>`: it fails an entity whose files changed
+since `<ref>` without a bump, and judges only the net change — a branch that
+breaks and repairs the rule passes, deliberately.
 
 ## 2. Specified but not implemented
 
@@ -302,7 +315,7 @@ Never emit or cite these; a mention in older prose is stale.
   Grep for it explicitly, and trust the `schema.json` over the prose:
 
   ```bash
-  grep -rnE 'no [`"]?\$id|\.\./[^ ]*schema\.json|SCHEMA_BASE_URL|localhost:3000' \
+  grep -rnE 'no [`"]?\$id|\.\./[^ ]*schema\.json|SCHEMA_BASE_URL|localhost:(3000|6363)' \
     --include='index.md' solutions/
   ```
 
@@ -313,7 +326,7 @@ Never emit or cite these; a mention in older prose is stale.
   |------------------------------------------------------------------|----------------------------------------------------------------------|
   | A `datamodel` page describing its own sibling `schema.json` in the retired terms | the defect — correct the prose, bump the entity's `version` |
   | An ADR recording the convention's history — `metaframework/adr/0004` and `0005` (superseded), `0006` and `0007` (accepted; they are what retired it) | history, recorded as written; never rewritten |
-  | `SCHEMA_BASE_URL` / `localhost:3000` on a portal, environment or solution page | live fact — it is the retrieval address, retired only *inside artifacts* |
+  | `SCHEMA_BASE_URL` / `localhost:3000` / `localhost:6363` on a portal, environment or solution page | live fact — it is the retrieval address (`next dev` serves on 3000, the CLI on its own port, 6363 by default), retired only *inside artifacts* |
   | Prose naming the retired form to warn about it                   | intended, including the correction note left behind by such a fix     |
 
   The only checked half of this is the artifact side: `$id`, `x-srn` and every

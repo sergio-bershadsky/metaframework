@@ -73,7 +73,11 @@ out loud — the user usually expected an edit.
 
 1. Make the additive change to `index.md` and/or the sibling artifacts.
 2. **Bump `version` by exactly 1** in `index.md`. Not 2, never backwards
-   (`E_VER_REGRESSION`), never a string, never semver.
+   (`E_VER_REGRESSION`), never a string, never semver. The missed bump is
+   caught from the other side too: `E_VER_UNBUMPED` flags a commit pair where
+   the entity's files changed while `version` stood still (a `status:`-only
+   edit is exempt), and `metaframework check --since <base>` fails a branch
+   that lands one.
 3. Consider resetting `status: approved` → `review` — the previously approved
    contract still holds, but the new surface has not been reviewed.
 4. Record what changed and why in the prose. The catalog is the changelog: a

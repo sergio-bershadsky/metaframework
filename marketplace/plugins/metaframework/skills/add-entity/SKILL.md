@@ -475,12 +475,13 @@ table, the cascade rules, and what this check does not cover.
 - A `library` component has nowhere to run and must not declare
   `uses: /environment/…`. A `draft` component has no business declaring
   production.
-- **The catalog check does not validate `journey.yaml`.** It reads the file as a
-  generic artifact, so a YAML *syntax* error surfaces and nothing else does: the
-  `E_JRN_*` codes come from the parser the portal runs when it *renders* the
-  journey page, exactly like `E_PROTO_*`. A green check means nothing about the
-  steps. Open the entity's page after writing one — `metaframework` with no
-  subcommand serves the portal on port 6363 (`validate-catalog` skill).
+- **The catalog check validates `journey.yaml` — with one blind spot.** The
+  mini-spec parsers for `journey.yaml`, `workflows/*.yaml` and `states.json`
+  run inside the check itself, so `E_JRN_*` and `E_PROTO_*` findings fail the
+  run like any loader code. What the check cannot see is a journey entity with
+  **no** `journey.yaml` at all — only artifacts that exist are parsed — so
+  after creating a journey, confirm the file exists. Opening the page
+  (`metaframework` serves on 6363) shows the same findings, drawn.
 - **`target: 1200` on a metric is `E_FM_SCHEMA`, and it looks right.** YAML turns
   it into an integer before validation sees it. Quote `target` and `window`
   always, and the rule needs no case analysis. `window: "1 month"` is

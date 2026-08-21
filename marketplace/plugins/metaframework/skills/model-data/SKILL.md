@@ -163,7 +163,9 @@ schema's identity is a defect, not a configuration.
 
 **`SCHEMA_BASE_URL` is a different thing and must not leak into a file.** It
 controls where the portal *serves* schemas — the `/schemas` route,
-`http://localhost:3000/schemas/…` in dev. Serving address, not identity. An `$id`
+`http://localhost:3000/schemas/…` under `next dev`, the CLI's own origin —
+`http://localhost:6363/schemas/…` by default — under `metaframework`. Serving
+address, not identity. An `$id`
 or `$ref` carrying it is `E_DM_ID_MISMATCH` / `E_DM_REF_TARGET`.
 
 **`x-srn` is required** and carries the **unversioned** SRN. It is checked
