@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { parse as parseYaml } from 'yaml'
 import { catalogDir as defaultCatalogDir } from '../catalog'
 import type { Diagnostic } from '../catalog/types'
+import { RESERVED_KINDS } from '../srn/srn'
 
 /**
  * Git-backed history — framework/spec/evolution.md.
@@ -746,6 +747,160 @@ function versionRegressions(revisions: EntityRevision[], relDir: string): Diagno
     previous = revision.version
   }
   return diagnostics
+}
+
+/**
+ * `E_VER_UNBUMPED` — an entity's content changed while its `version` did not.
+ *
+ * evolution.md's whole model is that a version is a snapshot of the entity
+ * *directory* at one commit, with exactly one exemption: a commit touching only
+ * `status:` in `index.md` does not bump. Nothing enforced that. `version` was
+ * checked for going backwards or skipping ({@link versionRegressions}) and never
+ * for standing still while the files under it moved.
+ *
+ * The gap is invisible today and load-bearing tomorrow. `getEntityHistory`
+ * builds its index by logging `{dir}/index.md`, so a commit that touched only
+ * `transport.yaml` never appears in the revision list at all — the machinery
+ * cannot see artifact-only history, let alone judge it. The moment an artifact
+ * is addressable as `…/worktree-lease.transport@3`, an unbumped edit makes the
+ * pinned form and the unpinned form answer differently for the same version,
+ * which is the one thing a pin exists to prevent.
+ *
+ * So this walks the **directory**, not the document, and compares consecutive
+ * commits that carry the same version.
+ *
+ * ## Why committed states and never the working tree
+ *
+ * The obvious cheap check — diff the working tree against the commit carrying
+ * the current version — is wrong, and wrong in the way that would have made the
+ * feature hated: editing a file before committing it is not a violation, it is
+ * authoring. The bump legitimately arrives in the same commit as the change. A
+ * check that fired on every unsaved edit would be noise, so this only ever
+ * compares two commits.
+ *
+ * Truncated logs are skipped for the same reason `versionRegressions` skips
+ * them: with no visible predecessor, a boundary finding is an artefact of the
+ * 200-commit cap rather than a defect.
+ */
+export async function unbumpedChanges(relDir: string, options: HistoryOptions & { srn?: string } = {}): Promise<Diagnostic[]> {
+  const root = options.catalogDir ?? defaultCatalogDir()
+  const safe = safeCatalogPath(relDir, options)
+  if (!safe) return []
+
+  return listed(`unbumped ${root} ${safe}`, async () => {
+    const { context } = await resolveContext(root)
+    if (!context) return []
+
+    // Directory-scoped: this is the log that can see an artifact-only commit.
+    const log = await listCommits(safe, options)
+    if (log.unavailable || log.truncated || log.commits.length < 2) return []
+
+    const document = `${safe}/${ENTITY_DOCUMENT}`
+    const at = await mapLimit(log.commits, 8, async (commit) =>
+      (await readFileAtRevision(document, commit.hash, options)).content,
+    )
+    const versions = at.map(frontmatterVersion)
+
+    const findings: Diagnostic[] = []
+    // `commits` is newest-first; walk from the end so each pair reads forward.
+    for (let index = log.commits.length - 1; index > 0; index--) {
+      const older = log.commits[index]
+      const newer = log.commits[index - 1]
+      const before = versions[index]
+      const after = versions[index - 1]
+
+      // An unreadable index.md says nothing either way; a bump is the correct
+      // behaviour and needs no report.
+      if (before === null || after === null || before !== after) continue
+
+      const changed = (await changedPaths(context, older.hash, newer.hash, safe)).filter((file) =>
+        ownedBy(safe, file),
+      )
+      const offenders = changed.filter((file) => file !== document)
+
+      // `index.md` alone is legal only under the status-only exemption.
+      if (offenders.length === 0) {
+        if (changed.length === 0) continue
+        if (sansStatus(at[index]) === sansStatus(at[index - 1])) continue
+        offenders.push(document)
+      }
+
+      for (const file of offenders) {
+        findings.push({
+          code: 'E_VER_UNBUMPED',
+          severity: 'error',
+          message:
+            `changed at ${newer.short} (${newer.date}) while version stayed ${before} — ` +
+            `every content change bumps version, and only a status-only edit is exempt. ` +
+            `A pin at @${before} therefore names two different files.`,
+          path: file,
+          ...(options.srn ? { srn: options.srn } : {}),
+        })
+      }
+    }
+    return findings
+  })
+}
+
+/**
+ * Whether a changed path is this entity's own file rather than a descendant's.
+ *
+ * `git diff -- <dir>` is recursive, and an entity directory contains its
+ * children. Without this filter a solution was blamed for every commit under
+ * it: the first probe over the real catalog reported `srn://acme` as having
+ * changed `acme/actor/customer/index.md`, which is another entity with a
+ * version of its own and its own answer to this question.
+ *
+ * The test is structural rather than a filesystem walk. A child entity always
+ * sits inside a kind bucket (`actor/`, `component/`, `datamodel/`, …), and an
+ * entity's own artifacts never do — they are `index.md`, `schema.json`,
+ * `transport.yaml`, `workflows/*.yaml`, `examples/*.json` and the like, none of
+ * which is a reserved kind. So the first segment below the entity decides it.
+ */
+function ownedBy(relDir: string, file: string): boolean {
+  const rest = file.startsWith(`${relDir}/`) ? file.slice(relDir.length + 1) : null
+  if (rest === null) return false
+  const head = rest.split('/')[0]
+  return !(RESERVED_KINDS as readonly string[]).includes(head)
+}
+
+/** Catalog-relative paths that differ between two commits, under one directory. */
+async function changedPaths(
+  context: GitContext,
+  from: string,
+  to: string,
+  relDir: string,
+): Promise<string[]> {
+  const run = await runGit(context.root, [
+    'diff',
+    '--name-only',
+    from,
+    to,
+    '--',
+    gitPath(context, relDir),
+  ])
+  if (run.failure) return []
+  return run.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => (context.prefix ? line.slice(context.prefix.length) : line))
+}
+
+/**
+ * The document with its `status:` line removed, for the exemption comparison.
+ *
+ * Textual rather than parsed on purpose: the question is "is this edit
+ * *only* the status line", and re-serialising parsed frontmatter would answer a
+ * different one — two documents can parse equal and differ in comments,
+ * ordering or whitespace, none of which is exempt.
+ */
+function sansStatus(source: string | null): string {
+  if (source === null) return ''
+  return source
+    .split('\n')
+    .filter((line) => !/^status:\s/.test(line))
+    .join('\n')
 }
 
 const RENAME_HINT =

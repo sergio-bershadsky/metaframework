@@ -611,6 +611,8 @@ const UNREACHABLE_FROM_DISK: Record<string, string> = {
   'E_STRUCT_DUPLICATE_SRN':
     'a bucketed path maps to exactly one SRN, so two entity directories cannot collide; the check guards a future non-filesystem source',
   'E_VER_REGRESSION': 'lib/history reads git, not the catalog directory — a temp fixture has no history',
+  'E_VER_UNBUMPED':
+    'the same reason, one step further: this compares two COMMITS of an entity directory, so it is not merely unreachable from a fixture with no history — it is undecidable from disk at all. Content that changed without a version bump looks exactly like content that never changed. Its own tests build real repositories in git.test.ts',
   'E_SRN_VERSION':
     'V7 is "the pin resolves to no commit", which only lib/history can answer — a temp fixture has no history. A pin that resolves but has fallen behind is W_REF_STALE_PIN, and the fixture does fire that',
 }

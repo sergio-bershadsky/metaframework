@@ -3,7 +3,9 @@ import { ArrowUpRight, ChevronRight, FileWarning } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Suspense } from 'react'
 import { EntityLink } from '@/components/entity-link'
+import { VersionCheck, VersionCheckPending } from '@/components/entity/version-check'
 import { CapabilityRealizedBy, CAPABILITY_DERIVED_EDGES } from '@/components/entity/capability-realized-by'
 import { ContentsJump } from '@/components/entity/contents-jump'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
@@ -43,6 +45,7 @@ import {
   type EntityHistory,
   explainMissingVersion,
   getEntityHistory,
+  unbumpedChanges,
   readFileAtRevision,
 } from '@/lib/history/git'
 import { formatSrn, parseSrn, resolveRef } from '@/lib/srn/srn'
@@ -211,6 +214,18 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
             options={options}
             reach={floorOf(history)}
           />
+          {/* Beside the version it is about. This one streams: it walks commits
+              and diffs pairs, so it must not hold up first paint — the chip
+              renders in its pending state and resolves in place. */}
+          {!historical && (
+            <Suspense fallback={<VersionCheckPending />}>
+              <VersionCheckStreamed
+                relDir={entity.relDir}
+                srn={entity.srn}
+                available={history.unavailable === null}
+              />
+            </Suspense>
+          )}
           {view.frontmatter.owner && (
             <span className="inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">
               {view.frontmatter.owner}
@@ -231,6 +246,7 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
           over a historical snapshot would attribute today's defects to an old
           revision, so they belong to the current view only. */}
       {!historical && diagnostics.length > 0 && <Diagnostics diagnostics={diagnostics} />}
+
 
       {/* A metric's numbers are the substance of its page, not a detail of it,
           so they sit above the prose in the shape a number belongs in. The
@@ -319,6 +335,37 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
  * marks which line is only a warning. /diagnostics has always split them; this
  * is the entity page catching up.
  */
+/**
+ * `E_VER_UNBUMPED`, resolved in the background.
+ *
+ * Kept out of the loader's diagnostics deliberately: those are decidable from
+ * the files on disk, and this one is decidable only from history. Folding it in
+ * would make the whole diagnostics list conditional on git being present, and
+ * `catalog-renders-without-git` exists to stop exactly that.
+ *
+ * It renders nothing at all when git cannot answer, which is not a degradation
+ * to explain — an unbumped version is a statement about commits, so with no
+ * commits there is no claim to make either way.
+ */
+async function VersionCheckStreamed({
+  relDir,
+  srn,
+  available,
+}: {
+  relDir: string
+  srn: string
+  available: boolean
+}) {
+  // Absent, not "clean", when git cannot answer. `unbumpedChanges` returns an
+  // empty list both for a healthy entity and for a repository it could not
+  // read, so rendering a tick off the empty list would put the page's most
+  // confident wrong answer next to the version it is wrong about. The
+  // distinguishing fact is whether history exists at all, which the page has
+  // already resolved — so it is passed in rather than asked for twice.
+  if (!available) return null
+  return <VersionCheck findings={await unbumpedChanges(relDir, { srn })} />
+}
+
 function Diagnostics({ diagnostics }: { diagnostics: Diagnostic[] }) {
   const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length
   const worst = errors > 0 ? 'error' : 'warning'

@@ -12,6 +12,7 @@ import {
   readFileAtRevision,
   resolveVersion,
   safeCatalogPath,
+  unbumpedChanges,
 } from './git'
 
 /**
@@ -484,5 +485,101 @@ describe('safeCatalogPath', () => {
     const revision = await readFileAtRevision('../../../../etc/passwd', null, { catalogDir: repo.catalogDir })
     expect(revision.content).toBeNull()
     expect(revision.unavailable?.reason).toBe('git-error')
+  })
+})
+
+describe('unbumpedChanges — content moved while version stood still', () => {
+  it('reports an artifact edited without a version bump', async () => {
+    const solo = await makeRepo()
+    await solo.write('acme/datamodel/order/index.md', document(1, 'review'))
+    await solo.write('acme/datamodel/order/schema.json', '{"title":"Order"}')
+    solo.commit('add order')
+
+    // The violation: schema.json changes, index.md does not.
+    await solo.write('acme/datamodel/order/schema.json', '{"title":"Order","x":1}')
+    const bad = solo.commit('tweak the schema')
+
+    const found = await unbumpedChanges('acme/datamodel/order', { catalogDir: solo.catalogDir })
+    expect(found.map((d) => d.code)).toEqual(['E_VER_UNBUMPED'])
+    expect(found[0].path).toBe('acme/datamodel/order/schema.json')
+    expect(found[0].severity).toBe('error')
+    expect(found[0].message).toContain(bad.slice(0, 7))
+  })
+
+  it('says nothing when the same commit bumps the version', async () => {
+    const good = await makeRepo()
+    await good.write('acme/datamodel/order/index.md', document(1, 'review'))
+    await good.write('acme/datamodel/order/schema.json', '{"title":"Order"}')
+    good.commit('add order')
+
+    await good.write('acme/datamodel/order/schema.json', '{"title":"Order","x":1}')
+    await good.write('acme/datamodel/order/index.md', document(2, 'review'))
+    good.commit('order v2')
+
+    expect(await unbumpedChanges('acme/datamodel/order', { catalogDir: good.catalogDir })).toEqual([])
+  })
+
+  it('honours the status-only exemption', async () => {
+    const status = await makeRepo()
+    await status.write('acme/datamodel/order/index.md', document(1, 'review'))
+    status.commit('add order')
+
+    // evolution.md: a commit touching only `status:` does not bump.
+    await status.write('acme/datamodel/order/index.md', document(1, 'approved'))
+    status.commit('approve order')
+
+    expect(await unbumpedChanges('acme/datamodel/order', { catalogDir: status.catalogDir })).toEqual([])
+  })
+
+  it('still reports a prose edit that hid behind a status change', async () => {
+    const sneaky = await makeRepo()
+    await sneaky.write('acme/datamodel/order/index.md', document(1, 'review'))
+    sneaky.commit('add order')
+
+    // Status moved AND the body moved: the exemption covers only the former.
+    await sneaky.write('acme/datamodel/order/index.md', document(1, 'approved', 'A new paragraph.'))
+    sneaky.commit('approve and reword')
+
+    const found = await unbumpedChanges('acme/datamodel/order', { catalogDir: sneaky.catalogDir })
+    expect(found).toHaveLength(1)
+    expect(found[0].path).toBe('acme/datamodel/order/index.md')
+  })
+
+  it('never blames a parent for a child entity commit', async () => {
+    // `git diff -- <dir>` is recursive, and an entity contains its children.
+    // The first version of this check reported a solution as having changed
+    // its descendants' files.
+    const nested = await makeRepo()
+    await nested.write('acme/index.md', document(1, 'review'))
+    await nested.write('acme/datamodel/order/index.md', document(1, 'review'))
+    nested.commit('solution and a child')
+
+    await nested.write('acme/datamodel/order/index.md', document(1, 'review', 'child edit'))
+    nested.commit('edit only the child')
+
+    expect(await unbumpedChanges('acme', { catalogDir: nested.catalogDir })).toEqual([])
+    expect(await unbumpedChanges('acme/datamodel/order', { catalogDir: nested.catalogDir })).toHaveLength(1)
+  })
+
+  it('attaches the SRN when the caller supplies one', async () => {
+    const linked = await makeRepo()
+    await linked.write('acme/datamodel/order/index.md', document(1, 'review'))
+    await linked.write('acme/datamodel/order/schema.json', '{}')
+    linked.commit('add order')
+    await linked.write('acme/datamodel/order/schema.json', '{"a":1}')
+    linked.commit('edit schema')
+
+    const found = await unbumpedChanges('acme/datamodel/order', {
+      catalogDir: linked.catalogDir,
+      srn: 'srn://acme/datamodel/order',
+    })
+    expect(found[0].srn).toBe('srn://acme/datamodel/order')
+  })
+
+  it('is silent without git, like everything else here', async () => {
+    const bare = await tempDir()
+    await mkdir(path.join(bare, 'solutions/acme/datamodel/order'), { recursive: true })
+    await writeFile(path.join(bare, 'solutions/acme/datamodel/order/index.md'), document(1, 'review'))
+    expect(await unbumpedChanges('acme/datamodel/order', { catalogDir: path.join(bare, 'solutions') })).toEqual([])
   })
 })

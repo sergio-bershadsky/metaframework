@@ -359,12 +359,42 @@ and the portal build's validation.
 | Code                  | Meaning                                                        |
 | --------------------- | -------------------------------------------------------------- |
 | `E_VER_REGRESSION`    | `version` decreased, or increased by more than 1, in a commit. |
+| `E_VER_UNBUMPED`      | An entity's content changed between two commits while `version` stayed the same. |
 | `E_SRN_VERSION`       | Pinned `@N` not on filesystem nor in the version→commit index. |
 | `W_REF_DEPRECATED`    | Reference targets a `status: deprecated` entity.               |
 | `W_REF_STALE_PIN`     | Pinned `@N` resolves, but the target has moved past it.        |
 
 (`E_VER_REGRESSION` is checkable only where history is available — the portal
 checks it while building the version→commit index.)
+
+`E_VER_UNBUMPED` is the enforcement of the rule this document opens with: every
+content change bumps `version`, and the only exemption is a commit touching
+`status:` alone. Until it existed the rule was a convention — `version` was
+checked for moving *wrongly* and never for failing to move at all — and the
+first run over this repository's own history found 346 violations across 283 of
+324 entities, 64 of them in artifacts rather than in `index.md`.
+
+Two properties of the check follow from what the rule actually says, and both
+matter:
+
+- It compares **two commits, never the working tree**. Editing a file before
+  committing it is authoring, not a violation; the bump legitimately arrives in
+  the same commit as the change.
+- It is scoped to the entity's **own** files. An entity directory contains its
+  children, and a child carries its own `version` and answers this question for
+  itself. A child always sits in a kind bucket and an entity's own artifacts
+  never do, which is what separates them.
+
+Like `E_VER_REGRESSION` it needs history, so it is absent rather than passing
+where git is not available — with no commits there is no claim to make. It is
+also skipped on a truncated log, where a finding at the boundary would be an
+artefact of the commit cap.
+
+**Why it is not optional once artifacts are addressable.** A version is a
+snapshot of the whole entity directory, so `@N` names an artifact's bytes as
+well as the document's. An unbumped edit makes a pinned reference and an
+unpinned one resolve to different content for the same version — which is the
+one thing a pin exists to prevent.
 
 The two version codes answer different questions and MUST NOT be conflated.
 `E_SRN_VERSION` is an **error** and asks whether the pin resolves at all; it can

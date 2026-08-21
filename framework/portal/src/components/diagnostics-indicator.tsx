@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 /**
- * Catalog health, always visible. Integrity is enforced at load time (there is
- * no CLI in v1), so the masthead is the only place a broken reference can
+ * Catalog health, always visible. Integrity is enforced at load time, so the
+ * masthead is the only place inside the portal where a broken reference can
  * announce itself — hiding it behind a page nobody visits would defeat the
- * validation entirely.
+ * validation entirely. (`metaframework check` runs the same loader from a
+ * terminal and exits non-zero; this is the in-portal half of the same answer.)
  */
 export function DiagnosticsIndicator({ errors, warnings }: { errors: number; warnings: number }) {
   const healthy = errors === 0 && warnings === 0
