@@ -186,12 +186,13 @@ tags:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-solution/scripts/catalog_facts.py solutions/acme
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
 The first reports `R_DEPRECATED_LIVE_REF` if any structural referrer was missed
 and `R_SWAP_UNFINISHED` if a `supersedes` target was left un-deprecated. The
-second must show zero error diagnostics.
+second takes no path — it walks up for the `solutions/` directory itself — and
+must show zero error diagnostics.
 
 ---
 
@@ -270,7 +271,7 @@ grep -rl "product/shop" solutions/ --include='*.md' --include='*.json' \
      --include='*.yaml' | wc -l                             # files that mention the old path
 ```
 
-Against the fixture as it stands that is 23 and 86 — twenty-three swaps and
+Against the acme catalog as it stands that is 23 and 86 — twenty-three swaps and
 eighty-six files touched, to change a word that is the entity's address, not its
 label: the portal titles entities by `title`. Run the two commands rather than
 quoting these numbers; both grow with the catalog. Fix

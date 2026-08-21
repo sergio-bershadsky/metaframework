@@ -242,19 +242,21 @@ the entity's `version`, including a change to a single artifact file.
 Every run that writes files ends here:
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
-Zero **error** diagnostics is the pass condition; there is no CLI. Report
-pass/fail and every diagnostic with its code and file. `E_PROTO_*` and
-`W_PROTO_*` codes are documented at the end of
-`framework/spec/kinds/protocol.md`, and — for an installed plugin that cannot see
-it — in one table at the end of
+Zero **error** diagnostics is the pass condition, and `metaframework check` exits
+non-zero when there are any. It locates the catalog by walking up from the working
+directory to the nearest `solutions/`, so it runs from anywhere inside a
+catalog-only repository — no framework checkout involved. Report pass/fail and
+every diagnostic with its code and file. `E_PROTO_*` and `W_PROTO_*` codes are
+documented at the end of `framework/spec/kinds/protocol.md`, and — for an
+installed plugin that cannot see it — in one table at the end of
 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/protocols.md`, as well as beside
-the rule each one guards in `references/artifacts.md`. Note that the
-catalog check does **not** run the protocol validators over the shipped tree;
-`E_PROTO_*` appears only when the portal renders the protocol page, so open it
-after touching `states.json` or a workflow (`validate-catalog` skill). If a
-diagnostic demands removing, renaming,
-narrowing or moving an entity, that is not a fix — stop and say it requires a
-swap.
+the rule each one guards in `references/artifacts.md`. Note that the catalog check
+does **not** run the protocol validators over the catalog tree; `E_PROTO_*`
+appears only when the portal renders the protocol page, so open it — `metaframework`
+with no subcommand serves the portal on port 6363 — after touching `states.json`
+or a workflow (`validate-catalog` skill). If a diagnostic demands removing,
+renaming, narrowing or moving an entity, that is not a fix — stop and say it
+requires a swap.

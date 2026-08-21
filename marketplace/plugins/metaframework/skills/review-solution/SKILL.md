@@ -6,7 +6,7 @@ description: This skill should be used when the user asks for an architectural r
 # Reviewing a solution
 
 Answer the question the checker cannot: **is this a good description of this
-system?** The portal's catalog check proves the tree parses, the frontmatter
+system?** `metaframework check` proves the tree parses, the frontmatter
 validates, the references resolve and the schemas load. It cannot tell that
 a component does three unrelated jobs, that a protocol drifted away from its
 participants, or that a vocabulary was copied instead of referenced.
@@ -33,8 +33,14 @@ on disk.
 ## Step 1 — check legality first
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check          # or: npx @bershadsky/metaframework check
 ```
+
+Run it from anywhere inside the catalog: it walks up for `solutions/` the way
+git walks up for `.git`, so a catalog-only repository checks exactly like one
+inside the framework (`--dir <path>` or `CATALOG_DIR` when the walk is wrong).
+Zero `error`-severity diagnostics is the pass condition, and it exits non-zero,
+so the same command is the CI gate.
 
 If it reports errors, say so and deal with them first (`/catalog-check`, or the
 `validate-catalog` skill). A catalog with dangling references is a catalog whose
@@ -67,7 +73,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-solution/scripts/catalog_facts.py so
 It walks the catalog, resolves every reference (frontmatter relations, protocol
 participants, `primary-actors`, schema `$ref` URLs, prose `srn://` links) into a
 graph, and prints a census plus candidate findings coded `R_*`. Standard library
-only; no CLI, no network, nothing written.
+only; no subprocesses, no network, nothing written. The solution argument may be
+dropped on a single-solution catalog — the script walks up for `solutions/` like
+the CLI does. It differs on `CATALOG_DIR`: this script treats it as a place to
+start walking, while the CLI takes it as the catalog directory itself and does
+not walk at all (`bin/discover.mjs` — "neither of the explicit forms walks").
 
 **Every `R_*` line is a question, not a verdict.** The codes are deliberately
 not `E_*`/`W_*`: they carry no authority, several are heuristics, and a

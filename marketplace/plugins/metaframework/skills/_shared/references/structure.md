@@ -12,12 +12,24 @@ directories. Where the two disagree, `srn.md` is normative.
 
 ## Repository layout
 
+**`solutions/` is the only directory any of this requires.** A repository that
+holds nothing but a catalog is the normal case, and it checks like any other:
+`metaframework check` walks up from the working directory until it finds a
+`solutions/` directory containing at least one `<name>/index.md`, the way git
+finds `.git`. (`--dir <path>` or `CATALOG_DIR` overrides the search.)
+
+The framework's own repository puts three more directories around it:
+
 | Path                | Contents                                                            |
 |---------------------|---------------------------------------------------------------------|
 | `framework/spec/`   | The specification, written in the framework's own format.           |
 | `framework/portal/` | The Next.js portal — read-only presentation over `solutions/`.      |
 | `solutions/`        | All described solutions. The only place solution entities may live. |
 | `docs/`             | Repository meta-documents (decision record, contributor notes).     |
+
+None of the three is a prerequisite for authoring or checking a catalog: the CLI
+carries its own compiled portal, and `framework/spec/` outranks this bundle only
+where it happens to be present.
 
 The portal reads `solutions/` and `.git/` only.
 

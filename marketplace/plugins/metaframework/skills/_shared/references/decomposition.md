@@ -129,9 +129,10 @@ occurred twice: the bundle's `schemas.md` was created teaching `$id` as the
 portal-serving URL and admitting sibling files "still show that retired form
 in passing" (corrected in commit `dada3ba`; `git diff 4c317b4..dada3ba` shows
 the rewrite), and `skills/validate-catalog/SKILL.md` said "Two files run"
-after `framework/portal/src/lib/catalog` had grown to four test files —
+after the portal's catalog test directory had grown to four test files —
 recorded as a failed acceptance criterion on the authoring-kit's
-`kit-works-without-the-spec` requirement. A distinct failure mode is the third
+`kit-works-without-the-spec` requirement, and cured only when the skill stopped
+describing somebody's test run at all and named `metaframework check`. A distinct failure mode is the third
 component test passing — which is precisely why the reference bundle is a
 component and the skills are not.
 

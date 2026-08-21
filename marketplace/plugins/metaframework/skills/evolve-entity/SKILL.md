@@ -11,9 +11,11 @@ ever deleted, moved, or renamed. Deciding which mechanism applies is the whole
 job; the edits themselves are mechanical.
 
 **Rules:** `framework/spec/evolution.md` and the target's `framework/spec/kinds/<kind>.md`
-when the repository has them — they are authoritative. Otherwise the bundled
+when the repository you are in carries them — they are authoritative. A
+catalog-only repository has neither, and that blocks nothing: the bundled
 distillation at `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`
-(plus `schemas.md` for `schema.json`, `frontmatter.md` for edges).
+is then the rule (plus `schemas.md` for `schema.json`, `frontmatter.md` for
+edges). Never fetch, copy or link the framework repository to obtain them.
 
 ## Step 1 — classify the change before touching a file
 
@@ -242,10 +244,14 @@ states, and make sure `.git` is present and **unshallow** where the portal runs
 Run the catalog check and report the result:
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
-Zero error diagnostics is the pass condition. Report pass/fail plus, for a swap,
+It finds the catalog by walking up for the `solutions/` directory the way git
+finds `.git`, so any directory inside the catalog repository will do — and
+`npx @bershadsky/metaframework check` runs it without installing anything.
+Zero error diagnostics is the pass condition, and it exits non-zero otherwise,
+so the same command is the CI gate. Report pass/fail plus, for a swap,
 which step the catalog is now at: successor created, N referrers migrated, M
 still pointing at the old entity, deprecated yes/no.
 

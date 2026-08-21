@@ -132,14 +132,23 @@ skills are disjoint by question: `validate-catalog` asks "is it legal?",
 
 ## Validating a catalog
 
-There is no CLI. Integrity is enforced when the portal loads the catalog:
+Integrity is enforced by the catalog loader, and the loader ships as a CLI:
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+npm install -g @bershadsky/metaframework   # once
+metaframework check
 ```
 
-Zero error diagnostics is the pass condition. Every skill that writes files ends
-by running this and reporting the result.
+Zero `error`-severity diagnostics is the pass condition, and the command exits
+non-zero when there are any, so the same invocation is a CI gate. Every skill
+that writes files ends by running this and reporting the result.
+
+It walks up from the working directory looking for a `solutions/` directory the
+way git looks for `.git`, so it needs nothing else present — **a catalog-only
+repository does not have to vendor, symlink or submodule this one to be
+checked.** Earlier versions of these skills implied it did, because the CLI did
+not exist and the only validator was a vitest suite that resolved its catalog
+relative to itself.
 
 ## The bundled reference
 

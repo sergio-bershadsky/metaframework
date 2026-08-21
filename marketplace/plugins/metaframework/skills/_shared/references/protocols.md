@@ -645,4 +645,5 @@ Codes from `srn.md`, `structure.md`, `frontmatter.md` and `evolution.md` apply
 unchanged — in particular `E_FM_SCHEMA` covers every type or enum violation of
 the protocol's frontmatter fields, `E_SRN_DANGLING` every unresolvable
 reference, and `W_STRUCT_PROTOCOL_NCA` a protocol below its participants' NCA.
-All are enforced at portal build/load; there is no CLI in v1.
+All are enforced by the catalog loader — `metaframework check` runs it and
+exits non-zero on any error.

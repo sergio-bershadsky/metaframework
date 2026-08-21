@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Collect architectural facts about a metaframework solution catalog.
 
-This is a REVIEW AID, not a validator. The portal's catalog check
-(`cd framework/portal && npx vitest run src/lib/catalog`) owns legality; this
+This is a REVIEW AID, not a validator. `metaframework check` owns legality; this
 script owns *shape* questions the checker deliberately does not ask: what is
 orphaned, what is deprecated but still referenced, where a protocol sits
 relative to its participants, which vocabulary is scoped wrongly.
 
 Every finding it prints is a CANDIDATE. The codes are `R_*` so they can never be
-confused with portal diagnostics (`E_*` / `W_*`). Open the files it names and
+confused with catalog diagnostics (`E_*` / `W_*`). Open the files it names and
 decide; several checks are heuristics that a well-modelled catalog will trip for
 good reasons.
 
@@ -16,8 +15,11 @@ Usage:
     python3 catalog_facts.py [SOLUTION_DIR] [--json]
 
 SOLUTION_DIR is a solution directory, e.g. `solutions/acme`. When omitted, the
-script looks for `solutions/` below the working directory and uses the single
-solution inside it.
+catalog is found by walking UP from `CATALOG_DIR` (if set) or the working
+directory for a `solutions/` holding at least one `<name>/index.md`, and the
+single solution inside it is used. Note this is NOT identical to how
+`metaframework check` reads `CATALOG_DIR`: the CLI treats it as the catalog
+directory itself and does not walk from it.
 
 Standard library only. PyYAML is used when importable; otherwise a small
 frontmatter-subset parser handles the catalog's YAML (scalars, lists of
@@ -591,10 +593,13 @@ def run_checks(solution, entities, out, inc):
                 )
             else:
                 # How far the doing is spread. Compared over whole pairs.
+                # Bound with a walrus rather than calling twice: the second call
+                # was what left the element type as `str | None`, which `sorted`
+                # below cannot order.
                 prods = {
-                    owning_product(s)
+                    product
                     for e, s, _ in incoming
-                    if e == "realizes" and owning_product(s)
+                    if e == "realizes" and (product := owning_product(s))
                 }
                 if len(prods) >= 4:
                     add(
@@ -765,6 +770,34 @@ EXPLAIN = {
 }
 
 
+def solutions_in(root: str) -> list[str]:
+    """Names of the solutions directly inside a `solutions/` directory."""
+    return [
+        d
+        for d in sorted(os.listdir(root))
+        if os.path.isfile(os.path.join(root, d, "index.md"))
+    ]
+
+
+def find_solutions_dir(start: str) -> str | None:
+    """Walk UP for a `solutions/` holding at least one `<name>/index.md`.
+
+    The same rule `metaframework check` uses, and for the same reason: the
+    catalog is found from wherever the caller happens to stand, so there is no
+    working-directory requirement and a catalog-only repository behaves like
+    one inside the framework.
+    """
+    cur = os.path.abspath(start)
+    while True:
+        root = os.path.join(cur, "solutions")
+        if os.path.isdir(root) and solutions_in(root):
+            return root
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return None
+        cur = parent
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("solution", nargs="?", help="solution directory, e.g. solutions/acme")
@@ -773,12 +806,16 @@ def main() -> int:
 
     target = args.solution
     if not target:
-        root = os.path.join(os.getcwd(), "solutions")
-        if not os.path.isdir(root):
-            ap.error("no solutions/ directory here — pass the solution directory explicitly")
-        subs = [d for d in sorted(os.listdir(root)) if os.path.isdir(os.path.join(root, d))]
+        start = os.environ.get("CATALOG_DIR") or os.getcwd()
+        root = find_solutions_dir(start)
+        if root is None:
+            ap.error(
+                f"no solutions/ directory at or above {start} — "
+                "pass the solution directory explicitly, or set CATALOG_DIR"
+            )
+        subs = solutions_in(root)
         if len(subs) != 1:
-            ap.error(f"{len(subs)} solutions found — pass one explicitly: {', '.join(subs)}")
+            ap.error(f"{len(subs)} solutions in {root} — pass one explicitly: {', '.join(subs)}")
         target = os.path.join(root, subs[0])
     if not os.path.isdir(target):
         ap.error(f"not a directory: {target}")

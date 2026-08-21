@@ -1239,4 +1239,4 @@ unresolvable reference.
 | `W_PROTO_STATES_UNREACHABLE`      | A state no transition can reach.                                              |
 | `W_PROTO_ARTIFACT_UNKNOWN`        | Unrecognised file in the protocol entity directory.                           |
 
-All are enforced at portal build/load; there is no CLI in v1.
+All are enforced by the catalog loader, which `metaframework check` runs.

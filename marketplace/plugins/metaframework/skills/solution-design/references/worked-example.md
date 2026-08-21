@@ -459,7 +459,10 @@ Delegate each entity to the skill that knows its kind — `model-data`,
 `protocol-design`, `add-entity` — rather than hand-rolling frontmatter, then run:
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
-Report pass/fail and every diagnostic with its code and file.
+from anywhere in the catalog repository — it walks up for `solutions/` the way
+git walks up for `.git`, so acme is checked the same whether it sits in the
+framework repository or in a repository of its own. Report pass/fail and every
+diagnostic with its code and file; zero errors is the pass condition.

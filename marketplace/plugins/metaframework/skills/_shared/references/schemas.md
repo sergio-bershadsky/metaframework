@@ -79,8 +79,9 @@ configuration choice. A schema copied out of the catalog keeps meaning what it
 meant.
 
 **`SCHEMA_BASE_URL` is not this.** It still exists and still controls *where the
-portal serves schemas* — the `/schemas` route, `http://localhost:3000/schemas/…`
-in dev. That is a retrieval address, not an identity. It MUST NOT appear in
+portal serves schemas* — the `/schemas` route, `http://localhost:6363/schemas/…`
+on a portal served by `metaframework`. That is a retrieval address, not an
+identity. It MUST NOT appear in
 `$id` or in any `$ref`. (In JSON Schema terms this is ordinary: `$id` is an
 identifier; retrieval is a resolver's problem. A local validator that wants to
 fetch rather than trust its cache maps the canonical host onto the portal's
@@ -139,7 +140,7 @@ Rejected forms and why:
 { "$ref": "../money/schema.json" }                                       /* E_DM_REF_TARGET — retired relative form   */
 { "$ref": "srn://acme/datamodel/money@1" }                               /* E_DM_REF_TARGET — no tool dereferences srn:// */
 { "$ref": "/acme/datamodel/money" }                                      /* E_DM_REF_TARGET — origin-relative, not portable */
-{ "$ref": "http://localhost:3000/schemas/acme/datamodel/money" }         /* E_DM_REF_TARGET — a serving address, not identity */
+{ "$ref": "http://localhost:6363/schemas/acme/datamodel/money" }         /* E_DM_REF_TARGET — a serving address, not identity */
 { "$ref": "https://elsewhere.example/acme/datamodel/money" }             /* E_DM_REF_TARGET — foreign host             */
 { "$ref": "https://schemas.metaframework.dev/acme/datamodel" }           /* E_DM_REF_TARGET — a bucket is not addressable */
 { "$ref": "https://schemas.metaframework.dev/acme/datamodel/money@1" }   /* E_DM_REF_TARGET — a URL carries no version pin */

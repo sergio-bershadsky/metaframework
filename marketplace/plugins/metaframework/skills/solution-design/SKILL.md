@@ -186,12 +186,29 @@ What a settled product's frontmatter looks like, field by field, is in
 ### Phase 5 — Check
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
-There is no CLI; the portal's catalog loader is the checker. Report pass/fail and
-every diagnostic with its code and file. Do not declare the design done on an
-unrun check.
+It runs the portal's own loader over the catalog, finding `solutions/` by
+walking up from the working directory the way git finds `.git` — so it runs from
+anywhere in the repository, and a catalog-only repository is checked exactly
+like the framework's own. Override with `--dir <path>` or `CATALOG_DIR=<path>`.
+
+Output is one entry per diagnostic — severity, code, catalog-relative path, then
+the message — closing with a line like
+`0 errors, 6 warnings — 324 entities across 3 solutions.` Zero errors is the
+pass condition, and the non-zero exit on any error makes this same command the
+CI gate.
+
+If the binary is not installed, say so and give one line —
+`npm install -g @bershadsky/metaframework`, or `npx @bershadsky/metaframework
+check` to skip installing. It carries its own server and pulls in nothing else.
+Do not go hunting for a second way to check; there isn't one worth having.
+
+Report pass/fail and every diagnostic with its code and file. Do not declare the
+design done on an unrun check. `metaframework` with no subcommand serves the
+portal on :6363, whose `/diagnostics` page is the same list with the graph next
+to it.
 
 ## Decomposition heuristics
 

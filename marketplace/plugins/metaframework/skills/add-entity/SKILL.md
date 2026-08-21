@@ -433,13 +433,22 @@ the path is described in.
 ### 8. Validate, and report the result
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check            # npm i -g @bershadsky/metaframework
+                               # or: npx @bershadsky/metaframework check
 ```
 
-Zero **error** diagnostics is the pass condition. Report pass/fail and every
-diagnostic with its code, file and fix. Invoke the **`validate-catalog`** skill
-to read the output — it carries the code→cause→fix table, the cascade rules, and
-what this check does not cover.
+Run it from anywhere inside the catalog repository: it walks **up** for a
+`solutions/` directory the way git walks up for `.git`, so there is no working
+directory to get right and no requirement that the catalog live inside the
+framework monorepo. `--dir <path>` or `CATALOG_DIR=<path>` override the search.
+
+Zero **error** diagnostics is the pass condition — the command exits non-zero on
+any error, so the same line is the CI gate. Output is one entry per diagnostic
+(`severity  CODE  catalog-relative-path`, then the message) closing with a
+summary like `0 errors, 6 warnings — 324 entities across 3 solutions.` Report
+pass/fail and every diagnostic with its code, file and fix. Invoke the
+**`validate-catalog`** skill to read the output — it carries the code→cause→fix
+table, the cascade rules, and what this check does not cover.
 
 ## Traps
 
@@ -470,7 +479,8 @@ what this check does not cover.
   generic artifact, so a YAML *syntax* error surfaces and nothing else does: the
   `E_JRN_*` codes come from the parser the portal runs when it *renders* the
   journey page, exactly like `E_PROTO_*`. A green check means nothing about the
-  steps. Open the entity's page after writing one (`validate-catalog` skill).
+  steps. Open the entity's page after writing one — `metaframework` with no
+  subcommand serves the portal on port 6363 (`validate-catalog` skill).
 - **`target: 1200` on a metric is `E_FM_SCHEMA`, and it looks right.** YAML turns
   it into an integer before validation sees it. Quote `target` and `window`
   always, and the rule needs no case analysis. `window: "1 month"` is

@@ -1213,4 +1213,4 @@ the datamodel's own `relations` edges (a schema `$ref` is not a relation edge);
 ([frontmatter.md](../frontmatter.md)); `E_VER_REGRESSION`, `W_REF_DEPRECATED`
 ([evolution.md](../evolution.md)); `E_STRUCT_*`
 ([structure.md](../structure.md)).
-All are enforced at portal build/load — there is no CLI in v1.
+All are enforced by the catalog loader, which `metaframework check` runs.

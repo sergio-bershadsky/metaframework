@@ -473,9 +473,9 @@ frontmatter `actor` field, and `E_SRN_DANGLING` every unresolvable reference in
 `E_JRN_BRANCH`, `W_JRN_ACTOR_ABSENT` and `W_JRN_UNDOCUMENTED_INTEGRATION` come
 from the `journey.yaml` parser, which the portal runs when it **renders** the
 journey entity. The catalog loader reads the file only as a generic artifact and
-never validates it, so the catalog check does not see any of them — only a YAML
-*syntax* error surfaces there.
-`E_JRN_ACTOR_KIND` on the frontmatter protagonist is a graph check and
-*does* come from the loader. After writing or editing a `journey.yaml`, open that
-entity's page, exactly as you would after touching a `states.json`
-(`validate-catalog` skill). There is no CLI in v1.
+never validates it, so `metaframework check` does not see any of them — only a
+YAML *syntax* error surfaces there. `E_JRN_ACTOR_KIND` on the frontmatter
+protagonist is a graph check and *does* come from the loader, so the check does
+report that one. After writing or editing a `journey.yaml`, open that entity's
+page — `metaframework` with no subcommand serves the portal on port 6363 —
+exactly as you would after touching a `states.json` (`validate-catalog` skill).

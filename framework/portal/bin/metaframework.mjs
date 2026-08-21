@@ -212,6 +212,17 @@ function startServer({ catalogDir, port, host, watch }) {
   // Deliberately overwritten rather than inherited: bash exports HOSTNAME as
   // the machine's name, which is not an address and fails with EADDRNOTAVAIL.
   process.env.HOSTNAME = host
+  // Where this process serves schema bytes, which is NOT the same question as
+  // what a schema's `$id` is — that stays the canonical host constant, and
+  // `fixture-check` asserts it. Unset, `schemaBaseUrl()` falls back to
+  // DEFAULT_SCHEMA_BASE_URL (`http://localhost:3000`, src/lib/schema/url.ts:49),
+  // which is Next's dev port and not this one: the portal then printed
+  // retrieval links to an address nothing was listening on. Set here rather
+  // than changing the default, because the default is right for `next dev` and
+  // wrong only for this launcher, which is the thing that knows the real port.
+  // Still deferring to an explicit SCHEMA_BASE_URL — a deployment behind a
+  // proxy has an origin neither of us can guess.
+  process.env.SCHEMA_BASE_URL ||= `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`
 
   const muffled = muffleStdout()
   // Not awaited: the import resolves when the module has evaluated, which is

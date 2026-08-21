@@ -57,7 +57,7 @@ solutions/acme/product/shop/component/checkout/requirement/idem-cap/index.md
 The invoked skill takes it from there and finishes with the catalog check:
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
 Zero error diagnostics is the pass condition.

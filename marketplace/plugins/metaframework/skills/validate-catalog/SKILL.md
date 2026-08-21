@@ -1,48 +1,79 @@
 ---
 name: validate-catalog
-description: This skill should be used when the user asks to "validate the catalog", "check the catalog", "run the catalog check", "why is the catalog failing", "the vitest catalog suite is red", "what does E_SRN_DANGLING mean", "fix these diagnostics", or names any metaframework diagnostic code (E_SRN_*, E_FM_*, E_STRUCT_*, E_DM_*, E_VER_*, E_PROTO_*, E_JRN_*, E_MET_*, W_CAP_*, W_*). It should also be used immediately after any skill or command creates or edits an entity, since the catalog check is the pass condition for that work. It covers running the check, reading its output, mapping each code family to its usual cause and fix, which warnings matter, and what the check deliberately does not cover. This is legality only — for whether the decomposition, placement and relation graph are any GOOD, use `review-solution`.
+description: This skill should be used when the user asks to "validate the catalog", "check the catalog", "run the catalog check", "why is the catalog failing", "`metaframework check` is red", "how do I check a catalog outside the framework repo", "what does E_SRN_DANGLING mean", "fix these diagnostics", or names any metaframework diagnostic code (E_SRN_*, E_FM_*, E_STRUCT_*, E_DM_*, E_VER_*, E_PROTO_*, E_JRN_*, E_MET_*, W_CAP_*, W_*). It should also be used immediately after any skill or command creates or edits an entity, since the catalog check is the pass condition for that work. It covers running the check, reading its output, mapping each code family to its usual cause and fix, which warnings matter, and what the check deliberately does not cover. This is legality only — for whether the decomposition, placement and relation graph are any GOOD, use `review-solution`.
 ---
 
 # Validate a metaframework catalog
 
-There is no CLI. Integrity is checked when the portal loads the catalog, and the
-loader is exercised by a vitest suite that asserts the shipped catalog loads
-clean.
+Integrity is checked by the catalog loader, and the loader ships as a CLI. Run
+it from anywhere inside the repository that holds the catalog:
+
+```bash
+metaframework check
+```
+
+**Zero `error`-severity diagnostics is the pass condition**, and the command
+exits non-zero when there are any, so it works as a CI gate unchanged. The run
+takes a second or two. Run it after every edit, not once at the end.
+
+## Getting the checker
+
+It is one global install and it carries its own compiled server, so it pulls in
+no dependencies and needs nothing else present:
+
+```bash
+npm install -g @bershadsky/metaframework
+```
+
+If a global install is unwelcome, `npx @bershadsky/metaframework check` is the
+same thing without one.
+
+**Do not vendor, symlink, or submodule the framework repository to get a
+checker.** Earlier versions of these skills told you to, because the CLI did not
+exist yet and the only validator was a vitest suite that resolved the catalog as
+`../../solutions` relative to itself. That is why the advice used to involve
+copying `framework/` around. It is obsolete: the CLI finds the catalog by
+walking up from the working directory the way git finds `.git`, so a
+catalog-only repository needs nothing vendored into it.
+
+## Running it
+
+- **No working-directory requirement.** Run it anywhere at or below the
+  repository root; it walks up looking for a `solutions/` directory holding at
+  least one `<name>/index.md`.
+- To check a catalog somewhere else, name it: `metaframework check --dir <path>`,
+  or `CATALOG_DIR=<path> metaframework check`.
+- If it finds nothing it prints every path it tried and exits 1 — that output is
+  the diagnosis, so read it rather than guessing at the working directory.
+
+Output is one line per diagnostic and a summary:
+
+```text
+error   E_SRN_DANGLING  acme/product/fulfilment/index.md
+        "/product/fulfilment/requirement/carrier-failover" resolves to
+        srn://acme/product/fulfilment/requirement/carrier-failover, which does not exist
+
+1 error, 6 warnings — 324 entities across 3 solutions.
+```
+
+Each entry is `severity  CODE  catalog-relative-path` and then the message. The
+path is relative to `solutions/`, so prefix it with `solutions/` to open the
+file. The message names the reference **exactly as authored** and the SRN it
+resolved to — comparing the two is usually the whole diagnosis.
+
+## Inside the framework repository only
+
+If you are working in the metaframework repository itself, the vitest suite
+still exists and asserts the same thing over the shipped catalogs:
 
 ```bash
 cd framework/portal && npx vitest run src/lib/catalog
 ```
 
-**Zero `error`-severity diagnostics is the pass condition.** The run takes under
-a second. Run it after every edit, not once at the end.
-
-## Running it
-
-- The working directory must be `framework/portal`. The suite resolves the
-  catalog as `../../solutions` relative to the working directory and **ignores
-  `CATALOG_DIR`** — that variable retargets the running portal, not the test. To
-  check a solution repository living outside this monorepo, point the portal at
-  it and read `/diagnostics` (below).
-- Two files run: `load.test.ts` (hermetic temp fixtures exercising the loader)
-  and `fixture-check.test.ts` (the real tree under `solutions/`). Only the second
-  can fail because of authored content.
-- A pass looks like `Test Files  2 passed (2)`. Test counts drift as the fixture
-  grows; the pass/fail line is the signal.
-
-A failure prints the diagnostics as a diff against the expected empty array —
-one real example, wrapped here for width:
-
-```text
-+   "E_SRN_DANGLING acme/product/fulfilment/index.md — \"/product/fulfilment/requirement/carrier-failover\"
-    resolves to srn://acme/product/fulfilment/requirement/carrier-failover, which does not exist",
-
- ❯ src/lib/catalog/fixture-check.test.ts:27:32
-```
-
-Each line is `CODE  catalog-relative-path — message`. The path is relative to
-`solutions/`, so prefix it with `solutions/` to open the file. The message names
-the reference **exactly as authored** and the SRN it resolved to — comparing the
-two is usually the whole diagnosis.
+It resolves `../../solutions` relative to its own location and **ignores
+`CATALOG_DIR`**, which is exactly why it is useless for a catalog living
+anywhere else. Prefer `metaframework check` even here; this is noted so a red
+suite in that repository is recognisable, not as a recommendation.
 
 ## Read the output in cascade order
 
@@ -122,13 +153,15 @@ parsed.
 
 ## Warnings are drift, not breakage
 
-The check filters on `severity === 'error'`, so warnings never fail it and
-**warnings are not printed by a passing run.** To see them, start the portal and
-open its diagnostics page, which lists errors and warnings separately:
+Only `error` severity decides the exit code, so **a run can pass with warnings
+outstanding** — they are printed as ordinary entries and counted in the summary
+(`0 errors, 6 warnings`), which is the number to watch across edits. The portal's
+diagnostics page shows the same list grouped by severity, if reading them that
+way is easier:
 
 ```bash
-cd framework/portal && npm run dev   # then http://localhost:3000/diagnostics
-# CATALOG_DIR=/abs/path npm run dev  # to point the portal at another catalog
+metaframework                        # then http://localhost:6363/diagnostics
+# CATALOG_DIR=/abs/path metaframework   # to point it at another catalog
 ```
 
 Which warnings matter:
@@ -158,35 +191,33 @@ Which warnings matter:
 ## What this check does not cover
 
 Treating a green run as "the catalog is correct" is the most expensive mistake
-available here. The catalog suite proves the tree *loads*. It does not prove
-the tree is *right*, and several specified rules are not machine-checked at all.
+available here. The check proves the tree *loads*. It does not prove the tree is
+*right*, and several specified rules are not machine-checked at all.
 
-- **Not exercised by this suite** — the protocol `states.json` and workflow
+- **Not exercised by the check** — the protocol `states.json` and workflow
   validators (`E_PROTO_*`), the `journey.yaml` parser (`E_JRN_SCHEMA`,
   `E_JRN_NAME`, `E_JRN_STEP_COUNT`, `E_JRN_BRANCH`, `W_JRN_ACTOR_ABSENT`,
   `W_JRN_UNDOCUMENTED_INTEGRATION`) and the git version-history check
-  (`E_VER_REGRESSION`) live in separate modules whose test suites use their own
-  hermetic fixtures. Running the whole suite (`npx vitest run`) proves those
-  validators work; it does **not** run them over `solutions/`. `E_PROTO_*` and
-  `E_JRN_*` meet real content only when the portal *renders* the protocol or
-  journey page, and they do not reach `/diagnostics`. After touching a
+  (`E_VER_REGRESSION`) live in separate modules the loader never calls. They are
+  implemented and tested against their own hermetic fixtures, but nothing runs
+  them over your `solutions/` tree. `E_PROTO_*` and `E_JRN_*` meet real content
+  only when the portal *renders* the protocol or journey page, and they do not
+  reach `/diagnostics` either. After touching a
   `states.json`, a workflow or a `journey.yaml`, open that entity's page.
 
-  Two things that used to sit in this list no longer do:
+  One thing that used to sit in this list no longer does:
 
-  - **The datamodel schema registry (`E_DM_*`) now runs over the shipped
-    catalog.** `getCatalog()` composes `loadCatalog` with `buildSchemaRegistry`
+  - **The datamodel schema registry (`E_DM_*`) now runs over whatever catalog
+    is loaded.** `getCatalog()` composes `loadCatalog` with `buildSchemaRegistry`
     (`src/lib/catalog/index.ts`, `withSchemaRegistry`) and folds the registry's
-    diagnostics into `catalog.diagnostics`, so `/diagnostics` shows loader and
-    schema problems in one list. A missing or mismatched `$id`, an absent or
-    disagreeing `x-srn`, a `$ref` naming no entity, an inheritance cycle and a
-    closed base all surface there.
-  - `fixture-check.test.ts` asserts over the real tree that every datamodel's
-    `$id` and `x-srn` agree with its own directory path — `$id` is the canonical
-    host `https://schemas.metaframework.dev` plus the SRN path, `x-srn` is
-    `srn://` plus the same path, neither carrying a version — and that every
-    non-local `$ref` is a canonical schema URL naming a real datamodel with a
-    `schema.json` behind it.
+    diagnostics into `catalog.diagnostics`, so the check and `/diagnostics` show
+    loader and schema problems in one list. A missing or mismatched `$id`, an
+    absent or disagreeing `x-srn`, a `$ref` naming no entity, an inheritance
+    cycle and a closed base all surface there. That covers datamodel identity
+    over the real tree: `$id` must be the canonical host
+    `https://schemas.metaframework.dev` plus the SRN path, `x-srn` `srn://` plus
+    the same path, neither carrying a version, and every non-local `$ref` a
+    canonical schema URL naming a real datamodel with a `schema.json` behind it.
 - **Specified but not implemented anywhere** — among others: the ADR's four
   required headings (`E_ADR_SECTIONS`), the requirement's `## Acceptance criteria`
   section (`E_REQ_CRITERIA`), `primary-actors` resolving to real actors
@@ -204,10 +235,12 @@ the tree is *right*, and several specified rules are not machine-checked at all.
 - **Not a modelling review.** Whether the decomposition, placement and relation
   graph make sense is the `catalog-reviewer` agent's job, not this check's.
 
-## Two failures that are not spec violations
+## Two vitest failures that are not spec violations
 
-`fixture-check.test.ts` is also a regression guard on the acme fixture
-specifically, with hard-coded expectations. Legitimate catalog work can fail it:
+Inside the metaframework repository only. Its `fixture-check.test.ts` is also a
+regression guard on the acme fixture specifically, with hard-coded expectations
+that `metaframework check` knows nothing about. Legitimate catalog work can turn
+that suite red while the check stays green:
 
 - adding a relation edge toward `srn://acme/product/billing/component/ledger` —
   one assertion pins that entity's exact inbound edge list;

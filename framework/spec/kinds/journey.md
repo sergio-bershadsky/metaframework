@@ -683,4 +683,4 @@ covers every type violation of the frontmatter field added here, and
 | `W_JRN_ACTOR_ABSENT`             | The frontmatter protagonist takes none of the steps.                                                        |
 | `W_JRN_ARTIFACT_UNKNOWN`         | Unrecognised file in the journey entity directory.                                                          |
 
-All are enforced at portal build/load; there is no CLI in v1.
+All are enforced by the catalog loader, which `metaframework check` runs.

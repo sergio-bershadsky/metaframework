@@ -4,9 +4,10 @@
 > the specification **defines**. The gap between them is the part of the contract
 > no machine enforces, and it is where authored catalogs actually go wrong.
 >
-> Verified against `framework/portal/src/lib/` and `framework/spec/`. When the
-> repository is present, re-derive rather than trust this file — a code can be
-> implemented between releases of the plugin:
+> Verified against `framework/portal/src/lib/` and `framework/spec/`. Neither is
+> needed to run the check — but if you happen to be working inside the
+> metaframework repository, re-derive rather than trust this file, since a code
+> can be implemented between releases of the plugin:
 >
 > ```bash
 > cd framework/portal/src && grep -rhoE "code: '(E|W)_[A-Z0-9_]+'" lib/ | sort -u
@@ -29,7 +30,8 @@ paths and on `relations` references) and the schema registry (on `$ref` URLs).
 
 ### `lib/catalog/load.ts` — the catalog loader
 
-What `npx vitest run src/lib/catalog` asserts to be empty of errors.
+What `metaframework check` reports. The `error` rows are the ones that make it
+exit non-zero; the `warning` rows print and are counted, and pass.
 
 | Code                     | Severity | Raised when                                                                                       |
 |--------------------------|----------|-----------------------------------------------------------------------------------------------------|
@@ -89,11 +91,9 @@ Loader behaviours worth knowing:
 Built on every catalog load: `getCatalog()` composes `loadCatalog` with
 `buildSchemaRegistry` (`withSchemaRegistry` in `src/lib/catalog/index.ts`) and
 folds the registry's diagnostics into `catalog.diagnostics`, so these codes
-reach `/diagnostics` beside the loader's. The catalog suite runs the same
-composition over the shipped tree, and its `fixture-check.test.ts` additionally
-asserts that every datamodel's `$id` and `x-srn` agree with its own path and
-that every non-local `$ref` is a canonical schema URL naming a real datamodel
-with a `schema.json` behind it.
+reach `/diagnostics` beside the loader's. `metaframework check` runs the same
+composition, so every datamodel's `$id` and `x-srn` are checked against its own
+path and every non-local `$ref` against the registry on every run.
 
 Identity is derived from the directory and *checked*, never trusted from the
 file. The host in `$id` is the canonical constant
@@ -120,7 +120,8 @@ only the portal's `/schemas` serving route.
 
 ### `lib/protocol/states.ts` and `lib/protocol/workflow.ts`
 
-Exercised when the portal renders a protocol page. Not run by the catalog suite.
+Exercised when the portal renders a protocol page. Not run by `metaframework
+check`.
 
 | Code                          | Severity | Artifact                                     |
 |-------------------------------|----------|----------------------------------------------|
@@ -316,5 +317,5 @@ Never emit or cite these; a mention in older prose is stale.
   | Prose naming the retired form to warn about it                   | intended, including the correction note left behind by such a fix     |
 
   The only checked half of this is the artifact side: `$id`, `x-srn` and every
-  `$ref` are validated against the entity's path by the catalog suite and the
-  registry. The prose side is grep and review, which is why it drifts.
+  `$ref` are validated against the entity's path by the schema registry, on
+  every check. The prose side is grep and review, which is why it drifts.

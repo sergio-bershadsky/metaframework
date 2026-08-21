@@ -298,22 +298,32 @@ declaring `"method": { "const": … }` inside its `required`.
 Every run that writes files ends here:
 
 ```bash
-cd framework/portal && npx vitest run src/lib/catalog
+metaframework check
 ```
 
-Zero **error** diagnostics is the pass condition; there is no CLI. Report
-pass/fail and every diagnostic with its code and file. Codes are documented in
-`schemas.md` and in `framework/spec/kinds/datamodel.md`. If a diagnostic demands
-removing, renaming, narrowing or moving an entity, that is not a fix — stop and
-say it requires a swap.
+`npm install -g @bershadsky/metaframework`, or `npx @bershadsky/metaframework
+check` with nothing installed. It walks **up** from the working directory for a
+`solutions/` directory holding at least one `<name>/index.md`, the way git finds
+`.git`, so there is no directory to be in first; `--dir <path>` or `CATALOG_DIR`
+overrides the search. The catalog does not have to live in the framework
+monorepo — a catalog-only repository is checked exactly the same way.
 
-**What this suite covers, and where the rest of `E_DM_*` appears.** The catalog
-suite asserts over the shipped tree that every `$id` and `x-srn` agree with the
-entity's own path and that every non-local `$ref` names a real datamodel with a
-`schema.json` behind it. The full registry — inheritance cycles, closed bases,
-contradictory conjunctions — runs when the portal loads the catalog:
-`getCatalog()` composes `loadCatalog` with `buildSchemaRegistry` and folds its
-diagnostics into the same list, so `/diagnostics` reports schema problems
-alongside loader ones. After writing or editing a `schema.json`, run the suite,
-then open `/diagnostics` (`npm run dev`) — or use the `validate-catalog` skill,
-which carries the full coverage map.
+Zero **error** diagnostics is the pass condition, and it exits non-zero when
+there are any, which is also what makes it a CI gate. Output is one entry per
+diagnostic — `severity  CODE  catalog-relative-path`, then the message — closing
+with a summary line like `0 errors, 6 warnings — 324 entities across 3
+solutions.` Report pass/fail and every diagnostic with its code and file. Codes
+are documented in `schemas.md` and in `framework/spec/kinds/datamodel.md`. If a
+diagnostic demands removing, renaming, narrowing or moving an entity, that is not
+a fix — stop and say it requires a swap.
+
+**Where the `E_DM_*` codes come from.** The check carries its own compiled
+server, so it runs the same two passes the portal does: the loader, which asserts
+that every `$id` and `x-srn` agree with the entity's own path and that every
+non-local `$ref` names a real datamodel with a `schema.json` behind it, and the
+schema registry — inheritance cycles, closed bases, contradictory conjunctions —
+whose diagnostics are folded into the same list. One command therefore reports
+the whole set. `metaframework` with no subcommand serves the portal on port 6363;
+its `/diagnostics` page is that same list in a browser, worth opening when you
+want to click through to the offending entity. The `validate-catalog` skill
+carries the full coverage map.

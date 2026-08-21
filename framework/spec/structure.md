@@ -554,5 +554,5 @@ cover is now `E_SRN_PLACEMENT`, raised by the parser, and is listed in
 
 SRN-level naming violations (`E_SRN_SYNTAX`, `E_SRN_RESERVED`) are defined in
 [srn.md](srn.md); frontmatter violations in
-[frontmatter.md](frontmatter.md). All are enforced at portal build/load — there
-is no CLI in v1.
+[frontmatter.md](frontmatter.md). All are enforced by the catalog loader, which
+`metaframework check` runs.

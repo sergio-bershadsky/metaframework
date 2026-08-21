@@ -801,7 +801,7 @@ per the [order-placement](../../protocol/order-placement) protocol.
 
 ## Validation rules and error classes
 
-Enforced at portal build/load (no CLI in v1). Rules V1–V5 are per-reference;
+Enforced by the catalog loader, which `metaframework check` runs. Rules V1–V5 are per-reference;
 V6–V8 require the resolved catalog.
 
 | #   | Rule                                                                                     | Error class            |
