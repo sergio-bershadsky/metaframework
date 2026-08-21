@@ -30,6 +30,58 @@ so `npm install -g` adds exactly one package. Needs **Node 20.11 or newer**
 (tested on 20.11.0 and 25.2.1; 20.10 and below are refused, and 20.9 is Next
 16's own floor).
 
+## What it looks like
+
+Everything below is **derived from the files** — no diagram is drawn by hand and
+no layout is stored anywhere.
+
+### The catalog, and one entity
+
+A rail of every entity in every solution, and a page per entity: what it is,
+what it promises, what it touches, and the artifacts it owns.
+
+![An entity page — kind, review status, delivery lifecycle, component type, version, and the components it owns](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/02-entity-page.png)
+
+### A solution map that re-centres
+
+Products and components only, arranged around whatever you clicked last.
+Distance is drawn as recession, so the neighbourhood stays legible instead of
+becoming a hairball.
+
+![The solution map, focused on one product, with distant boxes receding](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/01-solution-map.png)
+
+### Protocols draw themselves
+
+A protocol owns a `workflows/*.yaml` describing an exchange. The sequence
+diagram is compiled from it, so the picture cannot disagree with the contract —
+and the source sits next to it.
+
+![A derived sequence diagram beside the YAML it was compiled from](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/03-protocol-sequence.png)
+
+### Data models are real JSON Schema
+
+A datamodel's `schema.json` is not a picture of a type — it *is* the type, with
+a resolvable `$id`, an `x-srn` back-reference, and `$ref`s into other entities.
+The viewer renders it; the composition lineage is computed from `allOf`.
+
+![A rendered JSON Schema beside its source, with composition lineage](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/05-datamodel-schema.png)
+
+### The past comes from git, not from a database
+
+Every entity carries a `version`. Ask for an older one and the page is rebuilt
+from the commit that carried it — and when a version is genuinely unreachable,
+it says so and why rather than pretending.
+
+![An entity rebuilt from git at version 3, naming the commit it came from](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/04-version-history.png)
+
+### Integrity is checked on every load
+
+References, frontmatter, directory placement and schemas are validated as the
+catalog loads. `metaframework check` runs the same pass and exits non-zero, so
+it works as a CI gate.
+
+![The diagnostics page listing every warning with its file and rule code](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/06-diagnostics.png)
+
 ## What it expects to find
 
 A `solutions/` directory holding one directory per solution, each with an

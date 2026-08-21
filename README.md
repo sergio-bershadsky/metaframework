@@ -2,6 +2,18 @@
 
 A file-based framework for describing software solutions in a reviewable way.
 
+[![npm](https://img.shields.io/npm/v/@bershadsky/metaframework?color=5b5bd6&label=npm)](https://www.npmjs.com/package/@bershadsky/metaframework)
+[![ci](https://github.com/sergio-bershadsky/metaframework/actions/workflows/ci.yml/badge.svg)](https://github.com/sergio-bershadsky/metaframework/actions/workflows/ci.yml)
+[![licence: PolyForm Noncommercial](https://img.shields.io/badge/licence-PolyForm%20Noncommercial-4c9a7a)](LICENSE)
+
+![A derived sequence diagram beside the YAML it was compiled from](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/03-protocol-sequence.png)
+
+```bash
+npm install -g @bershadsky/metaframework
+cd ~/code/any-repo-with-a-solutions-folder
+metaframework
+```
+
 A **solution** is described as a catalog of markdown + JSON/YAML files — products,
 components, protocols, data models, actors, environments, ADRs, and requirements —
 every entity addressable by a stable **SRN** (Solution Resource Name), every artifact
@@ -10,6 +22,22 @@ versioned additively, the whole tree readable by humans, AI, and the portal alik
 The **portal** (Next.js) renders the catalog as a dense dark-themed app with derived
 diagrams: component graphs, protocol sequences, state charts, and schema inheritance
 trees.
+
+## What it looks like
+
+Every picture below is **computed from the files**. There is no diagram source
+in this repository — no `.drawio`, no hand-written mermaid, no stored layout.
+
+|  |  |
+| --- | --- |
+| **One entity** — what it is, what it promises, what it touches, and the artifacts it owns.<br><br>[![entity page](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/02-entity-page.png)](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/02-entity-page.png) | **A map that re-centres** on whatever you clicked, drawing distance as recession so it stays readable.<br><br>[![solution map](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/01-solution-map.png)](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/01-solution-map.png) |
+| **Schemas are real JSON Schema** — resolvable `$id`, `x-srn` back-reference, `$ref`s into other entities, composition lineage from `allOf`.<br><br>[![datamodel schema](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/05-datamodel-schema.png)](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/05-datamodel-schema.png) | **History comes from git**, not a database: an older version is rebuilt from the commit that carried it.<br><br>[![version history](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/04-version-history.png)](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/04-version-history.png) |
+
+**Integrity is checked as the catalog loads** — references, frontmatter,
+placement and schemas. `metaframework check` runs the same pass and exits
+non-zero, so it doubles as a CI gate.
+
+[![diagnostics](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/06-diagnostics.png)](https://raw.githubusercontent.com/sergio-bershadsky/metaframework/main/docs/screenshots/06-diagnostics.png)
 
 ## Layout
 
