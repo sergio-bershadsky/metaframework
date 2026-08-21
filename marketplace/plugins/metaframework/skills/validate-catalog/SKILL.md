@@ -45,6 +45,10 @@ catalog-only repository needs nothing vendored into it.
   or `CATALOG_DIR=<path> metaframework check`.
 - If it finds nothing it prints every path it tried and exits 1 — that output is
   the diagnosis, so read it rather than guessing at the working directory.
+- `metaframework check --since <ref>` adds the evolution gate: every entity
+  whose files changed since `<ref>` must have bumped its `version`, with the
+  status-only exemption. Use it in CI against the base of a branch. It needs
+  git, and says so rather than passing silently when there is none.
 
 Output is one line per diagnostic and a summary:
 

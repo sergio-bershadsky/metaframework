@@ -23,6 +23,8 @@ export const DEFAULT_HOST = '127.0.0.1'
 
 const OPTIONS = {
   dir: { type: 'string', short: 'd' },
+  // `check` only: the ref a version bump is required since.
+  since: { type: 'string' },
   port: { type: 'string', short: 'p' },
   host: { type: 'string' },
   open: { type: 'boolean' },
@@ -40,6 +42,7 @@ const COMMANDS = new Set(['serve', 'check'])
  * @property {true} ok
  * @property {'serve' | 'check' | 'help' | 'version'} command
  * @property {string | undefined} dir the `--dir` flag, unresolved
+ * @property {string | undefined} since the `--since` flag: require a version bump for anything changed since this ref
  * @property {number} port
  * @property {string} host
  * @property {boolean} open
@@ -101,6 +104,7 @@ export function parseCli(argv) {
     ok: true,
     command: /** @type {'serve' | 'check'} */ (command),
     dir: values.dir,
+    since: values.since,
     port,
     host,
     open: Boolean(values.open),
@@ -114,7 +118,7 @@ function refuse(message) {
 }
 
 function defaults() {
-  return { dir: undefined, port: DEFAULT_PORT, host: DEFAULT_HOST, open: false, watch: true }
+  return { dir: undefined, since: undefined, port: DEFAULT_PORT, host: DEFAULT_HOST, open: false, watch: true }
 }
 
 /**
@@ -133,6 +137,8 @@ USAGE
 
 OPTIONS
   -d, --dir <path>   catalog directory to serve (skips discovery)
+      --since <ref>  check only: also require a version bump for every entity
+                     whose files changed since <ref> (e.g. --since origin/main)
   -p, --port <n>     port to listen on (default ${DEFAULT_PORT})
       --host <addr>  address to bind (default ${DEFAULT_HOST}; use 0.0.0.0 to share)
       --open         open the portal in your browser once it is ready

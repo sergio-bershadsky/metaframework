@@ -6,6 +6,7 @@ import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEFAULT_PORT, helpText, parseCli } from './args.mjs'
 import { CATALOG_DIR_NAME, catalogShape, resolveCatalogDir } from './discover.mjs'
+import { repositoryRoot, unbumpedSince } from './since.mjs'
 
 /**
  * `metaframework` — the shell around the portal.
@@ -72,7 +73,9 @@ async function main() {
   }
 
   const catalogDir = catalogOrExit(invocation)
-  return invocation.command === 'check' ? check({ catalogDir, port: invocation.port }) : serve({ ...invocation, catalogDir })
+  return invocation.command === 'check'
+    ? check({ catalogDir, port: invocation.port, since: invocation.since })
+    : serve({ ...invocation, catalogDir })
 }
 
 /* ------------------------------------------------------------------ catalog */
@@ -395,7 +398,7 @@ function printBanner({ status, url, catalogDir, watch }) {
  * as /diagnostics, because it is the same server — started on a port nobody
  * asked for and stopped as soon as it has answered.
  */
-async function check({ catalogDir, port }) {
+async function check({ catalogDir, port, since }) {
   const host = '127.0.0.1'
   // A caller who named a port meant it; otherwise take one at random, because
   // `check` is the command most likely to run beside something else.
@@ -426,9 +429,72 @@ async function check({ catalogDir, port }) {
   )
 
   process.stdout.write(`${out.join('\n')}\n`)
+
+  // The version gate, when asked for. Reported after the loader's verdict and
+  // before the exit, because it answers a different question — the loader says
+  // whether the catalog is legal NOW, this says whether the change getting it
+  // there followed the evolution rule.
+  const gate = since ? await versionGate({ catalogDir, since }) : { failed: false }
+
   // The exit code is the contract with CI: warnings are a catalog that will
   // drift, errors are a catalog that contradicts the spec.
-  process.exit(errors > 0 ? 1 : 0)
+  process.exit(errors > 0 || gate.failed ? 1 : 0)
+}
+
+/**
+ * `--since <ref>`: every entity whose files changed must have bumped `version`.
+ *
+ * Separate from the loader's diagnostics on purpose. Those are decidable from
+ * the files on disk and this one is decidable only from two trees, so folding
+ * it into the same list would make the whole of `check` conditional on git —
+ * and `catalog-renders-without-git` exists to stop that. Here it is additive:
+ * without `--since` nothing changes, and with it the check gains a second,
+ * clearly-labelled verdict.
+ */
+async function versionGate({ catalogDir, since }) {
+  const repoRoot = await repositoryRoot(catalogDir)
+  if (!repoRoot) {
+    // Not fatal: a catalog outside a repository cannot break a rule about
+    // commits, and failing CI for that would be a false accusation.
+    warn(`--since ${since} needs a git repository; ${catalogDir} is not in one, so the version gate did not run.`)
+    return { failed: false }
+  }
+
+  const prefix = path.relative(repoRoot, catalogDir).split(path.sep).filter(Boolean).join('/')
+  const result = await unbumpedSince({
+    repoRoot,
+    ref: since,
+    inCatalog: (file) => (prefix ? file.startsWith(`${prefix}/`) : true),
+  })
+
+  if (!result.ok) {
+    fail(`--since ${since}: ${result.failure}`)
+  }
+
+  if (result.unbumped.length === 0) {
+    process.stdout.write(
+      result.entitiesTouched === 0
+        ? `\n${dim('since')}    ${since} — no catalog entity changed.\n`
+        : `\n${dim('since')}    ${since} — ${count(result.entitiesTouched, 'entity', 'entities')} changed, each either bumped its version or changed only its status.\n`,
+    )
+    return { failed: false }
+  }
+
+  const lines = ['', `${red('error  ')} ${bold('E_VER_UNBUMPED')}  ${dim(`${result.unbumped.length} of ${result.entitiesTouched} changed entities`)}`]
+  for (const entity of result.unbumped) {
+    lines.push(
+      `        ${entity.dir} — still version ${entity.version}, but these changed since ${since}:`,
+      ...entity.changed.map((file) => `          ${dim(file)}`),
+    )
+  }
+  lines.push(
+    '',
+    'Every content change bumps `version`; only a commit touching `status:` alone is exempt.',
+    'Without the bump, one version number names two different files, and a reference',
+    'pinned to it resolves to whichever the index recorded rather than to what is on disk.',
+  )
+  process.stdout.write(`${lines.join('\n')}\n`)
+  return { failed: true }
 }
 
 /* ------------------------------------------------------------------ process */

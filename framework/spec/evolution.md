@@ -385,6 +385,16 @@ matter:
   itself. A child always sits in a kind bucket and an entity's own artifacts
   never do, which is what separates them.
 
+The same rule is available as a **gate** rather than an audit:
+`metaframework check --since <ref>` requires every entity whose files changed
+since `<ref>` to have bumped its `version`, and exits non-zero when one did not.
+The two are deliberately different shapes. The audit walks every commit of one
+entity and is right for "is the history I have sound"; the gate compares two
+trees and judges only the net change, which is right for "may this land" — a
+branch that breaks the rule in one commit and repairs it in the next passes,
+and should, because the gate is about what lands rather than how it was
+written.
+
 Like `E_VER_REGRESSION` it needs history, so it is absent rather than passing
 where git is not available — with no commits there is no claim to make. It is
 also skipped on a truncated log, where a finding at the boundary would be an

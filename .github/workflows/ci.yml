@@ -114,6 +114,28 @@ jobs:
         with:
           node-version: 22
 
+      # The evolution gate, on pull requests only.
+      #
+      # `--since` requires every entity whose files changed to have bumped its
+      # `version`, with evolution.md's status-only exemption. It belongs here
+      # rather than on push because a gate needs an unambiguous base: a PR has
+      # one by definition, and after a merge to main the "previous state" is a
+      # question rather than a fact.
+      #
+      # It deliberately does not re-litigate history. The check compares the
+      # base against the working tree and judges only entities the branch
+      # touched, so the 346 pre-existing violations this rule's absence left in
+      # this repository do not fail anybody's unrelated PR.
+      #
+      # The base SHA goes through the environment rather than into the shell,
+      # like every other event-derived value in this file.
+      - name: version bumps accompany content changes
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node framework/portal/bin/metaframework.mjs check --since "$BASE_SHA"
+        working-directory: .
+
       # A publish must never ship sources, tests, the spec, or this
       # repository's own solutions into every install. The dry run lists what
       # the tarball would carry; the grep turns a quiet leak into a red build.
