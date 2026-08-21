@@ -406,6 +406,33 @@
   }
 
   /*
+   * The solution map's open-entity badge, on every node (solution-map.tsx).
+   *
+   * Transparent AND click-through until wanted: opacity alone would leave an
+   * invisible 20px target at every box's corner, which is a click nobody can
+   * explain. `visibility` or `display` would take it out of the tab order
+   * instead, and a keyboard reader must be able to reach it — hence the third
+   * selector, which reveals the badge when the badge itself takes focus.
+   *
+   * Attached here rather than in the component for the reason recession is:
+   * React Flow owns the element that receives hover and focus, and a custom
+   * node's markup is its child, so neither state is addressable from inside.
+   */
+  .react-flow__node [data-map-open] {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+
+  .react-flow__node:hover [data-map-open],
+  .react-flow__node:focus-visible [data-map-open],
+  .react-flow__node [data-map-open]:focus-visible,
+  .react-flow__node [data-map-open][data-pinned] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /*
    * A diagram expanded to fill the browser viewport. It is a fixed overlay
    * rather than a real fullscreen element: taking over the display and hiding
    * the browser's own chrome is the wrong scale for reading one diagram.

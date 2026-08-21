@@ -67,8 +67,9 @@ import '@xyflow/react/dist/style.css'
  * RE-CENTRING IS THE INTERACTION. Clicking a node recomputes the neighbourhood
  * around it and the map rotates into place: positions are interpolated in polar
  * coordinates, so nodes swing along arcs. Opening the entity is deliberately a
- * separate affordance on the focused node — a map you cannot explore without
- * leaving it is not a map.
+ * separate affordance — a map you cannot explore without leaving it is not a
+ * map — but it is on EVERY node, revealed by hovering or focusing that node,
+ * because a map whose boxes are not links is a poor index of what it draws.
  *
  * FOCUS RECEDES THE REST, it does not remove it. Once a product or component is
  * focused, everything off its containment branch drops far back but is still
@@ -343,17 +344,33 @@ function MapBox({ data }: NodeProps<MapFlowNode>) {
 
       {/* Re-centring owns the click, so opening the entity needs its own target.
           A real link, not a handler: middle-click and "open in new tab" are how
-          people actually leave a map they want to keep. */}
-      {data.focused && (
-        <Link
-          href={entityHref(data.srn)}
-          className="nodrag nopan focusable absolute -top-2 -right-2 grid size-5 place-items-center rounded-full border border-border-strong bg-surface-raised text-muted-foreground transition-colors hover:text-foreground"
-          aria-label={`Open ${data.name}`}
-          title="Open this entity"
-        >
-          <ArrowUpRight className="size-3" aria-hidden />
-        </Link>
-      )}
+          people actually leave a map they want to keep.
+
+          On EVERY node, not only the focused one. Focus-only was the original
+          shape and it made the map a poor index of its own contents: focus
+          starts at the solution root, so on arrival the solution was the single
+          entity anything linked to, and reaching any other one meant clicking to
+          re-centre — which moves the whole canvas — and only then finding this
+          badge. Two gestures and a rearrangement to open a box already under the
+          pointer.
+
+          Kept out of the way rather than kept away: the badge is transparent and
+          click-through until its node is hovered or focused, and pinned visible
+          on the focused node, which is the one being read. Thirty boxes must not
+          become thirty badges. The reveal lives in globals.css against
+          `[data-map-open]`, beside the rest of the node-group rules, for the
+          reason stated on recession above — React Flow owns the element that
+          takes hover and focus, and this markup is its child. */}
+      <Link
+        href={entityHref(data.srn)}
+        data-map-open
+        data-pinned={data.focused ? '' : undefined}
+        className="nodrag nopan focusable absolute -top-2 -right-2 grid size-5 place-items-center rounded-full border border-border-strong bg-surface-raised text-muted-foreground transition-colors hover:text-foreground"
+        aria-label={`Open ${data.name}`}
+        title="Open this entity"
+      >
+        <ArrowUpRight className="size-3" aria-hidden />
+      </Link>
     </>
   )
 }
