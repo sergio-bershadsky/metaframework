@@ -33,6 +33,14 @@ one that could not be extended). Nothing is ever deleted.
   canonical URL of the *current* schema and `x-srn` is the **unversioned** SRN,
   and a `$ref` with an `@N` is `E_DM_REF_TARGET`. Pins live in `relations.uses`,
   where git-backed history can resolve them.
+- The same rule makes **artifact SRNs** well-defined:
+  `…/order-placement.transport@2` (`srn.md`) means "the `transport.yaml` of
+  snapshot `order-placement@2`" — `@2` is a coordinate of the **parent
+  entity**, resolved through the ordinary version→commit index. It can mean
+  nothing else, because the status-only exemption is the only in-version
+  mutation and it cannot touch a sibling file: artifact bytes are constant
+  within one version number, a constancy `E_VER_UNBUMPED` and
+  `metaframework check --since` enforce.
 - A child entity's version is independent of its container's (rule C3): adding
   or bumping `component/wishlist` does not bump `product/shop`.
 

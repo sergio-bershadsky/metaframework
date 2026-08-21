@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: datamodel
-version: 6
+version: 7
 status: review
 title: DataModel kind
-summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
+summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, artifact addresses (.schema, examples.*) and the .schema normalization rule, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
 ---
 
 # DataModel kind
@@ -59,7 +59,8 @@ Rules:
 
 - `examples/*.json` are OPTIONAL instance documents. Every file in `examples/`
   MUST validate against the entity's own `schema.json`
-  (`E_DM_EXAMPLE_INVALID`). They are documentation the build keeps honest.
+  (`E_DM_EXAMPLE_INVALID`). They are documentation the build keeps honest, and
+  each is addressable as an artifact ([below](#artifact-addresses)).
 - No other sibling is defined by this kind. Per
   [structure.md](../structure.md), an asset subdirectory MUST NOT contain an
   `index.md` at any depth (`E_STRUCT_NESTED_ENTITY`).
@@ -75,6 +76,91 @@ solutions/acme/product/shop/datamodel/order-line/  # product-owned
 solutions/acme/product/shop/component/checkout/component/payment/datamodel/order/
                                                    # component-owned
 ```
+
+## Artifact addresses
+
+Both sibling files are addressable by SRN: a dot suffix on the **final** path
+segment names an artifact of the entity, per the grammar and lexing rules in
+[srn.md](../srn.md). The suffix vocabulary is a closed per-kind role table — a
+spec constant exactly like the reserved-kind list, so SRN→path conversion needs
+the spec and never a catalog read — and the dot is reserved out of the name
+alphabet permanently, which is what keeps the split unambiguous. The datamodel
+rows:
+
+| Role              | File                   | Legal address whose file is absent                              |
+| ----------------- | ---------------------- | --------------------------------------------------------------- |
+| `schema`          | `schema.json`          | unreachable — `schema.json` is REQUIRED (`E_DM_SCHEMA_MISSING`) |
+| `examples.<name>` | `examples/<name>.json` | `E_SRN_DANGLING` — `examples/` is OPTIONAL                      |
+
+Any other suffix on a datamodel is `E_SRN_ARTIFACT`, decidable against this
+table alone:
+
+```text
+srn://acme/datamodel/money.schema                # schema.json — normalizes to the entity (below)
+srn://acme/datamodel/money.examples.canonical    # examples/canonical.json
+srn://acme/datamodel/money.examples.canonical@2  # the same file, as snapshot @2 has it
+srn://acme/datamodel/money@2.examples.canonical  # E_SRN_SYNTAX — artifact suffix precedes @version
+srn://acme/datamodel/money.examples              # E_SRN_ARTIFACT — examples.* requires a name
+srn://acme/datamodel/money.schema.json           # E_SRN_ARTIFACT — the role is "schema", not a filename
+srn://acme/datamodel/money.sample.canonical      # E_SRN_ARTIFACT — no such role on this kind
+srn://acme/datamodel/money.examples.retired      # E_SRN_DANGLING — legal role, no examples/retired.json
+../money.schema                                  # E_SRN_SYNTAX — artifact suffixes bind to absolute and
+                                                 # solution-absolute forms, never to ".." arithmetic
+```
+
+**An artifact has no version of its own.** `@N` in an artifact SRN is a
+coordinate of the entity: `money.examples.canonical@2` is the
+`examples/canonical.json` of snapshot `money@2`, resolved through the existing
+version→commit index and a `git show` of that file at that commit
+([evolution.md](../evolution.md)). The address is well-defined because within
+one version number the only permitted mutation is frontmatter `status`, which
+cannot touch a sibling file — artifact bytes are constant within a version, and
+`E_VER_UNBUMPED` plus `metaframework check --since` enforce exactly that. The
+same bytes answering at two coordinates is the same unremarkable situation as
+one file's content at two git commits.
+
+**Artifact SRNs are entity-surface-illegal.** A `relations` edge means an
+entity: edges are typed over kinds, and an artifact has no kind. An edge target
+carrying an artifact suffix is `E_FM_EDGE_TARGET`, with the suffix named as the
+problem. In v1 an artifact SRN is legal in exactly two places — prose links in
+`index.md`, and external consumers; growing that list later is additive.
+
+```yaml
+relations:
+  uses:
+    - /datamodel/money@1         # good — an entity, pinned
+    - /datamodel/money.schema@1  # E_FM_EDGE_TARGET — an edge names an entity;
+                                 # ".schema" addresses an artifact
+```
+
+`examples.<name>` is why the vocabulary exists on this kind at all: an example
+is a validated instance document (`E_DM_EXAMPLE_INVALID`, above), so a
+downstream test suite can pin
+`srn://acme/datamodel/money.examples.canonical@2` and receive bytes the build
+already validated against that same snapshot's schema.
+
+### `.schema` normalizes to the entity
+
+`.schema` is legal for vocabulary uniformity, and it is the one artifact
+address that never mints a name. The schema document already has two, stated in
+the file itself: the entity's SRN (`x-srn`) and the canonical schema URL
+(`$id`). `.schema` therefore **normalizes to the entity**: its URL projection
+*is* the entity's canonical schema URL, no `…/datamodel/order.schema` URL
+exists on the canonical host, and the portal's `/artifacts` route answers a
+`.schema` request with a permanent redirect to the existing `/schemas` route —
+one URL serves each schema document, at identity and at retrieval alike.
+Nothing in [Dialect and identity](#dialect-and-identity) moves: the `$id`,
+`$ref` and `x-srn` contracts are untouched, and `schema_url_to_srn` stays
+dot-rejecting, so a `$ref` written `…/datamodel/money.schema` is
+`E_DM_REF_TARGET`, the message naming the offending URL as addressing an
+artifact, not an entity ([below](#mapping-a-ref-back-to-an-srn)). This guards
+the exact
+defect the canonical-host constant kills: a second name for one schema is two
+schemas in every registry keyed on `$id`.
+
+No other role mints a URL either — canonical-host URLs exist for schema
+documents only, so an example's names are its SRN and the `/artifacts` route
+that serves it.
 
 ## Dialect and identity
 
@@ -331,6 +417,9 @@ Forms that are not a canonical schema URL:
                                           /* E_DM_REF_TARGET — a kind bucket is not addressable */
 { "$ref": "https://schemas.metaframework.dev/acme/datamodel/money@1" }
                                           /* E_DM_REF_TARGET — a URL carries no version pin     */
+{ "$ref": "https://schemas.metaframework.dev/acme/datamodel/money.schema" }
+                                          /* E_DM_REF_TARGET — an artifact address; a schema's
+                                             canonical URL is the entity's own                  */
 { "$ref": "https://schemas.metaframework.dev/globex/datamodel/money" }
                                           /* E_SRN_CROSS_SOLUTION — sealed universes            */
 ```
@@ -361,6 +450,8 @@ def schema_url_to_srn(url: str) -> str:
     path = url[len(prefix):]
     if "@" in path:
         raise DmError("E_DM_REF_TARGET", f"{url} carries a version pin")
+    if "." in path.rsplit("/", 1)[-1]:
+        raise DmError("E_DM_REF_TARGET", f"{url} addresses an artifact, not an entity")
     return "srn://" + path          # parse_srn then validates the grammar
 ```
 
@@ -751,15 +842,15 @@ schemas are never mixed in one registry.
 
 Resolution failures:
 
-| Situation                                                                            | Error                                   |
-|--------------------------------------------------------------------------------------|-----------------------------------------|
-| `$ref` is not a canonical schema URL (relative, SRN, serving address, foreign host). | `E_DM_REF_TARGET`                       |
-| `$ref` path is not a legal entity address, or carries a version pin.                 | `E_DM_REF_TARGET`                       |
-| `$ref` lands inside another solution.                                                | `E_SRN_CROSS_SOLUTION`                  |
-| Target names no registered datamodel (absent, or not a datamodel).                   | `E_SRN_DANGLING`                        |
-| `$ref` points into another document's `$defs`.                                       | `E_DM_FOREIGN_DEFS`                     |
-| Root `$id` missing, or ≠ the entity's canonical schema URL.                          | `E_DM_ID_MISSING`, `E_DM_ID_MISMATCH`   |
-| `x-srn` missing, or ≠ the entity's unversioned SRN.                                  | `E_DM_SRN_MISSING`, `E_DM_SRN_MISMATCH` |
+| Situation                                                                               | Error                                   |
+|-----------------------------------------------------------------------------------------|-----------------------------------------|
+| `$ref` is not a canonical schema URL (relative, SRN, serving address, foreign host).    | `E_DM_REF_TARGET`                       |
+| `$ref` path is not a legal entity address, or carries a version pin or artifact suffix. | `E_DM_REF_TARGET`                       |
+| `$ref` lands inside another solution.                                                   | `E_SRN_CROSS_SOLUTION`                  |
+| Target names no registered datamodel (absent, or not a datamodel).                      | `E_SRN_DANGLING`                        |
+| `$ref` points into another document's `$defs`.                                          | `E_DM_FOREIGN_DEFS`                     |
+| Root `$id` missing, or ≠ the entity's canonical schema URL.                             | `E_DM_ID_MISSING`, `E_DM_ID_MISMATCH`   |
+| `x-srn` missing, or ≠ the entity's unversioned SRN.                                     | `E_DM_SRN_MISSING`, `E_DM_SRN_MISMATCH` |
 
 Every one of these is fatal to the build: an unresolvable registry means no
 schema in the solution can be trusted. In dev the portal still serves the
@@ -1161,27 +1252,27 @@ Checks this example demonstrates:
 
 New, kind-specific:
 
-| Code                   | Meaning                                                                                                          |
-|------------------------|------------------------------------------------------------------------------------------------------------------|
-| `E_DM_SCHEMA_MISSING`  | Datamodel entity directory has no `schema.json`.                                                                 |
-| `E_DM_SCHEMA_INVALID`  | `schema.json` is not valid against the 2020-12 meta-schema (or is not valid JSON).                               |
-| `E_DM_DIALECT`         | `$schema` missing or not exactly the 2020-12 dialect URI.                                                        |
-| `E_DM_ID_MISSING`      | Root `$id` absent — every document must state its identity.                                                      |
-| `E_DM_ID_MISMATCH`     | Root `$id` ≠ the entity's canonical schema URL (wrong entity, wrong host, a serving address, or a version pin).  |
-| `E_DM_ID_FORBIDDEN`    | `$id` present *below* the root, where it would re-base every `$ref` beneath it.                                  |
-| `E_DM_SRN_MISSING`     | `x-srn` absent — the SRN must survive a schema leaving the catalog.                                              |
-| `E_DM_SRN_MISMATCH`    | `x-srn` ≠ the unversioned SRN of the entity directory the file sits in (a `@N` pin included).                    |
-| `E_DM_KEYWORD`         | Forbidden keyword used (`$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`).                              |
-| `E_DM_REF_TARGET`      | A `$ref` is not a canonical schema URL (relative path, SRN, serving address, foreign host, bucket, version pin). |
-| `E_DM_FOREIGN_DEFS`    | `$ref` points into another entity's `$defs`.                                                                     |
-| `E_DM_INHERIT_CYCLE`   | Cycle in the root-`allOf` inheritance graph.                                                                     |
-| `E_DM_CLOSED_BASE`     | `"additionalProperties": false` on a schema used as an `allOf` base.                                             |
-| `E_DM_EXAMPLE_INVALID` | A file in `examples/` fails validation against the entity's own schema.                                          |
-| `E_DM_NOT_ADDITIVE`    | Detectable instance-superset violation between version N (git) and N+1 (filesystem).                             |
-| `W_DM_ABSTRACT_USE`    | Abstract datamodel used as a payload/`exposes` target, or carrying `examples/`.                                  |
-| `W_DM_UNION_TAG`       | `oneOf` union without a derivable shared `const` tag property.                                                   |
-| `W_DM_CONTRADICTION`   | Derived model contradicts (rather than restricts) an inherited constraint.                                       |
-| `W_DM_USAGE_MISMATCH`  | Model named as a protocol payload while declaring `usage: storage`.                                              |
+| Code                   | Meaning                                                                                                                            |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `E_DM_SCHEMA_MISSING`  | Datamodel entity directory has no `schema.json`.                                                                                   |
+| `E_DM_SCHEMA_INVALID`  | `schema.json` is not valid against the 2020-12 meta-schema (or is not valid JSON).                                                 |
+| `E_DM_DIALECT`         | `$schema` missing or not exactly the 2020-12 dialect URI.                                                                          |
+| `E_DM_ID_MISSING`      | Root `$id` absent — every document must state its identity.                                                                        |
+| `E_DM_ID_MISMATCH`     | Root `$id` ≠ the entity's canonical schema URL (wrong entity, wrong host, a serving address, or a version pin).                    |
+| `E_DM_ID_FORBIDDEN`    | `$id` present *below* the root, where it would re-base every `$ref` beneath it.                                                    |
+| `E_DM_SRN_MISSING`     | `x-srn` absent — the SRN must survive a schema leaving the catalog.                                                                |
+| `E_DM_SRN_MISMATCH`    | `x-srn` ≠ the unversioned SRN of the entity directory the file sits in (a `@N` pin included).                                      |
+| `E_DM_KEYWORD`         | Forbidden keyword used (`$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`).                                                |
+| `E_DM_REF_TARGET`      | A `$ref` is not a canonical schema URL (relative path, SRN, serving address, foreign host, bucket, version pin, artifact address). |
+| `E_DM_FOREIGN_DEFS`    | `$ref` points into another entity's `$defs`.                                                                                       |
+| `E_DM_INHERIT_CYCLE`   | Cycle in the root-`allOf` inheritance graph.                                                                                       |
+| `E_DM_CLOSED_BASE`     | `"additionalProperties": false` on a schema used as an `allOf` base.                                                               |
+| `E_DM_EXAMPLE_INVALID` | A file in `examples/` fails validation against the entity's own schema.                                                            |
+| `E_DM_NOT_ADDITIVE`    | Detectable instance-superset violation between version N (git) and N+1 (filesystem).                                               |
+| `W_DM_ABSTRACT_USE`    | Abstract datamodel used as a payload/`exposes` target, or carrying `examples/`.                                                    |
+| `W_DM_UNION_TAG`       | `oneOf` union without a derivable shared `const` tag property.                                                                     |
+| `W_DM_CONTRADICTION`   | Derived model contradicts (rather than restricts) an inherited constraint.                                                         |
+| `W_DM_USAGE_MISMATCH`  | Model named as a protocol payload while declaring `usage: storage`.                                                                |
 
 Retired, in three waves. These codes have no subject any more and MUST NOT be
 emitted:
@@ -1205,10 +1296,12 @@ emitted:
   because a datamodel was its only subject.
 
 Reused from the core spec, unchanged: `E_SRN_SYNTAX`, `E_SRN_RESERVED`,
-`E_SRN_CROSS_SOLUTION`, `E_SRN_DANGLING`, `E_SRN_VERSION` ([srn.md](../srn.md)) —
-these govern the datamodel's SRN surfaces (`relations`, prose) and the
-solution-boundary and existence checks on a `$ref` URL; `E_FM_EDGE_TARGET` for
-the datamodel's own `relations` edges (a schema `$ref` is not a relation edge);
+`E_SRN_CROSS_SOLUTION`, `E_SRN_DANGLING`, `E_SRN_ARTIFACT`, `E_SRN_VERSION`
+([srn.md](../srn.md)) — these govern the datamodel's SRN surfaces (`relations`,
+prose, artifact addresses) and the solution-boundary and existence checks on a
+`$ref` URL; `E_FM_EDGE_TARGET` for the datamodel's own `relations` edges (a
+schema `$ref` is not a relation edge, and an artifact SRN is not a legal edge
+target — [above](#artifact-addresses));
 `E_FM_SCHEMA`, `E_FM_UNKNOWN_FIELD`, `E_FM_NAME_MISMATCH`, `E_FM_KIND_LOCATION`
 ([frontmatter.md](../frontmatter.md)); `E_VER_REGRESSION`, `W_REF_DEPRECATED`
 ([evolution.md](../evolution.md)); `E_STRUCT_*`

@@ -95,6 +95,10 @@ async function codesIn(file: string): Promise<string[]> {
  * out of this map.
  */
 const UNIMPLEMENTED: Record<string, string> = {
+  // --- srn: artifact addresses, specified ahead of the parser ----------------
+  E_SRN_ARTIFACT:
+    'V5 (srn.md): parseSrn does not lex the `.{artifact}` suffix yet — the spec landed first (ADR 0014); the ratchet above retires this entry when the parser does',
+
   // --- journey: specified for the loader, emitted by nothing -----------------
   // journey.yaml is parsed by `parseJourney`, which the *entity page component*
   // calls while rendering. Nothing calls it during `loadCatalog`, so no journey
@@ -614,7 +618,7 @@ const UNREACHABLE_FROM_DISK: Record<string, string> = {
   'E_VER_UNBUMPED':
     'the same reason, one step further: this compares two COMMITS of an entity directory, so it is not merely unreachable from a fixture with no history — it is undecidable from disk at all. Content that changed without a version bump looks exactly like content that never changed. Its own tests build real repositories in git.test.ts',
   'E_SRN_VERSION':
-    'V7 is "the pin resolves to no commit", which only lib/history can answer — a temp fixture has no history. A pin that resolves but has fallen behind is W_REF_STALE_PIN, and the fixture does fire that',
+    'V8 is "the pin resolves to no commit", which only lib/history can answer — a temp fixture has no history. A pin that resolves but has fallen behind is W_REF_STALE_PIN, and the fixture does fire that',
 }
 
 describe('diagnostic emission — every pipeline code fires on the fixture', () => {

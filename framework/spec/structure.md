@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: structure
-version: 4
+version: 5
 status: review
 title: Directory structure
-summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, and naming rules.
+summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, naming rules, and the artifact role table.
 ---
 
 # Directory structure
@@ -62,7 +62,7 @@ Nesting rules, all of them enforced by the SRN grammar (`E_SRN_PLACEMENT`, see
 [srn.md](srn.md#placement-is-grammar)) rather than by a filesystem pass:
 
 - A **solution** is the top-level unit and a sealed universe: no reference of
-  any kind may cross from one solution into another ([srn.md](srn.md), rule V5).
+  any kind may cross from one solution into another ([srn.md](srn.md), rule V6).
 - A **product** lives in the solution's `product/` bucket and nowhere else.
 - A **component** lives in a `component/` bucket inside a product or inside
   another component; components nest arbitrarily deep. A sub-component is not a
@@ -105,9 +105,13 @@ journey, metric) alike — is a directory holding:
 - Sibling artifacts — OPTIONAL. YAML/JSON/markdown files carrying the
   machine-readable substance of the entity (e.g. `schema.json` for a datamodel,
   `transport.yaml` for a protocol, `journey.yaml` for a journey). Which siblings
-  a kind defines is specified in that kind's `kinds/*.md` document.
+  a kind defines is the artifact role table
+  ([below](#the-artifact-role-table)), stated normatively there for all kinds; each
+  kind's `kinds/*.md` document carries its own rows as an excerpt, together
+  with the semantics and requiredness of each file.
 - Asset subdirectories — OPTIONAL. An entity directory MAY contain
-  subdirectories to organize its artifacts (e.g. `workflows/`, `examples/`). An
+  subdirectories to organize its artifacts (e.g. `workflows/`, `examples/` —
+  the depth-2 rows of the role table, [below](#the-artifact-role-table)). An
   asset subdirectory is named for its role and is therefore never one of the
   eleven kinds; it MUST NOT contain an `index.md` at any depth, otherwise it
   would itself parse as an entity.
@@ -314,8 +318,17 @@ Rules:
 
   Legal: `shop`, `order-placement`, `0001-event-sourcing`.
   Illegal: `Shop` (uppercase), `order_placement` (underscore), `-cart` (leading
-  hyphen), `café` (non-ASCII). Violations are `E_SRN_SYNTAX` — naming and SRN
-  share one grammar, because the path *is* the SRN.
+  hyphen), `order.v2` (dot), `café` (non-ASCII). Violations are `E_SRN_SYNTAX`
+  — naming and SRN share one grammar, because the path *is* the SRN.
+
+  The absence of `.` from this alphabet is normative, not an accident of the
+  regex: the dot is the artifact-suffix separator (`{name}.{role}`,
+  [below](#the-artifact-role-table)), and its exclusion from names is a
+  one-way reservation exactly like the eleven kind keywords. Were a name ever
+  allowed to contain a dot, `settlement.transport` could no longer be told
+  apart from an entity named `settlement.transport`, and the final-segment
+  split that artifact addressing rests on ([srn.md](srn.md)) would be
+  ambiguous. The dot never returns to the name alphabet.
 
 - The eleven reserved kind keywords —
 
@@ -350,7 +363,9 @@ Rules:
 - `index.md` is a reserved filename: it may appear only as an entity document.
   Sibling artifact filenames MUST be kebab-case, **bare** — never prefixed with
   the entity name — and carry a standard extension (`.md`, `.yaml`, `.json`);
-  e.g. `schema.json`, `transport.yaml`, `states.json`, `topology.yaml`.
+  e.g. `schema.json`, `transport.yaml`, `states.json`, `openapi.yaml`,
+  `topology.yaml`. The per-kind vocabulary of these files is the artifact role
+  table ([below](#the-artifact-role-table)).
 
   ```text
   datamodel/order-line/schema.json                # correct — named by role
@@ -359,17 +374,131 @@ Rules:
   ```
 
   A kind document MAY additionally recognise a foreign extension for a file it
-  merely *links* rather than interprets — `openapi.yaml`, `pricing.proto`,
-  `schema.graphql` under a protocol's `spec.file`
-  ([kinds/protocol.md](kinds/protocol.md)). Such a file is named by the external
-  tool's convention; everything the framework itself parses obeys the rule
-  above.
+  merely *links* rather than interprets — `pricing.proto`, `schema.graphql`
+  under a protocol's `spec.file` ([kinds/protocol.md](kinds/protocol.md)). Such
+  a file is named by the external tool's convention; everything the framework
+  itself parses obeys the rule above, and only fixed-name files are addressable
+  ([below](#the-artifact-role-table)). `openapi.yaml` — once the leading
+  example of this class — is a fixed protocol artifact in its own right and
+  sits in the role table; the free-named `spec.file` mechanism remains for the
+  other formats.
 
 - The frontmatter `name` field MUST equal the entity's directory name
   (`E_FM_NAME_MISMATCH`, see [frontmatter.md](frontmatter.md)), and the
   frontmatter `kind` field MUST equal the bucket the directory sits in
   (`E_FM_KIND_LOCATION`). Neither is inferred from depth any more; both are read
   straight off the path.
+
+## The artifact role table
+
+Sibling artifacts are addressable. A dot suffix on the **final** segment of an
+SRN names one artifact of that entity, and the artifact's path is derived from
+the entity's path through the table below:
+
+```text
+srn://{solution}( /{kind}/{name} )*.{artifact}[@{version}]
+
+srn://acme/protocol/settlement.transport
+→ solutions/acme/protocol/settlement/transport.yaml
+srn://acme/datamodel/money.examples.forty-nine-ninety
+→ solutions/acme/datamodel/money/examples/forty-nine-ninety.json
+```
+
+`@{version}` is a coordinate of the **entity**, never of the file — an artifact
+has no version of its own, so `settlement.transport@2` means "the transport
+artifact of `settlement@2`", resolved by the same version→commit machinery as
+the entity itself. The suffix grammar, the lexing order, versioned resolution,
+and the fence on which surfaces may write an artifact SRN at all are
+[srn.md](srn.md)'s; what this document owns is the `{artifact}` vocabulary —
+the **role table**, kind × role × file × depth:
+
+| Kind          | Role               | File                    | Depth |
+| ------------- | ------------------ | ----------------------- | ----- |
+| `datamodel`   | `schema`           | `schema.json`           | 1     |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | 2     |
+| `protocol`    | `transport`        | `transport.yaml`        | 1     |
+| `protocol`    | `states`           | `states.json`           | 1     |
+| `protocol`    | `openapi`          | `openapi.yaml`          | 1     |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | 2     |
+| `journey`     | `journey`          | `journey.yaml`          | 1     |
+| `environment` | `topology`         | `topology.yaml`         | 1     |
+| `environment` | `config`           | `config.yaml`           | 1     |
+
+Every kind absent from the table — solution, product, component, actor, adr,
+requirement, capability, metric — defines **no roles at all**: any artifact
+suffix on an SRN of such a kind is `E_SRN_ARTIFACT` ([srn.md](srn.md)).
+
+Rules:
+
+- **The table is a spec constant.** Like the list of eleven reserved kinds, it
+  is part of the grammar, not of any catalog: converting
+  `…/settlement.transport` to a path takes this table and nothing else — never
+  a directory listing, never a frontmatter read. That is what keeps the
+  consolidating principle of [srn.md](srn.md) intact. Each kind document
+  ([kinds/datamodel.md](kinds/datamodel.md),
+  [kinds/protocol.md](kinds/protocol.md), [kinds/journey.md](kinds/journey.md),
+  [kinds/environment.md](kinds/environment.md)) carries its own rows as an
+  excerpt, and [srn.md](srn.md#the-role-table) restates the table in full so
+  its validation rules read standalone — every one of those is a mirror. The
+  normative statement, the one a new role is appended to first, is this one.
+
+- **Closed set, fixed depth.** A role is one segment deep except the two
+  named-file families, `examples.<name>` and `workflows.<name>`, which are
+  exactly two deep with `<name>` in the segment alphabet above. An unknown role
+  for the addressed kind, a known role at the wrong depth, any artifact suffix
+  on a kind with no roles, and every malformed suffix shape that survives the
+  lexer — all are `E_SRN_ARTIFACT`, checkable against this table before any
+  disk access. A **legal** role whose file is absent on disk is
+  `E_SRN_DANGLING` instead: the table states identity, not obligation. Whether
+  a file must exist (`schema.json`, `journey.yaml`) or may (`transport.yaml`,
+  `states.json`, `openapi.yaml`, `topology.yaml`, `config.yaml`, every
+  `workflows/*` and `examples/*` member) remains each kind document's contract.
+
+  ```text
+  srn://acme/actor/customer.transport            # ILLEGAL — E_SRN_ARTIFACT: actor has no roles
+  srn://acme/protocol/settlement.spec            # ILLEGAL — E_SRN_ARTIFACT: not a protocol role
+  srn://acme/datamodel/money.examples            # ILLEGAL — E_SRN_ARTIFACT: examples.* is depth 2
+  srn://acme/environment/production.topology.eu  # ILLEGAL — E_SRN_ARTIFACT: topology is depth 1
+  srn://acme/product/fulfilment/protocol/tracking-events.states
+                                                 # E_SRN_DANGLING — legal role, but this protocol
+                                                 #   has no states.json on disk
+  ```
+
+- **The role erases the extension, so the extension is fixed.** The dot form
+  writes `transport`, never `transport.yaml`: role → file appends an extension
+  this table pins, and file → role strips it. Both directions MUST be functions
+  of the table alone, which forbids two things at once: two roles of one kind
+  sharing a file, and one role's file varying its extension. A role spelled
+  "`transport.*`" would make the reverse map need a directory listing to learn
+  which extension exists, and two files differing only in extension would
+  collapse into one role. Fixed filenames are what keep the extension-erasing
+  map injective.
+
+- **Free-named files are not addressable.** A protocol's `transport.yaml` MAY
+  bind an external spec document with a free name in a foreign convention —
+  `pricing.proto`, `schema.graphql` under `spec.file`
+  ([kinds/protocol.md](kinds/protocol.md)). Such files are legal and linked,
+  but no artifact SRN reaches them: a free name would carry both name and
+  extension outside the spec constant, so conversion would need exactly the
+  directory listing the previous rule forbids. `openapi.yaml` was promoted out
+  of this class into the row above — recognised by its fixed bare name, served
+  as bytes, not parsed — and that promotion is how another format becomes
+  addressable: the table grows a fixed name; it never reaches out to free
+  ones.
+
+- **Growth is additive, and additive only.** A new role is an additive spec
+  change to the owning kind's document plus this table — the same appending
+  discipline the eleven-kind list follows. Renaming or removing a row breaks
+  every SRN written against it and is a breaking change to this specification.
+
+- **This is the one licensed bend in SRN ≡ path.** For entities the identity is
+  literal, segment for segment. An artifact SRN maps **through** the table —
+  `settlement.transport` names `transport.yaml`, not a file called `transport`
+  — so the path is derived rather than transcribed. The bend has exactly the
+  shape of the reserved-kind list itself: a finite constant in the spec,
+  consulted in both directions, never a catalog read. What the principle
+  guarantees — the path from the SRN, the SRN from the path, with the spec
+  alone — holds unbroken.
 
 ## Annotated example tree
 
@@ -388,13 +517,13 @@ solutions/
     ├── datamodel/
     │   └── money/                          # srn://acme/datamodel/money
     │       ├── examples/                   # asset dir — no index.md at any depth
-    │       │   └── forty-nine-ninety.json
+    │       │   └── forty-nine-ninety.json  # srn://acme/datamodel/money.examples.forty-nine-ninety
     │       ├── index.md
-    │       └── schema.json
+    │       └── schema.json                 # srn://acme/datamodel/money.schema
     ├── environment/
     │   └── production/                     # srn://acme/environment/production
     │       ├── index.md
-    │       └── topology.yaml               # sibling artifact
+    │       └── topology.yaml               # srn://acme/environment/production.topology
     ├── product/                            # the product bucket — products live nowhere else
     │   ├── billing/                        # srn://acme/product/billing
     │   │   ├── component/
@@ -436,9 +565,9 @@ solutions/
     ├── protocol/                           # NCA of the participants = the solution
     │   └── settlement/                     # srn://acme/protocol/settlement
     │       ├── workflows/
-    │       │   └── settle-order.yaml
+    │       │   └── settle-order.yaml       # srn://acme/protocol/settlement.workflows.settle-order
     │       ├── index.md
-    │       └── transport.yaml
+    │       └── transport.yaml              # srn://acme/protocol/settlement.transport
     ├── requirement/
     │   └── gdpr-erasure/                   # srn://acme/requirement/gdpr-erasure
     │       └── index.md
@@ -552,7 +681,8 @@ Notes on each, because the grammar overlaps them:
 cover is now `E_SRN_PLACEMENT`, raised by the parser, and is listed in
 [srn.md](srn.md#placement-is-grammar) as rules P1–P4.
 
-SRN-level naming violations (`E_SRN_SYNTAX`, `E_SRN_RESERVED`) are defined in
+SRN-level naming and artifact-addressing violations (`E_SRN_SYNTAX`,
+`E_SRN_RESERVED`, `E_SRN_ARTIFACT`, `E_SRN_DANGLING`) are defined in
 [srn.md](srn.md); frontmatter violations in
 [frontmatter.md](frontmatter.md). All are enforced by the catalog loader, which
 `metaframework check` runs.

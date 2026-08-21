@@ -168,7 +168,7 @@ commit or two during a swap).
 | `product`     | —                 | any (attachments)                                                                                             | —            | —                        |
 | `component`   | —                 | any (attachments)                                                                                             | —            | —                        |
 | `datamodel`   | `schema.json`     | —                                                                                                             | `examples/`  | —                        |
-| `protocol`    | —                 | `transport.yaml`, `states.json`, external spec linked from `transport.yaml` `spec.file` (e.g. `openapi.yaml`) | `workflows/` | —                        |
+| `protocol`    | —                 | `transport.yaml`, `states.json`, `openapi.yaml`; other formats bound via `transport.yaml` `spec.file`         | `workflows/` | —                        |
 | `actor`       | —                 | —                                                                                                             | —            | —                        |
 | `environment` | —                 | `topology.yaml`, `config.yaml`                                                                                | —            | —                        |
 | `adr`         | —                 | supporting material (linked, not interpreted)                                                                 | —            | four, see below          |
@@ -194,10 +194,13 @@ Rules that catch authors out:
   `values.csv` would put observations in a catalog that describes rather than
   samples the system, and a `query.sql` would bind the description to one
   collection tool and rot silently.
-- Protocol sibling names are **fixed and bare**: `transport.yaml`, `states.json`.
-  Anything else unrecognised is `W_PROTO_ARTIFACT_UNKNOWN`. `workflows/` is the
-  only recognised asset subdirectory: one `*.yaml` per workflow, kebab-case,
-  no nesting.
+- Protocol sibling names are **fixed and bare**: `transport.yaml`,
+  `states.json`, `openapi.yaml` (recognised bytes-only, unparsed — which is
+  what makes it addressable as `.openapi`). An external spec in any *other*
+  format is still bound via `transport.yaml` `spec.file`; a free-named file is
+  never addressable. Anything else unrecognised is `W_PROTO_ARTIFACT_UNKNOWN`.
+  `workflows/` is the only recognised asset subdirectory: one `*.yaml` per
+  workflow, kebab-case, no nesting.
 - All protocol artifacts are optional. A protocol with only `index.md` is legal
   (intent-level, under design); it simply derives no diagrams.
 - **Artifacts carry no version of their own.** A top-level `version:` key in
@@ -221,6 +224,31 @@ Rules that catch authors out:
 - A requirement body MUST carry `## Acceptance criteria` exactly once, at level
   2, with this casing (`E_REQ_CRITERIA`). `## Rationale` and `## Out of scope`
   are conventional, not enforced.
+
+### Artifact roles — the addressable files
+
+A dot suffix on an SRN's final segment addresses one file of the entity
+(`srn.md` for the syntax and the fence). The role vocabulary is a **closed,
+per-kind table with fixed filenames** — a spec constant, like the reserved
+kinds: SRN→path conversion needs the spec, never a catalog read.
+
+| Kind          | Role               | File                    |
+|---------------|--------------------|-------------------------|
+| `datamodel`   | `schema`           | `schema.json`           |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  |
+| `protocol`    | `transport`        | `transport.yaml`        |
+| `protocol`    | `states`           | `states.json`           |
+| `protocol`    | `openapi`          | `openapi.yaml`          |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` |
+| `journey`     | `journey`          | `journey.yaml`          |
+| `environment` | `topology`         | `topology.yaml`         |
+| `environment` | `config`           | `config.yaml`           |
+
+Every other kind has **no roles at all**. Fixed roles are depth 1;
+`workflows.<name>` and `examples.<name>` are the only depth-2 forms. Anything
+outside the table is `E_SRN_ARTIFACT` (static — no catalog read); a legal role
+whose file is absent is `E_SRN_DANGLING` (`transport.yaml` is optional on a
+protocol).
 
 ## Naming
 

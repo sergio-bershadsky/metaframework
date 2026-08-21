@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: product
-version: 4
+version: 5
 status: review
 title: Kind — product
 summary: The product kind — the deliverable and ownership unit in the solution's product/ bucket, its lifecycle and primary-actors fields, and the grammar that fixes its placement.
@@ -158,7 +158,20 @@ primary-actors:
   - /product/shop/actor/courier        # E_SRN_PLACEMENT — actors are solution-level,
                                        # so this path cannot exist at all
   - srn://globex/actor/customer        # E_SRN_CROSS_SOLUTION
+  - /actor/customer.profile            # E_SRN_ARTIFACT — actors have no artifact roles
+  - /product/shop/protocol/order-placement.transport
+                                       # E_PROD_ACTOR_TARGET — the transport artifact,
+                                       # not an actor; the message names ".transport"
 ```
+
+**Artifact suffixes are fenced here as on every reference surface**
+([srn.md](../srn.md#where-an-artifact-srn-may-stand)): `primary-actors` means
+entities, and an artifact has no kind, so it can never satisfy PD3. A suffix
+that is illegal vocabulary for the kind it sits on — any suffix on an actor
+SRN, since actors own no artifact roles — fails earlier, as `E_SRN_ARTIFACT`.
+One that survives the role table, as `….transport` on a protocol does, is
+rejected by PD3 as `E_PROD_ACTOR_TARGET`, with a diagnostic that names the
+suffix as the problem ([frontmatter.md](../frontmatter.md)).
 
 *Primary* means the actors the product exists to serve — not every actor that
 ever touches it. Incidental actors show up through protocol participation and
@@ -180,14 +193,15 @@ Numbered `PD*` to avoid collision with the placement rules P1–P4 in
 [srn.md](../srn.md), which also bind here — the same reason
 [component.md](component.md) numbers its rules `CV*`.
 
-| #   | Rule                                                                       | Error class            |
-| --- | --------------------------------------------------------------------------- | ---------------------- |
-| PD1 | The `product/` bucket is a direct child of a solution, and the product is a direct child of that bucket. | `E_SRN_PLACEMENT` |
-| PD2 | `lifecycle` present and in the closed enum.                                | `E_FM_SCHEMA`          |
-| PD3 | Every `primary-actors` entry resolves to an entity with `kind: actor`.     | `E_PROD_ACTOR_TARGET`  |
-| PD4 | Every `primary-actors` entry parses, resolves, and stays in the solution.  | `E_SRN_*`              |
-| PD5 | No `actor`/`environment`/`product` bucket inside the product.              | `E_SRN_PLACEMENT`      |
-| PD6 | Frontmatter `kind: product` matches the `product/` bucket holding it.      | `E_FM_KIND_LOCATION`   |
+| #   | Rule                                                                                                     | Error class                              |
+|-----|----------------------------------------------------------------------------------------------------------|------------------------------------------|
+| PD1 | The `product/` bucket is a direct child of a solution, and the product is a direct child of that bucket. | `E_SRN_PLACEMENT`                        |
+| PD2 | `lifecycle` present and in the closed enum.                                                              | `E_FM_SCHEMA`                            |
+| PD3 | Every `primary-actors` entry resolves to an entity with `kind: actor`.                                   | `E_PROD_ACTOR_TARGET`                    |
+| PD4 | Every `primary-actors` entry parses, resolves, and stays in the solution.                                | `E_SRN_*`                                |
+| PD5 | No `actor`/`environment`/`product` bucket inside the product.                                            | `E_SRN_PLACEMENT`                        |
+| PD6 | Frontmatter `kind: product` matches the `product/` bucket holding it.                                    | `E_FM_KIND_LOCATION`                     |
+| PD7 | No `primary-actors` entry carries an artifact suffix.                                                    | `E_SRN_ARTIFACT` / `E_PROD_ACTOR_TARGET` |
 
 PD1 and PD5 are the grammar's P1–P4 seen from this kind: they fail while the
 directory's path is parsed, so no misplaced product ever reaches PD2–PD4 or PD6.

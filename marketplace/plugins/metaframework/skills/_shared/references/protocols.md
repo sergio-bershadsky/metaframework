@@ -1,6 +1,6 @@
 # Protocols — participants, transport, workflows, states
 
-> Distilled from `framework/spec/kinds/protocol.md` (version 3). **When
+> Distilled from `framework/spec/kinds/protocol.md` (version 5). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec.
@@ -20,7 +20,7 @@ and feeds the most derived views.
 solutions/acme/product/shop/protocol/order-placement/
 ├── index.md                # REQUIRED  frontmatter + prose
 ├── transport.yaml          # OPTIONAL  wire binding — exactly one transport
-├── openapi.yaml            # OPTIONAL  external spec, recognised by being linked
+├── openapi.yaml            # OPTIONAL  OpenAPI document — fixed name, bytes-only in v1
 ├── states.json             # OPTIONAL  XState-subset conversation machine
 └── workflows/              # OPTIONAL  asset dir — never an entity
     ├── place-order.yaml    # one workflow; name = filename stem
@@ -29,16 +29,21 @@ solutions/acme/product/shop/protocol/order-placement/
 
 - **All four artifacts are optional.** A protocol with only `index.md` is legal —
   an intent-level protocol under design. It simply derives no diagrams.
-- Sibling filenames are **bare and fixed**: `transport.yaml`, `states.json`. An
-  `order-placement.transport.yaml` or a `protocol.yaml` is not recognised —
-  `W_PROTO_ARTIFACT_UNKNOWN`. Extra `*.md` prose siblings are fine and carry no
-  machine semantics; anything else unrecognised warns.
+- Sibling filenames are **bare and fixed**: `transport.yaml`, `openapi.yaml`,
+  `states.json`. An `order-placement.transport.yaml` or a `protocol.yaml` is
+  not recognised — `W_PROTO_ARTIFACT_UNKNOWN`. Extra `*.md` prose siblings are
+  fine and carry no machine semantics; anything else unrecognised warns.
 - `workflows/` is the only recognised asset subdirectory: one `*.yaml` per
   workflow, kebab-case, no nesting below it, no `index.md` at any depth.
-- A file linked from `transport.yaml` `spec.file` (`openapi.yaml`,
-  `asyncapi.yaml`, `pricing.proto`) sits next to `index.md` and is recognised
+- A file linked from `transport.yaml` `spec.file` (`asyncapi.yaml`,
+  `pricing.proto`, `schema.graphql`) sits next to `index.md` and is recognised
   *by virtue of being linked*. It follows the external tool's naming convention,
-  not the framework's bare-filename rule.
+  not the framework's bare-filename rule. `openapi.yaml` is deliberately not on
+  that list: it is a fixed-name artifact, recognised link or no link.
+- Every fixed-name artifact is **SRN-addressable** by a dot suffix on the
+  entity (`srn.md` reference): `….transport`, `.states`, `.openapi`, and
+  `.workflows.<name>` for `workflows/<name>.yaml`. A `spec.file` attachment is
+  never addressable — only fixed names join the role table.
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml` or a workflow file is a shape violation; the entity's
   frontmatter `version` is a snapshot of the whole directory.

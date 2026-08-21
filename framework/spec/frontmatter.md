@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: frontmatter
-version: 7
+version: 8
 status: review
 title: Common frontmatter
 summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges over the eleven kinds, the status-versus-lifecycle split, and validation.
@@ -312,6 +312,43 @@ Rules:
   ([kinds/protocol.md](kinds/protocol.md)) is authoritative for something else —
   the alias namespace its workflows use, and the NCA that fixes its directory.
   Neither side is derived from the other; they are cross-checked as warnings.
+- **Artifact suffixes are fenced out of every frontmatter reference surface.**
+  An artifact SRN ([srn.md](srn.md)) — a dot suffix on the final segment, as in
+  `…/protocol/order-placement.transport` — addresses a file *of* an entity, and
+  every reference surface in this contract means an entity: edges are typed
+  over the kind columns above, and an artifact has no kind, so no edge type can
+  accept one. An artifact SRN in any `relations` list, under any edge type, is
+  `E_FM_EDGE_TARGET`, and the message names the artifact suffix as the problem;
+  the fix is to point at the owning entity, whose page carries its artifacts.
+  The fence is contract-wide, not an edge rule only: `primary-actors` is fenced
+  identically under its own class ([kinds/product.md](kinds/product.md)), and
+  each kind document extends the fence to its own reference surfaces — a
+  participant's `ref` and the `payload`/`request`/`response` refs
+  ([kinds/protocol.md](kinds/protocol.md)), a topology's `component` refs and a
+  config's `for` refs ([kinds/environment.md](kinds/environment.md)), a
+  journey's `actor`, step `touches`, and step `protocol`
+  ([kinds/journey.md](kinds/journey.md)) — each under that surface's own error
+  class. Prose is the legal home in v1: prose links are navigational
+  only and create no edge, so a body-markdown link may name an artifact SRN
+  with nothing to fence. Growing more legal surfaces later is an additive
+  change.
+
+  ```yaml
+  # solutions/acme/product/shop/component/checkout/index.md
+  relations:
+    uses:
+      - /product/shop/protocol/order-placement.transport  # E_FM_EDGE_TARGET —
+                                                          # artifact suffix
+                                                          # ".transport"; drop it
+                                                          # and the edge is legal
+  ```
+
+  The same reference is legal one block down, in the body:
+
+  ```markdown
+  Serves the wire contract in the protocol's
+  [transport](srn://acme/product/shop/protocol/order-placement.transport).
+  ```
 
 References are resolved from the referring entity's own directory, and a bucket
 plus a name is **two** path segments — so a target outside the entity's own
@@ -462,14 +499,14 @@ requiredness, or reuse an `x-` prefix for a normative field. In particular:
 
 ## Frontmatter error classes
 
-| Code                  | Meaning                                                          |
-| --------------------- | ---------------------------------------------------------------- |
-| `E_FM_SCHEMA`         | Frontmatter fails the common zod schema (type/enum/shape).       |
-| `E_FM_NAME_MISMATCH`  | `name` ≠ entity directory name.                                  |
-| `E_FM_KIND_LOCATION`  | `kind` ≠ the kind bucket the entity's directory sits in.         |
-| `E_FM_EDGE_TARGET`    | Relation edge targets an entity of an illegal kind.              |
-| `E_FM_EDGE_SOURCE`    | Relation edge authored by a kind that may not author it.         |
-| `E_FM_UNKNOWN_FIELD`  | Unknown top-level field without `x-` prefix.                     |
+| Code                 | Meaning                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| `E_FM_SCHEMA`        | Frontmatter fails the common zod schema (type/enum/shape).                              |
+| `E_FM_NAME_MISMATCH` | `name` ≠ entity directory name.                                                         |
+| `E_FM_KIND_LOCATION` | `kind` ≠ the kind bucket the entity's directory sits in.                                |
+| `E_FM_EDGE_TARGET`   | Relation edge targets an entity of an illegal kind — or an artifact, which has no kind. |
+| `E_FM_EDGE_SOURCE`   | Relation edge authored by a kind that may not author it.                                |
+| `E_FM_UNKNOWN_FIELD` | Unknown top-level field without `x-` prefix.                                            |
 
 Placement of the bucket itself is not a frontmatter concern: an illegally
 placed bucket is `E_SRN_PLACEMENT` ([srn.md](srn.md)), raised while the

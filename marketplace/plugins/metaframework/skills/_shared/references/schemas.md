@@ -87,6 +87,12 @@ identifier; retrieval is a resolver's problem. A local validator that wants to
 fetch rather than trust its cache maps the canonical host onto the portal's
 `/schemas` route in its resolver config — one line, outside the artifacts.)
 
+The artifact SRN `srn://acme/datamodel/money.schema` (`srn.md`) is legal for
+uniformity and **normalizes to the entity**: its URL projection IS this
+canonical URL. No `…/money.schema` URL ever exists, and mapping a URL back to
+an SRN stays dot-rejecting — one schema document, one URL. A second registry
+name for the same schema is the exact defect the canonical URL removed.
+
 ### `x-srn` — the SRN, stated
 
 `x-srn` is **required** and carries the entity's **unversioned** SRN. It is

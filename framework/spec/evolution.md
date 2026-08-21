@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: evolution
-version: 6
+version: 7
 status: review
 title: Evolution and history
-summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, and the status states.
+summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, artifact pins and the constancy theorem, and the status states.
 ---
 
 # Evolution and history
@@ -285,6 +285,67 @@ rewritten in every historical commit for the old snapshots to stay true, and the
 version→commit index does not follow a move in any case. Renaming is done by the
 swap procedure above.
 
+## Artifact pins
+
+A sibling artifact is addressed through its entity by a dot suffix on the
+final SRN segment:
+`srn://metaframework/product/devops/protocol/worktree-lease.transport@1`. The
+suffix grammar, the closed per-kind role table, the surfaces such an SRN may
+appear on, and the artifact error classes are all specified in
+[srn.md](srn.md); what belongs here is the versioning semantics, and it is one
+rule: **`X.role@N` names the `role` artifact of snapshot `X@N`.** The `@N` is
+a coordinate of the entity, never of the artifact. An artifact has no version
+of its own to address — the frontmatter is the only place a version lives, and
+a `version:` key inside an artifact is a shape violation (above) — so the
+suffix selects a file *within* the pinned snapshot. Resolution is the existing
+machinery verbatim: the version→commit index maps `N` to a commit, and the
+role's fixed filename (`transport` → `transport.yaml`) is read at that commit
+via `git show {commit}:{path}`, exactly as any historical read is. No second
+index, no second clock, no new resolution path.
+
+**The constancy theorem.** *Within one version number, artifact bytes are
+constant.* The `status`-only exception is the only mutation permitted between
+two commits whose frontmatter carries the same `version`, and it touches
+`status:` in `index.md` alone — it cannot reach an artifact file. Every commit
+carrying version `N` therefore holds identical bytes for every artifact, and
+`X.role@N` is well-defined even though the version→commit index records only
+the *last* such commit. It is a theorem rather than a convention because its
+premise is enforced: `E_VER_UNBUMPED` is the audit and
+`metaframework check --since` the gate (below), and a history they accept
+cannot falsify it. The converse situation is unremarkable: `X.transport@1` and
+`X.transport@2` hold identical bytes whenever the v2 change touched prose
+only, the same way one file's content can be identical at two git commits — a
+pin names a coordinate, not a unique byte string.
+
+**An artifact never bumps anything by itself.** There is no per-artifact
+version to increment and no new rule to learn: the entity's `version` is the
+only clock, and the rule this document opens with already requires a bump in
+the same commit whenever any sibling artifact's content changes — with the
+additive-only principle judging, per kind, whether that change was legal at
+`N+1`. That pre-existing requirement is what gives an artifact pin its
+meaning: no byte of an owned artifact can change without moving the one
+number `@N` reads, so pinning the entity pins every artifact with it.
+
+Worked example — `worktree-lease`, once it reaches version 2; its history:
+
+```text
+commit c1  version: 1  (created: index.md + transport.yaml, status: review)
+commit c2  version: 1  (status: approved — no bump)
+commit c3  version: 2  (transport.yaml gains an operation — legal, additive)
+```
+
+Index: `{1: c2, 2: c3}` — the last commit per version wins, and the artifact
+suffix changes nothing about how the index is built or read.
+`srn://metaframework/product/devops/protocol/worktree-lease.transport@1`
+resolves `@1` to `c2` and reads
+`git show c2:solutions/metaframework/product/devops/protocol/worktree-lease/transport.yaml`,
+whose bytes are identical to those at `c1`: the `status`-only follow-up in
+`c2` cannot have touched the file, so it makes no difference which of the two
+commits the pin lands on — the constancy theorem, doing its work.
+`worktree-lease.transport@2` is the current version and is read from the
+filesystem; `worktree-lease.transport@3` is `E_SRN_VERSION`, exactly as
+`order@5` was.
+
 ## The `status` states
 
 `status` is REQUIRED in every entity's frontmatter. It is the review state of
@@ -402,9 +463,12 @@ artefact of the commit cap.
 
 **Why it is not optional once artifacts are addressable.** A version is a
 snapshot of the whole entity directory, so `@N` names an artifact's bytes as
-well as the document's. An unbumped edit makes a pinned reference and an
-unpinned one resolve to different content for the same version — which is the
-one thing a pin exists to prevent.
+well as the document's — and an artifact pin (`X.role@N`, above) reads exactly
+those bytes. An unbumped edit makes a pinned reference and an unpinned one
+resolve to different content for the same version — the situation the
+constancy theorem declares impossible, and the theorem is entitled to declare
+it only because this audit and the `--since` gate reject every history that
+contains it.
 
 The two version codes answer different questions and MUST NOT be conflated.
 `E_SRN_VERSION` is an **error** and asks whether the pin resolves at all; it can

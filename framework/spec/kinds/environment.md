@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: environment
-version: 3
+version: 4
 status: review
 title: Kind — Environment
-summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts, membership derivation, validation, and derived views.
+summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts and their SRN addresses, membership derivation, validation, and derived views.
 ---
 
 # Kind: environment
@@ -161,6 +161,44 @@ frontmatter `version` in the same commit ([evolution.md](../evolution.md)).
 In both artifacts, unknown keys — at the top level and inside entries — are
 rejected unless prefixed `x-`, mirroring the frontmatter rule.
 
+### Artifact addresses
+
+Both siblings are addressable by SRN: a dot suffix on the entity's final
+segment names an artifact **role**, and the role table — a spec constant like
+the reserved-kind set, so SRN→path conversion never needs a catalog read —
+maps each role to its fixed filename ([srn.md](../srn.md)). The environment
+kind contributes two rows:
+
+| Role       | File            |
+| ---------- | --------------- |
+| `topology` | `topology.yaml` |
+| `config`   | `config.yaml`   |
+
+```text
+srn://acme/environment/production.topology   # the placement artifact
+srn://acme/environment/production.config@4   # config.yaml in the version-4 snapshot
+```
+
+An artifact has no version of its own: `@4` is the **parent's** coordinate,
+and the suffix selects a file inside that snapshot. The selection is
+well-defined because within one version number the only permitted mutation is
+`status:` in `index.md` ([evolution.md](../evolution.md)), which cannot touch
+either sibling. Any other suffix on an environment — `production.hosts`,
+`production.config.eu` — is `E_SRN_ARTIFACT`; a legal role whose file is
+absent is `E_SRN_DANGLING`, an ordinary state here since both siblings are
+OPTIONAL.
+
+An artifact SRN is a citation — legal in prose links and for external
+consumers — never an entity reference. Both reference surfaces this kind owns,
+`component:` in `topology.yaml` and `for:` in `config.yaml`, mean entities; an
+artifact has no kind, so it can never satisfy ENV6, and a reference carrying
+an artifact suffix is `E_ENV_TARGET_KIND` with a diagnostic that names the
+suffix. On a component or product target the suffix fails earlier still, as
+`E_SRN_ARTIFACT` — neither kind has any artifact roles. The `config` row is
+the one addressability serves: a `config.yaml` that tools outside the catalog
+can cite by SRN is what lets it grow into the solution's single point of
+configuration.
+
 ### `topology.yaml`
 
 ```yaml
@@ -245,6 +283,10 @@ Counter-examples:
 hosts:
   - component: /actor/customer                # E_ENV_TARGET_KIND — not a component
     regions: [eu-west-1]
+  - component: /product/shop/protocol/order-placement.transport
+                                              # E_ENV_TARGET_KIND — an artifact address;
+                                              # hosts name entities, and an artifact
+                                              # has no kind
   - component: /product/shop/component/inventory
     regions: [ap-south-1]                     # E_ENV_REGION_UNKNOWN — not declared
     replicas: { min: 5, max: 2 }              # E_ENV_TOPOLOGY_SCHEMA — min > max
@@ -397,22 +439,25 @@ and the configuration keys it provides**. Per
 
 ## Validation rules
 
-| #     | Rule                                                                                | Class                     |
-| ----- | ----------------------------------------------------------------------------------- | ------------------------- |
-| ENV1  | `environment/` bucket is a direct child of a solution directory.                    | `E_SRN_PLACEMENT`         |
-| ENV2  | `environment-type` present and a member of the closed enum.                         | `E_FM_SCHEMA`             |
-| ENV3  | `environment-type` appears only on `kind: environment` entities.                    | `E_FM_UNKNOWN_FIELD`      |
-| ENV4  | `topology.yaml` parses and matches the schema above (incl. `min ≤ max`, `x-` rule). | `E_ENV_TOPOLOGY_SCHEMA`   |
-| ENV5  | `config.yaml` parses and matches the schema above (casing, uniqueness, `source`).   | `E_ENV_CONFIG_SCHEMA`     |
-| ENV6  | Every SRN in either artifact resolves to a `component` or `product`.                | `E_ENV_TARGET_KIND`       |
-| ENV7  | Every `regions` name in a host entry is declared in the file's `regions` list.      | `E_ENV_REGION_UNKNOWN`    |
-| ENV8  | No entry with `secret: true` carries a `value`.                                     | `E_ENV_SECRET_VALUE`      |
-| ENV9  | Every host entry names a component that declares this environment.                  | `W_ENV_HOST_UNDECLARED`   |
-| ENV10 | Every `for:` target of a config entry declares this environment.                    | `W_ENV_CONFIG_ORPHAN`     |
+| #     | Rule                                                                                | Class                                  |
+|-------|-------------------------------------------------------------------------------------|----------------------------------------|
+| ENV1  | `environment/` bucket is a direct child of a solution directory.                    | `E_SRN_PLACEMENT`                      |
+| ENV2  | `environment-type` present and a member of the closed enum.                         | `E_FM_SCHEMA`                          |
+| ENV3  | `environment-type` appears only on `kind: environment` entities.                    | `E_FM_UNKNOWN_FIELD`                   |
+| ENV4  | `topology.yaml` parses and matches the schema above (incl. `min ≤ max`, `x-` rule). | `E_ENV_TOPOLOGY_SCHEMA`                |
+| ENV5  | `config.yaml` parses and matches the schema above (casing, uniqueness, `source`).   | `E_ENV_CONFIG_SCHEMA`                  |
+| ENV6  | Every SRN in either artifact resolves to a `component` or `product`.                | `E_ENV_TARGET_KIND`                    |
+| ENV7  | Every `regions` name in a host entry is declared in the file's `regions` list.      | `E_ENV_REGION_UNKNOWN`                 |
+| ENV8  | No entry with `secret: true` carries a `value`.                                     | `E_ENV_SECRET_VALUE`                   |
+| ENV9  | Every host entry names a component that declares this environment.                  | `W_ENV_HOST_UNDECLARED`                |
+| ENV10 | Every `for:` target of a config entry declares this environment.                    | `W_ENV_CONFIG_ORPHAN`                  |
+| ENV11 | No `component:` or `for:` reference carries an artifact suffix.                     | `E_SRN_ARTIFACT` / `E_ENV_TARGET_KIND` |
 
-ENV1–ENV8 are checkable from the entity alone; ENV9–ENV10 need the resolved
-catalog. Common SRN rules (syntax, dangling targets, cross-solution sealing)
-apply to both artifacts unchanged.
+ENV1–ENV8 and ENV11 are checkable from the entity alone; ENV9–ENV10 need the
+resolved catalog. Common SRN rules (syntax, dangling targets, cross-solution
+sealing) apply to both artifacts unchanged — an unknown role or a suffix on a
+kind with no roles is `E_SRN_ARTIFACT` before ENV11 is ever reached
+([srn.md](../srn.md)).
 
 ## What the portal derives
 

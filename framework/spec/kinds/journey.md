@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: journey
-version: 2
+version: 3
 status: review
 title: Kind — Journey
-summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
+summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec and its SRN address, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
 ---
 
 # Kind: journey
@@ -227,6 +227,45 @@ Rules:
     channel: mobile-web        # E_JRN_SCHEMA
   ```
 
+### The artifact address
+
+`journey.yaml` is addressable by SRN: a dot suffix on the entity's final
+segment names an artifact **role**, and the role table — a spec constant like
+the reserved-kind set, so SRN→path conversion never needs a catalog read —
+maps each role to its fixed filename ([srn.md](../srn.md)). The journey kind
+contributes one row:
+
+| Role      | File           |
+| --------- | -------------- |
+| `journey` | `journey.yaml` |
+
+```text
+srn://acme/journey/place-an-order.journey     # the ordered path artifact
+srn://acme/journey/place-an-order.journey@1   # the same file in the version-1 snapshot
+```
+
+The artifact carries no version of its own (the rules above), so `@1` is the
+**parent's** coordinate: the suffix selects a file inside that version's
+snapshot, well-defined because within one version number the only permitted
+mutation is `status:` in `index.md` ([evolution.md](../evolution.md)). Any
+other suffix on a journey — `place-an-order.steps`, `.journey.yaml` — is
+`E_SRN_ARTIFACT`. A `.journey` address whose file is absent is
+`E_SRN_DANGLING` at the SRN layer, but such an entity is already broken
+(`E_JRN_ARTIFACT_MISSING`): on a valid journey the address always resolves.
+
+An artifact SRN is a citation — legal in prose links and for external
+consumers — never an entity reference, and no step field accepts one. `actor`,
+`touches`, and `protocol` mean entities, and an artifact has no kind:
+`protocol: /product/shop/protocol/order-placement.transport` names the
+protocol's transport artifact, not the protocol, and is `E_JRN_PROTOCOL_KIND`
+with a diagnostic that names the suffix. The same holds on `actor` and
+`touches` whenever the suffix is legal vocabulary for the kind it sits on —
+`touches: …/protocol/order-placement.transport` survives the role table and is
+rejected here, as `E_JRN_TOUCHES_KIND` (`E_JRN_ACTOR_KIND` on `actor`). Only a
+suffix that is illegal vocabulary for the kind it names fails earlier, as
+`E_SRN_ARTIFACT` — actors, components, and products have no artifact roles at
+all.
+
 ## The journey.yaml mini-spec
 
 The precedent is the workflow mini-spec in [protocol.md](protocol.md), and the
@@ -273,7 +312,9 @@ solution. Because a journey sits at solution level and points almost entirely
 the readable one everywhere; a `..` chain from a journey directory is legal and
 always worse. Version pins (`@N`) parse but SHOULD be omitted: a journey
 describes the path as it is now, and a pinned component in a step would freeze
-the description of a thing that is still moving.
+the description of a thing that is still moving. Artifact suffixes are illegal
+on every step field — a step means an entity, never a file
+([above](#the-artifact-address)).
 
 ```yaml
 - actor: /actor/customer
@@ -558,6 +599,11 @@ steps:
   - actor: /actor/customer
     touches: /product/billing/component/ledger
     protocol: /product/shop/datamodel/order-request   # E_JRN_PROTOCOL_KIND
+  - actor: /actor/customer
+    touches: /product/billing/component/ledger
+    protocol: /protocol/settlement.transport          # E_JRN_PROTOCOL_KIND — an artifact
+                                                      # address: the transport file, not
+                                                      # the protocol entity
   - actor: /actor/support-agent
     touches: /product/identity/product/crm            # E_SRN_PLACEMENT — a product cannot
                                                       # own a product; the ref never resolves
@@ -596,27 +642,29 @@ relations:
 
 ## Validation rules
 
-| #      | Rule                                                                                          | Class                             |
-| ------ | --------------------------------------------------------------------------------------------- | --------------------------------- |
-| JRN1   | The `journey/` bucket is a direct child of a solution directory.                              | `E_SRN_PLACEMENT`                 |
-| JRN2   | `actor` is present in frontmatter.                                                            | `E_FM_SCHEMA`                     |
-| JRN3   | `actor` appears only on `kind: journey` entities.                                             | `E_FM_UNKNOWN_FIELD`              |
-| JRN4   | `journey.yaml` exists in the entity directory.                                                | `E_JRN_ARTIFACT_MISSING`          |
-| JRN5   | `journey.yaml` parses and matches the field tables above (unknown non-`x-` key, bad type).    | `E_JRN_SCHEMA`                    |
-| JRN6   | `name` equals the entity's directory name.                                                    | `E_JRN_NAME`                      |
-| JRN7   | `steps` has between 2 and 12 entries.                                                         | `E_JRN_STEP_COUNT`                |
-| JRN8   | No step carries a branch-shaped key (`alt`, `opt`, `loop`, `when`, `otherwise`, `branches`, `parallel`). | `E_JRN_BRANCH`          |
-| JRN9   | No unrecognised file in the entity directory.                                                 | `W_JRN_ARTIFACT_UNKNOWN`          |
-| JRN10  | The frontmatter `actor`, and every step `actor`, resolves to an `actor`.                      | `E_SRN_DANGLING` / `E_JRN_ACTOR_KIND` |
-| JRN11  | Every `touches` resolves to a `component` or `product`.                                       | `E_SRN_DANGLING` / `E_JRN_TOUCHES_KIND` |
-| JRN12  | Every `protocol` is the literal `none` or resolves to a `protocol`.                           | `E_SRN_DANGLING` / `E_JRN_PROTOCOL_KIND` |
-| JRN13  | The frontmatter `actor` is the `actor` of at least one step.                                  | `W_JRN_ACTOR_ABSENT`              |
-| JRN14  | Consecutive steps whose owning products differ name a `protocol` (an SRN or `none`).          | `W_JRN_UNDOCUMENTED_INTEGRATION`  |
-| JRN15  | A step's named protocol lists this step's or the previous step's `touches` among its participants. | `W_JRN_PROTOCOL_UNRELATED`    |
+| #     | Rule                                                                                                     | Class                                                                                |
+|-------|----------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| JRN1  | The `journey/` bucket is a direct child of a solution directory.                                         | `E_SRN_PLACEMENT`                                                                    |
+| JRN2  | `actor` is present in frontmatter.                                                                       | `E_FM_SCHEMA`                                                                        |
+| JRN3  | `actor` appears only on `kind: journey` entities.                                                        | `E_FM_UNKNOWN_FIELD`                                                                 |
+| JRN4  | `journey.yaml` exists in the entity directory.                                                           | `E_JRN_ARTIFACT_MISSING`                                                             |
+| JRN5  | `journey.yaml` parses and matches the field tables above (unknown non-`x-` key, bad type).               | `E_JRN_SCHEMA`                                                                       |
+| JRN6  | `name` equals the entity's directory name.                                                               | `E_JRN_NAME`                                                                         |
+| JRN7  | `steps` has between 2 and 12 entries.                                                                    | `E_JRN_STEP_COUNT`                                                                   |
+| JRN8  | No step carries a branch-shaped key (`alt`, `opt`, `loop`, `when`, `otherwise`, `branches`, `parallel`). | `E_JRN_BRANCH`                                                                       |
+| JRN9  | No unrecognised file in the entity directory.                                                            | `W_JRN_ARTIFACT_UNKNOWN`                                                             |
+| JRN10 | The frontmatter `actor`, and every step `actor`, resolves to an `actor`.                                 | `E_SRN_DANGLING` / `E_JRN_ACTOR_KIND`                                                |
+| JRN11 | Every `touches` resolves to a `component` or `product`.                                                  | `E_SRN_DANGLING` / `E_JRN_TOUCHES_KIND`                                              |
+| JRN12 | Every `protocol` is the literal `none` or resolves to a `protocol`.                                      | `E_SRN_DANGLING` / `E_JRN_PROTOCOL_KIND`                                             |
+| JRN13 | The frontmatter `actor` is the `actor` of at least one step.                                             | `W_JRN_ACTOR_ABSENT`                                                                 |
+| JRN14 | Consecutive steps whose owning products differ name a `protocol` (an SRN or `none`).                     | `W_JRN_UNDOCUMENTED_INTEGRATION`                                                     |
+| JRN15 | A step's named protocol lists this step's or the previous step's `touches` among its participants.       | `W_JRN_PROTOCOL_UNRELATED`                                                           |
+| JRN16 | No `actor`, `touches`, or `protocol` reference carries an artifact suffix.                               | `E_SRN_ARTIFACT` / `E_JRN_ACTOR_KIND` / `E_JRN_TOUCHES_KIND` / `E_JRN_PROTOCOL_KIND` |
 
-JRN1–JRN9 are checkable from the entity alone; JRN10–JRN15 need the resolved
-catalog. Common SRN rules — syntax, dangling targets, cross-solution sealing —
-apply to every reference in `journey.yaml` unchanged ([srn.md](../srn.md)).
+JRN1–JRN9 and JRN16 are checkable from the entity alone; JRN10–JRN15 need the
+resolved catalog. Common SRN rules — syntax, dangling targets, cross-solution
+sealing — apply to every reference in `journey.yaml` unchanged
+([srn.md](../srn.md)).
 
 ## What the portal derives
 

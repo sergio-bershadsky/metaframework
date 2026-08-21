@@ -378,8 +378,8 @@ describe('loadCatalog — diagnostics', () => {
     expect(stale?.srn).toBe('srn://acme/product/shop/component/returns')
   })
 
-  it('does not call a resolving-but-stale pin E_SRN_VERSION — V7 is about a pin that resolves to nothing', () => {
-    // The loader cannot see git, so it is not in a position to raise V7 at all.
+  it('does not call a resolving-but-stale pin E_SRN_VERSION — V8 is about a pin that resolves to nothing', () => {
+    // The loader cannot see git, so it is not in a position to raise V8 at all.
     // Every E_SRN_VERSION the portal emits comes from lib/history/git.ts.
     expect(catalog.diagnostics.map((d) => d.code)).not.toContain('E_SRN_VERSION')
   })

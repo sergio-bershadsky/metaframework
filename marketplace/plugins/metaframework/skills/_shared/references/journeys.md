@@ -1,14 +1,14 @@
 # Journeys — the `journey.yaml` ordered path
 
-> Distilled from `framework/spec/kinds/journey.md` (version 1). **When
+> Distilled from `framework/spec/kinds/journey.md` (version 3). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec — the same reason `protocols.md` exists.
 >
 > Placement (solution-level only) is in `structure.md`; the frontmatter `actor`
 > field is in `frontmatter.md`. This file carries what only `kinds/journey.md`
-> says: the `journey.yaml` mini-spec, the no-branching rule, the step cap, the
-> product-crossing check, and the `E_JRN_*` codes.
+> says: the `journey.yaml` mini-spec, its artifact address, the no-branching
+> rule, the step cap, the product-crossing check, and the `E_JRN_*` codes.
 
 A **journey** is one actor's path across the solution, in order: the things that
 actor touches, from first contact to outcome, as a flat ordered list. It is the
@@ -75,6 +75,25 @@ solutions/acme/journey/first-purchase/
     x-channel: mobile-web      # tolerated, ignored by the portal
     channel: mobile-web        # E_JRN_SCHEMA
   ```
+
+## Artifact address
+
+`journey.yaml` is SRN-addressable by a dot suffix on the entity (`srn.md`
+reference): `srn://acme/journey/first-purchase.journey`. `@N` on such an
+address is the **entity's** version — the artifact has no clock of its own, so
+`….journey@1` means the file inside snapshot v1. Any other suffix on a journey
+is `E_SRN_ARTIFACT`; a `.journey` address whose file is absent is
+`E_SRN_DANGLING` at the SRN layer (and the entity is already broken,
+`E_JRN_ARTIFACT_MISSING`).
+
+The address is a citation — legal in prose links and for external consumers —
+never an entity reference, and no step field accepts one: `actor`, `touches`,
+and `protocol` mean entities. A suffix that is illegal vocabulary for the kind
+it names fails as `E_SRN_ARTIFACT`; one that is legal for a wrong kind
+(`touches: …/protocol/order-placement.transport`) survives the role table and
+is rejected under the surface's own class — `E_JRN_ACTOR_KIND`,
+`E_JRN_TOUCHES_KIND`, `E_JRN_PROTOCOL_KIND` — with a message naming the
+suffix (rule JRN16 in the spec).
 
 ## The mini-spec
 

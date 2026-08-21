@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: protocol
-version: 4
+version: 5
 status: review
 title: Protocol kind
-summary: The protocol entity contract — participants and style frontmatter, transport.yaml, the workflow YAML mini-spec, XState-subset states.json, payload binding, and derived diagrams.
+summary: The protocol entity contract — participants and style frontmatter, transport.yaml, the workflow YAML mini-spec, XState-subset states.json, artifact addressing, payload binding, and derived diagrams.
 ---
 
 # Protocol kind
@@ -48,7 +48,7 @@ one optional asset subdirectory:
 solutions/acme/product/shop/protocol/order-placement/
 ├── index.md                # REQUIRED  entity document (frontmatter + prose)
 ├── transport.yaml          # OPTIONAL  wire binding — exactly one transport
-├── openapi.yaml            # OPTIONAL  external spec, linked from transport.yaml
+├── openapi.yaml            # OPTIONAL  OpenAPI document — fixed name, bytes-only in v1
 ├── states.json             # OPTIONAL  XState-subset conversation state machine
 └── workflows/              # OPTIONAL  asset subdirectory — never an entity
     ├── place-order.yaml    # one workflow, name = filename stem
@@ -57,15 +57,17 @@ solutions/acme/product/shop/protocol/order-placement/
 
 Rules:
 
-- Sibling filenames are **bare and fixed**: `transport.yaml`, `states.json`.
-  A file named `order-placement.transport.yaml` or `protocol.yaml` is not
-  recognised and raises `W_PROTO_ARTIFACT_UNKNOWN`.
+- Sibling filenames are **bare and fixed**: `transport.yaml`, `openapi.yaml`,
+  `states.json`. A file named `order-placement.transport.yaml` or
+  `protocol.yaml` is not recognised and raises `W_PROTO_ARTIFACT_UNKNOWN`.
 - `workflows/` is the only recognised asset subdirectory. It contains one
   `*.yaml` file per workflow, kebab-case, no nesting below it, and — per
   [structure.md](../structure.md) — no `index.md` at any depth.
-- Files linked from `transport.yaml` (`spec.file`, e.g. `openapi.yaml`,
-  `asyncapi.yaml`, `pricing.proto`) sit alongside `index.md` and are recognised
-  by virtue of being linked.
+- Files linked from `transport.yaml` (`spec.file`, e.g. `asyncapi.yaml`,
+  `pricing.proto`) sit alongside `index.md` and are recognised by virtue of
+  being linked. `openapi.yaml` is deliberately not on that list: it is a
+  fixed-name artifact in its own right, recognised whether or not
+  `transport.yaml` links it (see the `spec` section below).
 - Additional `*.md` prose siblings are allowed and carry no machine semantics.
   Any other unrecognised file raises `W_PROTO_ARTIFACT_UNKNOWN`.
 - **Artifacts carry no version of their own.** The entity's frontmatter
@@ -89,6 +91,86 @@ Rules:
   ```
 - All four artifacts are optional. A protocol with only `index.md` is legal
   (an intent-level protocol under design); it simply derives no diagrams.
+
+### Artifact addressing
+
+Every recognised artifact above is addressable by SRN. The grammar — a dot
+suffix on the **final** path segment — belongs to [srn.md](../srn.md), together
+with the closed per-kind role table; this is that table's protocol row:
+
+| Artifact suffix     | File                    | Example                                                                  |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| `.transport`        | `transport.yaml`        | `srn://acme/product/shop/protocol/order-placement.transport`             |
+| `.states`           | `states.json`           | `srn://acme/product/shop/protocol/order-placement.states`                |
+| `.openapi`          | `openapi.yaml`          | `srn://acme/product/shop/protocol/order-placement.openapi`               |
+| `.workflows.<name>` | `workflows/<name>.yaml` | `srn://acme/product/shop/protocol/order-placement.workflows.place-order` |
+
+- **The table is a spec constant**, closed exactly as the reserved-kind list
+  is: converting an artifact SRN to a disk path needs this document and nothing
+  else — the [consolidating principle](../srn.md#the-consolidating-principle)
+  holds without a catalog read. It is also the one place SRN ≡ disk path bends:
+  `.transport` names a **role** that maps *through* the table to
+  `transport.yaml`, never a literal path suffix — the same shape of bend the
+  reserved-kind table already is. The dot form exists only in the SRN; a file
+  literally named `order-placement.transport.yaml` stays unrecognised
+  (`W_PROTO_ARTIFACT_UNKNOWN`).
+- The split at the first dot is unambiguous because a dot can never occur in a
+  name segment — [srn.md](../srn.md) reserves the character one-way, exactly
+  like a reserved word.
+- `transport`, `states`, and `openapi` take no further segment; `workflows`
+  requires exactly one — the filename stem, ordinary kebab-case. Any other
+  role, any other depth, or any suffix on a kind that has no roles is
+  `E_SRN_ARTIFACT` ([srn.md](../srn.md)) — statically checkable, no filesystem
+  involved. A **legal** role whose file is absent — every artifact here is
+  optional — is `E_SRN_DANGLING` instead.
+- **An artifact has no version of its own.** `…/order-placement.transport@2`
+  means "the `transport.yaml` of snapshot `order-placement@2`": `@N` is a
+  coordinate of the entity, resolved by the ordinary machinery of
+  [evolution.md](../evolution.md) — version→commit index, then the file at that
+  commit. Within one version the only permitted mutation is `status:` in
+  `index.md`, which cannot touch an artifact file, so artifact bytes are
+  constant within a version and the address is well-defined; `E_VER_UNBUMPED`
+  and `metaframework check --since` enforce exactly this. Because the suffix
+  names a file *of the snapshot*, it precedes `@version`:
+  `order-placement@2.transport` is `E_SRN_SYNTAX` ("artifact suffix precedes
+  @version").
+- Artifact suffixes ride the absolute (`srn://…`) and solution-absolute
+  (`/product/…`) forms only; a relative reference carrying one is
+  `E_SRN_SYNTAX` — dot splitting stays out of `..` arithmetic
+  ([srn.md](../srn.md)).
+
+```text
+srn://acme/product/shop/protocol/order-placement.transport               ✓ transport.yaml, latest snapshot
+srn://acme/product/shop/protocol/order-placement.states@2                ✓ states.json as of snapshot @2
+srn://acme/product/shop/protocol/order-placement.workflows.place-order   ✓ workflows/place-order.yaml
+srn://acme/product/shop/protocol/order-placement.openapi                 ✓ openapi.yaml — E_SRN_DANGLING if absent
+srn://acme/product/shop/protocol/order-placement@2.transport             ✗ E_SRN_SYNTAX — suffix precedes @version
+srn://acme/product/shop/protocol/order-placement.workflows               ✗ E_SRN_ARTIFACT — workflows needs a name
+srn://acme/product/shop/protocol/order-placement.spec                    ✗ E_SRN_ARTIFACT — no such role
+srn://acme/product/shop/protocol/order-placement.states.retry            ✗ E_SRN_ARTIFACT — states takes no second segment
+```
+
+**Every entity surface rejects an artifact SRN.** Entity surfaces mean
+entities: edges are typed over kinds, and an artifact has no kind. On this kind
+the fence runs through `relations` (`E_FM_EDGE_TARGET`,
+[frontmatter.md](../frontmatter.md)), every participant's `ref`
+(`E_PROTO_PARTICIPANT_KIND`), and every `payload` / `request` / `response` /
+`message` ref (`E_PROTO_PAYLOAD_KIND`) — in each case the surface's own class,
+with a message that names the artifact suffix as the problem. Where an artifact
+SRN *is* legal: markdown prose in `index.md`, and consumers outside the
+catalog.
+
+```yaml
+relations:
+  uses:
+    - /environment/production.topology         # E_FM_EDGE_TARGET — an edge names
+                                               # an entity, never one of its files
+participants:
+  - alias: checkout
+    ref: /product/shop/datamodel/order.schema  # E_PROTO_PARTICIPANT_KIND — a
+                                               # legal artifact SRN, but an
+                                               # artifact has no kind
+```
 
 ## Frontmatter additions
 
@@ -136,6 +218,10 @@ Notes:
 - A participant carries **no title of its own**. The portal labels the lifeline
   with the target entity's `title` and shows the alias as a subscript. Copying
   the title here would drift.
+- A participant's `ref` names an **entity**. An artifact SRN — even a legal
+  one, `/product/shop/datamodel/order.schema` — is `E_PROTO_PARTICIPANT_KIND`:
+  participation is typed over kinds, and an artifact has no kind
+  ([Artifact addressing](#artifact-addressing)).
 - `conforms-to` is for *standards*, not for files. An OpenAPI or AsyncAPI
   document that lives in the entity directory is bound in `transport.yaml`
   under `spec` — one place only.
@@ -317,6 +403,23 @@ In v1 the portal treats the linked file as an **opaque attachment**: it renders
 a card with format, version, and a raw/download link. Parsing OpenAPI or
 AsyncAPI to derive operation tables is deferred.
 
+**`openapi.yaml` is a fixed-name artifact, not merely an attachment.** Like
+`transport.yaml` and `states.json` it is recognised by its bare fixed name —
+link or no link — and is addressable as `.openapi`
+([Artifact addressing](#artifact-addressing)). Its contract in v1 is
+**bytes-only**: unparsed, snapshotted with the entity, served as-is. `spec`
+still does what it always did — declare format and version and put the
+attachment card on the transport page — so an OpenAPI document SHOULD use the
+fixed name *and* be linked: the fixed name makes it addressable, the link binds
+it to the transport.
+
+The free-named attachment mechanism remains for the **other** formats
+(`asyncapi.yaml`, `pricing.proto`, a GraphQL SDL): those files are recognised
+by virtue of being linked and are **not addressable** — the role table maps
+fixed roles to fixed filenames, and a free name has no place in it. A
+free-named OpenAPI file (`spec.file: orders-api.yaml`) is likewise legal and
+likewise unaddressable: nothing breaks, but nothing can point at it either.
+
 ### Surface lists and the anti-duplication rule
 
 Every binding block may carry one optional **surface list** — the block's
@@ -346,6 +449,13 @@ http:
   operations:                  # E_PROTO_TRANSPORT_SPEC_CONFLICT
     - { name: create-order, method: POST, path: / }
 ```
+
+Promoting `openapi.yaml` to a fixed-name artifact does not move this rule: the
+conflict keys on the `spec` mapping, not on the file's presence. An
+`openapi.yaml` sitting in the directory unlinked derives nothing in v1 — it is
+addressable bytes — so it conflicts with nothing; but an operation-bearing spec
+left unlinked beside a surface list is exactly the divergence this rule exists
+to prevent. Link it.
 
 ### Binding blocks
 
@@ -846,7 +956,10 @@ entry's `request`, `response`, or `message` — is an ordinary SRN reference per
 > ``` It MUST resolve to an entity whose `kind` is `datamodel`
 (`E_PROTO_PAYLOAD_KIND`), and it SHOULD pin a version: an unpinned reference
 silently follows the datamodel's latest version, so a contract that was reviewed
-against `order@2` starts describing `order@3` with no diff on this file.
+against `order@2` starts describing `order@3` with no diff on this file. It also
+names the entity, never one of the entity's files: an artifact SRN
+(`/product/shop/datamodel/order.schema@2`) is rejected with the same class —
+an artifact has no kind ([Artifact addressing](#artifact-addressing)).
 
 A payload reference is an SRN even though the datamodel's own `schema.json` uses
 served HTTP URLs in its `$ref`s ([kinds/datamodel.md](datamodel.md)). The two
@@ -899,6 +1012,9 @@ payload: /product/shop/datamodel/order-request@1        # recommended
 payload: ../../../datamodel/order-request@1             # legal, correct here,
                                                         # easy to miscount
 payload: srn://acme/product/shop/datamodel/order-request@1   # legal, verbose
+payload: /product/shop/datamodel/order-request.schema@1 # E_PROTO_PAYLOAD_KIND —
+                                                        # a file of the entity,
+                                                        # not the entity
 ```
 
 `states.json` carries no SRN references at all — it names events and states
@@ -1206,8 +1322,10 @@ New codes introduced by this document. Codes from
 [srn.md](../srn.md), [structure.md](../structure.md),
 [frontmatter.md](../frontmatter.md), and [evolution.md](../evolution.md) apply
 unchanged — in particular `E_FM_SCHEMA` covers every type or enum violation of
-the frontmatter fields added here, and `E_SRN_DANGLING` covers every
-unresolvable reference.
+the frontmatter fields added here, `E_SRN_ARTIFACT` covers every violation of
+the role vocabulary in [Artifact addressing](#artifact-addressing), and
+`E_SRN_DANGLING` covers every unresolvable reference — a legal artifact suffix
+whose file is absent included.
 
 | Code                              | Meaning                                                                       |
 | --------------------------------- | ------------------------------------------------------------------------------ |

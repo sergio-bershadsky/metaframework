@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 6
+version: 7
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, the twelve kinds, document map, and reading order.
@@ -50,11 +50,20 @@ example. A rule without an example is an incomplete rule and a spec defect.
    entity's kind is stated at every level rather than inferred from depth:
 
    ```text
-   srn://{solution}( /{kind}/{name} )*  [@{version}]
+   srn://{solution}( /{kind}/{name} )*  [.{artifact}]  [@{version}]
 
    srn://acme/product/shop/component/checkout/datamodel/cart@1
    →  solutions/acme/product/shop/component/checkout/datamodel/cart/
+
+   srn://acme/protocol/settlement.transport
+   →  solutions/acme/protocol/settlement/transport.yaml
    ```
+
+   The optional `.{artifact}` suffix on the final segment addresses one of the
+   entity's sibling files by **role**, through a closed per-kind role table
+   ([structure.md](structure.md#the-artifact-role-table)); `@{version}` stays a
+   coordinate of the entity, never of the file
+   ([srn.md](srn.md#artifact-addresses)).
 
    The eleven kind buckets are `product`, `component`, `datamodel`, `protocol`,
    `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`, and

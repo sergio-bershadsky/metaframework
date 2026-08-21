@@ -325,6 +325,13 @@ Other rules that bite:
 - An illegal target kind is `E_FM_EDGE_TARGET`; an edge authored by a kind that
   may not author it is `E_FM_EDGE_SOURCE`. The two codes are separate because
   they blame different files.
+- **An artifact SRN is never a legal target.** `relations` edges,
+  `primary-actors` and protocol `participants[].ref` all mean *entities*; a
+  dot-suffixed artifact SRN (`/datamodel/cart.schema`, `srn.md`) has no kind
+  for the edge to be typed over, so the surface's own code fires —
+  `E_FM_EDGE_TARGET`, `E_PROD_ACTOR_TARGET`, `E_PROTO_PARTICIPANT_KIND` —
+  with a message naming the artifact suffix. Prose links are where artifact
+  SRNs live.
 - `uses` → `environment` **is** the deployment declaration: "this component runs
   in that environment". Environments never maintain a roster; the portal derives
   it.

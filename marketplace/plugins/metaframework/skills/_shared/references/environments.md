@@ -1,6 +1,6 @@
 # Environments — and the artifact-free kinds (actor, ADR, requirement)
 
-> Distilled from `framework/spec/kinds/environment.md` (version 2), with the
+> Distilled from `framework/spec/kinds/environment.md` (version 4), with the
 > field and body detail of `framework/spec/kinds/actor.md` (2),
 > `framework/spec/kinds/adr.md` (2) and `framework/spec/kinds/requirement.md`
 > (2). **When `framework/spec/` is present in the repository, it is
@@ -137,7 +137,9 @@ solutions/acme/environment/production/
 Both are part of the entity's version snapshot: **no `version:` key of their
 own**, and any change to either bumps the entity's frontmatter `version` in the
 same commit. In both, unknown keys — top level and inside entries — are rejected
-unless `x-` prefixed.
+unless `x-` prefixed. Each is SRN-addressable by a dot suffix on the entity
+(`srn.md` reference): `….topology` and `….config`; `@N` on such an address is
+the **entity's** version, never the file's.
 
 ### `topology.yaml`
 
@@ -292,21 +294,24 @@ configuration keys provided**.
 
 ## Validation and error classes
 
-| #     | Rule                                                                             | Class                   |
-|-------|------------------------------------------------------------------------------------|-------------------------|
-| ENV1  | `environment/` bucket is a direct child of a solution directory.                 | `E_SRN_PLACEMENT`       |
-| ENV2  | `environment-type` present and in the closed enum.                               | `E_FM_SCHEMA`           |
-| ENV3  | `environment-type` appears only on `kind: environment`.                          | `E_FM_UNKNOWN_FIELD`    |
-| ENV4  | `topology.yaml` parses and matches its schema (incl. `min ≤ max`, `x-` rule).    | `E_ENV_TOPOLOGY_SCHEMA` |
-| ENV5  | `config.yaml` parses and matches its schema (casing, uniqueness, `source`).      | `E_ENV_CONFIG_SCHEMA`   |
-| ENV6  | Every SRN in either artifact resolves to a `component` or `product`.             | `E_ENV_TARGET_KIND`     |
-| ENV7  | Every host `regions` name is declared in the file's `regions` list.              | `E_ENV_REGION_UNKNOWN`  |
-| ENV8  | No `secret: true` entry carries a `value`.                                       | `E_ENV_SECRET_VALUE`    |
-| ENV9  | Every host entry names a component that declares this environment.               | `W_ENV_HOST_UNDECLARED` |
-| ENV10 | Every `for:` target declares this environment.                                   | `W_ENV_CONFIG_ORPHAN`   |
+| #     | Rule                                                                          | Class                                  |
+|-------|-------------------------------------------------------------------------------|----------------------------------------|
+| ENV1  | `environment/` bucket is a direct child of a solution directory.              | `E_SRN_PLACEMENT`                      |
+| ENV2  | `environment-type` present and in the closed enum.                            | `E_FM_SCHEMA`                          |
+| ENV3  | `environment-type` appears only on `kind: environment`.                       | `E_FM_UNKNOWN_FIELD`                   |
+| ENV4  | `topology.yaml` parses and matches its schema (incl. `min ≤ max`, `x-` rule). | `E_ENV_TOPOLOGY_SCHEMA`                |
+| ENV5  | `config.yaml` parses and matches its schema (casing, uniqueness, `source`).   | `E_ENV_CONFIG_SCHEMA`                  |
+| ENV6  | Every SRN in either artifact resolves to a `component` or `product`.          | `E_ENV_TARGET_KIND`                    |
+| ENV7  | Every host `regions` name is declared in the file's `regions` list.           | `E_ENV_REGION_UNKNOWN`                 |
+| ENV8  | No `secret: true` entry carries a `value`.                                    | `E_ENV_SECRET_VALUE`                   |
+| ENV9  | Every host entry names a component that declares this environment.            | `W_ENV_HOST_UNDECLARED`                |
+| ENV10 | Every `for:` target declares this environment.                                | `W_ENV_CONFIG_ORPHAN`                  |
+| ENV11 | No `component:` or `for:` reference carries an artifact suffix.               | `E_SRN_ARTIFACT` / `E_ENV_TARGET_KIND` |
 
-ENV1–ENV8 are checkable from the entity alone; ENV9–ENV10 need the resolved
-catalog. Common SRN rules apply to both artifacts unchanged.
+ENV1–ENV8 and ENV11 are checkable from the entity alone; ENV9–ENV10 need the
+resolved catalog. Common SRN rules apply to both artifacts unchanged — an
+unknown role, or a suffix on a kind with no roles, is `E_SRN_ARTIFACT` before
+ENV11 is ever reached.
 
 ---
 

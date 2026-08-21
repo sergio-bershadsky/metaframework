@@ -454,7 +454,7 @@ function resolveRelations(
       }
 
       if (relation.version !== null && relation.version !== target.frontmatter.version) {
-        // NOT `E_SRN_VERSION`. V7 (srn.md) fails a pin that exists "neither on
+        // NOT `E_SRN_VERSION`. V8 (srn.md) fails a pin that exists "neither on
         // the filesystem nor in the version→commit index" — a reference to
         // nothing, which is an error. This pin resolves: historic versions live
         // in git, and evolution.md's worked example has `order@1` legitimately
@@ -462,7 +462,7 @@ function resolveRelations(
         // code here for a legal pin put code, severity and the /diagnostics
         // heading in three-way disagreement, and it is the loader that was
         // wrong: only `lib/history/git.ts`, which can actually ask git whether a
-        // commit exists, is in a position to raise V7 — and it does.
+        // commit exists, is in a position to raise V8 — and it does.
         //
         // What is true here is narrower and worth saying on its own: the pin has
         // fallen behind. Either a deliberate freeze or a forgotten migration,

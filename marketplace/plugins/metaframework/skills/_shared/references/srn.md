@@ -49,7 +49,7 @@ view carries a version and the projection does not.
 ## Shape
 
 ```text
-srn://{solution}( /{kind}/{name} )*  [@{version}]
+srn://{solution}( /{kind}/{name} )*  [.{artifact}]  [@{version}]
 ```
 
 Below the solution the path is a **strict alternation of kind bucket and name**,
@@ -235,6 +235,57 @@ references *out* of it. A relative `$ref` is `E_DM_REF_TARGET` (`schemas.md`).
 - The suffix pins only the entity the SRN addresses. There is no way to pin an
   ancestor.
 
+## Artifact suffix — addressing an entity's files
+
+A **dot suffix on the final segment** addresses one artifact of an entity:
+
+```text
+srn://{solution}( /{kind}/{name} )*.{artifact}  [@{version}]
+```
+
+```text
+srn://acme/product/shop/protocol/order-placement.transport@2  # transport.yaml of snapshot @2
+srn://acme/product/shop/protocol/order-placement.workflows.place-order
+                                                              # workflows/place-order.yaml, current
+```
+
+Lexing strips `@version` from the end **first**, then splits the final segment
+at its **first** dot. `order-placement@2.transport` is `E_SRN_SYNTAX` — the
+artifact suffix precedes `@version`. The split is unambiguous because no
+segment may contain a dot; that exclusion is a **normative, one-way
+reservation** of the dot, exactly like a reserved word.
+
+Artifact names come from a **closed, per-kind role table with fixed
+filenames** — `transport` → `transport.yaml`; depth 2 exists only for
+`workflows.<name>` and `examples.<name>` (the compact table is in
+`structure.md`). The table is a spec constant like the reserved kinds:
+SRN→path conversion needs the spec, never a catalog read. It is also the one
+place SRN ≡ path bends — the suffix maps *through* the table, not to a
+literal path segment.
+
+- **No version of its own.** `X.transport@N` is "the transport artifact of
+  snapshot `X@N`": `@N` is a coordinate of the **parent**, resolved through
+  the ordinary version→commit index (`evolution.md`).
+- **Entity surfaces are fenced.** An artifact SRN is illegal in `relations`
+  (every edge), `primary-actors`, protocol `participants[].ref` and
+  `payload`/`request`/`response` message refs, `topology.yaml` component refs,
+  `config.yaml` `for` refs, and `journey.yaml` `actor`/`touches`/step
+  `protocol` — those surfaces mean entities, and an artifact has no kind for
+  an edge to be typed over. The surface's own code fires (`E_FM_EDGE_TARGET`
+  and kin) with a message naming the artifact suffix; a suffix that is illegal
+  vocabulary for the kind it names fails earlier, as `E_SRN_ARTIFACT`. Legal
+  in v1: prose markdown links and external consumers.
+- **Absolute forms only.** A relative reference carrying an artifact suffix is
+  `E_SRN_SYNTAX` — dot-splitting stays out of `..` arithmetic. Write the
+  `srn://…` or solution-absolute `/product/…` form.
+- `E_SRN_ARTIFACT`: unknown role for the addressed kind, wrong depth, or any
+  suffix on a kind with no roles — statically checkable, no catalog read.
+- `E_SRN_DANGLING`: a **legal** role whose file is absent (`transport.yaml` is
+  optional on a protocol).
+- `.schema` on a datamodel is legal for uniformity but **normalizes to the
+  entity**: its URL projection is the entity's canonical schema URL, and no
+  second URL is ever minted (`schemas.md`).
+
 ## Where SRNs are written
 
 | Surface                                       | Form                                                                |
@@ -249,25 +300,27 @@ references *out* of it. A relative `$ref` is `E_DM_REF_TARGET` (`schemas.md`).
 In workflow YAML, `from`/`to` are participant **aliases** and `message` is a
 logical message name — never SRNs. A bare relative path in a markdown link is
 indistinguishable from a file link, so the portal leaves it as one and no entity
-page resolves.
+page resolves. No typed surface in the table accepts an **artifact SRN** (dot
+suffix) — prose links are the one authoring surface that does.
 
 ## Error classes
 
-Per-reference (V1–V5); catalog-resolved (V6–V8):
+Per-reference (V1–V6); catalog-resolved (V7–V9):
 
-| #   | Rule                                                                | Code                   |
-| --  | ------------------------------------------------------------------- | ---------------------- |
-| V1  | Parses under the grammar (incl. `..` depth, `@` position).          | `E_SRN_SYNTAX`         |
-| V2  | Path alternates `{kind}/{name}`; every pair complete.               | `E_SRN_SYNTAX`         |
-| V3  | No reserved keyword as a solution or entity **name**.               | `E_SRN_RESERVED`       |
-| V4  | Placement legal (P1–P4).                                            | `E_SRN_PLACEMENT`      |
-| V5  | Does not name a foreign solution.                                   | `E_SRN_CROSS_SOLUTION` |
-| V6  | Resolved directory exists and contains `index.md`.                  | `E_SRN_DANGLING`       |
-| V7  | Pinned `@N` exists on disk or in the version→commit index.          | `E_SRN_VERSION`        |
-| V8  | Target kind legal for the referring **relation edge**.              | `E_FM_EDGE_TARGET`     |
+| #   | Rule                                                                            | Code                   |
+| --- | ------------------------------------------------------------------------------- | ---------------------- |
+| V1  | Parses under the grammar (incl. lexing order, `..` depth, `@` position).        | `E_SRN_SYNTAX`         |
+| V2  | Path alternates `{kind}/{name}`; every pair complete.                           | `E_SRN_SYNTAX`         |
+| V3  | No reserved keyword as a solution or entity **name**.                           | `E_SRN_RESERVED`       |
+| V4  | Placement legal (P1–P4).                                                        | `E_SRN_PLACEMENT`      |
+| V5  | Artifact suffix names a role of the addressed kind, at that role's depth.       | `E_SRN_ARTIFACT`       |
+| V6  | Does not name a foreign solution.                                               | `E_SRN_CROSS_SOLUTION` |
+| V7  | Resolved directory exists with `index.md`; an addressed artifact's file exists. | `E_SRN_DANGLING`       |
+| V8  | Pinned `@N` exists on disk or in the version→commit index.                      | `E_SRN_VERSION`        |
+| V9  | Target kind legal for the referring **relation edge**.                          | `E_FM_EDGE_TARGET`     |
 
-V8 covers `relations` only. Other typed reference surfaces carry their own
+V9 covers `relations` only. Other typed reference surfaces carry their own
 codes — `E_PROD_ACTOR_TARGET`, `E_PROTO_PARTICIPANT_KIND`,
-`E_PROTO_PAYLOAD_KIND`, `E_ENV_TARGET_KIND` — while V1–V7 apply unchanged.
+`E_PROTO_PAYLOAD_KIND`, `E_ENV_TARGET_KIND` — while V1–V8 apply unchanged.
 
 `W_REF_DEPRECATED` (warning): the reference target has `status: deprecated`.

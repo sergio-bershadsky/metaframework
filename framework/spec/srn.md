@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: srn
-version: 6
+version: 7
 status: review
 title: SRN — Solution Resource Name
-summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
+summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, artifact addresses over the closed per-kind role table, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
 ---
 
 # SRN — Solution Resource Name
@@ -20,11 +20,16 @@ the HTTP URL the portal serves them at, so that standard JSON Schema tooling can
 change of spelling, not of scheme — the URL is the SRN with a different prefix,
 and the next section states the rule that binds them.
 
+The syntax reaches files as well as entities: a sibling artifact of an entity is
+addressed by a dot suffix on the final segment
+([below](#artifact-addresses)), so the catalog needs no second scheme for the
+machine-readable substance either.
+
 Every entity below the solution lives in a **kind bucket**, so an SRN path is a
 strict alternation of bucket and name:
 
 ```text
-srn://{solution}( /{kind}/{name} )*  [@{version}]
+srn://{solution}( /{kind}/{name} )*  [.{artifact}]  [@{version}]
 ```
 
 ```text
@@ -39,6 +44,7 @@ srn://acme/datamodel/money@1                                  # solution-level d
 srn://acme/capability/order-fulfilment                        # solution-level capability
 srn://acme/journey/place-an-order                             # solution-level journey
 srn://acme/product/shop/metric/checkout-conversion            # product-owned metric
+srn://acme/protocol/settlement.transport@2                    # artifact address — the protocol's transport binding
 ```
 
 ## The consolidating principle
@@ -78,6 +84,21 @@ and a `@N` inside one is rejected rather than ignored
 ([kinds/datamodel.md](kinds/datamodel.md)). Pins live where git-backed history
 can resolve them — frontmatter `relations` and prose — so the identity view
 carries a version and the projection does not.
+
+Artifact addresses ([below](#artifact-addresses)) bend the storage view, and
+the bend is stated here so it is counted rather than discovered.
+`…/protocol/settlement.transport` does not name a file called `transport`: the
+role maps **through a table** to `transport.yaml`, so this one conversion
+consults something beyond prefix surgery. What it consults is a **spec
+constant** — the closed per-kind role table, exactly the class of table the
+eleven reserved kinds are — never catalog data, so SRN→path stays computable
+from this document alone and the principle keeps its real content: no lookup
+into anything that varies. The projection view, meanwhile, narrows rather than
+bends: of all the roles only `.schema` projects to a URL, and even that one
+mints nothing — its projection *is* the entity's canonical URL, because the
+schema document already carries both names. A non-schema artifact has identity
+and storage and **no projection**; its retrieval is a portal route, not a
+second name ([below](#artifact-addresses)).
 
 This principle is normative. Its absence from an earlier revision is precisely
 what let `schema.json` be documented as an addressing scheme of its own, with
@@ -132,10 +153,12 @@ Character-level grammar and placement in one ABNF (RFC 5234). The alternation of
 decides what may own what:
 
 ```abnf
-srn           = "srn://" solution [ owned ] [ "@" version ]
+srn           = "srn://" solution [ owned ] [ "." artifact ] [ "@" version ]
 
 solution      = segment
 name          = segment
+artifact      = segment *( "." segment )          ; role path — closed per-kind
+                                                  ; vocabulary, stated below
 
 ; What a solution may own directly. Only a product opens a body.
 owned         = "/" ( "product"      "/" name [ body ]
@@ -168,6 +191,18 @@ Constraints beyond the ABNF:
   stated rather than encoded.
 - The `@version` suffix MAY appear only on the **final** segment.
   `srn://acme/product/shop@2/component/checkout` is `E_SRN_SYNTAX`.
+- Lexing order is fixed: `@version` is stripped from the end **first**, then
+  the final path segment splits at its **first** dot — name before it,
+  artifact after it ([below](#artifact-addresses)). The two suffixes therefore
+  compose in exactly one written order, artifact before version.
+  `srn://acme/protocol/settlement@1.transport` is `E_SRN_SYNTAX`, and the
+  message names the actual mistake — *artifact suffix precedes `@version`* —
+  because an integer-dot-word tail after `@` is unmistakably the two suffixes
+  in the wrong order.
+- The `artifact` vocabulary is per-kind and **closed**
+  ([below](#artifact-addresses)). Like the reserved kinds it is stated rather
+  than encoded: the ABNF admits any `artifact` on any path, and the role table
+  decides (`E_SRN_ARTIFACT`).
 - No trailing slash, no query string, no fragment, no percent-encoding, no
   uppercase, no empty segments. `srn://acme//product/shop`,
   `srn://acme/product/shop/`, `srn://acme/product/Shop` are all `E_SRN_SYNTAX`.
@@ -184,6 +219,7 @@ A reference that does not match is classified by **where** it fails, because one
 | Bad characters, wrong segment count, a word that is not a bucket | `E_SRN_SYNTAX`    |
 | A reserved keyword standing in a `solution` or `name` position   | `E_SRN_RESERVED`  |
 | Well-formed pairs arranged illegally (a product under a product) | `E_SRN_PLACEMENT` |
+| An artifact suffix outside the addressed kind's role table       | `E_SRN_ARTIFACT`  |
 
 ## Reserved kinds
 
@@ -216,6 +252,18 @@ named after it does not merely become illegal, it silently changes what its path
 means. None existed when these three were adopted, which is why they could be
 adopted at all ([evolution.md](evolution.md), decision-record amendment
 2026-08-20-a).
+
+The dot is a reservation of the same kind, made along the other axis. No
+segment has ever contained one — the alphabet is kebab-case words — and that
+accident of the alphabet is exactly what makes the artifact split
+([below](#artifact-addresses)) unambiguous: in the final segment, the first `.`
+can only begin an artifact suffix. Adopting artifact addresses promotes the
+accident to a norm, and the door swings one way here too: `.` has left the
+name alphabet **permanently**, and a future proposal to admit dotted entity
+names would not be a relaxation but a collision with every artifact address
+ever written. The difference from a word adoption is that this one re-reads
+nothing — a name containing a dot never parsed, so no existing path changes
+meaning.
 
 Two of the eleven are **containers** — they may own further entities:
 
@@ -251,11 +299,15 @@ segments at a time**: the first of each pair is the kind, the second is the
 name. An odd number of remaining segments is `E_SRN_SYNTAX` — a bucket on its
 own is not addressable, because a bucket is a directory, not an entity. The kind
 of the SRN is the kind of the last pair; a solution SRN has no pairs and no
-kind.
+kind. An artifact suffix never reaches the walk: the lexer strips `@version`
+and then splits the suffix off the final segment beforehand
+([below](#artifact-addresses)), so every segment here is dot-free.
 
-Reference implementation (normative for behavior, not for code style). It is a
-line-for-line port of `framework/portal/src/lib/srn/srn.ts`, which is the
-executable copy:
+Reference implementation (normative for behavior, not for code style). The
+executable copy is `framework/portal/src/lib/srn/srn.ts`, a line-for-line port
+— except that as of this document's v7 the artifact lexing is stated here
+first, and the port has not caught up; the portal's diagnostic debt register
+tracks that gap until it does:
 
 ```python
 import re
@@ -280,6 +332,9 @@ def parse_srn(ref: str) -> Srn:
                                        "are not allowed")
 
     body, version = split_version(ref[len("srn://"):])
+    # split_artifact is defined below (#artifact-addresses). Only the lexing
+    # happens here — role vocabulary is checked after the entity parse, per kind.
+    body, artifact = split_artifact(body)
     if not body:
         raise SrnError("E_SRN_SYNTAX", "empty SRN")
 
@@ -315,7 +370,7 @@ def parse_srn(ref: str) -> Srn:
     return Srn(solution, path,
                last.kind if last else None,
                last.name if last else None,
-               version)
+               version, artifact)
 
 
 def split_version(body: str):
@@ -324,6 +379,9 @@ def split_version(body: str):
     if not at:
         return body, None
     if "/" in raw or not VERSION.fullmatch(raw):
+        if re.fullmatch(r"[1-9][0-9]*\..+", raw):   # `@1.transport` — the two
+            raise SrnError("E_SRN_SYNTAX",          # suffixes written backwards
+                           "artifact suffix precedes @version")
         raise SrnError("E_SRN_SYNTAX",
                        "@version must be a positive integer on the final segment")
     if "@" in head:
@@ -434,8 +492,161 @@ srn://acme/product/shop/metric/checkout-conversion              # …or a produc
 srn://acme/product/shop/component/checkout/metric/p99-latency   # …or a component
 ```
 
+P1–P4 are complete as stated: an artifact suffix is lexed off before the walk,
+so placement never sees one. The suffix rides only on a reference whose entity
+placement is already settled ([below](#artifact-addresses)), and adopting
+artifact addresses changed no P-rule.
+
 Because SRN ≡ path, placement is also a *directory* rule; see
 [structure.md](structure.md) for the same table expressed as paths.
+
+## Artifact addresses
+
+An entity's directory carries sibling artifacts — `schema.json`,
+`transport.yaml`, `journey.yaml` ([structure.md](structure.md)) — and an
+artifact is addressed **through its entity**, by a dot suffix on the final
+segment:
+
+```text
+srn://metaframework/product/devops/protocol/worktree-lease.transport@1
+```
+
+The suffix names a **role**, never a filename: `transport` is the protocol's
+wire binding, and the role — not the string `transport.yaml` — is the
+identity. Rendering a role as a path goes through the role table below, which
+is the one storage-view bend [the consolidating
+principle](#the-consolidating-principle) counts.
+
+### Lexing
+
+The order is fixed: `@version` is stripped from the end **first**, then the
+final path segment splits at its **first** dot — name before it, artifact
+after it. What remains MUST parse exactly as an entity SRN: pair walk,
+reserved words, placement P1–P4, all of it unchanged.
+
+```python
+def split_artifact(body: str):
+    """Runs after split_version. The first dot of the final segment starts
+    the artifact; deeper dots separate role segments, same alphabet."""
+    head, slash, last = body.rpartition("/")
+    name, dot, artifact = last.partition(".")
+    if not dot:
+        return body, None
+    for s in artifact.split("."):
+        if not SEGMENT.fullmatch(s):
+            raise SrnError("E_SRN_SYNTAX", f'bad artifact segment "{s}"')
+    return head + slash + name, artifact
+```
+
+Two shapes die in the lexer, both `E_SRN_SYNTAX`. An **empty artifact name
+never parses** — `srn://acme/protocol/settlement.` fails the segment alphabet.
+And the two suffixes compose in exactly one written order, so
+`srn://acme/protocol/settlement@1.transport` MUST be reported with the pointed
+message *artifact suffix precedes `@version`* rather than a generic version
+complaint: an integer-dot-word tail after `@` is unmistakably the two suffixes
+written backwards. The lexer knows nothing about roles — vocabulary is checked
+after the entity parse, because the legal roles depend on the addressed kind.
+
+### The role table
+
+| Kind          | Role               | File                    |
+| ------------- | ------------------ | ----------------------- |
+| `datamodel`   | `schema`           | `schema.json`           |
+|               | `examples.<name>`  | `examples/<name>.json`  |
+| `protocol`    | `transport`        | `transport.yaml`        |
+|               | `states`           | `states.json`           |
+|               | `openapi`          | `openapi.yaml`          |
+|               | `workflows.<name>` | `workflows/<name>.yaml` |
+| `journey`     | `journey`          | `journey.yaml`          |
+| `environment` | `topology`         | `topology.yaml`         |
+|               | `config`           | `config.yaml`           |
+
+Three rules govern it, each with its class:
+
+- **Closed and per-kind.** A kind absent from the table has no roles at all —
+  a solution, an actor, an adr own no addressable artifact. An unknown role
+  for the addressed kind, or any suffix on a role-less kind, is
+  `E_SRN_ARTIFACT`.
+- **Depth is part of the vocabulary.** A fixed role is one segment; only the
+  two `<name>` families are two, and `<name>` is an ordinary kebab-case
+  segment. `settlement.workflows` (a family without a name) and
+  `money.schema.extra` (a fixed role with a tail) are both `E_SRN_ARTIFACT`.
+- **Vocabulary is static; existence is not.** The table answers "may this role
+  be addressed on this kind" from this document alone. Whether the file exists
+  is a catalog question, and a **legal role whose file is absent is
+  `E_SRN_DANGLING`** — most artifacts are OPTIONAL (`transport.yaml` on a
+  protocol), so `srn://acme/protocol/settlement.openapi` is a well-formed
+  address whose resolution dangles, exactly as an entity SRN with no directory
+  does.
+
+The table is a **spec constant**, exactly the class of table the eleven
+reserved kinds are: it grows by appending — a new role, or a new kind's rows,
+is an additive change — and SRN→path conversion needs the spec, never a
+catalog read. Its normative home is
+[structure.md](structure.md#the-artifact-role-table), which owns the
+`{artifact}` vocabulary and versions with it; the copy above restates the
+constant in full so this document's validation rules read standalone.
+
+`openapi` sits in the table as a fixed bare role: the file is a bytes-only
+contract in v1 — the portal links it, nothing parses it
+([kinds/protocol.md](kinds/protocol.md)) — but the fixed name makes it
+addressable. The `spec.file` attachment mechanism in `transport.yaml` remains
+for every other format (`pricing.proto`, `schema.graphql`) and remains
+non-addressable: a free filename cannot join a fixed-name table without
+reopening exactly the catalog read the table exists to close.
+
+### `.schema` and the projection
+
+A datamodel's `.schema` is in the table for uniformity, and it is the only
+role with a URL projection at all — and even it mints nothing. The schema
+document already carries two names, `$id` (the canonical URL) and `x-srn` (the
+entity's SRN), so the projection of `….schema` **is** the entity's canonical
+URL. No `…/order.schema` URL ever exists; the `$id`, `$ref`, and `x-srn` rules
+are untouched; and the URL→SRN direction stays dot-rejecting
+([kinds/datamodel.md](kinds/datamodel.md)). One schema document, one URL — the
+registry defect ADR 0007 closed, two names for one schema, stays closed.
+
+Every other role has no projection. A non-schema artifact has identity (the
+SRN) and storage (the file), and its **retrieval** is the portal's
+`/artifacts/…` route, which serves the bytes under their honest media type. A
+`.schema` request there answers with a permanent redirect to the `/schemas`
+route, so each schema document is served at one URL. No canonical-host URL is
+minted for any non-schema artifact — the canonical host names schemas, and
+only schemas. The route serves the current snapshot; a pinned read is a git
+operation ([evolution.md](evolution.md#artifact-pins)).
+
+### Where an artifact SRN may stand
+
+An artifact has no kind, and every entity reference surface is typed over
+kinds, so the fence is total: a `relations` edge, `primary-actors`, a protocol
+participant's `ref`, a `payload`/`request`/`response` ref, a topology
+`component` ref, a config `for` ref, a journey's `actor`, step `touches`, and
+step `protocol` all reject the suffix — each under the surface's own error
+class, with a message that names the suffix as the problem. `E_FM_EDGE_TARGET` and the contract-wide statement live
+in [frontmatter.md](frontmatter.md); each kind document extends the fence to
+its own surfaces. The legal v1 surfaces are **prose links** — a body-markdown
+link creates no edge, so there is nothing to fence — and **external
+consumers**, for whom the SRN is the stable name to hold. Growing more
+surfaces later is an additive change.
+
+### Worked examples
+
+```text
+srn://metaframework/product/devops/protocol/worktree-lease.transport@1
+                                              # ✓ the transport binding of snapshot @1
+srn://acme/protocol/settlement.workflows.settle-order
+                                              # ✓ depth 2 — workflows/settle-order.yaml
+srn://acme/product/shop/component/checkout/component/payment/datamodel/order.examples.minimal
+                                              # ✓ depth 2 — examples/minimal.json
+srn://acme/environment/production.topology    # ✓ topology.yaml
+srn://acme.anything                           # ✗ E_SRN_ARTIFACT — solutions have no roles
+srn://acme/actor/customer.profile             # ✗ E_SRN_ARTIFACT — actors have no roles
+srn://acme/protocol/settlement.topology       # ✗ E_SRN_ARTIFACT — not a protocol role
+srn://acme/protocol/settlement.workflows      # ✗ E_SRN_ARTIFACT — workflows.* needs a name
+srn://acme/datamodel/money.schema.extra       # ✗ E_SRN_ARTIFACT — schema is depth 1
+srn://acme/protocol/settlement.openapi        # ✗ E_SRN_DANGLING — legal role, no such file
+srn://acme/protocol/settlement@1.transport    # ✗ E_SRN_SYNTAX — artifact suffix precedes @version
+```
 
 ## Resolution to disk paths
 
@@ -470,6 +681,23 @@ solutions/acme/product/shop/actor/operator    → E_SRN_PLACEMENT  (P4)
 If the directory or its `index.md` does not exist, the reference is dangling:
 `E_SRN_DANGLING`.
 
+An artifact suffix maps **through the role table**
+([above](#artifact-addresses)), not by string join: the entity part resolves
+as above, and the role then names its fixed file inside the entity directory —
+the one conversion in this document that consults a table rather than deleting
+a prefix, and the table is a spec constant, so the conversion still needs no
+catalog read.
+
+```text
+srn://acme/protocol/settlement.transport
+→ solutions/acme/protocol/settlement/transport.yaml
+srn://acme/protocol/settlement.workflows.settle-order
+→ solutions/acme/protocol/settlement/workflows/settle-order.yaml
+```
+
+A legal role whose file is absent on disk is `E_SRN_DANGLING`, exactly as a
+directory without `index.md` is.
+
 ## Version suffix semantics
 
 - `@N` pins the reference to integer version `N` of the target entity.
@@ -492,6 +720,14 @@ If the directory or its `index.md` does not exist, the reference is dangling:
 - The suffix pins only the entity the SRN addresses. There is no way to pin an
   ancestor: `srn://acme/product/shop@2/component/checkout` is `E_SRN_SYNTAX`,
   not "checkout as of shop v2".
+- On an artifact address the suffix **still pins the entity**:
+  `settlement.transport@1` is the transport artifact of snapshot
+  `settlement@1`, never "version 1 of a transport" — an artifact has no
+  version of its own. Resolution is the same machinery: the version→commit
+  index maps `N` to a commit, and the role's file is read there via
+  `git show`. The bytes are well-defined within a version by the constancy
+  theorem — the `status`-only exemption cannot touch an artifact file — stated
+  and enforced in [evolution.md](evolution.md#artifact-pins).
 
 ## Relative references
 
@@ -513,11 +749,24 @@ retired relative-path form is the one that needed one.
 **Document URIs are base URIs, not references.** A base like
 `srn://acme/product/shop/component/checkout/index.md` or
 `srn://acme/product/shop/protocol/order-placement/workflows/place-order.yaml`
-carries a filename, which the segment grammar above rejects (a dot is not a
-legal segment character). That is deliberate and not a contradiction: such a URI
-exists only to be *resolved against*, is never written as a reference, and is
-therefore never validated as one. Only the **result** of resolution — which
-always addresses an entity — must satisfy the ABNF and rules V1–V5.
+carries a filename, and no reference form does. That is deliberate and not a
+contradiction: such a URI exists only to be *resolved against*, is never
+written as a reference, and is therefore never validated as one. Only the
+**result** of resolution — which always addresses an entity, or through an
+artifact suffix an entity's artifact — must satisfy the ABNF and rules V1–V6.
+Nor can a document URI parse as a reference by accident: a storage path
+interposes segments the pair walk cannot absorb — `workflows` is not a bucket,
+and `index` leaves a half pair — so lexing `place-order.yaml` as
+name-plus-suffix still leaves a path that fails the walk (`E_SRN_SYNTAX`).
+
+An addressable artifact therefore has **two spellings, and they never meet**:
+the storage-shaped URI
+(`…/protocol/order-placement/workflows/place-order.yaml`) is a base URI and a
+non-reference, and the dotted SRN
+(`…/protocol/order-placement.workflows.place-order`) is the reference. One
+file, one identity, two syntactic positions — the same one-fact-two-spellings
+shape as SRN vs schema URL, and kept apart the same way, mechanically, by
+which rule reads the string.
 
 ```text
 base   srn://acme/product/shop/component/checkout/index.md   # a document URI: never a reference
@@ -589,6 +838,12 @@ Rules:
   has depth. RFC 3986 would silently clamp the excess at the root; the
   framework rejects it instead as `E_SRN_SYNTAX`, because a clamped reference
   is almost certainly a mistake.
+- An artifact suffix ([above](#artifact-addresses)) MAY ride only on the two
+  absolute forms — full (`srn://…/settlement.transport`) and solution-absolute
+  (`/protocol/settlement.transport`). A relative reference carrying one
+  (`../settlement.transport`) is `E_SRN_SYNTAX`: dot-suffix lexing stays out
+  of `..` arithmetic, so no resolver ever decides whether a dot belongs to the
+  reference or to the base it is climbing.
 - A network-path reference (`//other-solution/...`) changes the authority —
   the solution — and is therefore `E_SRN_CROSS_SOLUTION`.
 - Implementations MAY reuse a stock URL resolver by temporarily rewriting the
@@ -670,11 +925,21 @@ referrer, so moving an entity rewrites the references *inside* it and none of th
 references *out* of it. Fragments (`#/$defs/...`) remain ordinary JSON Pointers
 into the same document, unchanged by any of this.
 
+The artifact address `….schema` ([above](#artifact-addresses)) adds no third
+spelling to this pair: its projection **is** the entity's canonical URL, no
+`….schema` URL exists on the canonical host, and the URL→SRN direction rejects
+any dotted path — so the two names of a schema document stay exactly two.
+
 ## Usage contexts
 
 One syntax, four surfaces. Absolute, solution-absolute, and relative forms are
 interchangeable in all of them; prefer solution-absolute for anything outside
-the current entity.
+the current entity. Artifact suffixes ([above](#artifact-addresses)) cross
+exactly one of the four: a prose link (4) may name an artifact, while 1 and 3
+mean entities and fence the suffix out — each under its own error class
+([frontmatter.md](frontmatter.md) and the kind documents) — and 2 never
+spelled SRNs at all: no `….schema` URL exists, and the URL→SRN direction
+rejects any dotted path.
 
 **1. Frontmatter relations** ([frontmatter.md](frontmatter.md)):
 
@@ -793,7 +1058,9 @@ field's meaning is fixed.
 ```markdown
 Checkout persists an
 [Order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3)
-per the [order-placement](srn://acme/product/shop/protocol/order-placement) protocol.
+per the [order-placement](srn://acme/product/shop/protocol/order-placement) protocol,
+whose [wire binding](srn://acme/product/shop/protocol/order-placement.transport@2)
+is versioned with the protocol.
 
 <!-- NOT an SRN reference: reads as a relative file link -->
 per the [order-placement](../../protocol/order-placement) protocol.
@@ -801,68 +1068,77 @@ per the [order-placement](../../protocol/order-placement) protocol.
 
 ## Validation rules and error classes
 
-Enforced by the catalog loader, which `metaframework check` runs. Rules V1–V5 are per-reference;
-V6–V8 require the resolved catalog.
+Enforced by the catalog loader, which `metaframework check` runs. Rules V1–V6 are per-reference;
+V7–V9 require the resolved catalog.
 
 | #   | Rule                                                                                     | Error class            |
 | --- | ---------------------------------------------------------------------------------------- | ---------------------- |
-| V1  | Reference parses under the ABNF + constraints (incl. `..` depth).                        | `E_SRN_SYNTAX`         |
+| V1  | Reference parses under the ABNF + constraints (incl. lexing order and `..` depth).       | `E_SRN_SYNTAX`         |
 | V2  | Path alternates `{kind}/{name}`: every kind is one of the eleven, every pair complete.   | `E_SRN_SYNTAX`         |
 | V3  | No reserved kind keyword as a solution or entity **name**.                               | `E_SRN_RESERVED`       |
 | V4  | Placement is legal — rules P1–P4 above.                                                  | `E_SRN_PLACEMENT`      |
-| V5  | Reference does not name a foreign solution (authority ≠ own solution).                   | `E_SRN_CROSS_SOLUTION` |
-| V6  | Resolved directory exists and contains `index.md`.                                       | `E_SRN_DANGLING`       |
-| V7  | Pinned `@N` exists on the filesystem or in the version→commit index.                     | `E_SRN_VERSION`        |
-| V8  | Target entity's `kind` is legal for the referring **relation edge**.                     | `E_FM_EDGE_TARGET`     |
+| V5  | Artifact suffix names a role the addressed kind defines, at that role's depth.           | `E_SRN_ARTIFACT`       |
+| V6  | Reference does not name a foreign solution (authority ≠ own solution).                   | `E_SRN_CROSS_SOLUTION` |
+| V7  | Resolved directory exists and contains `index.md`; an addressed artifact's file exists.  | `E_SRN_DANGLING`       |
+| V8  | Pinned `@N` exists on the filesystem or in the version→commit index.                     | `E_SRN_VERSION`        |
+| V9  | Target entity's `kind` is legal for the referring **relation edge**.                     | `E_FM_EDGE_TARGET`     |
 
-V8 covers the `relations` map of [frontmatter.md](frontmatter.md) only. Every
+V9 covers the `relations` map of [frontmatter.md](frontmatter.md) only. Every
 other typed reference surface — a kind-specific frontmatter field, or an SRN
 inside a sibling artifact — carries its own kind-specific class, so an error
 message names the surface it came from: `E_PROD_ACTOR_TARGET`
 ([kinds/product.md](kinds/product.md)), `E_PROTO_PARTICIPANT_KIND` /
 `E_PROTO_PAYLOAD_KIND` ([kinds/protocol.md](kinds/protocol.md)),
-`E_ENV_TARGET_KIND` ([kinds/environment.md](kinds/environment.md)). V1–V7 apply
-to all of them unchanged.
+`E_ENV_TARGET_KIND` ([kinds/environment.md](kinds/environment.md)). V1–V8 apply
+to all of them unchanged — and each of these surfaces also rejects an artifact
+suffix under its own class, the fence of
+[artifact addresses](#artifact-addresses).
 
 A datamodel's `schema.json` has **no** such class, and this is where a retired
 one used to be listed. `E_DM_REF_KIND` is retired
 ([kinds/datamodel.md](kinds/datamodel.md)) and MUST NOT be emitted: the schema
 registry holds only datamodels, so a `$ref` URL naming any other kind has no
-entry and is already `E_SRN_DANGLING` (V6). There was never a second check to
-fail. A `$ref` is not a relation edge either, so V8 does not reach it.
+entry and is already `E_SRN_DANGLING` (V7). There was never a second check to
+fail. A `$ref` is not a relation edge either, so V9 does not reach it.
 
 Examples of each failure:
 
 ```text
 V1  srn://acme/product/shop/                              # trailing slash
 V1  srn://acme/product/shop@2/component/checkout          # version not on the final segment
+V1  srn://acme/protocol/settlement@1.transport            # artifact suffix precedes @version
+V1  ../settlement.transport (relative form)               # artifact suffix on a relative reference
 V1  ../../../../../datamodel/money (from a component)     # climbs above the solution root
 V2  srn://acme/product/shop/datamodel                     # bucket is not addressable
 V2  srn://acme/shop/checkout                              # "shop" is not a kind bucket
 V3  srn://acme/product/shop/adr/adr                       # entity named "adr"
 V4  srn://acme/product/shop/actor/operator                # actor below solution level
-V5  srn://globex/product/shop/datamodel/order (from acme) # foreign solution
-V6  srn://acme/product/shop/datamodel/cart                # no such directory
-V7  srn://acme/datamodel/money@9                          # current is 1, index has 1
+V5  srn://acme/protocol/settlement.topology               # not a protocol role
+V5  srn://acme/actor/customer.profile                     # actors have no roles
+V6  srn://globex/product/shop/datamodel/order (from acme) # foreign solution
+V7  srn://acme/product/shop/datamodel/cart                # no such directory
+V7  srn://acme/protocol/settlement.openapi                # legal role, absent file
+V8  srn://acme/datamodel/money@9                          # current is 1, index has 1
 ```
 
 The complete error-class list for this document:
 
-| Code                   | Raised when                                                               |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `E_SRN_SYNTAX`         | Characters, segment count, `@version` position, or `..` depth is wrong.   |
-| `E_SRN_RESERVED`       | A reserved kind keyword stands where a solution or entity name belongs.   |
-| `E_SRN_PLACEMENT`      | Pairs are well-formed but arranged illegally (P1–P4).                     |
-| `E_SRN_CROSS_SOLUTION` | A reference names, or a network-path reference implies, another solution. |
-| `E_SRN_DANGLING`       | The resolved directory or its `index.md` does not exist.                  |
-| `E_SRN_VERSION`        | A pinned `@N` exists neither on disk nor in the version→commit index.     |
+| Code                   | Raised when                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `E_SRN_SYNTAX`         | Characters, segment count, `@version` position, suffix lexing, or `..` depth is wrong. |
+| `E_SRN_RESERVED`       | A reserved kind keyword stands where a solution or entity name belongs.                |
+| `E_SRN_PLACEMENT`      | Pairs are well-formed but arranged illegally (P1–P4).                                  |
+| `E_SRN_ARTIFACT`       | Artifact suffix outside the role table: unknown role, wrong depth, role-less kind.     |
+| `E_SRN_CROSS_SOLUTION` | A reference names, or a network-path reference implies, another solution.              |
+| `E_SRN_DANGLING`       | The resolved directory, its `index.md`, or an addressed artifact's file is absent.     |
+| `E_SRN_VERSION`        | A pinned `@N` exists neither on disk nor in the version→commit index.                  |
 
 `W_REF_DEPRECATED` (a warning): a reference whose target entity has
 `status: deprecated` — legal, but flagged so migrations converge
 ([evolution.md](evolution.md)).
 
 `W_REF_STALE_PIN` (a warning): a pin that **resolves** but is behind — `@1`
-against a target now at `@4`. V7 is not about this and never was. V7 asks
+against a target now at `@4`. V8 is not about this and never was. V8 asks
 whether the pin resolves *at all*, and a pin that reads an older snapshot out of
 the version→commit index resolves perfectly ([evolution.md](evolution.md) —
 `order@1` gets the `c2` snapshot while `order` is at v3). Nothing in this
