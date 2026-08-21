@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/devops/component/signoz/datamodel/config",
+  "x-srn": "srn://metaframework/product/devops/component/signoz/datamodel/config",
+  "title": "SigNoz configuration",
+  "description": "What this deployment must supply to a stack it does not own. Not a description of the upstream project's own surface.",
+  "type": "object",
+  "properties": {
+    "SIGNOZ_TRACE_RETENTION_DAYS": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Trace retention in days, at least one. Not required: compose declares none and ClickHouse starts on its own default."
+    }
+  }
+}

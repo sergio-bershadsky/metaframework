@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/datamodel/config",
+  "x-srn": "srn://acme/product/shop/component/checkout/datamodel/config",
+  "title": "Checkout configuration",
+  "description": "The process environment checkout reads. One credential it cannot invent, one log level it can.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/platform-config"
+    }
+  ],
+  "properties": {
+    "DATABASE_URL": {
+      "type": "string",
+      "pattern": "^postgres(ql)?://",
+      "writeOnly": true,
+      "description": "Primary Postgres DSN. Secret: the value never enters the catalog, at any status, in any environment."
+    }
+  },
+  "required": [
+    "DATABASE_URL"
+  ]
+}

@@ -1,6 +1,6 @@
 # Directory structure — layout, artifacts, placement
 
-> Distilled from `framework/spec/structure.md` (version 6), the container rules
+> Distilled from `framework/spec/structure.md` (version 7), the container rules
 > in `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
 > "Sibling artifacts" / "Body template" sections of the other
 > `framework/spec/kinds/*.md`. **When `framework/spec/` is present in the
@@ -262,8 +262,9 @@ protocol).
 A **role** is an address: which file, under which name. It is a spec constant,
 answered by the table above with no disk read. A **dialect** is the grammar of
 the bytes behind that address, and only the file can answer it — `transport.yaml`
-holds the mini-spec `protocols.md` defines today or, one release later, an
-AsyncAPI document. One role, one filename, one SRN, two grammars.
+holds either the mini-spec `protocols.md` defines **or** an AsyncAPI 3.x
+document, and both are live today. One role, one filename, one SRN, two
+grammars.
 
 Keeping the two apart is what artifact addressing bought. `.transport` is *the
 transport role of this protocol*, never *the transport mini-spec*: had the role
@@ -275,9 +276,10 @@ sharing a prefix of keys are indistinguishable under it right up until they are
 not.
 
 **Every addressable artifact declares its own dialect, in its own bytes**, under
-one key fixed per role. Where the format already discriminates itself the native
-key does the work and the framework invents nothing; where it does not, the file
-carries `$schema` holding the canonical URL of the framework meta-schema that
+a key fixed per role — one key for eight of the nine roles, and two for
+`transport`, which recognises two dialects. Where the format discriminates itself
+the native key does the work and the framework invents nothing; where it does
+not, the file carries `$schema` holding the canonical URL of the meta-schema that
 defines the dialect. Those meta-schemas are ordinary datamodel entities of the
 framework's own `specification` product, so the URLs are ordinary canonical
 schema URLs sharing one prefix:
@@ -286,32 +288,61 @@ schema URLs sharing one prefix:
 {meta} = https://schemas.metaframework.dev/metaframework/product/specification/datamodel
 ```
 
-| Kind          | Role               | File                    | Key       | Value                            |
-|---------------|--------------------|-------------------------|-----------|----------------------------------|
-| `datamodel`   | `schema`           | `schema.json`           | `$schema` | the 2020-12 dialect URI (native) |
-| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | none      | — never carries one              |
-| `protocol`    | `transport`        | `transport.yaml`        | `$schema` | `{meta}/transport-document`      |
-| `protocol`    | `states`           | `states.json`           | `$schema` | `{meta}/state-machine-document`  |
-| `protocol`    | `openapi`          | `openapi.yaml`          | `openapi` | `3.1.x` (native)                 |
-| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`       |
-| `journey`     | `journey`          | `journey.yaml`          | `$schema` | `{meta}/journey-document`        |
-| `environment` | `topology`         | `topology.yaml`         | `$schema` | `{meta}/topology-document`       |
-| `environment` | `config`           | `config.yaml`           | `$schema` | `{meta}/config-document`         |
+| Kind          | Role               | File                    | Dialect       | Key        | Value                            |
+|---------------|--------------------|-------------------------|---------------|------------|----------------------------------|
+| `datamodel`   | `schema`           | `schema.json`           | JSON Schema   | `$schema`  | the 2020-12 dialect URI (native) |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | its schema's  | none       | — never carries one              |
+| `protocol`    | `transport`        | `transport.yaml`        | the mini-spec | `$schema`  | `{meta}/transport-document`      |
+| `protocol`    | `transport`        | `transport.yaml`        | AsyncAPI      | `asyncapi` | `3.x` (native)                   |
+| `protocol`    | `states`           | `states.json`           | XState subset | `$schema`  | `{meta}/state-machine-document`  |
+| `protocol`    | `openapi`          | `openapi.yaml`          | OpenAPI       | `openapi`  | `3.1.x` (native)                 |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | the mini-spec | `$schema`  | `{meta}/workflow-document`       |
+| `journey`     | `journey`          | `journey.yaml`          | the mini-spec | `$schema`  | `{meta}/journey-document`        |
+| `environment` | `topology`         | `topology.yaml`         | the mini-spec | `$schema`  | `{meta}/topology-document`       |
+| `environment` | `config`           | `config.yaml`           | the mini-spec | `$schema`  | `{meta}/config-document`         |
 
 The rows are the role table's own, in its order, and that is a rule: this table
 is **total** over that one, `none` included. A role given a filename without a
 dialect ruling would be a role whose dialect nobody decided, which reads exactly
 like a role that carries none — so the two tables grow together or neither does.
 
+Total, but not one-to-one: **nine roles, ten rows**, because the `transport` role
+carries two. Where a role has several they are ordered **most canonical first**,
+and that order is read twice — it is the dialect a headerless file is told to
+add, and the dialect a file declaring two of the keys is read under. The
+mini-spec is first for `transport.yaml` because every wire can use it.
+
+**Which of the two a `transport.yaml` may use is decided by its wire, not by
+preference**, and it is not a migration window with an end: `kafka`, `websocket`
+and `amqp` may be written either way, while `http` (OpenAPI owns that wire, under
+its own role), `grpc` (AsyncAPI publishes no binding for it) and `in-process` (a
+Server Object REQUIRES a `host`) have the mini-spec only. The per-wire table and
+the AsyncAPI form itself are in `protocols.md`; nothing is deprecated here, and a
+file correctly declaring either dialect never raises `W_ARTIFACT_DIALECT`.
+
 In YAML the header is the first line of the file; in JSON it is the first member
 of the root object. Nothing else about the file changes:
 
 ```yaml
-# solutions/acme/protocol/settlement/transport.yaml
+# solutions/acme/product/shop/protocol/order-placement/transport.yaml — mini-spec
 $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
-kind: kafka
-summary: Settlement facts published by shop and consumed by billing.
-encoding: avro
+kind: http
+summary: JSON over HTTPS, served by checkout at the storefront edge.
+encoding: json
+```
+
+The same role in another protocol, written in the other dialect. Settlement's
+address did not move when its grammar did — it is still
+`srn://acme/protocol/settlement.transport` — and the format names itself, so the
+framework adds nothing beside it:
+
+```yaml
+# solutions/acme/protocol/settlement/transport.yaml — AsyncAPI
+asyncapi: 3.1.0
+x-srn: srn://acme/protocol/settlement
+info:
+  title: Settlement
+  version: unversioned
 ```
 
 ```json
@@ -358,9 +389,10 @@ Rules an author has to get right:
   Deletion happens whether or not the value was recognised: leaving an
   unrecognised value in place would turn this warning into an unknown-key
   *error* downstream, the one outcome "never broken" forbids. A **native**
-  discriminator (`openapi:`, a `schema.json`'s `$schema`) is never stripped — it
-  belongs to its own format. The bytes on disk, and everything served from them,
-  are untouched in every case.
+  discriminator (`openapi:`, `asyncapi:`, a `schema.json`'s `$schema`) is never
+  stripped — it belongs to its own format, and a document that arrived without
+  its own version key would be the poorer document. The bytes on disk, and
+  everything served from them, are untouched in every case.
 - **The key is still admitted by name at the root**, by each role's published
   meta-schema and by the parser behind it, because a meta-schema whose
   `additionalProperties: false` forbade the very key pointing at it could not
@@ -384,13 +416,22 @@ Rules an author has to get right:
   release. Only the advice below names one pasteable value. Reading that key is
   not interpreting the document: `openapi.yaml` stays bytes-only to the
   framework, which looks at one root key and nothing else.
+- **`asyncapi:` reads wider still — the whole `3.x` line** — because AsyncAPI's
+  own version-string section promises a minor increment stays usable by tooling
+  built for a lower minor and that the patch is not to be considered. Paste
+  `3.1.0` when writing a new file. Like `openapi.yaml`, nothing in the portal
+  reads this document yet: the dialect is *detected* and recorded, and the rules
+  `protocols.md` states for it are specified ahead of any reader. Write the file
+  as if they were enforced, because nothing will tell you when they are not.
 
 **No header, or one unknown for the role, is the legacy dialect** — the format
-this bundle describes today. The file is still parsed, still rendered, still
-checked; nothing here can make a catalog that loads stop loading. The diagnostic
-is `W_ARTIFACT_DIALECT`, a **warning**, raised on the entity that *owns* the file
-(an artifact is not an entity and has no diagnostics of its own), in two message
-forms:
+this bundle describes today. Recognition is against **every** row the role has,
+so `asyncapi: 3.1.0` in a `transport.yaml` is a declared dialect and raises
+nothing; a second dialect is not an unrecognised one. The file is still parsed,
+still rendered, still checked; nothing here can make a catalog that loads stop
+loading. The diagnostic is `W_ARTIFACT_DIALECT`, a **warning**, raised on the
+entity that *owns* the file (an artifact is not an entity and has no diagnostics
+of its own), in two message forms:
 
 ```text
 transport.yaml declares no dialect — read as the legacy dialect; add
@@ -414,8 +455,11 @@ dialect to declare, and `schema.json`, whose missing header is already the error
 **Adding a header bumps the owning entity's `version` by exactly 1** — it is a
 content change to a sibling artifact like any other — and the bump is per
 **entity**, not per file. A protocol gaining headers in `transport.yaml`,
-`states.json` and two workflow files in one commit bumps once. Details, and what
-a dialect migration does to the additive-only rule, are in `evolution.md`.
+`states.json` and two workflow files in one commit bumps once. Rewriting a
+`transport.yaml` from one of its dialects into the other obeys the same
+arithmetic — one ordinary content change, one bump, no extra credit for being a
+large diff. Details, and what a dialect migration does to the additive-only rule,
+are in `evolution.md`.
 
 **Filenames stay.** A dialect change touches no row of the role table: a dialect
 is a property of a file's contents, and a new grammar inside an existing filename

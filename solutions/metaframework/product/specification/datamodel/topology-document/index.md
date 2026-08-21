@@ -1,9 +1,9 @@
 ---
 name: topology-document
 kind: datamodel
-version: 1
+version: 2
 title: Topology document
-summary: topology.yaml — regions, replica ranges and one sentence of scaling intent for an environment's hosted components; fully specified, and not one of its rules is enforced.
+summary: topology.yaml — regions, replica ranges and one sentence of scaling intent for an environment's hosted components; fully specified, and as of this version every rule it states is checked.
 status: review
 owner: sergio
 usage: storage
@@ -17,7 +17,7 @@ tags:
 `topology.yaml` beside an environment's `index.md`: **where the components of
 this solution actually run** — regions, zones, replica ranges, one sentence of
 scaling intent per host. OPTIONAL, unlike its journey counterpart. Specified in
-`framework/spec/kinds/environment.md` (version 4, 493 lines) §"`topology.yaml`";
+`framework/spec/kinds/environment.md` (version 6, 812 lines) §"`topology.yaml`";
 measured 2026-08-21 with `find solutions -name topology.yaml`: **7 instances** —
 2 in `solutions/acme`, 2 in `solutions/brass`, 3 in this solution — carrying 21
 host entries.
@@ -43,52 +43,83 @@ regardless of the count. The same reasoning admits
 and it is the reason the bar in that paragraph is now a historical note rather
 than a rule.
 
-## Why `usage: storage`
+## Why `usage: storage`, with a parser in the tree
 
-The second `storage` in this bucket, and it is
+The second `storage` in this bucket, and it was
 [transport-document](srn://metaframework/product/specification/datamodel/transport-document)'s
-case again, verbatim in its structure. The file is persisted in the tree and
-read by people and models out of the tree. Nothing exchanges it: no portal
-module parses it, no third-party tool is contracted to accept it, and it derives
-no rendering that would make it a contract between an author and a renderer.
+case verbatim until this release, when the two came apart. `transport.yaml` is
+still read by nothing. This file is now read by
+`framework/portal/src/lib/environment/environment.ts`, and `usage` did not move
+— because `usage` answers where *instances* live, and they live in the tree.
+Nothing exchanges it: no third-party tool is contracted to accept it, and it
+derives no rendering that would make it a contract between an author and a
+renderer.
 
-`grep -rn topology framework/portal/src` returns 12 hits. **Two** are outside
-tests, and neither reads a file:
+`grep -rn topology framework/portal/src` returns 49 hits; **24** are outside
+tests, and 20 of those are the reader:
 
+- `lib/environment/environment.ts` — `parseTopology`, `hostJoins`, and the
+  `TOPOLOGY_ARTIFACT` constant they are keyed on. This is the module the
+  measurement in
+  [0016-topology-format-deferred](srn://metaframework/adr/0016-topology-format-deferred)
+  had to be rewritten around.
 - `lib/srn/artifacts.ts:45` — the role-table row,
   `{ kind: 'environment', role: 'topology', file: 'topology.yaml', depth: 1 }`.
+- `lib/catalog/dialects.ts:133` — the dialect-table row added by 0015.
+- `lib/catalog/index.ts:95` — where `withEnvironmentChecks` folds the reader into
+  the load pipeline.
 - `lib/catalog/frontmatter.ts:200` — a comment about why environments are not
   folded into a frontmatter field.
 
 `components/entity/entity-artifacts.tsx` dispatches on entity kind *and*
 filename — `schema.json` on a datamodel, `workflows/*` and `states.json` on a
-protocol, `journey.yaml` on a journey — and has no environment branch at all.
-`topology.yaml` falls through to the default and renders as a YAML code block,
-which is exactly where `transport.yaml` lands.
+protocol, `journey.yaml` on a journey — and still has no environment branch at
+all. `topology.yaml` falls through to the default and renders as a YAML code
+block, which is exactly where `transport.yaml` lands. Being checked and being
+rendered turn out to be independent: this file gained a validator and no view.
 
-## Not one rule is enforced
+## Every rule is enforced, and the register that said otherwise is empty
 
 `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` keeps a debt
 register of every spec-documented code with no emitter, each entry naming the
-gap. **All seven** of the environment kind's error classes are in it, two pairs
-of them sharing one sentence:
+gap. Version 1 of this entity printed the environment kind's seven rows out of
+it in full, in two pairs that shared a sentence apiece — this file's
+`E_ENV_TOPOLOGY_SCHEMA` beside `E_ENV_CONFIG_SCHEMA` under "environment
+artifacts are parsed into `artifact.data` and never validated", and
+`W_ENV_HOST_UNDECLARED` beside `W_ENV_CONFIG_ORPHAN` under "no
+environment/component hosting cross-check exists". That register is a ratchet
+rather than an exemption: the inventory suite fails the moment an entry gains an
+emitter, so implementing a rule forces its line out of the map. All seven lines
+are out. Where the table used to be there is now a comment saying the section is
+empty and why, and `environment.md` v6 states **eleven** codes rather than
+seven — every one of them emitted:
 
-| Code                    | Registered gap                                                            |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `E_ENV_TOPOLOGY_SCHEMA` | environment artifacts are parsed into `artifact.data` and never validated |
-| `E_ENV_CONFIG_SCHEMA`   | environment artifacts are parsed into `artifact.data` and never validated |
-| `E_ENV_SECRET_VALUE`    | nothing scans environment config for inlined secret values                |
-| `E_ENV_REGION_UNKNOWN`  | nothing validates region names                                            |
-| `E_ENV_TARGET_KIND`     | needs the resolved catalog; environment targets are never kind-checked    |
-| `W_ENV_HOST_UNDECLARED` | no environment/component hosting cross-check exists                       |
-| `W_ENV_CONFIG_ORPHAN`   | no environment/component hosting cross-check exists                       |
+| Code                      | Where it is decided                                                     |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `E_ENV_TOPOLOGY_SCHEMA`   | `parseTopology` — shape, unknown non-`x-` key, `min > max`, dup region  |
+| `E_ENV_REGION_UNKNOWN`    | `parseTopology` — a host names a region the file does not declare       |
+| `E_ENV_TARGET_KIND`       | `resolveTarget`/`deployable` — the target is not a component or product |
+| `W_ENV_HOST_UNDECLARED`   | `hostJoins` — the placed component declares no `uses` edge back         |
+| `E_ENV_CONFIG_SCHEMA`     | `parseConfig` — casing, duplicate `(key, for)`, secret with no source   |
+| `E_ENV_SECRET_VALUE`      | `parseConfig` — `secret: true` beside a literal `value`                 |
+| `E_ENV_CONFIG_VALUE`      | `contractJoins` — the value fails the key's subschema                   |
+| `E_ENV_SECRET_MISMATCH`   | `contractJoins` — `secret:` disagrees with the contract's `writeOnly:`  |
+| `W_ENV_CONFIG_ORPHAN`     | `configJoins` — a `for:` naming something that does not run here        |
+| `W_ENV_CONFIG_UNDECLARED` | `contractJoins` — a `for:`-scoped key no contract declares              |
+| `W_ENV_CONFIG_MISSING`    | `missingKeys` — a hosted component's must-provide key is undeclared     |
 
-That register is a gate rather than an exemption — the inventory suite fails the
-moment an entry gains an emitter — but as of 2026-08-21 the environment kind's
-table is in it **whole**, with no exceptions. Not one rule this format or its
-sibling states is checked by anything, which is a different position from
-[transport-document](srn://metaframework/product/specification/datamodel/transport-document)'s
-only in that transport shares its kind with two formats that *are* enforced.
+Four of them belong to this file, seven to
+[config-document](srn://metaframework/product/specification/datamodel/config-document),
+and `E_ENV_TARGET_KIND` is the one both share. The split is not even: the config
+half needed a second entity to be wrong against, which is why it arrived with
+the `usage: config` contract rather than before it. This format needed nothing
+it did not already have — its four rules are all decidable from the environment
+entity and the component graph, and that is why v1's "not one rule is enforced"
+was a statement about effort spent rather than about difficulty.
+
+Run over the catalog as it stands, `metaframework check` reports **zero**
+environment diagnostics across all 7 files. The corpus was already compliant;
+what changed is that it is now known to be.
 
 ## What the format decides
 
@@ -141,9 +172,11 @@ n }`) and no zones at all: 16 of 21 entries pin a constant. The format's two
 genuinely elastic features are exercised only where nothing is deployed.
 
 Three of the seven files declare no `regions` key at all, and 8 of the 21 hosts
-name no `regions` — so a third of the placement entries record no placement.
-Both are legal and both mean "not recorded", which is a state the format can
-express and no reader can currently act on.
+name no `regions` — so eight placement entries record no placement.
+Both are legal and both mean "not recorded", and the reader is written to keep
+that reading: `parseTopology` iterates `regions ?? []` on a host and files
+nothing for the empty case, so an absent list is silence and never a claim about
+everywhere. Only a *named* region the file does not declare is a finding.
 
 One region carries `zones: []` and explains itself in prose, because the schema
 cannot: "`zones` is empty because there is no distribution to describe, not
@@ -165,33 +198,46 @@ encoding is shared by all six framework meta-schemas, and
 records why it is the only one they could share.
 
 Three rules are outside it, and the first is the one ENV4 puts in its own
-parenthesis:
+parenthesis. All three are outside it *still* — nothing about them became
+expressible — and all three are now checked, by the reader rather than by the
+schema. That is the shape of the split this entity is a record of: the published
+meta-schema is what an outside validator can run against one file, and every
+rule that needs two things held at once is the portal's.
 
 - **`min` ≤ `max`.** Comparing two sibling properties is not in the 2020-12
   vocabulary at all, for unbounded integers or for anything else. The spec's own
   counter-example — `replicas: { min: 5, max: 2 }` — is a document this schema
-  accepts.
+  still accepts, and `parseTopology` refuses as `E_ENV_TOPOLOGY_SCHEMA` with a
+  message naming both numbers.
 - **Every host `regions` name is declared in the file's `regions` list**
   (`E_ENV_REGION_UNKNOWN`). A cross-reference between two members of one
-  document, which needs a reader that holds both.
+  document, which needs a reader that holds both — and `parseTopology` is that
+  reader: it collects the declared names while walking `regions` and checks each
+  host against the set.
 - **Region names are unique within the file.** `uniqueItems` compares whole
   entries, so two regions differing only in their `notes` are distinct to it.
+  The reader keys a `Set` on the name and reports the second as
+  `E_ENV_TOPOLOGY_SCHEMA`.
 
 Re-checked 2026-08-21 with `ajv` 2020 against all 7 files, as they now stand on
 disk: **all 7 validate**, headed, and all 7 again with the header stripped. The
 first run, before the header sweep, was 6 of 7 —
 `solutions/metaframework/environment/production/topology.yaml` carried a
 `scaling` string of **236 characters** against the field's stated 200-character
-cap. Nothing had ever noticed, because nothing validates; the sentence was
-rewritten to **195** in the same batch that added the headers. The finding
-belonged to the file and not to this schema, and writing a schema is what found
-it.
+cap. Nothing had ever noticed, because at that point nothing in the repository
+read this format at all; the sentence was rewritten to **195** in the same batch
+that added the headers, and it is still the longest `scaling` on disk. The
+finding belonged to the file and not to this schema, and writing a schema is
+what found it.
 
-Five hand-written cases behave. Rejected: a document with `regions` and no
-`hosts`, and a host carrying `tier: gold`. Accepted — recorded rather than
-glossed — `replicas: { min: 5, max: 2 }` and a host naming `ap-south-1` where
-the file declares no such region. Both of those are the spec's own
-counter-examples, and this schema takes them.
+Seven hand-written cases behave. Rejected by the schema: a document with
+`regions` and no `hosts`, a host carrying `tier: gold`, and a `scaling` string
+of 201 characters. Accepted by it: an `x-` key at the top level, and — recorded
+rather than glossed — `replicas: { min: 5, max: 2 }`, a host naming
+`ap-south-1` where the file declares no such region, and one region name
+declared twice. Those last three are the schema's blind spots named above, they
+are the spec's own counter-examples, and each of them is now an error from
+`parseTopology`. The published document did not get stronger; the pair did.
 
 ## The header, now that the sweep has landed
 
@@ -209,19 +255,23 @@ environment sweep was **13 files and 7 version bumps**, not 13 of each — an
 entity is the unit of versioning and a file is not.
 `W_ARTIFACT_DIALECT` is implemented and reports nothing on this role.
 
-**The loader strips it, and here that is the whole of the machinery.**
-`adoptDialect` (`framework/portal/src/lib/catalog/dialects.ts:166`) records the
+**The loader strips it, and one release later that stopped being theoretical.**
+`adoptDialect` (`framework/portal/src/lib/catalog/dialects.ts:192`) records the
 dialect on the artifact and deletes the key from the parsed document during
 `loadCatalog`; `Artifact.raw` keeps the file as authored, so `/artifacts` and the
-source pane still serve the header. This format has the simplest case of the six,
-because it has no parser to protect. The loader reads the file and parses the
-YAML like any other artifact, but no format-specific parser takes it from there
-— outside `artifacts.ts`'s role row and `dialects.ts`'s table, the string
-`topology` does not appear in `framework/portal/src` at all — so there is no
-strict validator downstream that had to be taught the key, and the sibling
-formats' `KNOWN_FILE_KEYS` and `strictObject` carve-outs have no counterpart
-here. The stripping still happens, so the day something does parse this file it
-inherits a document with no framework key in it.
+source pane still serve the header. When v1 of this entity was written this
+format had no parser to protect, and the stripping was done anyway, against a
+day that had not come: "so the day something does parse this file it inherits a
+document with no framework key in it." That day was the next release.
+`parseTopology` refuses unknown non-`x-` top-level keys as
+`E_ENV_TOPOLOGY_SCHEMA`, so it would have rejected `$schema` on all 7 files —
+the same fault [0015](srn://metaframework/adr/0015-artifact-dialects)
+disqualified Stately's `xstate.json` on — and it did not, because the key is
+already gone by the time it runs. It names `$schema` in its own
+`TOPOLOGY_FILE_KEYS` regardless, for a caller holding raw bytes rather than a
+loaded artifact. The order of the two pieces of work is the point: the guarantee
+was made before the consumer existed, and the consumer inherited it without
+being written to know about it.
 
 **The schema's side is: admitted, optional, unpinned.** Optional and never
 `required`, because a file without the header is the legacy dialect —
@@ -236,7 +286,16 @@ deployable, and the devops product's
 [0005-one-image-two-topologies](srn://metaframework/product/devops/adr/0005-one-image-two-topologies)
 records the consequence from its own side — "two descriptions of one graph, kept
 in step by hand". Nothing joins them to this file, so no drift check exists. That
-absence is what keeps the format free to be minimal, and it is the trigger a
-later decision would reopen it on — the day something actually generates a
-deployment from these 21 entries, the question of which industry format belongs
-underneath stops being academic.
+absence is what keeps the format free to be minimal, and
+[0016-topology-format-deferred](srn://metaframework/adr/0016-topology-format-deferred)
+locks it as the trigger to reopen the format question: the day something
+actually generates a deployment from these 21 entries, which industry format
+belongs underneath stops being academic. Note what did *not* trigger it — this
+release gave the format a full validator, and a validator is not a consumer. It
+reads the file to judge it and emits nothing a machine runs.
+
+**No derived placement view.** The format's own justification names one — "an
+input to a review and to a derived placement view" — and the review half now has
+a checker while the view half has nothing. There is no environment branch in
+`entity-artifacts.tsx` and no placement diagram anywhere in the portal, so the
+21 host entries are readable only as the YAML an author typed.

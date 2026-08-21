@@ -21,9 +21,12 @@
         "actor",
         "environment",
         "adr",
-        "requirement"
+        "requirement",
+        "capability",
+        "journey",
+        "metric"
       ],
-      "description": "The closed v1 ontology. MUST equal the kind bucket the directory sits in (E_FM_KIND_LOCATION); the solution root is the only entity with no bucket."
+      "description": "The ontology, in adoption order: the founding nine, then `capability`, `journey` and `metric` (decision-record amendment 2026-08-20-a). Closed but no longer fixed — it grows by appending, never by re-cutting, so nothing that was a kind stops being one. MUST equal the kind bucket the directory sits in (E_FM_KIND_LOCATION); the solution root is the only entity with no bucket."
     },
     "version": {
       "type": "integer",
@@ -107,16 +110,43 @@
         "kind": { "const": "component" },
         "component-type": {
           "type": "string",
-          "enum": ["service", "library", "ui", "job", "datastore", "gateway", "external"]
+          "enum": [
+            "service",
+            "library",
+            "ui",
+            "job",
+            "datastore",
+            "gateway",
+            "external",
+            "content",
+            "application",
+            "specification"
+          ],
+          "description": "Adoption order: the original seven, then `content`, `application` and `specification` (decision-record amendment 2026-08-20-g). If no value fits, pick the nearest and record the nuance in an `x-` field; inventing an eleventh is E_FM_SCHEMA."
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["planned", "in-development", "released", "sunset", "retired"],
+          "description": "Delivery state of the component in the world, as opposed to `status`, which is the review state of this document. The two axes cross and every cell is legal. The value set is deliberately not product's: a component is built and shipped rather than positioned in a portfolio, so `lifecycle: incubating` on a component is E_FM_SCHEMA even though it is valid on a product."
+        },
+        "criticality": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Blast radius and review priority. OPTIONAL and defaultless on purpose: absent means \"not assessed\", never tier 4, and the value carries no SLA semantics."
         }
       },
-      "required": ["component-type"]
+      "required": ["component-type", "lifecycle"]
     },
     {
       "title": "datamodel",
       "properties": {
         "kind": { "const": "datamodel" },
-        "usage": { "type": "string", "enum": ["storage", "exchange", "both"] },
+        "usage": {
+          "type": "string",
+          "enum": ["storage", "exchange", "both", "config"],
+          "description": "Where instances of this model live. `config` is the fourth value: a component's configuration contract, read out of a process environment. It turns on a discipline this schema does not state — flat SCREAMING_SNAKE scalar properties, `writeOnly` secrets, at most one concrete contract per bucket — which lives in the schema document, not the frontmatter (framework/spec/kinds/datamodel.md)."
+        },
         "abstract": { "type": "boolean", "default": false }
       },
       "required": ["usage"]
@@ -196,7 +226,11 @@
           "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
           "description": "Bare ISO-8601 calendar date; no time, no timezone (E_ADR_DATE)."
         },
-        "deciders": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        "deciders": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Who made the call. Conditionally REQUIRED and non-empty once a decision has actually been taken — an if/then this schema deliberately does not carry, because the spec gives the violation its own code (E_ADR_DECIDERS) and everything a schema rejects arrives as E_FM_SCHEMA."
+        }
       },
       "required": ["decision-status", "date"]
     },
@@ -212,6 +246,49 @@
         }
       },
       "required": ["requirement-type", "priority"]
+    },
+    {
+      "title": "capability",
+      "properties": {
+        "kind": { "const": "capability" }
+      },
+      "description": "The one branch that adds nothing, and that is a decision rather than a placeholder. What the business can do is stated by `title` and `summary`; whether it is real is answered by the incoming `realizes` edges, which are derived. A branch with no fields is still load-bearing here: the root `unevaluatedProperties: false` means every kind field of every other kind is rejected on a capability."
+    },
+    {
+      "title": "journey",
+      "properties": {
+        "kind": { "const": "journey" },
+        "actor": {
+          "$ref": "#/$defs/srn-ref",
+          "description": "The protagonist, and the journey's defining relationship. Exactly one — a list is E_FM_SCHEMA. That it MUST resolve to an entity of kind `actor` is E_JRN_ACTOR_KIND, a catalog-level check no schema can make. The ordered steps are not here: they live in the sibling `journey.yaml`, because order does not survive in frontmatter."
+        }
+      },
+      "required": ["actor"]
+    },
+    {
+      "title": "metric",
+      "properties": {
+        "kind": { "const": "metric" },
+        "metric-type": {
+          "type": "string",
+          "enum": ["ratio", "duration", "count", "amount"],
+          "description": "The shape of the observation, not its subject matter — subject matter is an open facet and belongs in `tags`. The value selects the literal grammar `target` must be written in."
+        },
+        "target": {
+          "$ref": "#/$defs/short-line",
+          "description": "The line the observation is compared against, as a literal of the grammar `metric-type` selects (\"99.9%\", \"400ms\", \"1200\", \"12.50 EUR\"). A plain string here on purpose: the grammar violation is E_MET_TARGET, a code of its own, so encoding the four patterns would report it as E_FM_SCHEMA instead. Keeping it a string is also what makes an unquoted `target: 1200` fail as a type error."
+        },
+        "window": {
+          "$ref": "#/$defs/short-line",
+          "description": "`instant` for a gauge, or a rolling duration ending now (ms/s/m/h/d). No calendar tokens — a month is not a fixed duration. A malformed literal is E_MET_WINDOW, again a code of its own rather than E_FM_SCHEMA."
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["higher-is-better", "lower-is-better"],
+          "description": "Whether `target` is a floor or a ceiling. Spelled out rather than higher/lower, which on its own invites \"higher than what?\"."
+        }
+      },
+      "required": ["metric-type", "target", "window", "direction"]
     }
   ],
   "unevaluatedProperties": false,
@@ -229,14 +306,20 @@
       "maxLength": 200,
       "pattern": "^[^\\n]*$"
     },
+    "short-line": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[^\\n]*$"
+    },
     "srn-ref": {
       "type": "string",
       "minLength": 1,
-      "description": "An absolute srn:// reference, a solution-absolute path starting with /, or a relative path resolved from the referring entity's own directory. An optional @N pin may follow."
+      "description": "An absolute srn:// reference, a solution-absolute path starting with /, or a relative path resolved from the referring entity's own directory. An optional @N pin may follow. An artifact SRN — a dot suffix on the final segment, as in `…/protocol/order-placement.transport` — is fenced out of every frontmatter reference surface, because every surface here means an entity and an artifact has no kind; the fence is E_FM_EDGE_TARGET on an edge, and its own code on each kind's own reference surfaces."
     },
     "relations": {
       "type": "object",
-      "description": "Typed outgoing edges only. The five inverses — used-by, exposed-by, depended-on-by, implemented-by, superseded-by — are derived by the portal and authoring one is E_FM_SCHEMA.",
+      "description": "Typed outgoing edges only. The seven inverses — used-by, exposed-by, depended-on-by, implemented-by, realized-by, measured-by, superseded-by — are derived by the portal and authoring one is E_FM_SCHEMA. The edge set is closed and grows by appending: `realizes` and `measures` arrived with the capability/journey/metric kinds and nothing existing moved.",
       "properties": {
         "uses": {
           "type": "array",
@@ -262,6 +345,16 @@
           "type": "array",
           "items": { "$ref": "#/$defs/srn-ref" },
           "description": "Any source; the target MUST be the same kind as the source."
+        },
+        "realizes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Source: component or product. Target: capability, and nothing else. Points up, from a built thing to a standing ability of the business — never the other way, which is why a capability authors nothing. Not `implements` in different clothes: a requirement is an obligation that can be checked off, a capability is never \"done\"."
+        },
+        "measures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/srn-ref" },
+          "description": "Source: metric, and nothing else — the only edge restricted to one source kind. Targets: capability, component, protocol, requirement. Deliberately not \"any\": an actor, an environment and an adr are a person, a place and a past decision rather than parts of the system. A metric with no `measures` edge is E_MET_NO_SUBJECT, the only relation edge any kind requires — and a rule this schema cannot state, because `relations` itself is optional for every other kind."
         }
       },
       "additionalProperties": false

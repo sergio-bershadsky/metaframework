@@ -1,6 +1,6 @@
 ---
 name: protocol-design
-description: This skill should be used when the user asks to "add a protocol", "describe how these components talk", "document this API in the catalog", "add an event bus between these services", "write transport.yaml", "add a workflow to a protocol", "draw a sequence diagram from the catalog", "add states.json", "write the XState machine for a conversation", "bind an OpenAPI or AsyncAPI file", "declare participants and aliases", "pick point-to-point vs bus vs request-response", or asks where a protocol directory belongs / what its nearest common ancestor is — in a metaframework solution catalog under `solutions/`. It owns the `protocol` kind only — use `add-entity` for a product, component, actor, environment, ADR or requirement, and `model-data` for the payload datamodels a protocol references. For changing an EXISTING published protocol, decide the mechanism with `evolve-entity` first.
+description: This skill should be used when the user asks to "add a protocol", "describe how these components talk", "document this API in the catalog", "add an event bus between these services", "write transport.yaml", "add a workflow to a protocol", "draw a sequence diagram from the catalog", "add states.json", "write the XState machine for a conversation", "bind an OpenAPI or AsyncAPI file", "write the transport as an AsyncAPI document", "declare participants and aliases", "pick point-to-point vs bus vs request-response", or asks where a protocol directory belongs / what its nearest common ancestor is — in a metaframework solution catalog under `solutions/`. It owns the `protocol` kind only — use `add-entity` for a product, component, actor, environment, ADR or requirement, and `model-data` for the payload datamodels a protocol references. For changing an EXISTING published protocol, decide the mechanism with `evolve-entity` first.
 ---
 
 # Authoring a protocol
@@ -16,7 +16,7 @@ legal — an intent-level protocol under design that derives no diagrams.
 ```text
 solutions/acme/protocol/settlement/
 ├── index.md              REQUIRED   frontmatter + prose
-├── transport.yaml        OPTIONAL   the wire binding — exactly one transport
+├── transport.yaml        OPTIONAL   the wire binding — one transport, in either of its two dialects
 ├── states.json           OPTIONAL   XState-subset conversation machine
 ├── openapi.yaml          OPTIONAL   external spec, recognised by being linked from transport.yaml
 └── workflows/            OPTIONAL   asset dir, never an entity, no index.md at any depth
@@ -32,16 +32,16 @@ the artifact contracts, the alias contract and every `E_PROTO_*` code. This
 skill's own `references/artifacts.md` sits on top of it as the authoring
 companion, anchored to the shipped fixtures.
 
-| Need                                                     | Read                                                              |
-|----------------------------------------------------------|-------------------------------------------------------------------|
-| The protocol rules: artifacts, aliases, `E_PROTO_*`      | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/protocols.md`    |
-| `transport.yaml`, workflow YAML, `states.json` while authoring | `references/artifacts.md`                                    |
-| A complete protocol, verbatim, with an audit checklist   | `references/worked-protocol.md`                                    |
-| NCA placement, artifact filenames, `x-` escape           | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`    |
-| `participants`, `style`, `conforms-to`, relations        | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`  |
-| Payload reference syntax, the `..` arithmetic            | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`          |
-| Version bumps, the swap procedure                        | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`    |
-| Payload datamodels                                       | the `model-data` skill                                            |
+| Need                                                           | Read                                                             |
+|----------------------------------------------------------------|------------------------------------------------------------------|
+| The protocol rules: artifacts, aliases, `E_PROTO_*`            | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/protocols.md`   |
+| `transport.yaml`, workflow YAML, `states.json` while authoring | `references/artifacts.md`                                        |
+| A complete protocol, verbatim, with an audit checklist         | `references/worked-protocol.md`                                  |
+| NCA placement, artifact filenames, `x-` escape                 | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`   |
+| `participants`, `style`, `conforms-to`, relations              | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md` |
+| Payload reference syntax, the `..` arithmetic                  | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`         |
+| Version bumps, the swap procedure                              | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`   |
+| Payload datamodels                                             | the `model-data` skill                                           |
 
 ## Procedure
 
@@ -52,8 +52,9 @@ companion, anchored to the shipped fixtures.
 4. **Pick `style`** with the decision rule below. (§4)
 5. **Write `index.md`** — common frontmatter plus `participants` and `style`,
    then prose saying why this conversation is a versioned contract at all.
-6. **Write `transport.yaml`** — one transport; external spec link **XOR**
-   surface list. (`references/artifacts.md`)
+6. **Write `transport.yaml`** — pick the dialect first, which the wire decides
+   (§6-8); then one transport, and in the mini-spec an external spec link
+   **XOR** a surface list. (`references/artifacts.md`)
 7. **Write `workflows/*.yaml`** — one file per named exchange. (same)
 8. **Write `states.json`** only if the conversation has states worth naming.
    (same)
@@ -73,11 +74,11 @@ the lifeline from the target entity, so copying a title here only drifts.
 **The component side owns the edge; the protocol side owns the alias.** Both
 facts exist and neither is redundant:
 
-| Concern                                                       | Authoritative source                       |
-|---------------------------------------------------------------|--------------------------------------------|
-| Who is in the graph, and which direction each edge runs       | `exposes` / `uses` on the component or product |
-| The alias namespace used by `workflows/*.yaml` and the lifelines | `participants` in the protocol's `index.md` |
-| Where the protocol directory sits                             | `participants`, filtered to component/product refs |
+| Concern                                                          | Authoritative source                               |
+|------------------------------------------------------------------|----------------------------------------------------|
+| Who is in the graph, and which direction each edge runs          | `exposes` / `uses` on the component or product     |
+| The alias namespace used by `workflows/*.yaml` and the lifelines | `participants` in the protocol's `index.md`        |
+| Where the protocol directory sits                                | `participants`, filtered to component/product refs |
 
 So writing `participants` is only half the job: the provider component needs
 `relations.exposes: [<this protocol>]` and each consumer needs
@@ -152,43 +153,71 @@ the required fields per transport kind, the two `message` traps and the XState
 subset boundary are all in **`references/artifacts.md`** — read it before
 writing any of the three.
 
-Four things worth knowing before you get there:
+Five things worth knowing before you get there:
 
 - **One protocol, one transport.** A protocol offered over two wire technologies
   is two protocol entities (`E_PROTO_TRANSPORT_BINDING`).
 - **`spec` and the surface list are mutually exclusive**
   (`E_PROTO_TRANSPORT_SPEC_CONFLICT`). Point at a real OpenAPI/AsyncAPI/`.proto`
-  file, or write the lightweight list — never both, because both drift.
+  file, or write the lightweight list — never both, because both drift. This is a
+  **mini-spec** rule: the AsyncAPI dialect below has neither key, and neither
+  `kind`.
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml` or a workflow file is a shape violation; the entity's
   frontmatter `version` covers the whole directory. Unknown keys anywhere need
   the `x-` prefix, except in `states.json`, where they are errors — and except
   the one framework-owned key below, which is admitted by name.
-- **Every artifact declares its dialect as its first key.** A role names a file,
-  never a format, so the file itself says which grammar it is written in.
-  Nothing is inferred from which keys happen to be present. The value is fixed
-  per artifact and there is nothing to choose — one line each, and no two of
-  them ever share a file:
+- **`transport.yaml` has two dialects, and the *wire* chooses — not you.** The
+  file may be the framework mini-spec, or a whole AsyncAPI 3.x document under the
+  same filename. Which is available follows from `kind`, and it is not a
+  migration window with an end (ADR 0017 — the mini-spec is permanent):
 
   ```text
-  transport.yaml         $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
-  workflows/<name>.yaml  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
-  states.json            "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document"
-  openapi.yaml           openapi: 3.1.0
+  kafka, websocket, amqp   mini-spec OR AsyncAPI 3.x — write one, never both
+  http                     mini-spec only — OpenAPI owns this wire, as openapi.yaml
+  grpc                     mini-spec only — AsyncAPI publishes no gRPC binding
+  in-process               mini-spec only — a Server Object REQUIRES a host
+  ```
+
+  Nothing is deprecated: a `kafka` transport in the mini-spec is correct and is
+  never warned. Choose AsyncAPI when the surface is a broker or socket you would
+  otherwise hand-roll as an `operations`/`topics`/`channels` list — that list is
+  what AsyncAPI replaces. An AsyncAPI document whose single server declares a
+  protocol outside those first three kinds is `E_PROTO_TRANSPORT_ASYNCAPI`. The
+  form itself, and the six profile rules on top of AsyncAPI, are in
+  `references/artifacts.md`, "The AsyncAPI dialect" — read it *before* writing
+  the file, not after.
+- **Every artifact declares its dialect as its first key.** A role names a file,
+  never a format, so the file itself says which grammar it is written in.
+  Nothing is inferred from which keys happen to be present. One line each, and
+  no file ever carries two of them:
+
+  ```text
+  transport.yaml (mini-spec)  $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+  transport.yaml (AsyncAPI)   asyncapi: 3.1.0
+  workflows/<name>.yaml       $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+  states.json                 "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document"
+  openapi.yaml                openapi: 3.1.0
   ```
 
   In `states.json` it is a member of the root object, in the same position and
-  to the same effect. `openapi:` is OpenAPI's own key and the framework adds
-  nothing beside it; the whole `3.1` line is recognised, so a file tracking a
-  patch release is not warned.
+  to the same effect. `openapi:` and `asyncapi:` are their own formats' keys and
+  the framework adds nothing beside them; `openapi:` is recognised across the
+  whole `3.1` line and `asyncapi:` across the whole of `3.x`, so a file tracking
+  a patch release is not warned. Paste `3.1.0` for either in a new file.
+
+  A `transport.yaml` carrying **both** keys is an error, not a choice: `$schema`
+  wins, the file is read as the mini-spec, and `asyncapi:` is then an unknown
+  non-`x-` top-level key (`E_PROTO_TRANSPORT_SCHEMA`).
 
   No `@version` on those URLs: they name a grammar, not a revision of one. The
   key sits at the artifact **root** and nowhere else. A file that declares
-  nothing is read as the legacy dialect — the format described in
-  `references/artifacts.md` — and warned on the protocol entity with
-  `W_ARTIFACT_DIALECT`, never broken. The reasoning, the strip rule and the
-  traps are in `references/artifacts.md`, "The dialect header — first key of
-  every artifact".
+  nothing is read as the legacy dialect — for a `transport.yaml` that means the
+  mini-spec described in `references/artifacts.md` — and warned on the protocol
+  entity with `W_ARTIFACT_DIALECT`, never broken. A correctly declared
+  `asyncapi: 3.1.0` is a recognised dialect and warns nothing. The reasoning, the
+  strip rule and the traps are in `references/artifacts.md`, "The dialect header
+  — first key of every artifact".
 
 ## 9. Payload binding
 
@@ -269,6 +298,13 @@ additive — a key appears, nothing is removed and nothing is repointed — so i
 legal at `N+1` and never a swap. The bump is **per entity, not per file**: a
 protocol that gains the header in `transport.yaml`, `states.json` and three
 workflow files in one commit bumps `version` once.
+
+Rewriting a `transport.yaml` from the mini-spec into AsyncAPI — legal only on the
+wires that admit it — is judged the same way, on the contract surface rather than
+on the diff: the same operations, messages and channels under another grammar is
+metadata-shaped, `N+1`, one bump, however little of the old text survives. Drop
+an operation while you are in there and it is a **removal**, and it takes a swap
+like every other reduction.
 
 ## Finish
 

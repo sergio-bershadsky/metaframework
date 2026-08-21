@@ -19,11 +19,11 @@ migration never moves an address.
 |----------------------------|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
 | `states.json` → XState v5  | decided                   | already true — all 8 files load via `createMachine`                                                                                                       | **locked**, effort S     |
 | Stately.ai adoption        | "as much as possible"     | SaaS disqualified (offline + private catalogs); their schema is a CI conformance target, not our authority; their MIT flow stack has zero statechart code | **researched**, see lane |
-| workflows → Arazzo         | leaning yes               | ✋ Arazzo cannot carry multi-party choreography; add `.arazzo` as a sibling role instead                                                                   | **needs ruling**         |
-| journey → Arazzo           | suggested ("imho")        | ✋ actor/touches have no Arazzo home; keep mini-spec, record the rejection                                                                                 | **needs ruling**         |
+| workflows → Arazzo         | leaning yes               | ✋ Arazzo cannot carry multi-party choreography; add `.arazzo` as a sibling role instead                                                                   | **ruled: migrate**       |
+| journey → Arazzo           | suggested ("imho")        | ✋ actor/touches have no Arazzo home; keep mini-spec, record the rejection                                                                                 | **ruled — done**         |
 | config → JSON Schema model | decided                   | concrete design ready (`usage: config` datamodels)                                                                                                        | **locked**, effort M–L   |
 | topology                   | open to research          | defer the choice, lock the criteria in an ADR; two prototypes                                                                                             | **deferred by design**   |
-| transport → AsyncAPI 3.1   | *(not in the given list)* | the largest real migration: 16 protocol entities                                                                                                          | **proposed**, unruled    |
+| transport → AsyncAPI 3.1   | *(not in the given list)* | the largest real migration: 16 protocol entities                                                                                                          | **ruled — 4 of 16 done** |
 
 ## Lane: states — XState v5 *(locked)*
 

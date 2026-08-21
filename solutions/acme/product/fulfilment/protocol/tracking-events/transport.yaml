@@ -1,28 +1,69 @@
-$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
-kind: kafka
-summary: Normalized carrier scans published by the gateway, and derived delivery status published by tracking.
-encoding: avro
-auth:
-  - sasl-scram
-  - mtls
-kafka:
-  cluster: acme-fulfilment
-  topics:
-    - name: acme.fulfilment.tracking-event.v1
-      key: shipment-id
-      message: /product/fulfilment/datamodel/tracking-event@1
-      partitions: 24
-      retention: 14d
-      summary: One event per carrier scan, already mapped onto acme's status vocabulary.
-    - name: acme.fulfilment.delivery-status.v1
-      key: shipment-id
-      message: /product/fulfilment/datamodel/shipment@1
-      partitions: 24
-      retention: 30d
-      summary: Emitted only when the fold changes a shipment's status — never once per scan.
-    - name: acme.fulfilment.delivery-exception.v1
-      key: shipment-id
-      message: /datamodel/problem@1
-      partitions: 6
-      retention: 30d
-      summary: Failed attempts, undeliverable addresses, and losses — the subset a human may have to act on.
+asyncapi: 3.1.0
+x-srn: srn://acme/product/fulfilment/protocol/tracking-events
+info:
+  title: Tracking events
+  version: unversioned
+  description: Normalized carrier scans published by the gateway, and derived delivery status published by tracking.
+defaultContentType: application/vnd.apache.avro
+servers:
+  acme-fulfilment:
+    host: "{host}"
+    # The plain spelling, not `kafka-secure`. `protocol` is required, so one of
+    # the two must be written; the mini-spec's `kafka` binding carries no `tls`
+    # field at all — unlike `http`, `grpc` and `websocket`, which do — so the
+    # file this replaces made no claim about the wire. The `auth` labels below
+    # are the only security fact it ever stated, and they carry over verbatim.
+    protocol: kafka
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - sasl-scram
+      - mtls
+channels:
+  tracking-event:
+    address: acme.fulfilment.tracking-event.v1
+    summary: One event per carrier scan, already mapped onto acme's status vocabulary.
+    bindings:
+      kafka:
+        partitions: 24
+        topicConfiguration:
+          retention.ms: 1209600000    # was `retention: 14d`
+        bindingVersion: "0.5.0"
+    messages:
+      tracking-event:
+        x-srn-payload: /product/fulfilment/datamodel/tracking-event@1
+        x-srn-partition-key: shipment-id
+
+  delivery-status:
+    address: acme.fulfilment.delivery-status.v1
+    summary: Emitted only when the fold changes a shipment's status — never once per scan.
+    bindings:
+      kafka:
+        partitions: 24
+        topicConfiguration:
+          retention.ms: 2592000000    # was `retention: 30d`
+        bindingVersion: "0.5.0"
+    messages:
+      delivery-status:
+        x-srn-payload: /product/fulfilment/datamodel/shipment@1
+        x-srn-partition-key: shipment-id
+
+  delivery-exception:
+    address: acme.fulfilment.delivery-exception.v1
+    summary: Failed attempts, undeliverable addresses, and losses — the subset a human may have to act on.
+    bindings:
+      kafka:
+        partitions: 6
+        topicConfiguration:
+          retention.ms: 2592000000    # was `retention: 30d`
+        bindingVersion: "0.5.0"
+    messages:
+      delivery-exception:
+        x-srn-payload: /datamodel/problem@1
+        x-srn-partition-key: shipment-id
+
+# No `operations` block. The mini-spec's kafka surface list records no direction,
+# and `action` is send/receive relative to one application — inventing a side
+# here would say more than the file it replaces. Who publishes and who consumes
+# is in `participants` in index.md, where it always was.

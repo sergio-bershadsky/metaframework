@@ -1,7 +1,7 @@
 ---
 name: game-transport
 kind: protocol
-version: 2
+version: 3
 title: Game transport
 summary: The socket.io conversation on namespace /brass — every move a seat submits and every state the authority broadcasts.
 status: review

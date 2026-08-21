@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: structure
-version: 6
+version: 7
 status: review
 title: Directory structure
-summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, naming rules, the artifact role table, and the dialect each role's file declares.
+summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
 ---
 
 # Directory structure
@@ -21,7 +21,7 @@ this one is the projection onto the filesystem.
 The repository root has exactly these top-level areas:
 
 | Path                | Contents                                                            |
-| ------------------- | ------------------------------------------------------------------- |
+|---------------------|---------------------------------------------------------------------|
 | `framework/spec/`   | This specification, written in the framework's own format.          |
 | `framework/portal/` | The Next.js portal (read-only presentation over `solutions/`).      |
 | `solutions/`        | All described solutions. The only place solution entities may live. |
@@ -197,7 +197,7 @@ in the fixture under `solutions/`, except the three marked **†** — `capabili
 yet, so those rows are illustrative.
 
 | Kind          | Bucket may sit in                               | Example path                                                           |
-| ------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+|---------------|-------------------------------------------------|------------------------------------------------------------------------|
 | `product`     | the solution, and nowhere else                  | `solutions/acme/product/shop/`                                         |
 | `component`   | a product or a component                        | `solutions/acme/product/shop/component/checkout/component/payment/`    |
 | `actor`       | the solution, and nowhere else                  | `solutions/acme/actor/customer/`                                       |
@@ -416,7 +416,7 @@ and the fence on which surfaces may write an artifact SRN at all are
 the **role table**, kind × role × file × depth:
 
 | Kind          | Role               | File                    | Depth |
-| ------------- | ------------------ | ----------------------- | ----- |
+|---------------|--------------------|-------------------------|-------|
 | `datamodel`   | `schema`           | `schema.json`           | 1     |
 | `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | 2     |
 | `protocol`    | `transport`        | `transport.yaml`        | 1     |
@@ -508,10 +508,11 @@ Rules:
 The role table is a spec constant, and it answers exactly one question: **where a
 file is and what it is called**. It says nothing about the bytes inside. A
 `transport.yaml` is a `transport.yaml` whether it holds the mini-spec
-[kinds/protocol.md](kinds/protocol.md) defines today or, one release later, an
-AsyncAPI document — one role, one filename, one SRN, two grammars. Which of the
-two a given file is written in is that file's **dialect**, and the answer lives
-in the file, never in the table.
+[kinds/protocol.md](kinds/protocol.md) defines or the AsyncAPI document that
+same kind now admits on the wires AsyncAPI describes — one role, one filename,
+one SRN, two grammars, both live at this revision. Which of the two a given file
+is written in is that file's **dialect**, and the answer lives in the file,
+never in the table.
 
 Keeping the two apart is exactly what artifact addressing bought. A role names a
 file, never a format: `.transport` is *the transport role of this protocol*, not
@@ -526,9 +527,11 @@ ones by hand, and two dialects sharing a prefix of keys are indistinguishable
 under it right up until the day they are not.
 
 **Rule:** every addressable artifact declares its own dialect, in its own bytes,
-under one key fixed per role by the table below (decision-record amendment
-2026-08-21-a). Where the format already discriminates itself the native key is
-used and the framework invents nothing; where it does not, the artifact carries
+under a key fixed by the table below for the dialect it is written in
+(decision-record amendment 2026-08-21-a; the transport role's second row is
+[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi)).
+Where the format already discriminates itself the native key is used and the
+framework invents nothing; where it does not, the artifact carries
 `$schema` holding the canonical URL of the framework meta-schema that defines
 the dialect. Those meta-schemas are ordinary datamodel entities of the
 framework's own `specification` product, so their URLs are ordinary canonical
@@ -539,23 +542,32 @@ prefix:
 {meta} = https://schemas.metaframework.dev/metaframework/product/specification/datamodel
 ```
 
-| Kind          | Role               | File                    | Key       | Value                            |
-| ------------- | ------------------ | ----------------------- | --------- | -------------------------------- |
-| `datamodel`   | `schema`           | `schema.json`           | `$schema` | the 2020-12 dialect URI (native) |
-| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | none      | — never carries one              |
-| `protocol`    | `transport`        | `transport.yaml`        | `$schema` | `{meta}/transport-document`      |
-| `protocol`    | `states`           | `states.json`           | `$schema` | `{meta}/state-machine-document`  |
-| `protocol`    | `openapi`          | `openapi.yaml`          | `openapi` | `3.1.x` (native)                 |
-| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | `$schema` | `{meta}/workflow-document`       |
-| `journey`     | `journey`          | `journey.yaml`          | `$schema` | `{meta}/journey-document`        |
-| `environment` | `topology`         | `topology.yaml`         | `$schema` | `{meta}/topology-document`       |
-| `environment` | `config`           | `config.yaml`           | `$schema` | `{meta}/config-document`         |
+| Kind          | Role               | File                    | Dialect       | Key        | Value                            |
+|---------------|--------------------|-------------------------|---------------|------------|----------------------------------|
+| `datamodel`   | `schema`           | `schema.json`           | JSON Schema   | `$schema`  | the 2020-12 dialect URI (native) |
+| `datamodel`   | `examples.<name>`  | `examples/<name>.json`  | its schema's  | none       | — never carries one              |
+| `protocol`    | `transport`        | `transport.yaml`        | the mini-spec | `$schema`  | `{meta}/transport-document`      |
+| `protocol`    | `transport`        | `transport.yaml`        | AsyncAPI      | `asyncapi` | `3.x` (native)                   |
+| `protocol`    | `states`           | `states.json`           | XState subset | `$schema`  | `{meta}/state-machine-document`  |
+| `protocol`    | `openapi`          | `openapi.yaml`          | OpenAPI       | `openapi`  | `3.1.x` (native)                 |
+| `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | the mini-spec | `$schema`  | `{meta}/workflow-document`       |
+| `journey`     | `journey`          | `journey.yaml`          | the mini-spec | `$schema`  | `{meta}/journey-document`        |
+| `environment` | `topology`         | `topology.yaml`         | the mini-spec | `$schema`  | `{meta}/topology-document`       |
+| `environment` | `config`           | `config.yaml`           | the mini-spec | `$schema`  | `{meta}/config-document`         |
 
 The row order is the role table's own, and that is not decoration: this table is
-**total** over that one, every row of it answered, `none` included. A role added
+**total** over that one, every role of it answered, `none` included. A role added
 above without a ruling here would be a role whose dialect nobody decided, which
 is indistinguishable from a role that carries none — so the two tables grow
 together or neither does.
+
+Total, not one-to-one. A role carries **one or more** dialect rows — nine roles,
+ten rows at this revision — and where it carries several they are ordered
+**most canonical first**. That order is read twice, and both readings are
+normative: it is the dialect a headerless file is told to add, and it is the
+dialect a file declaring two of the keys is read under. Rows are added to a role
+under the same additive discipline as everything else here; a dialect is never
+removed from one, because the files written in it do not stop existing.
 
 The value is an **identity**, and it is read as one. Recognition is a string
 comparison against this table: no URL is fetched, and a reader that cannot reach
@@ -567,7 +579,7 @@ one is a swap to a new meta-schema entity with a new name and a new URL
 ([evolution.md](evolution.md)), which is what "a new dialect lands beside the
 old" means one level up.
 
-Three rows carry their reasons rather than implying them.
+Four of the rulings above carry their reasons rather than implying them.
 
 - **A datamodel's `$schema` is not the framework's to spend.** On a JSON Schema
   document `$schema` already means the meta-schema of the *JSON Schema dialect*,
@@ -596,14 +608,30 @@ Three rows carry their reasons rather than implying them.
   concrete, pasteable value. The framework rows need no such latitude — a
   meta-schema URL carries no version to widen.
 
+- **`transport` is the role that has two, and it is not a migration window.**
+  [kinds/protocol.md](kinds/protocol.md) admits an AsyncAPI 3.x document under
+  the same filename for the wires AsyncAPI describes, and keeps the mini-spec for
+  the wires it does not — an `in-process` call has no host to put in a Server
+  Object and there is no gRPC binding to bind, so the mini-spec row is load-
+  bearing permanently and both rows stay. The mini-spec is listed first because
+  every wire can use it, so it is the right advice for a headerless file. The
+  AsyncAPI value is written `3.x` rather than `3.1.x` on the standard's own text
+  — AsyncAPI promises a minor increment stays usable by tooling built for a lower
+  minor and that tooling ignores the patch, which is a wider promise than
+  OpenAPI's and earns a wider band. Which `kind` may use which dialect is the
+  kind document's ruling, not this table's: this table says only how a reader
+  tells them apart.
+
 ### An artifact that declares one, and one that does not
 
-`solutions/acme/protocol/settlement/transport.yaml` is the worked pair, and both
-halves of it are real: the file below is what the fixture held at
-`settlement@2`, before this rule landed. It is in the legacy dialect. Nothing in
-it is a discriminator — `kind: kafka` names the wire protocol the transport
-uses, which is content, and a second dialect of this same role could carry that
-key unchanged.
+`solutions/acme/protocol/settlement/transport.yaml` is the worked case, and every
+revision below is real — it is the same file at three of its own versions, and
+each was on disk at the commit named, cut off after the keys that make the point.
+**The current file is the third one**, so read the first two as history rather
+than as the fixture. At `settlement@2`, before this rule landed, it was in the
+legacy dialect. Nothing in it is a discriminator — `kind: kafka` names the wire
+protocol the transport uses, which is content, and a second dialect of this same
+role could carry that key unchanged.
 
 ```yaml
 # solutions/acme/protocol/settlement/transport.yaml — the legacy dialect
@@ -625,6 +653,23 @@ summary: Settlement facts published by shop and consumed by billing.
 encoding: avro
 ```
 
+And the same artifact again at `settlement@4`, which is what is on disk now: the
+whole document was rewritten into the other dialect this role admits, and the
+discriminator changed with it, because the discriminator belongs to the grammar
+rather than to the file. This is the case the separation was built for — the
+bytes are unrecognisable beside the block above, and the address did not move:
+
+```yaml
+# solutions/acme/protocol/settlement/transport.yaml — the AsyncAPI dialect
+asyncapi: 3.1.0
+x-srn: srn://acme/protocol/settlement
+info:
+  title: Settlement
+  version: unversioned
+  description: Settlement facts published by shop and consumed by billing.
+defaultContentType: application/vnd.apache.avro
+```
+
 In a JSON artifact the key is a member of the root object, in the same position
 and to the same effect:
 
@@ -636,12 +681,14 @@ and to the same effect:
 }
 ```
 
-The `2 → 3` in that pair is the rest of the rule. Adding the line is a content
-change to a sibling artifact, so it bumps the owning entity's `version` by
-exactly 1, in the same commit, like any other change to any other artifact
+The `2 → 3` in that sequence is the rest of the rule. Adding the line is a
+content change to a sibling artifact, so it bumps the owning entity's `version`
+by exactly 1, in the same commit, like any other change to any other artifact
 ([evolution.md](evolution.md)) — and the bump is per **entity**, not per file. A
 protocol that gains a header in `transport.yaml`, `states.json` and two workflow
-files in one commit bumps once.
+files in one commit bumps once. The `3 → 4` obeys the same arithmetic for the
+same reason: a dialect rewrite is an ordinary content change to one artifact, and
+it buys no extra bump for being a large one.
 
 ### The legacy dialect, and its warning
 
@@ -650,7 +697,7 @@ dialect** — the format this specification and the relevant kind document defin
 today — and is warned, never broken.
 
 | Code                 | Meaning                                                                                   |
-| -------------------- | ----------------------------------------------------------------------------------------- |
+|----------------------|-------------------------------------------------------------------------------------------|
 | `W_ARTIFACT_DIALECT` | An artifact declares no dialect, or one unknown for its role; read as the legacy dialect. |
 
 The class is a warning, and it is raised on the entity that **owns** the file,
@@ -695,9 +742,13 @@ happens whether or not the value was recognised: leaving an unrecognised one in
 place would convert this warning into an unknown-key *error* downstream, which is
 the one outcome "never broken" forbids.
 
-A **native** discriminator is never stripped. `openapi:` and a datamodel's
-`$schema` belong to their own formats, and a document that arrived without them
-would be the poorer document. The bytes are untouched in every case: what the
+A **native** discriminator is never stripped. `openapi:`, `asyncapi:` and a
+datamodel's `$schema` belong to their own formats, and a document that arrived
+without them would be the poorer document. That asymmetry is what resolves a
+`transport.yaml` declaring both of its role's keys with no rule of its own: the
+first matching row wins, so the file is read as the mini-spec, `asyncapi:`
+survives the strip it was never subject to, and the mini-spec's own field table
+rejects it as an unknown non-`x-` top-level key. The bytes are untouched in every case: what the
 portal serves as the file — its source pane, its artifact route — is the file as
 authored, header included, and the stripped document is an internal parse
 product that is never served as the document.
@@ -862,7 +913,7 @@ may be, two directories claiming one SRN, and a document whose prose opens a
 heading level the page has already used ([above](#the-document-body)).
 
 | Code                     | Meaning                                                                                    |
-| ------------------------ | ------------------------------------------------------------------------------------------ |
+|--------------------------|--------------------------------------------------------------------------------------------|
 | `E_STRUCT_MISSING_INDEX` | A directory that owns an entity has no `index.md`, so the owner's SRN resolves to nothing. |
 | `E_STRUCT_NESTED_ENTITY` | An `index.md` sits directly below an entity that is not a container.                       |
 | `E_STRUCT_DUPLICATE_SRN` | Two directories resolve to the same SRN.                                                   |

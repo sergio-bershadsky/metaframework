@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: evolution
-version: 8
+version: 9
 status: review
 title: Evolution and history
 summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, artifact pins and the constancy theorem, dialect migration, and the status states.
@@ -364,10 +364,13 @@ filesystem; `worktree-lease.transport@3` is `E_SRN_VERSION`, exactly as
 
 A sibling artifact declares, in its own bytes, the grammar it is written in.
 Where the format already names itself the native key does that work — `openapi:`
-on an `openapi.yaml`, and a `schema.json`'s own `$schema`, which is REQUIRED to
-be 2020-12 whatever else moves. Where it does not, the file carries a top-level
-`$schema:` holding the canonical URL of the framework meta-schema that defines
-the dialect. Which key belongs to which role, which single role declares none
+on an `openapi.yaml`, `asyncapi:` on a `transport.yaml` written in the AsyncAPI
+dialect that role admits beside the mini-spec, and a `schema.json`'s own
+`$schema`, which is REQUIRED to be 2020-12 whatever else moves. Where it does
+not, the file carries a top-level `$schema:` holding the canonical URL of the
+framework meta-schema that defines the dialect. Which key belongs to which role,
+which role has **two** live dialects and why that is a standing choice rather
+than a migration window, which single role declares none
 (`examples/<name>.json`, an instance of its sibling schema and so of that
 schema's dialect), the two message forms of the warning, and the reader that
 records the dialect and removes the framework-owned key before any validator is
@@ -417,6 +420,18 @@ the old grammar, a migrated file names the new one, and a reader can tell which
 document it is holding. Files migrate one at a time, each bumping its own
 entity, the way referrers migrate one at a time after any other swap.
 
+**A second dialect from a foreign standard is a third shape, and it never
+deprecates the first.** The `transport` role is the one that has it: AsyncAPI 3.x
+is recognised under the same filename beside the framework mini-spec, with no
+`supersedes` edge in either direction, because neither replaces the other. The
+choice is the **wire's**, not the author's preference — `kafka`, `websocket` and
+`amqp` may use either, while `http`, `grpc` and `in-process` have the mini-spec
+only ([kinds/protocol.md](kinds/protocol.md#two-dialects-of-the-transport-role)).
+So no file written in the mini-spec is owed a migration and none is stale for
+being in it; rewriting one into the other, where the wire allows it, is an
+ordinary content change to one artifact and bumps `version` by exactly 1 like any
+other.
+
 **The old dialect is warned, never broken**, and here the reason is peculiar to
 this document rather than a matter of taste. An artifact carrying no
 recognisable discriminator is read as the **legacy dialect** — the format the
@@ -438,32 +453,38 @@ file carries a header — `E_DM_DIALECT`, already an error on a `schema.json` th
 declares no dialect, is the shape it would take.
 
 **A migration is judged on the contract surface, not on the bytes.** A file
-rewritten out of the legacy grammar into a successor dialect changes almost
-every line, and the additive-only principle does not count lines — it asks what
-a referrer could depend on, which for a protocol is the operations, messages and
-states:
+rewritten out of one dialect of its role into another changes almost every line,
+and the additive-only principle does not count lines — it asks what a referrer
+could depend on, which for a protocol is the operations, messages and states.
+`solutions/acme/protocol/settlement/transport.yaml` is the worked case, and it is
+real: three Kafka topics in the mini-spec at version 3, cut here to the keys that
+make the point,
 
 ```yaml
-# solutions/acme/product/shop/protocol/order-placement/transport.yaml at v4
-kind: http
-http:
-  base-path: /api/v1/orders
-  operations:
-    - name: create-order
-      method: POST
-      path: /
-    - name: cancel-order
-      method: DELETE
-      path: /{order-id}
+# solutions/acme/protocol/settlement/transport.yaml at version 3
+kind: kafka
+encoding: avro
+kafka:
+  cluster: acme-settlement
+  topics:
+    - name: acme.settlement.order-paid.v1
+      message: /product/shop/component/checkout/component/payment/datamodel/order@3
+    - name: acme.settlement.ledger-entry-posted.v1
+      message: /product/billing/datamodel/ledger-entry@1
+    - name: acme.settlement.reconciliation-report.v1
 ```
 
-A version 5 that writes those same two operations under a successor dialect's
-keys is legal, however little of the old text survives: the wire contract is
-unchanged and only the grammar moved. A version 5 carrying `create-order` alone
-is not a dialect migration at all — it is the removal of an operation, ILLEGAL
-at any version number by the table above, and it takes the escape hatch every
-reduction takes, a successor entity and the swap procedure. The discriminator
-makes the question decidable; it never answers it.
+A version 4 that carries those same three topics, with the same names and the
+same payload references, under the other dialect's keys is legal however little
+of the old text survives: the wire contract is unchanged and only the grammar
+moved. That is exactly what version 4 on disk does. A version 4 carrying two of
+the three would not be a dialect migration at all — it would be the removal of a
+topic, ILLEGAL at any version number by the table above, and it takes the hatch
+every reduction takes, a successor entity and the swap procedure. The
+discriminator makes the question decidable; it never answers it. Note which file
+this had to be: the other dialect is available on this wire
+([kinds/protocol.md](kinds/protocol.md#two-dialects-of-the-transport-role)), and
+an `http`, `grpc` or `in-process` transport has nothing to migrate *into*.
 
 **Only the repair trips `E_VER_UNBUMPED`.** The warning and the audit ask
 different questions and are worth keeping apart: `W_ARTIFACT_DIALECT` asks

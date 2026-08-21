@@ -2,7 +2,9 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { environmentDiagnostics } from '../environment/environment'
 import { parseJourney } from '../journey/journey'
+import { configContractDiagnostics, readConfigContracts } from '../schema/config-contract'
 import { buildSchemaBundle, buildSchemaRegistry, effectiveModel } from '../schema/registry'
 import { loadCatalog } from './load'
 import type { Catalog } from './types'
@@ -121,6 +123,15 @@ const UNIMPLEMENTED: Record<string, string> = {
   E_PROTO_TRANSPORT_SCHEMA: 'transport.yaml is parsed into artifact.data and never validated',
   E_PROTO_TRANSPORT_BINDING: 'transport.yaml is parsed into artifact.data and never validated',
   E_PROTO_TRANSPORT_SPEC_CONFLICT: 'transport.yaml is parsed into artifact.data and never validated',
+  // The AsyncAPI dialect of the transport role (ADR 0017). `dialects.ts` now
+  // carries the `asyncapi:` row, so the dialect is *detected* — an AsyncAPI
+  // transport.yaml loads, records `dialect.key: 'asyncapi'` and keeps its native
+  // key. What is still missing is the same thing missing from the three rows
+  // above: nothing reads the document. The six profile rules and the host rule
+  // therefore have a dialect to fire on and no reader to fire them.
+  E_PROTO_TRANSPORT_ASYNCAPI: 'the AsyncAPI dialect is detected and never read; nothing validates transport.yaml',
+  W_PROTO_TRANSPORT_HOST: 'nothing reads `servers` out of an AsyncAPI transport.yaml',
+  W_PROTO_SPEC_ASYNCAPI: 'needs transport.yaml validated first, which nothing does',
   W_PROTO_ARTIFACT_UNKNOWN: 'nothing inspects a protocol entity directory for unrecognised files',
   W_PROTO_PARTICIPANT_MISSING: 'needs the resolved catalog; participants are never resolved',
   W_PROTO_PARTICIPANT_UNLINKED: 'needs the resolved catalog; participants are never resolved',
@@ -128,13 +139,11 @@ const UNIMPLEMENTED: Record<string, string> = {
   W_PROTO_WF_CHANNEL_UNKNOWN: 'needs transport.yaml validated first, which nothing does',
 
   // --- environment ----------------------------------------------------------
-  E_ENV_TOPOLOGY_SCHEMA: 'environment artifacts are parsed into artifact.data and never validated',
-  E_ENV_CONFIG_SCHEMA: 'environment artifacts are parsed into artifact.data and never validated',
-  E_ENV_SECRET_VALUE: 'nothing scans environment config for inlined secret values',
-  E_ENV_REGION_UNKNOWN: 'nothing validates region names',
-  E_ENV_TARGET_KIND: 'needs the resolved catalog; environment targets are never kind-checked',
-  W_ENV_HOST_UNDECLARED: 'no environment/component hosting cross-check exists',
-  W_ENV_CONFIG_ORPHAN: 'no environment/component hosting cross-check exists',
+  // Empty, and it used to hold seven rows all saying the same thing:
+  // "environment artifacts are parsed into artifact.data and never validated".
+  // `lib/environment/environment.ts` is that reader, and it arrived with the
+  // config-contract join (ENV12–ENV15) rather than only the v1 rules, so
+  // ENV4–ENV15 are now all emitted. Nothing environment-shaped is outstanding.
 
   // --- component ------------------------------------------------------------
   E_COMP_LIBRARY_ENVIRONMENT: '`component-type: library` is never checked against its environment edges',
@@ -193,6 +202,8 @@ const PIPELINE_MODULES = [
   'src/lib/srn/srn.ts',
   'src/lib/schema/registry.ts',
   'src/lib/schema/lineage.ts',
+  'src/lib/schema/config-contract.ts',
+  'src/lib/environment/environment.ts',
   'src/lib/history/git.ts',
 ]
 
@@ -572,11 +583,104 @@ beforeAll(async () => {
     },
   })
 
+  // --- environment: the two artifacts, and the contract they join against ---
+  //
+  // One environment carrying one deliberate violation per environment code. The
+  // config half needs a *second* entity to be wrong against — a `usage: config`
+  // datamodel in the hosted component's own bucket — so the contract below is
+  // well-formed and it is the environment that disagrees with it, which is the
+  // direction every E_ENV_*/W_ENV_* code is written in.
+  await entity('acme/environment/production', base('production', 'environment'))
+  await entity(
+    'acme/product/shop/component/dispatcher',
+    base('dispatcher', 'component', { relations: { uses: ['/environment/production'] } }),
+  )
+  await entity(
+    'acme/product/shop/component/dispatcher/datamodel/config',
+    base('config', 'datamodel', { usage: 'config' }),
+  )
+  await artifact('acme/product/shop/component/dispatcher/datamodel/config', 'schema.json', {
+    ...schema('acme/product/shop/component/dispatcher/datamodel/config', {
+      properties: {
+        DISPATCH_MODE: { enum: ['fast', 'slow'], default: 'fast' },
+        DISPATCH_TOKEN: { type: 'string', writeOnly: true },
+        DISPATCH_RETRIES: { type: 'integer' },
+      },
+      // must-provide is { DISPATCH_TOKEN }: DISPATCH_MODE is required and
+      // defaulted, so the process supplies its own.
+      required: ['DISPATCH_MODE', 'DISPATCH_TOKEN'],
+    }),
+  })
+  // E_ENV_TOPOLOGY_SCHEMA (unknown host key), E_ENV_REGION_UNKNOWN,
+  // E_ENV_TARGET_KIND (an actor is not deployable), W_ENV_HOST_UNDECLARED.
+  await artifact(
+    'acme/environment/production',
+    'topology.yaml',
+    [
+      'regions:',
+      '  - name: eu-west-1',
+      'hosts:',
+      '  - component: /product/shop/component/dispatcher',
+      '    regions: [ap-south-1]',
+      '    tier: gold',
+      '  - component: /actor/customer',
+      '  - component: /product/shop/component/inventory',
+      '',
+    ].join('\n'),
+  )
+  // E_ENV_CONFIG_SCHEMA (casing), E_ENV_SECRET_VALUE, E_ENV_CONFIG_VALUE,
+  // E_ENV_SECRET_MISMATCH, W_ENV_CONFIG_UNDECLARED, W_ENV_CONFIG_ORPHAN — and
+  // W_ENV_CONFIG_MISSING, which is an absence: DISPATCH_TOKEN is never declared.
+  await artifact(
+    'acme/environment/production',
+    'config.yaml',
+    [
+      'config:',
+      '  - key: dispatch-mode',
+      '  - key: LEAKED_SECRET',
+      '    secret: true',
+      '    source: vault:kv/acme/production#leaked',
+      '    value: hunter2',
+      '  - key: DISPATCH_MODE',
+      '    for: /product/shop/component/dispatcher',
+      '    value: sideways',
+      '  - key: DISPATCH_RETRIES',
+      '    for: /product/shop/component/dispatcher',
+      '    secret: true',
+      '    source: vault:kv/acme/production#retries',
+      '  - key: DISPATCH_TIMEOUT',
+      '    for: /product/shop/component/dispatcher',
+      '  - key: WAREHOUSE_URL',
+      '    for: /product/shop/component/inventory',
+      '',
+    ].join('\n'),
+  )
+  // E_DM_CONFIG_SHAPE (kebab name, nested property) and
+  // E_DM_CONFIG_SECRET_DEFAULT (a secret value in git) on the contract side.
+  await entity('acme/product/shop/component/tuner', base('tuner', 'component'))
+  await entity('acme/product/shop/component/tuner/datamodel/config', base('config', 'datamodel', { usage: 'config' }))
+  await artifact('acme/product/shop/component/tuner/datamodel/config', 'schema.json', {
+    ...schema('acme/product/shop/component/tuner/datamodel/config', {
+      properties: {
+        'tuner-mode': { type: 'string' },
+        TUNER_LIMITS: { type: 'object' },
+        API_TOKEN: { type: 'string', writeOnly: true, default: 'dev-token' },
+      },
+    }),
+  })
+
   catalog = await loadCatalog({ catalogDir })
   const registry = buildSchemaRegistry(catalog)
 
   fired = new Set<string>()
   for (const diagnostic of [...catalog.diagnostics, ...registry.diagnostics]) fired.add(diagnostic.code)
+  // The config contract and the environment artifacts are folded in after the
+  // registry exists, because four of the environment rules read a datamodel's
+  // flattened schema (lib/catalog/index.ts, `withEnvironmentChecks`). Collected
+  // here exactly as the portal collects them.
+  const contracts = readConfigContracts(catalog, registry)
+  for (const diagnostic of configContractDiagnostics(catalog, registry)) fired.add(diagnostic.code)
+  for (const diagnostic of environmentDiagnostics(catalog, contracts)) fired.add(diagnostic.code)
   // The two datamodel warnings are computed per schema *view* rather than during
   // registry construction, so they are collected the way the portal collects
   // them: by asking for the view.
@@ -636,8 +740,21 @@ const PIPELINE_CODES = [
   'E_DM_FOREIGN_DEFS',
   'E_DM_INHERIT_CYCLE',
   'E_DM_CLOSED_BASE',
+  'E_DM_CONFIG_SHAPE',
+  'E_DM_CONFIG_SECRET_DEFAULT',
   'W_DM_CONTRADICTION',
   'W_DM_UNION_TAG',
+  'E_ENV_TOPOLOGY_SCHEMA',
+  'E_ENV_CONFIG_SCHEMA',
+  'E_ENV_REGION_UNKNOWN',
+  'E_ENV_TARGET_KIND',
+  'E_ENV_SECRET_VALUE',
+  'E_ENV_CONFIG_VALUE',
+  'E_ENV_SECRET_MISMATCH',
+  'W_ENV_HOST_UNDECLARED',
+  'W_ENV_CONFIG_ORPHAN',
+  'W_ENV_CONFIG_MISSING',
+  'W_ENV_CONFIG_UNDECLARED',
 ] as const
 
 /**

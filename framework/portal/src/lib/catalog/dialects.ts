@@ -8,16 +8,18 @@ import type { Artifact } from './types'
  *
  * A role names a file, never a format ([0014](srn://metaframework/adr/0014-artifact-addresses)),
  * so a payload may standardize inside a filename that does not move:
- * `transport.yaml` becomes AsyncAPI, `config.yaml` grows typed values,
- * `states.json` is already XState. A reader cannot perform a migration it cannot
- * detect, and shape-sniffing is a second grammar nobody wrote down — so every
- * artifact says, in its own bytes, which grammar it is written in.
+ * `transport.yaml` has become AsyncAPI on the wires AsyncAPI describes,
+ * `config.yaml` grows typed values, `states.json` is already XState. A reader
+ * cannot perform a migration it cannot detect, and shape-sniffing is a second
+ * grammar nobody wrote down — so every artifact says, in its own bytes, which
+ * grammar it is written in.
  *
  * Where the format already names itself the native key is used and the framework
- * invents nothing (`openapi:`, and `schema.json`'s own `$schema`). Where it does
- * not, the file carries `$schema:` holding the canonical URL of the framework
- * meta-schema that defines the dialect — the same URL {@link metaSchemaUrl}
- * builds for any other datamodel, because that is exactly what a meta-schema is.
+ * invents nothing (`openapi:`, `asyncapi:`, and `schema.json`'s own `$schema`).
+ * Where it does not, the file carries `$schema:` holding the canonical URL of the
+ * framework meta-schema that defines the dialect — the same URL
+ * {@link metaSchemaUrl} builds for any other datamodel, because that is exactly
+ * what a meta-schema is.
  *
  * Two properties of this module are load-bearing:
  *
@@ -93,7 +95,31 @@ const DIALECTS: Record<string, RoleDialects | null> = {
   // normal in this catalog — the discriminator would make the example fail the
   // very document it exemplifies. A rule, not an omission.
   'datamodel:examples.<name>': null,
-  'protocol:transport': { dialects: [meta('transport-document')], warns: true },
+  // The only role with two live dialects, and not a migration window with an end
+  // ([0017](srn://metaframework/adr/0017-transport-asyncapi)): `in-process` and
+  // `grpc` transports have no AsyncAPI expression at all, so the mini-spec is
+  // permanent. The order is load-bearing twice over — a headerless file is told
+  // to declare the mini-spec, which is right for every wire AsyncAPI does not
+  // cover, and a file declaring both keys is read as the mini-spec, where
+  // `asyncapi:` is then an unknown non-`x-` top-level key and its field table
+  // rejects it. Native, so it is never stripped either way.
+  //
+  // The band is `3.x`, wider than the `openapi` row's `3.1.x` below, and the
+  // difference is the two standards' own text. OpenAPI versions the *document*,
+  // so 3.1.1 is 3.1.0 with errata and 3.0 is a different grammar. AsyncAPI's
+  // version-string section promises more: a minor increment "should not
+  // interfere with operations of tooling developed to a lower minor version",
+  // and "the patch version will not be considered by tooling". Warning on a
+  // correct 3.2.0 document would report this reader's narrowness as the file's
+  // fault; the framework reads 3.1 semantics either way, and a construct from a
+  // later minor rides in `raw` and derives nothing.
+  'protocol:transport': {
+    dialects: [
+      meta('transport-document'),
+      { key: 'asyncapi', value: '3.1.0', owned: false, recognises: (v) => /^3\.\d+\.\d+$/.test(v) },
+    ],
+    warns: true,
+  },
   'protocol:states': { dialects: [meta('state-machine-document')], warns: true },
   // The shape every future standard takes: a format that already names itself
   // keeps doing so. Patch releases of 3.1 are the same dialect — OpenAPI

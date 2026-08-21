@@ -1,27 +1,76 @@
-$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
-kind: kafka
-summary: Settlement facts published by shop and consumed by billing.
-encoding: avro
-auth:
-  - sasl-scram
-  - mtls
-kafka:
-  cluster: acme-settlement
-  topics:
-    - name: acme.settlement.order-paid.v1
-      key: order-id
-      message: /product/shop/component/checkout/component/payment/datamodel/order@3
-      partitions: 12
-      retention: 30d
-      summary: Emitted once an order reaches the paid state and funds are captured.
-    - name: acme.settlement.ledger-entry-posted.v1
-      key: order-id
-      message: /product/billing/datamodel/ledger-entry@1
-      partitions: 12
-      retention: 30d
-      summary: One event per posted double-entry leg, published by the ledger.
-    - name: acme.settlement.reconciliation-report.v1
-      key: batch-id
-      partitions: 1
-      retention: 90d
-      summary: Nightly reconciliation outcome; its payload model is still under design.
+asyncapi: 3.1.0
+x-srn: srn://acme/protocol/settlement
+info:
+  title: Settlement
+  version: unversioned
+  description: Settlement facts published by shop and consumed by billing.
+defaultContentType: application/vnd.apache.avro
+servers:
+  acme-settlement:
+    host: "{host}"
+    # The plain spelling, not `kafka-secure`. `protocol` is required, so one of
+    # the two must be written; the mini-spec's `kafka` binding carries no `tls`
+    # field at all — unlike `http`, `grpc` and `websocket`, which do — so the
+    # file this replaces made no claim about the wire. The `auth` labels below
+    # are the only security fact it ever stated, and they carry over verbatim.
+    protocol: kafka
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - sasl-scram
+      - mtls
+channels:
+  order-paid:
+    address: acme.settlement.order-paid.v1
+    summary: Emitted once an order reaches the paid state and funds are captured.
+    bindings:
+      kafka:
+        partitions: 12
+        topicConfiguration:
+          retention.ms: 2592000000    # was `retention: 30d`
+        bindingVersion: "0.5.0"
+    messages:
+      order-paid:
+        x-srn-payload: /product/shop/component/checkout/component/payment/datamodel/order@3
+        x-srn-partition-key: order-id
+
+  ledger-entry-posted:
+    address: acme.settlement.ledger-entry-posted.v1
+    summary: One event per posted double-entry leg, published by the ledger.
+    bindings:
+      kafka:
+        partitions: 12
+        topicConfiguration:
+          retention.ms: 2592000000    # was `retention: 30d`
+        bindingVersion: "0.5.0"
+    messages:
+      ledger-entry-posted:
+        x-srn-payload: /product/billing/datamodel/ledger-entry@1
+        x-srn-partition-key: order-id
+
+  reconciliation-report:
+    address: acme.settlement.reconciliation-report.v1
+    summary: Nightly reconciliation outcome; its payload model is still under design.
+    # No `messages` map: the mini-spec named no payload here either, and
+    # `messages` is optional.
+    #
+    # `x-srn-partition-key` normally sits on a Message Object, mirroring where
+    # AsyncAPI's own kafka `key` sits. This is the one channel in the catalog
+    # with a `key` and no `message` — 9 keyed topics, 8 with a message — and both
+    # alternatives lie: dropping `batch-id` loses a fact the source stated, and
+    # minting an empty Message Object to hang it on invents a payload the source
+    # withheld. So the key rides the Channel, and only where a channel declares
+    # no `messages`.
+    x-srn-partition-key: batch-id
+    bindings:
+      kafka:
+        partitions: 1
+        topicConfiguration:
+          retention.ms: 7776000000    # was `retention: 90d`
+        bindingVersion: "0.5.0"
+
+# No `operations` block. The mini-spec's kafka surface list records no direction,
+# and `action` is send/receive relative to one application — inventing a side
+# here would say more than the file it replaces. Who publishes and who consumes
+# is in `participants` in index.md, where it always was.

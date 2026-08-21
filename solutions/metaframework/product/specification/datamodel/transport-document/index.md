@@ -1,9 +1,9 @@
 ---
 name: transport-document
 kind: datamodel
-version: 2
+version: 3
 title: Transport document
-summary: The transport.yaml mini-spec — one protocol, one wire, six binding blocks and the spec-XOR-surface-list rule; fully specified and read by no code at all.
+summary: The transport.yaml mini-spec — one protocol, one wire, six binding blocks and the spec-XOR-surface-list rule; one of two dialects of the transport role, fully specified and read by no code at all.
 status: review
 owner: sergio
 usage: storage
@@ -16,46 +16,77 @@ tags:
 
 `transport.yaml` beside a protocol's `index.md`: **how the conversation reaches
 the wire**, one protocol, one transport. Specified in
-`framework/spec/kinds/protocol.md` §"`transport.yaml`" (lines 263–493) — a
+`framework/spec/kinds/protocol.md` §"`transport.yaml`" — a
 closed six-value `kind` enum, a binding block per kind, six surface lists, an
 external-spec link and an exclusivity rule between the last two. Measured
 2026-08-21 with `find solutions -name transport.yaml`: **16 instances** — 9 in
 `solutions/acme`, 4 in `solutions/brass`, 3 in this solution.
+
+**This entity is one of the transport role's two dialects, and no longer the
+only one.** [0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi)
+made AsyncAPI 3.x a recognised second grammar under the same filename, and
+`protocol.md` gained §"The AsyncAPI dialect of `transport.yaml`"
+beside the section this entity describes. Of the 16 files, **12 are
+this dialect and 4 are AsyncAPI** — measured by whether the document carries a
+top-level `asyncapi:` key. Every count in this entity is a count of the 12
+unless it says otherwise, and the four that left are not a loss of coverage:
+they left because AsyncAPI describes their wires better, which is the finding
+0017 records.
 
 It is one of the eight formats this product owns, and the only one whose entry in
 the catalog is justified by an absence rather than by a mechanism.
 
 ## No code reads it
 
-Grepping all of `framework/portal/src` for `transport` returns 11 hits. Two are
-outside tests, and neither parses anything:
-
-- `components/code/artifact-block.tsx:149` — a comment about pane height, "so a
-  six-line `transport.yaml` is not shown in a 460px window".
-- `lib/ui/kind.ts:69` — the protocol kind's one-line blurb, "How components talk
-  — transport, workflows, state machines."
-
-The remaining nine are fixture strings in `load.test.ts`, `fingerprint.test.ts`,
-`git.test.ts` and `fixture-check.test.ts`.
+Re-measured 2026-08-21: grepping all of `framework/portal/src` for `transport`
+returns 129 hits, 20 of them outside tests, spread over 11 files — 5 in
+`lib/catalog/dialects.ts`, 3 each in `lib/srn/artifacts.ts` and
+`lib/history/git.ts`, 2 in the `/artifacts` route, and one apiece in
+`lib/ui/kind.ts`, `lib/srn/srn.ts`, `lib/schema/url.ts`,
+`lib/catalog/types.ts`, `lib/catalog/mentions.ts`,
+`components/diagrams/state-simulator.tsx` and
+`components/code/artifact-block.tsx`. The count is up sharply on the 11 this
+entity recorded at v2 and none of the growth is a reader: every one of the 20 is
+a role-table row, a dialect-table row, the `.transport` SRN suffix, or a comment
+— including the pane-height note at `artifact-block.tsx:149`, "so a six-line
+`transport.yaml` is not shown in a 460px window". **Not one of them opens the
+document.**
+What [0017](srn://metaframework/adr/0017-transport-asyncapi) added is the
+sharpest illustration: `'protocol:transport'` is now the only role in
+`dialects.ts` carrying two dialects, so an AsyncAPI `transport.yaml` is
+recognised, records `dialect.key: 'asyncapi'` on the artifact and keeps its
+native key unstripped — and recognising a grammar is not reading a document.
 
 What actually happens to the file is generic. `readArtifacts()` in
 `lib/catalog/load.ts` reads every recognised extension in an entity directory
 and parses YAML for syntax only; `components/entity/entity-artifacts.tsx`
 dispatches on entity kind *and* filename — `schema.json` on a datamodel,
-`workflows/*` on a protocol, `states.json` on a protocol — and there is no
-`TRANSPORT_FILE` constant to match against. `transport.yaml` falls through to
-the default branch and renders as a YAML code block. Its own contract decides
-nothing.
+`workflows/*` on a protocol, `states.json` on a protocol — and `TRANSPORT_FILE`
+returns **0** hits in the whole of `framework/portal/src`, because there is no
+such constant to match against. `transport.yaml` falls through to the default
+branch and renders as a YAML code block, in both dialects. Its own contract
+decides nothing.
 
 `grep -rn "E_PROTO_TRANSPORT\|E_PROTO_SPEC_FILE" framework/portal/src` returns
-**0**. All four of the codes the mini-spec defines —
+**6**, and every one of them is a string in a test rather than an emitter: five
+are debt-register entries in `diagnostic-coverage.test.ts` and one is a comment
+in `dialects.test.ts`. All four codes the mini-spec defines —
 `E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
-`E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_SPEC_FILE` — are implemented
-nowhere, and `lib/protocol/` contains modules for workflows and state machines
-and none for transports.
+`E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_SPEC_FILE` — are still implemented
+nowhere, joined in the register by 0017's three: `E_PROTO_TRANSPORT_ASYNCAPI`,
+`W_PROTO_TRANSPORT_HOST` and `W_PROTO_SPEC_ASYNCAPI`, whose entry reads "the
+AsyncAPI dialect is detected and never read". `lib/protocol/` contains modules
+for workflows and state machines and none for transports, in either dialect.
+
+That register is the reason this section can be trusted rather than merely
+asserted: it is a ratchet, and the inventory suite goes red the moment one of
+those seven codes gains an emitter. The sibling
+[topology-document](srn://metaframework/product/specification/datamodel/topology-document)
+is what that looks like when it fires — its seven rows left the register in this
+release, and this format's seven stayed.
 
 This is the format's whole reason for having an entity. A documented format with
-16 authored instances and no reader is a real state of affairs, and a catalog
+12 authored instances and no reader is a real state of affairs, and a catalog
 that listed seven of the eight spec formats and quietly dropped the one nothing
 implements would be describing a tidier repository than this one. The gap is
 also load-bearing elsewhere: `W_PROTO_WF_CHANNEL_UNKNOWN` — a workflow step's
@@ -110,29 +141,39 @@ schema detail:
   an entity version is a snapshot of all its files at one commit.
 
 The `x-` escape hatch reaches into the artifact, at the top level and inside
-entries — the same rule frontmatter carries. It is used in 4 of the 16 files on
-disk.
+entries — the same rule frontmatter carries. It is used in 4 of the 12 files in
+this dialect.
 
-## What the 16 instances actually exercise
+## What the 12 instances actually exercise
 
-Measured 2026-08-21 across all three solutions:
+Measured 2026-08-21 across all three solutions, over the 12 mini-spec files:
 
-| `kind`       | instances | surface list key | instances using it |
-| ------------ | --------- | ---------------- | ------------------ |
-| `http`       | 9         | `operations`     | 7                  |
-| `kafka`      | 3         | `topics`         | 3                  |
-| `in-process` | 3         | `functions`      | 3                  |
-| `websocket`  | 1         | `channels`       | 1                  |
-| `grpc`       | 0         | `methods`        | 0                  |
-| `amqp`       | 0         | `bindings`       | 0                  |
+| `kind`       | instances | surface list key | instances using it | before 0017 |
+| ------------ | --------- | ---------------- | ------------------ | ----------- |
+| `http`       | 9         | `operations`     | 7                  | 9           |
+| `in-process` | 3         | `functions`      | 3                  | 3           |
+| `kafka`      | 0         | `topics`         | 0                  | 3           |
+| `websocket`  | 0         | `channels`       | 0                  | 1           |
+| `grpc`       | 0         | `methods`        | 0                  | 0           |
+| `amqp`       | 0         | `bindings`       | 0                  | 0           |
 
-Two of the six wire technologies, and therefore two of the six binding blocks
-and two of the six surface lists, have **no instance anywhere in the
-repository**. They are specified, described in the spec's field tables, and
-untested by any authored file.
+**Four of the six wire technologies now have no instance in this dialect**, up
+from two at v2, and the last column says why: the `kafka` and `websocket` rows
+did not empty through attrition. They are exactly the four files 0017 moved, and
+they moved because those are the wires AsyncAPI describes. What is left is the
+complement — `http` and `in-process`, plus a `grpc` row that never had an
+instance — which is 0017's claim about permanence stated as a corpus rather than
+as an argument: the mini-spec keeps the transports AsyncAPI has no expression
+for, and after the migration that is all it has.
 
-The exclusivity rule holds across all 16: the two files carrying `spec` (both
-`http`, both in acme) carry no surface list, and the 14 carrying a surface list
+The uncomfortable reading is the honest one. This dialect now describes 12 files
+across two `kind` values, and it still specifies six binding blocks and six
+surface lists. Four of them are dead weight in a format nothing validates, and
+the one that is *most* dead — `amqp` — is the one 0017 admits AsyncAPI for
+without a single file to move.
+
+The exclusivity rule holds across all 12: the two files carrying `spec` (both
+`http`, both in acme) carry no surface list, and the 10 carrying a surface list
 carry no `spec`. Nothing checked that — it is author discipline, which is the
 general condition of this format.
 
@@ -146,12 +187,16 @@ general condition of this format.
   conversation out of a library calling a binary, and
   [0003-closed-ontology-of-nine-kinds](srn://metaframework/adr/0003-closed-ontology-of-nine-kinds)
   records the mismatch instead.
-- **stdio JSON-RPC has no value either.** One of the 16 files takes
+- **stdio JSON-RPC has no value either.** One of the 12 files takes
   `in-process` as the nearest neighbour and records the truth in `x-wire`, with
   a four-line comment above `kind:` explaining the compromise. It is in a
   fixture outside this solution, so it cannot be cited by SRN here, and the
   finding it produced is recorded in
   [0013-a-second-solution-surveyed-from-real-code](srn://metaframework/adr/0013-a-second-solution-surveyed-from-real-code).
+  0017 does not relieve it: AsyncAPI is admitted for `kafka`, `websocket` and
+  `amqp`, and a JSON-RPC conversation over a subprocess's stdin is none of
+  those. The strain stays in this dialect because this dialect is where the
+  awkward wires live now.
 
 ## The sibling schema, and the one rule it cannot hold
 
@@ -174,19 +219,36 @@ absolute and MUST NOT contain `..` (`E_PROTO_SPEC_FILE`). The schema catches the
 absolute form with a pattern and nothing else: no schema resolves a filesystem,
 and path containment is a decision about a tree, not about a string.
 
-Checked 2026-08-20 with `ajv` 2020 and re-run against the corpus on 2026-08-21:
-all 16 `transport.yaml` files in the repository validate, and eleven
-hand-written cases behave. Rejected: two binding
-blocks in one document, a block that disagrees with `kind`, `spec` alongside a
-surface list, an unknown non-`x-` top-level key, a `kind` outside the enum, a
-`version:` key, an `http` block with no `base-path`, a `kafka` block with
-neither `topics` nor `spec`, and an absolute `spec.file`. Accepted: an `x-`
-top-level key, and a `kafka` block that delegates its topics to `spec`.
+Re-run 2026-08-21 with `ajv` 2020 against every `transport.yaml` in the
+repository: **12 of 16 validate**, and the 4 that do not are exactly the 4
+AsyncAPI files. That is the correct result and not a regression, so it is worth
+stating what the failure looks like rather than only its count. Each of the four
+fails on `must have required property 'kind'` plus one `additionalProperties`
+violation per native AsyncAPI key: `asyncapi`, `info`, `defaultContentType`,
+`servers` and `channels` in all four, plus `id` and `operations` in
+`brass/protocol/game-transport`. `x-srn` is the one top-level key that survives,
+because the `^x-` hatch is in both grammars. This meta-schema *defines the
+mini-spec
+dialect*, its `$id` is the mini-spec's discriminator, and an AsyncAPI document
+declares a different dialect in its own bytes. A document that named this URL
+and then failed it would be a finding; a document that never named it and fails
+it is the schema doing its job. **The number to watch is 12 of 12 in-dialect,
+not 16 of 16 in the directory** — and a reader who wants one number for the
+whole role wants two schemas, because there are two grammars.
+
+The same run stripped and re-added the `$schema` line on all 12: 12 pass either
+way. Twelve hand-written cases behave. Rejected: two binding blocks in one
+document, a block that disagrees with `kind`, `spec` alongside a surface list,
+an unknown non-`x-` top-level key, a `kind` outside the enum, a `version:` key,
+an `http` block with no `base-path`, a `kafka` block with neither `topics` nor
+`spec`, an absolute `spec.file`, and — the case this release added — a minimal
+AsyncAPI 3.1.0 document. Accepted: an `x-` top-level key, and a `kafka` block
+that delegates its topics to `spec`.
 
 That check was a one-off run of a throwaway test, not something the repository
-does. Nothing parses `transport.yaml`, so nothing validates it against this
-schema either. It is a statement of the contract rather than an enforcement of
-it — the same position the format itself is in.
+does. Nothing parses `transport.yaml` in either dialect, so nothing validates it
+against this schema either. It is a statement of the contract rather than an
+enforcement of it — the same position the format itself is in.
 
 ## The header the schema had to be reopened for
 
@@ -202,15 +264,22 @@ http:
 ```
 
 Admitting that key was not a courtesy. Re-measured 2026-08-21 with `ajv` 2020
-against all 16 `transport.yaml` files in the repository, each run twice — once
-with the `$schema` line and once with it stripped. Against the schema as it
-stood before this change: **16 of 16** validated stripped and **0 of 16**
-validated headed. The root `additionalProperties: false` rejected the very key
-that points at this document — which is the fault 0015 disqualified Stately's
-`xstate.json` on, and it applied to this schema identically. A schema a document
-cannot name is not a discriminator. With `$schema` admitted, both runs pass 16
-of 16, and it is now the *stripped* run that is hypothetical: every
-`transport.yaml` on disk carries the header.
+against the 12 mini-spec `transport.yaml` files, each run twice — once with the
+`$schema` line and once with it stripped. Against the schema as it stood before
+that change: **12 of 12** validated stripped and **0 of 12** validated headed.
+The root `additionalProperties: false` rejected the very key that points at this
+document — which is the fault 0015 disqualified Stately's `xstate.json` on, and
+it applied to this schema identically. A schema a document cannot name is not a
+discriminator. With `$schema` admitted, both runs pass 12 of 12, and it is now
+the *stripped* run that is hypothetical: every mini-spec `transport.yaml` on
+disk carries the header.
+
+The 4 AsyncAPI files carry no `$schema` and never will, and that is the same
+ruling seen from the other end. 0015's rule is that a format which already names
+itself keeps doing so, so the AsyncAPI dialect is discriminated by its own
+`asyncapi: 3.1.0` key and the framework adds nothing — which is why
+`adoptDialect` strips the header on the mini-spec half and leaves the native key
+in place on the other. One role, two discriminators, one of them not ours.
 
 The value is typed as a non-empty string and **not** pinned with `const` to the
 `$id` above, and that is a ruling rather than an omission. A file naming some

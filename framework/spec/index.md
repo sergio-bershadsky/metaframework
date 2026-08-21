@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 8
+version: 9
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, the twelve kinds, document map, and reading order.
@@ -70,10 +70,15 @@ example. A rule without an example is an incomplete rule and a spec defect.
    itself — under a native key where its format has one, and otherwise under
    `$schema` naming a framework meta-schema
    ([structure.md](structure.md#the-dialect-behind-the-role)). The separation is
-   what lets a payload standardize without moving a single address:
-   `transport.yaml` may become AsyncAPI and stay
-   `srn://acme/protocol/settlement.transport`. A file that declares nothing is
-   read as the legacy dialect and warned, never broken.
+   what lets a payload standardize without moving a single address, and
+   `transport.yaml` is where that already happened: it holds the framework
+   mini-spec **or** an AsyncAPI 3.x document, and either way it is still
+   `srn://acme/protocol/settlement.transport`. Two dialects of one role, both
+   permanent — the wire decides which is available, because `in-process` and
+   `grpc` have no AsyncAPI expression at all
+   ([kinds/protocol.md](kinds/protocol.md#two-dialects-of-the-transport-role)).
+   A file that declares nothing is read as the legacy dialect and warned, never
+   broken.
 
    The eleven kind buckets are `product`, `component`, `datamodel`, `protocol`,
    `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`, and

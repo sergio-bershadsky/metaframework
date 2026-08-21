@@ -1,7 +1,7 @@
 ---
 name: redemption-events
 kind: protocol
-version: 2
+version: 3
 title: Redemption events
 summary: Event bus carrying burnt coupons and reversals from coupon-service to everything that keeps a running total.
 status: approved

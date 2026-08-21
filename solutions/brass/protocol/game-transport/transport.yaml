@@ -1,49 +1,115 @@
-$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
-kind: websocket
-summary: socket.io on the fixed path /socket.io, namespace /brass; JSON frames, no compression, no delta encoding.
-encoding: json
-auth:
-  - seat-credentials
-websocket:
-  path: /socket.io
-  tls: true
-  channels:
-    - name: sync-request
-      direction: client-to-server
-      summary: >-
-        Wire event "sync" with (matchID, playerID, credentials). Joins the socket
-        to the match room and authenticates the seat. Sent once on connect and
-        again after any reconnect.
+asyncapi: 3.1.0
+id: srn://brass/product/play/component/server
+x-srn: srn://brass/protocol/game-transport
+info:
+  title: Game transport
+  version: unversioned
+  description: socket.io on the fixed path /socket.io, namespace /brass; JSON frames, no compression, no delta encoding.
+defaultContentType: application/json
+servers:
+  game-transport:
+    host: "{host}"
+    protocol: wss                      # was `tls: true` on `kind: websocket`
+    pathname: /socket.io               # was `websocket.path`
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - seat-credentials
+# One channel per mini-spec `websocket.channels[]` entry, not five messages on a
+# single connection channel. The workflows beneath this file name all five of
+# these — and nothing else — as step `channel:` values, and W9 matches a step's
+# `channel` against a channel `address` or channelId. Collapse them and every one
+# of those references points at nothing.
+#
+# `address` is the socket.io event the channel rides. Two pairs share an event
+# and are split by direction, which is why the mini-spec listed five names for
+# three events; index.md tabulates the same mapping. An absent `address` reads as
+# "unknown", which is the one thing these are not.
+channels:
+  sync-request:
+    address: sync
+    summary: >-
+      Wire event "sync" with (matchID, playerID, credentials). Joins the socket
+      to the match room and authenticates the seat. Sent once on connect and
+      again after any reconnect.
+    # No `messages` map: the mini-spec named no payload for this entry either.
 
-    - name: sync-response
-      direction: server-to-client
-      message: /product/play/component/rules/component/engine-core/datamodel/game-state@1
-      summary: >-
-        Wire event "sync" carrying the full syncInfo — state, redacted log, and
-        the match's player metadata. This is the first state a seat ever sees,
-        and it is already filtered by playerView.
+  sync-response:
+    address: sync
+    summary: >-
+      Wire event "sync" carrying the full syncInfo — state, redacted log, and
+      the match's player metadata. This is the first state a seat ever sees,
+      and it is already filtered by playerView.
+    messages:
+      sync-response:
+        x-srn-payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
 
-    - name: move-submit
-      direction: client-to-server
-      message: /datamodel/move-envelope@1
-      summary: >-
-        Wire event "update" with (action, stateID, matchID, playerID). The action
-        is a redux-style envelope whose payload carries the move name, its
-        positional args, the player id and the seat credentials. A stale stateID
-        is dropped silently.
+  move-submit:
+    address: update
+    summary: >-
+      Wire event "update" with (action, stateID, matchID, playerID). The action
+      is a redux-style envelope whose payload carries the move name, its
+      positional args, the player id and the seat credentials. A stale stateID
+      is dropped silently.
+    messages:
+      move-submit:
+        x-srn-payload: /datamodel/move-envelope@1
 
-    - name: state-update
-      direction: server-to-client
-      message: /product/play/component/rules/component/engine-core/datamodel/game-state@1
-      summary: >-
-        Wire event "update" broadcast to every seat in the match after an
-        accepted move. Full state, never a patch — deltaState is not enabled.
-        A rejected move produces no message on this channel at all.
+  state-update:
+    address: update
+    summary: >-
+      Wire event "update" broadcast to every seat in the match after an
+      accepted move. Full state, never a patch — deltaState is not enabled.
+      A rejected move produces no message on this channel at all.
+    messages:
+      state-update:
+        x-srn-payload: /product/play/component/rules/component/engine-core/datamodel/game-state@1
 
-    - name: match-data
-      direction: server-to-client
-      message: /datamodel/match-summary@1
-      summary: >-
-        Wire event "matchData" carrying the framework's per-seat metadata,
-        including isConnected. It is the only presence signal on the wire; the
-        game's own notion of who is seated lives in game state instead.
+  match-data:
+    address: matchData
+    summary: >-
+      Wire event "matchData" carrying the framework's per-seat metadata,
+      including isConnected. It is the only presence signal on the wire; the
+      game's own notion of who is seated lives in game state instead.
+    messages:
+      match-data:
+        x-srn-payload: /datamodel/match-summary@1
+
+# `action` is send/receive relative to one application, so this document is
+# written from the authority's side — the `id` above is the `game-server`
+# participant, resolved absolute. client-to-server therefore reads `receive`
+# and server-to-client reads `send`.
+operations:
+  sync-request:
+    action: receive                    # was `direction: client-to-server`
+    channel:
+      $ref: "#/channels/sync-request"
+
+  sync-response:
+    action: send                       # was `direction: server-to-client`
+    channel:
+      $ref: "#/channels/sync-response"
+    messages:
+      - $ref: "#/channels/sync-response/messages/sync-response"
+
+  move-submit:
+    action: receive                    # was `direction: client-to-server`
+    channel:
+      $ref: "#/channels/move-submit"
+    messages:
+      - $ref: "#/channels/move-submit/messages/move-submit"
+
+  state-update:
+    action: send                       # was `direction: server-to-client`
+    channel:
+      $ref: "#/channels/state-update"
+    messages:
+      - $ref: "#/channels/state-update/messages/state-update"
+
+  match-data:
+    action: send                       # was `direction: server-to-client`
+    channel:
+      $ref: "#/channels/match-data"
+    messages:
+      - $ref: "#/channels/match-data/messages/match-data"

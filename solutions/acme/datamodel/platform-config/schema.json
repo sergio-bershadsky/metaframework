@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/acme/datamodel/platform-config",
+  "x-srn": "srn://acme/datamodel/platform-config",
+  "title": "Platform configuration",
+  "description": "The configuration surface every hosted acme component reads. Extended through allOf; never a contract on its own.",
+  "type": "object",
+  "properties": {
+    "LOG_LEVEL": {
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
+      "default": "info",
+      "description": "Root log level. Required and defaulted: the process always has one, so an environment that declares nothing is complete."
+    }
+  },
+  "required": [
+    "LOG_LEVEL"
+  ]
+}

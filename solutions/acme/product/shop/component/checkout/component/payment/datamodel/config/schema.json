@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/component/payment/datamodel/config",
+  "x-srn": "srn://acme/product/shop/component/checkout/component/payment/datamodel/config",
+  "title": "Payment configuration",
+  "description": "The process environment payment reads: an acquirer credential, a broker address by inheritance, and one kill switch.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/platform-config"
+    },
+    {
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/settlement-bus-config"
+    }
+  ],
+  "properties": {
+    "ACQUIRER_API_KEY": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "description": "Credential for the card acquirer, rotated every 90 days. Secret: rotating it changes nothing in git."
+    },
+    "FEATURE_INSTANT_REFUNDS": {
+      "type": "boolean",
+      "default": false,
+      "description": "Kill switch for instant refunds. Defaulted off, and not required: a switch that must be set is not a kill switch."
+    }
+  },
+  "required": [
+    "ACQUIRER_API_KEY"
+  ]
+}

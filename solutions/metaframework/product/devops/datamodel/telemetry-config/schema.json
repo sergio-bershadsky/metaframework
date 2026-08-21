@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/devops/datamodel/telemetry-config",
+  "x-srn": "srn://metaframework/product/devops/datamodel/telemetry-config",
+  "title": "Telemetry configuration",
+  "description": "The OTEL surface every instrumented process in devops reads. Extended through allOf; never a contract on its own.",
+  "type": "object",
+  "properties": {
+    "OTEL_EXPORTER_OTLP_ENDPOINT": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://[^,\\s]+$",
+      "description": "The collector on the private network. Not required: unset, the exporter drops, which is what keeps signoz criticality 4."
+    },
+    "OTEL_SERVICE_NAME": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Per-process, so a trace can tell the router from the syncer. Inherited rather than written twice, so the two agree."
+    }
+  }
+}

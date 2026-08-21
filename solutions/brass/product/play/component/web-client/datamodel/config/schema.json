@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/web-client/datamodel/config",
+  "x-srn": "srn://brass/product/play/component/web-client/datamodel/config",
+  "title": "Web client configuration",
+  "description": "The process environment the Vite build reads. One key, substituted into the bundle at build time.",
+  "type": "object",
+  "properties": {
+    "VITE_SERVER_URL": {
+      "type": "string",
+      "pattern": "^https?://[^,\\s]+$",
+      "default": "http://localhost:8000",
+      "description": "Where the client opens its socket. Required and defaulted, so an environment that says nothing is complete."
+    }
+  },
+  "required": [
+    "VITE_SERVER_URL"
+  ]
+}

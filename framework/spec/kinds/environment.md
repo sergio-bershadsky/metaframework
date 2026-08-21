@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: environment
-version: 5
+version: 6
 status: review
 title: Kind — Environment
-summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts, their SRN addresses and dialect header, membership derivation, validation, and derived views.
+summary: Contract for environment entities — solution-level placement, the environment-type enum, the topology.yaml and config.yaml artifacts, their SRN addresses and dialect header, membership derivation, the provides-supersets-requires join against a component's usage:config contract, the three layers of a secret, validation, and derived views.
 ---
 
 # Kind: environment
@@ -25,7 +25,9 @@ address:
 1. **Where a component actually runs** — regions, zones, replica ranges — so
    the component graph can be read with deployment reality next to it.
 2. **What configuration the target provides** — key names and their origin,
-   never secret values — so the config surface is reviewable in git.
+   never secret values — so the config surface is reviewable in git, and
+   checkable against what the components hosted here actually require
+   ([below](#the-contract-behind-the-keys)).
 3. **What guarantees the target carries** — is real customer data here, is
    there an SLO, is connectivity assumed — so that a reviewer can tell whether
    a `draft` component has any business being declared there.
@@ -386,6 +388,13 @@ placement view, not an infrastructure manifest. Anything a deployment tool
 needs and this cannot express belongs in that tool's repository, referenced
 from prose.
 
+That minimalism is a decision and not an omission: adopting an industry
+placement format for this role was surveyed and **deferred**, with the criteria
+a candidate would have to meet — and the trigger that reopens the question —
+locked in
+[0016-topology-format-deferred](srn://metaframework/adr/0016-topology-format-deferred),
+so the survey is never re-run from scratch.
+
 ### `config.yaml` — the configuration surface
 
 The convention is one sentence long: **an environment declares which
@@ -404,6 +413,10 @@ config:
     secret: true
     source: vault:kv/acme/production/checkout#database-url
     description: Primary Postgres DSN for the checkout component.
+  - key: PAYMENT_TIMEOUT_MS
+    for: /product/shop/component/checkout
+    value: 8000
+    description: Longer than the contract's default; this acquirer is slower.
   - key: FEATURE_INSTANT_REFUNDS
     for: /product/shop/component/checkout/component/payment
     value: "false"
@@ -414,19 +427,21 @@ Top-level key `config` — a list of entries, REQUIRED if the file exists, and t
 only key of the content model ([the dialect header](#the-dialect-header) sits
 above it):
 
-| Key           | Type                  | Required           | Rule                                                                                      |
-| ------------- | --------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
-| `key`         | `^[A-Z][A-Z0-9_]*$`   | yes                | Environment-variable casing; unique per `(key, for)` pair.                                |
-| `for`         | SRN reference         | no                 | Component or product the key applies to (`E_ENV_TARGET_KIND`). Absent = environment-wide. |
-| `secret`      | boolean               | no (default false) | Marks the value as sensitive.                                                             |
-| `value`       | string                | no                 | The literal value. FORBIDDEN when `secret: true` (`E_ENV_SECRET_VALUE`).                  |
-| `source`      | string                | when `secret`      | A locator for the value — never the value. Free-form but stable.                          |
-| `description` | one-line string ≤ 200 | no                 | What the key controls.                                                                    |
+| Key           | Type                       | Required           | Rule                                                                                                                                     |
+|---------------|----------------------------|--------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`         | `^[A-Z][A-Z0-9_]*$`        | yes                | Environment-variable casing; unique per `(key, for)` pair.                                                                               |
+| `for`         | SRN reference              | no                 | Component or product the key applies to (`E_ENV_TARGET_KIND`). Absent = environment-wide.                                                |
+| `secret`      | boolean                    | no (default false) | Marks the value as sensitive. MUST agree with the contract's `writeOnly:` (`E_ENV_SECRET_MISMATCH`).                                     |
+| `value`       | string, number, or boolean | no                 | The literal value. FORBIDDEN when `secret: true` (`E_ENV_SECRET_VALUE`), and checked against the key's subschema (`E_ENV_CONFIG_VALUE`). |
+| `source`      | string                     | when `secret`      | A locator for the value — never the value. Free-form but stable.                                                                         |
+| `description` | one-line string ≤ 200      | no                 | What the key controls.                                                                                                                   |
 
 Key casing is `SCREAMING_SNAKE_CASE`, not kebab-case, on purpose: config keys
 belong to the runtime's namespace, not to the catalog's. Env-var casing is what
 an operator will copy-paste, and it makes `grep -r DATABASE_URL solutions/`
-unambiguous against SRN segments, which are kebab-case by grammar.
+unambiguous against SRN segments, which are kebab-case by grammar. It is also
+the pattern a component's contract states on its own side, so the two halves
+join by string equality and nothing else ([below](#the-contract-behind-the-keys)).
 
 ```yaml
 - key: database-url                           # E_ENV_CONFIG_SCHEMA — wrong casing
@@ -435,19 +450,191 @@ unambiguous against SRN segments, which are kebab-case by grammar.
   value: hunter2                              # E_ENV_SECRET_VALUE — never, at any status
 - key: API_TOKEN
   secret: true                                # E_ENV_CONFIG_SCHEMA — secret without source
+- key: ALLOWED_ORIGINS
+  value: [a.example, b.example]               # E_ENV_CONFIG_SCHEMA — a key holds one
+                                              # scalar; a list is a delimiter convention
+                                              # the runtime owns, and a contract types it
+                                              # as a string with a pattern
 ```
 
-**Relationship to the component side.** A component declares which environments
-it runs in — a `uses` edge to the environment, and nothing more
-([component.md](component.md)). **v1 has no component-side declaration of
-required configuration keys**, so the most valuable check — a component needs a
-key no environment provides — is not expressible, and this document does not
-invent a component-side field to make it so. Adding one would be an additive
-change to [component.md](component.md), not to this file.
+**`value:` is a scalar, and the scalar's type is now the author's to choose.**
+The field used to be typed `string`, and every value written before this version
+is one: a boolean spelled `"false"`, an integer spelled `"8000"`. It now also
+accepts a native number or boolean. That is a widening of the role's
+meta-schema, so it is additive in the exact sense
+[evolution.md](../evolution.md) means — every file that validated yesterday
+validates today — and it is the *same* dialect at a later version of its
+meta-schema, so the header string does not move and nothing gains a
+`W_ARTIFACT_DIALECT` for not having changed
+([0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) settles
+that an additive dialect change keeps the entity, the URL and the discriminator
+it had).
 
-What *is* checkable is the other direction: a `for:` entry naming a component
-that does not run in this environment is dead configuration, flagged
-`W_ENV_CONFIG_ORPHAN`.
+A `value:` is checked against its key's subschema **as YAML parsed it**, with
+one coercion the format owes its own history: where the contract types a key
+`number`, `integer` or `boolean`, a quoted string is first read in that type's
+ordinary lexical form. So `value: "false"` and `value: false` both satisfy
+`{"type": "boolean"}`, and `value: "8000"` and `value: 8000` both satisfy
+`{"type": "integer"}`. The difference between them is not whether they pass; it
+is that the second one says what it means, which is the whole reason to write
+it.
+
+The coercion is lexical and never semantic. `value: "warn"` against
+`{"type": "integer"}` has no integer reading and is `E_ENV_CONFIG_VALUE`;
+`value: "1"` against `{"type": "boolean"}` is the same, because `1` is not a
+boolean literal and a truthiness table belongs to a runtime's parser, not to a
+catalog's checker.
+
+#### The contract behind the keys
+
+**v1 had no component-side declaration of required configuration keys**, so the
+most valuable check — a component needs a key no environment provides — had no
+operands, and this document declined to invent a component-side field to make it
+so. That refusal stands, and nothing on the component side was invented: what
+supplies the missing half is an ordinary **datamodel entity** in the component's
+own `datamodel/` bucket, carrying `usage: config`
+([datamodel.md](datamodel.md#config-contracts--usage-config)). A component still
+declares exactly one thing about an environment — a `uses` edge — and
+[component.md](component.md) gains no field.
+
+**There is no `schema:` reference field on an entry, and there is deliberately
+not going to be one.** An entry's contract is *derived* from its `for:` target:
+resolve the target, take the one concrete `usage: config` datamodel in that
+container's `datamodel/` bucket, flatten its `allOf` conjunction, and the key's
+subschema is the property of that name. Writing the reference out would restate
+a fact placement already makes — the same double bookkeeping the inverse-edge
+rule refuses everywhere else — and it would let one environment check a
+component against a contract that is not that component's.
+
+Which entries resolve to a contract:
+
+| Entry                                     | Contract consulted                                       |
+| ----------------------------------------- | -------------------------------------------------------- |
+| `for:` a component that has one           | that contract                                            |
+| `for:` a component that has none          | none — nothing to check against, and no diagnostic       |
+| `for:` a product                          | the contract of each component beneath it that has one   |
+| no `for:` — environment-wide              | every hosted component's contract that declares this key |
+
+The last row is what makes an environment-wide entry checkable at all. It names
+no target, so there is no single contract to consult — but a key several hosted
+contracts declare is checked against each of them, and a disagreement with any
+one of them is the diagnostic. An environment-wide key that *no* contract
+declares is not a finding: a platform key no modelled component reads is the
+ordinary reason an entry has no `for:`.
+
+**`W_ENV_CONFIG_MISSING` — provides ⊇ requires.** This is the check the kind has
+been missing since v1, and the reason the contract exists. For every component
+hosted here — membership is still authored on the component side and this
+changes nothing about that ([above](#membership-who-runs-here)) — take its
+contract's **must-provide set**: `required` minus every key that carries a
+`default`. Every key in that set MUST be declared by this file, by an entry
+whose scope covers the component: `for:` naming it, `for:` naming a container
+above it, or no `for:` at all. A key that is not is `W_ENV_CONFIG_MISSING`.
+
+```yaml
+# checkout's contract:  required [LOG_LEVEL, DATABASE_URL]
+#                       LOG_LEVEL has a default; DATABASE_URL does not
+#                    →  must-provide = { DATABASE_URL }
+
+config:
+  - key: LOG_LEVEL
+    value: warn          # fine — and omitting the entry entirely would be fine
+                         # too, because the component supplies its own default
+
+# W_ENV_CONFIG_MISSING, raised on this environment: DATABASE_URL is required,
+# carries no default, and no entry above declares it for checkout. The finding
+# is an absence, so it has no line of its own to sit on.
+```
+
+It is a warning and not an error, on the same grounds as
+`W_ENV_HOST_UNDECLARED`: a component may declare an environment a commit or two
+before that environment's configuration lands, and a rollout that has to be
+committed atomically is a rollout nobody can review. It is nevertheless the most
+valuable line this document causes to be printed, because the failure it
+describes is a process that will not start.
+
+**`W_ENV_CONFIG_UNDECLARED` — a key the contract does not know.** The other
+direction, and `for:`-scoped only: an entry naming a target whose contract has
+no such property. The usual cause is a key renamed or dropped in the component
+and left behind here.
+
+```yaml
+- key: DATABASE_URI
+  for: /product/shop/component/checkout   # W_ENV_CONFIG_UNDECLARED — the contract
+                                          # says DATABASE_URL; this is the rename
+                                          # that only half happened
+```
+
+A warning, because a contract states what a component *needs* and never that
+nothing else may be set ([datamodel.md](datamodel.md#config-contracts--usage-config)):
+a process inherits its runtime's whole environment, and an extra key is
+sometimes a genuine platform key that happens to be scoped.
+
+**`E_ENV_CONFIG_VALUE` — the value is wrong.** A declared `value:` that fails
+its key's subschema is an error, not a warning. The two warnings above each have
+a benign transient reading — a rollout in progress, a contract that has not
+caught up — and this one has none: there is no commit order under which
+`verbose` becomes a legal log level.
+
+```yaml
+# LOG_LEVEL's subschema: { "enum": ["debug", "info", "warn", "error"] }
+- key: LOG_LEVEL
+  value: verbose                          # E_ENV_CONFIG_VALUE
+```
+
+**`E_ENV_SECRET_MISMATCH` — the two sides disagree about what is a secret.**
+Both directions are errors, for the reason a disagreement of this particular
+kind has no benign transient state: one of the two files is wrong *now*, and the
+cost of assuming the more relaxed reading is a credential in a public
+repository. The second example is the one that matters.
+
+```yaml
+- key: PAYMENT_TIMEOUT_MS
+  for: /product/shop/component/checkout
+  secret: true
+  source: vault:kv/acme/production/checkout#timeout
+                                          # E_ENV_SECRET_MISMATCH — the contract
+                                          # does not mark this key writeOnly;
+                                          # hiding a timeout in a vault is not
+                                          # security, it is an outage nobody can
+                                          # debug
+- key: DATABASE_URL
+  for: /product/shop/component/checkout
+  value: postgres://checkout:hunter2@db/checkout
+                                          # E_ENV_SECRET_MISMATCH — the contract
+                                          # marks this key writeOnly, and omitting
+                                          # `secret: true` is exactly how a
+                                          # credential would otherwise slip past
+                                          # ENV8
+```
+
+#### Secrets, in three layers
+
+The three-layer rule was always the intent; the contract is what finally gives
+the first layer somewhere to live.
+
+| Layer           | Lives in                                        | Stated as                                            |
+|-----------------|-------------------------------------------------|------------------------------------------------------|
+| **Contract**    | git — the component's `usage: config` datamodel | the property, plus `writeOnly: true`                 |
+| **Declaration** | git — this file                                 | `key:`, `secret: true`, and a `source:` locator      |
+| **Value**       | a vault, or the deploy that injects it          | nowhere in the catalog, at any status, in any target |
+
+ENV8 (`E_ENV_SECRET_VALUE`) is unchanged and still absolute: an entry marked
+`secret: true` MUST NOT carry a `value:`, at any status, in any environment,
+because this file is reviewable in git and everything in it is public.
+
+What the contract adds is the opinion ENV8 could never have. ENV8 can only
+refuse a value on an entry that *admits* to being secret, so the way to put a
+credential in a public repository was to leave `secret: true` off — a rule that
+holds by author discipline is a rule that holds until the day somebody is in a
+hurry. `writeOnly:` is a second, independent statement of the same fact, written
+by the component's own author in the component's own bucket, and
+`E_ENV_SECRET_MISMATCH` is what turns disagreeing with it into an error rather
+than a preference. Three layers, and the only one worth stealing is the one that
+is not in the repository.
+
+**Orphans and removals.** A `for:` entry naming a component that does not run in
+this environment is dead configuration, flagged `W_ENV_CONFIG_ORPHAN`:
 
 ```yaml
 config:
@@ -457,9 +644,15 @@ config:
                                              # environment
 ```
 
-Removing a key is therefore a **review-time** responsibility: no build check
-will catch a component left reading a value that vanished. Land the component
-change first and the `config.yaml` change second.
+Removing a key used to be a **review-time** responsibility in both directions,
+because no build check could see either half. Where a contract exists, both
+halves are now visible: removing a key here that a component still requires is
+`W_ENV_CONFIG_MISSING`, and removing it from the contract while it lingers here
+is `W_ENV_CONFIG_UNDECLARED`. The ordering advice does not change — land the
+component change first and the `config.yaml` change second — but it is now a
+warning that says so rather than a habit. Where no contract exists, the old
+answer still stands unchanged: nothing will catch it, and review is the only
+gate.
 
 ## Worked example
 
@@ -523,9 +716,17 @@ and the configuration keys it provides**. Per
 - Removing a config key or a host entry is a **reduction** of the declared
   surface and is legal only once nothing depends on it.
   `W_ENV_HOST_UNDECLARED` and `W_ENV_CONFIG_ORPHAN` catch the environment-side
-  half of that; the component-side half — a component still reading a key that
-  vanished — is not machine-checkable in v1 (see above). Land the component
-  change first, the environment change second.
+  half of that. The component-side half — a component still reading a key that
+  vanished — is now checkable wherever that component publishes a config
+  contract (`W_ENV_CONFIG_MISSING`,
+  [above](#the-contract-behind-the-keys)) and remains unchecked where it does
+  not. Land the component change first, the environment change second, in
+  either case.
+- Changing a declared `value:` from a quoted string to the native scalar it
+  always meant — `"8000"` → `8000` — is a content change and bumps `version`,
+  like every other edit to a sibling. It is not a dialect change: the header
+  string does not move, and both spellings satisfy the same contract
+  ([above](#configyaml--the-configuration-surface)).
 
 ## Validation rules
 
@@ -542,11 +743,17 @@ and the configuration keys it provides**. Per
 | ENV9  | Every host entry names a component that declares this environment.                  | `W_ENV_HOST_UNDECLARED`                |
 | ENV10 | Every `for:` target of a config entry declares this environment.                    | `W_ENV_CONFIG_ORPHAN`                  |
 | ENV11 | No `component:` or `for:` reference carries an artifact suffix.                     | `E_SRN_ARTIFACT` / `E_ENV_TARGET_KIND` |
+| ENV12 | Every declared `value:` satisfies its key's subschema in the resolved contract.     | `E_ENV_CONFIG_VALUE`                   |
+| ENV13 | Every entry's `secret:` agrees with the contract's `writeOnly:` for that key.       | `E_ENV_SECRET_MISMATCH`                |
+| ENV14 | Every must-provide key of every hosted component's contract is declared here.       | `W_ENV_CONFIG_MISSING`                 |
+| ENV15 | Every `for:`-scoped key is a property of that target's contract.                    | `W_ENV_CONFIG_UNDECLARED`              |
 
-ENV1–ENV8 and ENV11 are checkable from the entity alone; ENV9–ENV10 need the
-resolved catalog. Common SRN rules (syntax, dangling targets, cross-solution
-sealing) apply to both artifacts unchanged — an unknown role or a suffix on a
-kind with no roles is `E_SRN_ARTIFACT` before ENV11 is ever reached
+ENV1–ENV8 and ENV11 are checkable from the entity alone; ENV9–ENV10 and
+ENV12–ENV15 need the resolved catalog — the last four because a contract is a
+datamodel entity in another container's bucket, and none of them fires at all
+where that entity does not exist. Common SRN rules (syntax, dangling targets,
+cross-solution sealing) apply to both artifacts unchanged — an unknown role or a
+suffix on a kind with no roles is `E_SRN_ARTIFACT` before ENV11 is ever reached
 ([srn.md](../srn.md)).
 
 ENV4 and ENV5 judge the **content model** of their artifact, and the `$schema`
@@ -573,19 +780,33 @@ anything to say about it.
   `local → dev → staging → production`, with `edge` rendered as a parallel
   track rather than a rung.
 - **Config surface table** per component — every key that any environment
-  provides for it, side by side across environments, secrets masked.
+  provides for it, side by side across environments, secrets masked; where the
+  component publishes a config contract, the same table gains the contract's
+  own rows, so a key it requires and nobody provides is a visibly empty cell
+  rather than a warning somebody has to go looking for.
 
 ## Environment error classes
 
-| Code                    | Meaning                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `E_ENV_TOPOLOGY_SCHEMA` | `topology.yaml` fails its schema (shape, types, `min > max`, unknown non-`x-` key).                                 |
-| `E_ENV_CONFIG_SCHEMA`   | `config.yaml` fails its schema (key casing, duplicate `(key, for)`, secret without `source`, unknown non-`x-` key). |
-| `E_ENV_TARGET_KIND`     | An SRN in `topology.yaml` or `config.yaml` resolves to something other than a component or product.                 |
-| `E_ENV_REGION_UNKNOWN`  | A host entry names a region not declared in the file's `regions` list.                                              |
-| `E_ENV_SECRET_VALUE`    | A config entry marked `secret: true` carries a literal `value`.                                                     |
-| `W_ENV_HOST_UNDECLARED` | Host entry for a component that does not declare this environment.                                                  |
-| `W_ENV_CONFIG_ORPHAN`   | Config entry scoped `for:` a component that does not run in this environment.                                       |
+| Code                      | Meaning                                                                                                             |
+|---------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `E_ENV_TOPOLOGY_SCHEMA`   | `topology.yaml` fails its schema (shape, types, `min > max`, unknown non-`x-` key).                                 |
+| `E_ENV_CONFIG_SCHEMA`     | `config.yaml` fails its schema (key casing, duplicate `(key, for)`, secret without `source`, unknown non-`x-` key). |
+| `E_ENV_TARGET_KIND`       | An SRN in `topology.yaml` or `config.yaml` resolves to something other than a component or product.                 |
+| `E_ENV_REGION_UNKNOWN`    | A host entry names a region not declared in the file's `regions` list.                                              |
+| `E_ENV_SECRET_VALUE`      | A config entry marked `secret: true` carries a literal `value`.                                                     |
+| `E_ENV_CONFIG_VALUE`      | A declared `value:` fails its key's subschema in the target's config contract.                                      |
+| `E_ENV_SECRET_MISMATCH`   | An entry's `secret:` disagrees with the contract's `writeOnly:` for that key, in either direction.                  |
+| `W_ENV_HOST_UNDECLARED`   | Host entry for a component that does not declare this environment.                                                  |
+| `W_ENV_CONFIG_ORPHAN`     | Config entry scoped `for:` a component that does not run in this environment.                                       |
+| `W_ENV_CONFIG_MISSING`    | A hosted component requires a key — `required`, no `default` — that this environment does not declare.              |
+| `W_ENV_CONFIG_UNDECLARED` | A `for:`-scoped key that the target's config contract does not declare.                                             |
+
+The last four are the config-contract join, and all four are silent on a
+component that publishes no contract — a missing contract is a gap in the
+catalog, not a defect in this file, and reporting it here would put the finding
+on the wrong entity. The contract side of the join, and the discipline a
+`usage: config` datamodel obeys, are in
+[datamodel.md](datamodel.md#config-contracts--usage-config).
 
 Placement and frontmatter errors reuse `E_SRN_PLACEMENT` ([srn.md](../srn.md))
 and `E_FM_SCHEMA` / `E_FM_UNKNOWN_FIELD` ([frontmatter.md](../frontmatter.md)).

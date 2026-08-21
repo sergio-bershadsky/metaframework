@@ -75,15 +75,15 @@ inventory **and** the frame that judges it — a product nobody can attach to a
 capability is a deliverable with no stated purpose, and that is worth finding in
 the interview rather than two quarters later.
 
-| Ask                                                                | Decides                                        |
-|--------------------------------------------------------------------|------------------------------------------------|
-| What can the business *do* that it would still do after a total rewrite on a different stack? | capabilities (solution level) |
+| Ask                                                                                               | Decides                                          |
+|---------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| What can the business *do* that it would still do after a total rewrite on a different stack?     | capabilities (solution level)                    |
 | Say each one as a sentence starting with a verb. Whose words are those — yours, or engineering's? | capability `title` vs a service name in disguise |
-| Which of those does *this* solution carry, and which are somebody else's? | capabilities in scope, and `scope.out`       |
-| What path does each actor take, first contact to outcome?          | journeys (solution level), one per outcome     |
-| Where does that path leave one team's territory and enter another's? | the crossings a journey must document          |
-| How would you know each capability is going well — one number?     | metrics, and the `measures` edge on each       |
-| Is that number a floor or a ceiling, and over what period?         | `direction` and `window`                       |
+| Which of those does *this* solution carry, and which are somebody else's?                         | capabilities in scope, and `scope.out`           |
+| What path does each actor take, first contact to outcome?                                         | journeys (solution level), one per outcome       |
+| Where does that path leave one team's territory and enter another's?                              | the crossings a journey must document            |
+| How would you know each capability is going well — one number?                                    | metrics, and the `measures` edge on each         |
+| Is that number a floor or a ceiling, and over what period?                                        | `direction` and `window`                         |
 
 A capability answer that changes when you imagine replacing every system behind
 it was a description of the implementation: it is a component or a product, and
@@ -92,26 +92,27 @@ quietly a list of services.
 
 #### 1b — The build
 
-| Ask                                                        | Decides                                      |
-|------------------------------------------------------------|----------------------------------------------|
-| What do you ship, and who gets paged when it breaks?       | products, and `owner` on each                |
-| Which capability does each of those let the business do?   | `realizes` edges — and the gaps in both directions |
-| What has its own roadmap, funding, or release cadence?     | product vs component                         |
-| What could be deployed, released, or replaced on its own?  | components                                   |
-| What always changes in the same commit as something else?  | components to merge                          |
-| What runs *inside* another process rather than beside it?  | `component-type: library`                    |
-| What holds state / fronts others / has no inbound surface? | `datastore` / `gateway` / `job`              |
-| Is each of those built, being built, or only agreed?       | `lifecycle` on every component               |
-| What talks to what, and across which ownership boundary?   | protocols, and where they sit                |
-| Which of those crossings is a contract you would version?  | protocol vs a plain `depends-on` edge        |
-| Walk me through the journey again, naming the actual components this time | `touches` per journey step, in order |
-| At each hand-off — is there a conversation, or does the human carry it? | `protocol:` on the step, or `protocol: none` |
-| Which nouns appear in more than one part of the system?    | datamodels, and how far up they get promoted |
-| Is that noun stored, exchanged, or both?                   | `usage`                                      |
-| Who or what starts work from outside the system?           | actors (solution level)                      |
-| Where does it run?                                         | environments (solution level)                |
-| What must hold true regardless of how it is built?         | requirements                                 |
-| What did you decide that you would have to defend later?   | ADRs                                         |
+| Ask                                                                       | Decides                                            |
+|---------------------------------------------------------------------------|----------------------------------------------------|
+| What do you ship, and who gets paged when it breaks?                      | products, and `owner` on each                      |
+| Which capability does each of those let the business do?                  | `realizes` edges — and the gaps in both directions |
+| What has its own roadmap, funding, or release cadence?                    | product vs component                               |
+| What could be deployed, released, or replaced on its own?                 | components                                         |
+| What always changes in the same commit as something else?                 | components to merge                                |
+| What runs *inside* another process rather than beside it?                 | `component-type: library`                          |
+| What holds state / fronts others / has no inbound surface?                | `datastore` / `gateway` / `job`                    |
+| Is each of those built, being built, or only agreed?                      | `lifecycle` on every component                     |
+| What talks to what, and across which ownership boundary?                  | protocols, and where they sit                      |
+| Which of those crossings is a contract you would version?                 | protocol vs a plain `depends-on` edge              |
+| Walk me through the journey again, naming the actual components this time | `touches` per journey step, in order               |
+| At each hand-off — is there a conversation, or does the human carry it?   | `protocol:` on the step, or `protocol: none`       |
+| Which nouns appear in more than one part of the system?                   | datamodels, and how far up they get promoted       |
+| Is that noun stored, exchanged, both — or read as configuration?          | `usage` — `config` is the fourth value             |
+| What does each component read out of its environment to start?            | a `usage: config` contract in its own `datamodel/` |
+| Who or what starts work from outside the system?                          | actors (solution level)                            |
+| Where does it run?                                                        | environments (solution level)                      |
+| What must hold true regardless of how it is built?                        | requirements                                       |
+| What did you decide that you would have to defend later?                  | ADRs                                               |
 
 Ask for the vision and scope in the user's own sentences. Inventing a vision
 produces a catalog nobody recognises.
@@ -195,8 +196,8 @@ anywhere in the repository, and a catalog-only repository is checked exactly
 like the framework's own. Override with `--dir <path>` or `CATALOG_DIR=<path>`.
 
 Output is one entry per diagnostic — severity, code, catalog-relative path, then
-the message — closing with a line like
-`0 errors, 6 warnings — 324 entities across 3 solutions.` Zero errors is the
+the message — closing with a line of the form
+`<n> errors, <n> warnings — <n> entities across <n> solutions.` Zero errors is the
 pass condition, and the non-zero exit on any error makes this same command the
 CI gate.
 

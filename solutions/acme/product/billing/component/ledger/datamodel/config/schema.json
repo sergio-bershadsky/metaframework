@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/acme/product/billing/component/ledger/datamodel/config",
+  "x-srn": "srn://acme/product/billing/component/ledger/datamodel/config",
+  "title": "Ledger configuration",
+  "description": "The process environment the double-entry ledger reads. Both required keys are defaultless on purpose.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/platform-config"
+    },
+    {
+      "$ref": "https://schemas.metaframework.dev/acme/datamodel/settlement-bus-config"
+    }
+  ],
+  "properties": {
+    "LEDGER_DSN": {
+      "type": "string",
+      "pattern": "^postgres(ql)?://",
+      "writeOnly": true,
+      "description": "Postgres DSN of the double-entry ledger. Secret, and defaultless: a default writes correct rows into the wrong book."
+    }
+  },
+  "required": [
+    "LEDGER_DSN"
+  ]
+}

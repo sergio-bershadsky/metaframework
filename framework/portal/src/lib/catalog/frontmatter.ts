@@ -203,7 +203,15 @@ export const KIND_FRONTMATTER = {
   }),
 
   datamodel: z.object({
-    usage: z.enum(['storage', 'exchange', 'both']),
+    // ADOPTION order again, and the fourth value is the whole config lane:
+    // `config` marks a model whose instance is *one process environment* — a
+    // flat map of SCREAMING_SNAKE keys to scalars — rather than a record that is
+    // stored or a message that is exchanged. It is the discriminator the
+    // component↔contract link is made of, because placement alone cannot say
+    // which of a bucket's models is the one an environment must satisfy
+    // (kinds/datamodel.md, "Config contracts — usage: config"). Additive: every
+    // model that validated under the first three still does.
+    usage: z.enum(['storage', 'exchange', 'both', 'config']),
     abstract: z.boolean().optional(),
   }),
 

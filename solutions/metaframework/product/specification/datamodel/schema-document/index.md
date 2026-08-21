@@ -1,7 +1,7 @@
 ---
 name: schema-document
 kind: datamodel
-version: 1
+version: 2
 title: Schema document
 summary: The schema.json profile — 2020-12, a canonical $id, a required x-srn, four forbidden keywords, and cross-entity refs as absolute URLs.
 status: review
@@ -16,10 +16,14 @@ tags:
 
 Every datamodel entity in every catalog owns exactly one `schema.json`, and this
 is the profile it must satisfy. Specified in `framework/spec/kinds/datamodel.md`
-(version 5, 1,220 lines — the longest document in the spec); validated by
-`framework/portal/src/lib/schema/registry.ts` (1,403 lines). Measured 2026-08-19
-across `solutions/acme` and `solutions/brass`, before this solution was authored:
-61 instances.
+(version 9, 1,658 lines — the second-longest document in the spec, behind
+`protocol.md` and ahead of `srn.md`); validated by
+`framework/portal/src/lib/schema/registry.ts` (1,415 lines). Measured 2026-08-21
+with `find solutions -name schema.json`: **82 instances** — 36 in
+`solutions/acme`, 33 in `solutions/brass`, 13 in this solution. The count was 61
+across two solutions on 2026-08-19; the growth is this solution being authored
+and the arrival of `usage: config` contracts, which are ordinary datamodels
+obeying this profile and one extra discipline of their own.
 
 `usage: exchange` and not `both`, because these documents are literally served
 over HTTP to consumers outside the repository —
@@ -99,7 +103,7 @@ break additivity.
 **`https://schemas.metaframework.dev` resolves nowhere.** It is a constant at
 `framework/portal/src/lib/schema/url.ts:46`, mirrored at
 `scripts/migrate_schema_ids.py:45`, and there is no DNS, hosting or redirect
-configuration for it anywhere in this repository. Every one of the 61 `$id`
+configuration for it anywhere in this repository. Every one of the 82 `$id`
 values in the catalog names a host that answers nothing. That is the intended
 design — identity is not a retrieval address — but it means an outside consumer
 needs one line of resolver configuration before any of this dereferences, and no

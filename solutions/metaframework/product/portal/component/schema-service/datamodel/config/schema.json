@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/portal/component/schema-service/datamodel/config",
+  "x-srn": "srn://metaframework/product/portal/component/schema-service/datamodel/config",
+  "title": "Schema service configuration",
+  "description": "The process environment the /schemas route reads. One key, and it selects a Cache-Control rather than an identity.",
+  "type": "object",
+  "properties": {
+    "NODE_ENV": {
+      "enum": [
+        "development",
+        "production",
+        "test"
+      ],
+      "default": "development",
+      "description": "Selects no-store against max-age=300 on every /schemas response. Required and defaulted: the runtime supplies one."
+    }
+  },
+  "required": [
+    "NODE_ENV"
+  ]
+}

@@ -41,8 +41,8 @@ entity whose files changed since `<ref>` must have bumped its `version`
 
 Report, in this order:
 
-1. **Pass or fail**, and the summary line verbatim — e.g.
-   `0 errors, 6 warnings — 324 entities across 3 solutions.`
+1. **Pass or fail**, and the summary line verbatim — it has the form
+   `<n> errors, <n> warnings — <n> entities across <n> solutions.`
 2. **Every diagnostic**: its code, the file it names (prefix the path with
    `solutions/` — the check prints it catalog-relative), and the fix.
 3. **What was not covered.** A green run proves the tree *loads* — and, since

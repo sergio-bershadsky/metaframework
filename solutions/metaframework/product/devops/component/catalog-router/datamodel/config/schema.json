@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/devops/component/catalog-router/datamodel/config",
+  "x-srn": "srn://metaframework/product/devops/component/catalog-router/datamodel/config",
+  "title": "Catalog router configuration",
+  "description": "The process environment the edge reads: the session signing key and the identity half of the GitHub App.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/metaframework/product/devops/datamodel/telemetry-config"
+    }
+  ],
+  "properties": {
+    "HUB_SESSION_SECRET": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "description": "Secret. Signs the session cookie; sessions are in memory, so there is nothing to fall back to when it is unset."
+    },
+    "GITHUB_APP_CLIENT_ID": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Public half of the user-to-server sign-in flow. Not required: unset, the GitHub path is unavailable and the local mount works."
+    },
+    "GITHUB_APP_CLIENT_SECRET": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "description": "Secret. Identity flow only and grants no repository access, which is not a reason to let it be read back out of git."
+    }
+  },
+  "required": [
+    "HUB_SESSION_SECRET"
+  ]
+}

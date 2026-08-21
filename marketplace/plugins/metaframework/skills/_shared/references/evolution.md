@@ -1,6 +1,6 @@
 # Evolution — additive-only change, the swap, git-backed history
 
-> Distilled from `framework/spec/evolution.md` (version 8), with the
+> Distilled from `framework/spec/evolution.md` (version 9), with the
 > schema-specific rules in `framework/spec/kinds/datamodel.md`. **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
@@ -170,13 +170,15 @@ the `c2` snapshot, approved status included. `order@5` → `E_SRN_VERSION`.
 
 Every addressable sibling artifact declares, in its own bytes, the grammar it is
 written in — a top-level `$schema:` holding a framework meta-schema URL, or the
-format's own native key where it has one (`openapi:`, and a `schema.json`'s own
-2020-12 `$schema`). Which key belongs to which role, the exact URL per role, the
-one role that declares none (`examples/<name>.json`), the two message forms of
-`W_ARTIFACT_DIALECT`, and the loader that records the dialect and removes the
-framework-owned key before any validator sees the document are all in
-`structure.md` in this directory. What belongs here is what a dialect does to the
-version number, and to the history that number indexes.
+format's own native key where it has one (`openapi:`, `asyncapi:` on a
+`transport.yaml` written in the AsyncAPI dialect that role admits beside the
+mini-spec, and a `schema.json`'s own 2020-12 `$schema`). Which key belongs to
+which role, which role has **two** and how a `transport.yaml` chooses, the exact
+URL per role, the one role that declares none (`examples/<name>.json`), the two
+message forms of `W_ARTIFACT_DIALECT`, and the loader that records the dialect
+and removes the framework-owned key before any validator sees the document are
+all in `structure.md` in this directory. What belongs here is what a dialect does
+to the version number, and to the history that number indexes.
 
 **A dialect is not a version.** `$schema:` names the grammar, never a revision of
 the document: it holds the canonical URL of a meta-schema *entity*, whose own
@@ -210,6 +212,14 @@ its own URL and a `supersedes` edge. After a swap both URLs are recognised — t
 is what "beside" means concretely — and files migrate one at a time, each bumping
 its own entity, exactly as referrers migrate one at a time after any other swap.
 
+A **second dialect from a foreign standard** is a third shape, and the
+`transport` role is the one that has it: AsyncAPI 3.x is recognised under the
+same filename beside the mini-spec, with no `supersedes` edge either way, because
+neither replaces the other. Which of the two a file may use is its *wire's*
+ruling — `kafka`, `websocket` and `amqp` may use either; `http`, `grpc` and
+`in-process` have the mini-spec only (`protocols.md`) — so no mini-spec file is
+owed a migration and none is stale for being one.
+
 **The old dialect is warned, never broken.** An artifact with no recognisable
 discriminator is read as the **legacy dialect** — the format the kind document
 defines today — and raises `W_ARTIFACT_DIALECT` on the entity that owns the file.
@@ -226,31 +236,35 @@ header — `E_DM_DIALECT`, already an error on a `schema.json` that declares no
 dialect, is the shape it would take.
 
 **A migration is judged on the contract surface, not on the bytes.** A file
-rewritten out of the legacy grammar into a successor dialect changes almost every
-line, and the additive-only principle does not count lines — it asks what a
-referrer could depend on, which for a protocol is the operations, messages and
-states:
+rewritten out of one dialect of its role into another changes almost every line,
+and the additive-only principle does not count lines — it asks what a referrer
+could depend on, which for a protocol is the operations, messages and states.
+`solutions/acme/protocol/settlement/transport.yaml` is the real case — three
+Kafka topics in the mini-spec at v3, cut to the keys that make the point:
 
 ```yaml
-# transport.yaml at v4 — the legacy dialect
-kind: http
-http:
-  base-path: /api/v1/orders
-  operations:
-    - name: create-order
-      method: POST
-      path: /
-    - name: cancel-order
-      method: DELETE
-      path: /{order-id}
+# solutions/acme/protocol/settlement/transport.yaml at v3 — the mini-spec dialect
+kind: kafka
+encoding: avro
+kafka:
+  cluster: acme-settlement
+  topics:
+    - name: acme.settlement.order-paid.v1
+      message: /product/shop/component/checkout/component/payment/datamodel/order@3
+    - name: acme.settlement.ledger-entry-posted.v1
+      message: /product/billing/datamodel/ledger-entry@1
+    - name: acme.settlement.reconciliation-report.v1
 ```
 
-A v5 that writes those same two operations under a successor dialect's keys is
-legal, however little of the old text survives: the wire contract is unchanged
-and only the grammar moved. A v5 carrying `create-order` alone is not a dialect
-migration at all — it is the removal of an operation, ILLEGAL at any version
-number, and it takes the swap like every other reduction. The discriminator makes
-the question decidable; it never answers it.
+A v4 carrying those same three topics, with the same names and payload
+references, under the other dialect's keys is legal however little of the old
+text survives: the wire contract is unchanged and only the grammar moved — and
+that is what v4 on disk is. A v4 carrying two of the three is not a dialect
+migration at all — it is the removal of a topic, ILLEGAL at any version number,
+and it takes the swap like every other reduction. The discriminator makes the
+question decidable; it never answers it. Note which file this had to be: `kafka`
+admits the other dialect, and an `http`, `grpc` or `in-process` transport has
+nothing to migrate *into* (`protocols.md`).
 
 **Only the repair trips `E_VER_UNBUMPED`.** The two checks ask different
 questions: `W_ARTIFACT_DIALECT` asks whether a file says which grammar it is in,

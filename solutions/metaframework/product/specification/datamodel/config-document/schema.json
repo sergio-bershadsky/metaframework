@@ -3,13 +3,13 @@
   "$id": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document",
   "x-srn": "srn://metaframework/product/specification/datamodel/config-document",
   "title": "Config document",
-  "description": "config.yaml — the configuration surface an environment provides: which keys it declares and where their values come from. It never carries a secret value. Specified in framework/spec/kinds/environment.md; no portal code parses it.",
+  "description": "config.yaml — the configuration surface an environment provides: which keys it declares and where their values come from. It never carries a secret value. Specified in framework/spec/kinds/environment.md and read by framework/portal/src/lib/environment/environment.ts, which is the executable copy of the same rules.",
   "type": "object",
   "properties": {
     "$schema": {
       "type": "string",
       "minLength": 1,
-      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key once it has recorded the dialect, so nothing downstream ever sees it — including on the day something finally parses this file."
+      "description": "The dialect discriminator (0015-artifact-dialects); the canonical value is this schema's own $id. Deliberately unpinned rather than const: a value naming some other dialect is W_ARTIFACT_DIALECT, a warning, read as the legacy dialect and never broken — a const here would restate that ruling as a hard rejection in the one place a severity cannot be relaxed. The loader strips the key once it has recorded the dialect, so nothing downstream ever sees it — and the reader that now parses this file inherited that guarantee without having to know about it, which is what the stripping was for."
     },
     "config": {
       "type": "array",
@@ -44,8 +44,8 @@
           "description": "Marks the value as sensitive. It is the discriminator between the two shapes an entry may take, and the only field here that changes which other fields are legal."
         },
         "value": {
-          "type": "string",
-          "description": "The literal value, for a key that has one in the open. FORBIDDEN when secret is true (E_ENV_SECRET_VALUE) — at any status, in any environment, because this file is reviewable in git and anything in it is public."
+          "type": ["string", "number", "boolean"],
+          "description": "One scalar: the literal value, for a key that has one in the open. FORBIDDEN when secret is true (E_ENV_SECRET_VALUE) — at any status, in any environment, because this file is reviewable in git and anything in it is public. The field was typed `string` alone until environment.md v6 widened it to any scalar, which is additive in the sense evolution.md means: every document that validated against the narrower type still validates, so the dialect, its URL and its discriminator string are unchanged and only this meta-schema's own version moves. A list is not a scalar and is not admitted — that is a delimiter convention the runtime owns, and a contract types it as a string with a pattern. The value is checked against the key's own subschema in the component's usage:config contract (E_ENV_CONFIG_VALUE), which is where a type narrower than this one is stated."
         },
         "source": {
           "type": "string",

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/agent-play/component/mcp-server/datamodel/config",
+  "x-srn": "srn://brass/product/agent-play/component/mcp-server/datamodel/config",
+  "title": "MCP server configuration",
+  "description": "The process environment the MCP adapter reads. One key, and no fallback is documented for it anywhere.",
+  "type": "object",
+  "properties": {
+    "BRASS_SERVER_URL": {
+      "type": "string",
+      "pattern": "^https?://[^,\\s]+$",
+      "description": "Game server the MCP session joins. Required and defaultless: no page claims the adapter falls back to a local address."
+    }
+  },
+  "required": [
+    "BRASS_SERVER_URL"
+  ]
+}

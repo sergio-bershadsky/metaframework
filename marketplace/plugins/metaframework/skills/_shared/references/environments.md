@@ -1,9 +1,9 @@
 # Environments — and the artifact-free kinds (actor, ADR, requirement)
 
-> Distilled from `framework/spec/kinds/environment.md` (version 5), with the
-> field and body detail of `framework/spec/kinds/actor.md` (2),
-> `framework/spec/kinds/adr.md` (2) and `framework/spec/kinds/requirement.md`
-> (2). **When `framework/spec/` is present in the repository, it is
+> Distilled from `framework/spec/kinds/environment.md` (version 6), with the
+> field and body detail of `framework/spec/kinds/actor.md` (4),
+> `framework/spec/kinds/adr.md` (3) and `framework/spec/kinds/requirement.md`
+> (3). **When `framework/spec/` is present in the repository, it is
 > authoritative and wins over this file.** This bundled copy exists because an
 > installed plugin cannot see the repo spec.
 >
@@ -46,13 +46,13 @@ Names are free kebab-case and SHOULD name the **place**, not its class:
 
 ## `environment-type` — the closed enum
 
-| Value        | What a component may assume about the target                                                                        | Typical names                 |
-|--------------|----------------------------------------------------------------------------------------------------------------------|-------------------------------|
-| `local`      | One developer's machine. No shared state, no SLO, no data of record, ephemeral. Anyone may break it at any moment.   | `local`                       |
-| `dev`        | Shared and integrated, disposable, synthetic data only. Components may be `draft` here.                             | `dev`, `integration`          |
-| `staging`    | Production-shaped: same topology, same protocol versions, non-production data. The last gate before real users.      | `staging`, `uat`, `perf`      |
-| `production` | Real data, real users, real SLOs. Deprecation windows and migration order are binding here.                          | `production`, `eu-production` |
-| `edge`       | Production-grade obligations, but geographically distributed and only intermittently connected to the core.         | `store-edge`, `vehicle-fleet` |
+| Value        | What a component may assume about the target                                                                       | Typical names                 |
+|--------------|--------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| `local`      | One developer's machine. No shared state, no SLO, no data of record, ephemeral. Anyone may break it at any moment. | `local`                       |
+| `dev`        | Shared and integrated, disposable, synthetic data only. Components may be `draft` here.                            | `dev`, `integration`          |
+| `staging`    | Production-shaped: same topology, same protocol versions, non-production data. The last gate before real users.    | `staging`, `uat`, `perf`      |
+| `production` | Real data, real users, real SLOs. Deprecation windows and migration order are binding here.                        | `production`, `eu-production` |
+| `edge`       | Production-grade obligations, but geographically distributed and only intermittently connected to the core.        | `store-edge`, `vehicle-fleet` |
 
 ```yaml
 environment-type: production
@@ -106,10 +106,10 @@ render as deployment chips, protocols and datamodels as consumed contracts.
 
 Component-side rules that bite:
 
-| #  | Rule                                                                                | Class                        |
-|----|--------------------------------------------------------------------------------------|------------------------------|
-| T1 | A `library` MUST NOT declare an environment — it has no runtime of its own.          | `E_COMP_LIBRARY_ENVIRONMENT` |
-| T2 | A `service`, `ui`, `job`, `datastore` or `gateway` SHOULD declare ≥ 1 environment.   | `W_COMP_NO_ENVIRONMENT`      |
+| #  | Rule                                                                               | Class                        |
+|----|------------------------------------------------------------------------------------|------------------------------|
+| T1 | A `library` MUST NOT declare an environment — it has no runtime of its own.        | `E_COMP_LIBRARY_ENVIRONMENT` |
+| T2 | A `service`, `ui`, `job`, `datastore` or `gateway` SHOULD declare ≥ 1 environment. | `W_COMP_NO_ENVIRONMENT`      |
 
 An `external` component MAY declare environments — that is exactly how a sandbox
 endpoint is distinguished from a live one.
@@ -185,7 +185,7 @@ properties. Two descriptions of one file at two moments, not a disagreement.
 ### `topology.yaml`
 
 | Top-level key | Type                | Required | Meaning                                                                |
-|---------------|---------------------|----------|-------------------------------------------------------------------------|
+|---------------|---------------------|----------|------------------------------------------------------------------------|
 | `regions`     | list of region maps | no       | The regions this environment occupies. Absent = single unnamed region. |
 | `hosts`       | list of host maps   | yes      | Placement detail, one entry per hosted component or subtree.           |
 
@@ -195,13 +195,13 @@ multi-line).
 
 Host map:
 
-| Key         | Type                             | Required | Rule                                                                        |
-|-------------|----------------------------------|----------|------------------------------------------------------------------------------|
-| `component` | SRN reference                    | yes      | MUST resolve to a `component` or `product` (`E_ENV_TARGET_KIND`).            |
+| Key         | Type                             | Required | Rule                                                                                                                |
+|-------------|----------------------------------|----------|---------------------------------------------------------------------------------------------------------------------|
+| `component` | SRN reference                    | yes      | MUST resolve to a `component` or `product` (`E_ENV_TARGET_KIND`).                                                   |
 | `regions`   | list of region names             | no       | Each MUST be declared in `regions` (`E_ENV_REGION_UNKNOWN`). Absent = placement **not recorded**, not "everywhere". |
-| `replicas`  | map `{ min: int ≥ 0, max: int }` | no       | `min` ≤ `max`. A fixed count is `{ min: n, max: n }`.                       |
-| `scaling`   | one-line string ≤ 200 chars      | no       | A human sentence naming the trigger — not the YAML of an autoscaler.        |
-| `notes`     | string                           | no       | Prose; may be multi-line.                                                   |
+| `replicas`  | map `{ min: int ≥ 0, max: int }` | no       | `min` ≤ `max`. A fixed count is `{ min: n, max: n }`.                                                               |
+| `scaling`   | one-line string ≤ 200 chars      | no       | A human sentence naming the trigger — not the YAML of an autoscaler.                                                |
+| `notes`     | string                           | no       | Prose; may be multi-line.                                                                                           |
 
 ```yaml
 $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
@@ -265,6 +265,11 @@ intent. It is a description for a reviewer and an input to the derived placement
 view, **not an infrastructure manifest**. Anything a deployment tool needs and
 this cannot express belongs in that tool's repository, referenced from prose.
 
+That minimalism is a decision, not a gap: adopting an industry placement format
+for this role was surveyed and **deferred**, with the criteria a candidate would
+have to meet and the trigger that reopens the question locked in
+`0016-topology-format-deferred`. Do not propose one without reading it.
+
 ### `config.yaml` — the configuration surface
 
 The convention is one sentence long: **an environment declares which
@@ -273,14 +278,14 @@ carries a secret value.**
 
 Top-level key `config`, a list of entries, REQUIRED if the file exists:
 
-| Key           | Type                  | Required           | Rule                                                                    |
-|---------------|-----------------------|--------------------|--------------------------------------------------------------------------|
-| `key`         | `^[A-Z][A-Z0-9_]*$`   | yes                | Env-var casing; unique per `(key, for)` pair.                           |
-| `for`         | SRN reference         | no                 | Component or product it applies to (`E_ENV_TARGET_KIND`). Absent = environment-wide. |
-| `secret`      | boolean               | no (default false) | Marks the value sensitive.                                              |
-| `value`       | string                | no                 | The literal value. FORBIDDEN when `secret: true` (`E_ENV_SECRET_VALUE`).|
-| `source`      | string                | when `secret`      | A **locator** for the value — never the value. Free-form but stable.    |
-| `description` | one-line string ≤ 200 | no                 | What the key controls.                                                  |
+| Key           | Type                       | Required           | Rule                                                                                   |
+|---------------|----------------------------|--------------------|----------------------------------------------------------------------------------------|
+| `key`         | `^[A-Z][A-Z0-9_]*$`        | yes                | Env-var casing; unique per `(key, for)` pair.                                          |
+| `for`         | SRN reference              | no                 | Component or product it applies to (`E_ENV_TARGET_KIND`). Absent = environment-wide.   |
+| `secret`      | boolean                    | no (default false) | Marks the value sensitive. MUST agree with the contract's `writeOnly:`.                |
+| `value`       | string, number, or boolean | no                 | The literal value. FORBIDDEN when `secret: true`; checked against the key's subschema. |
+| `source`      | string                     | when `secret`      | A **locator** for the value — never the value. Free-form but stable.                   |
+| `description` | one-line string ≤ 200      | no                 | What the key controls.                                                                 |
 
 ```yaml
 $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
@@ -293,6 +298,10 @@ config:
     secret: true
     source: vault:kv/acme/production/checkout#database-url
     description: Primary Postgres DSN for the checkout component.
+  - key: PAYMENT_TIMEOUT_MS
+    for: /product/shop/component/checkout
+    value: 8000
+    description: Longer than the contract's default; this acquirer is slower.
 ```
 
 ```yaml
@@ -302,24 +311,87 @@ config:
   value: hunter2                   # E_ENV_SECRET_VALUE — never, at any status
 - key: API_TOKEN
   secret: true                     # E_ENV_CONFIG_SCHEMA — secret without source
+- key: ALLOWED_ORIGINS
+  value: [a.example, b.example]    # E_ENV_CONFIG_SCHEMA — one scalar per key; a list
+                                   # is a delimiter convention the runtime owns
 ```
 
 Key casing is `SCREAMING_SNAKE_CASE`, not kebab-case, on purpose: config keys
 belong to the **runtime's** namespace, not the catalog's. Env-var casing is what
-an operator copy-pastes, and it makes `grep -r DATABASE_URL solutions/`
-unambiguous against SRN segments, which are kebab-case by grammar.
+an operator copy-pastes, it makes `grep -r DATABASE_URL solutions/` unambiguous
+against SRN segments (kebab-case by grammar), and it is the pattern the
+component's own contract states — so the two halves join by string equality.
 
-**Relationship to the component side.** A component declares which environments
-it runs in — a `uses` edge, and nothing more. **v1 has no component-side
-declaration of required configuration keys**, so the most valuable check — a
-component needs a key no environment provides — is not expressible, and the spec
-deliberately does not invent a component-side field to make it so. What *is*
-checkable is the other direction: a `for:` entry naming a component that does not
-run in this environment is dead configuration, `W_ENV_CONFIG_ORPHAN`.
+**`value:` takes a native scalar now.** The field used to be typed `string` and
+every value written before was one (`"false"`, `"8000"`); a native number or
+boolean is now legal too. That is a widening of the role's meta-schema, so it is
+additive, and it is the **same dialect** — the `$schema` string does not move
+and nothing is warned for not having changed. A `value:` is checked against its
+key's subschema as YAML parsed it, with one coercion: where the contract types a
+key `number`, `integer` or `boolean`, a quoted string is first read in that
+type's lexical form. So `"false"` and `false` both satisfy `{"type":"boolean"}`;
+the second one just says what it means. `"warn"` against `{"type":"integer"}`
+has no reading and is `E_ENV_CONFIG_VALUE`.
 
-Removing a key is therefore a **review-time** responsibility: no build check
-catches a component left reading a value that vanished. **Land the component
-change first, the `config.yaml` change second.**
+### The contract behind the keys
+
+**A component's required configuration keys are a `usage: config` datamodel in
+that component's own `datamodel/` bucket** (`schemas.md`). That is the half v1
+did not have, and it is what turns `config.yaml` from a list into one side of a
+join. Nothing was added to the component kind: the link is
+ownership-by-placement plus the `usage` value, and there is **no `schema:` field
+on a config entry** — the contract is derived from the entry's `for:` target.
+
+| Entry                            | Contract consulted                                       |
+|----------------------------------|----------------------------------------------------------|
+| `for:` a component that has one  | that contract                                            |
+| `for:` a component that has none | none — nothing to check, no diagnostic                   |
+| `for:` a product                 | the contract of each component beneath it that has one   |
+| no `for:` — environment-wide     | every hosted component's contract that declares this key |
+
+Four checks fall out, and all four are silent where the component publishes no
+contract:
+
+| Code                      | Fires when                                                                                                                      |
+|---------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `W_ENV_CONFIG_MISSING`    | A hosted component's **must-provide** key is not declared here. Must-provide = `required` minus every key carrying a `default`. |
+| `W_ENV_CONFIG_UNDECLARED` | A `for:`-scoped key the target's contract does not declare — usually a rename that only half happened.                          |
+| `E_ENV_CONFIG_VALUE`      | A declared `value:` fails its key's subschema.                                                                                  |
+| `E_ENV_SECRET_MISMATCH`   | An entry's `secret:` disagrees with the contract's `writeOnly:`, in either direction.                                           |
+
+`W_ENV_CONFIG_MISSING` is the provides ⊇ requires check, and it is the most
+valuable line this kind prints: the failure it describes is a process that will
+not start. It is a warning, not an error, because a component may declare an
+environment a commit or two before that environment's configuration lands.
+
+A key that is `required` **and** carries a `default` is not must-provide: the
+component supplies its own value when nobody else does. That distinction is the
+whole join — write a new key as optional-with-`default` and every environment
+stays valid; put it in `required` with no default and every environment that has
+not declared it is now short a key.
+
+### Secrets, in three layers
+
+| Layer           | Lives in                                        | Stated as                                            |
+|-----------------|-------------------------------------------------|------------------------------------------------------|
+| **Contract**    | git — the component's `usage: config` datamodel | the property, plus `writeOnly: true`                 |
+| **Declaration** | git — `config.yaml`                             | `key:`, `secret: true`, and a `source:` locator      |
+| **Value**       | a vault, or the deploy that injects it          | nowhere in the catalog, at any status, in any target |
+
+`E_ENV_SECRET_VALUE` (ENV8) is unchanged and absolute — a `secret: true` entry
+never carries a `value:`. What the contract adds is the opinion ENV8 could not
+have: ENV8 only refuses a value on an entry that *admits* to being secret, so
+leaving `secret: true` off was the way to get a credential into a public
+repository. `writeOnly:` is the component author's independent statement of the
+same fact, and `E_ENV_SECRET_MISMATCH` makes disagreeing with it an error.
+
+**Orphans and removals.** A `for:` entry naming a component that does not run in
+this environment is dead configuration, `W_ENV_CONFIG_ORPHAN`. Removing a key
+used to be a review-time responsibility in both directions; where a contract
+exists both are now visible (`W_ENV_CONFIG_MISSING` one way,
+`W_ENV_CONFIG_UNDECLARED` the other). The ordering advice is unchanged — **land
+the component change first, the `config.yaml` change second** — and where no
+contract exists, review is still the only gate.
 
 ## Evolution
 
@@ -333,7 +405,13 @@ configuration keys provided**.
   guarantees. Both are swaps: create the successor, add `supersedes`, repoint the
   components' `uses` edges one at a time, then deprecate the old environment.
 - Removing a config key or a host entry is a **reduction** and is legal only once
-  nothing depends on it. The warnings catch only the environment-side half.
+  nothing depends on it. `W_ENV_HOST_UNDECLARED` and `W_ENV_CONFIG_ORPHAN` catch
+  the environment-side half; the component-side half is caught by
+  `W_ENV_CONFIG_MISSING` wherever that component publishes a config contract,
+  and by nothing where it does not.
+- Rewriting a `value:` from `"8000"` to `8000` is a content change and bumps
+  `version` like any other. It is **not** a dialect change: the header string
+  does not move, and both spellings satisfy the same contract.
 
 ## Validation and error classes
 
@@ -350,11 +428,16 @@ configuration keys provided**.
 | ENV9  | Every host entry names a component that declares this environment.            | `W_ENV_HOST_UNDECLARED`                |
 | ENV10 | Every `for:` target declares this environment.                                | `W_ENV_CONFIG_ORPHAN`                  |
 | ENV11 | No `component:` or `for:` reference carries an artifact suffix.               | `E_SRN_ARTIFACT` / `E_ENV_TARGET_KIND` |
+| ENV12 | Every declared `value:` satisfies its key's subschema in the contract.        | `E_ENV_CONFIG_VALUE`                   |
+| ENV13 | Every entry's `secret:` agrees with the contract's `writeOnly:`.              | `E_ENV_SECRET_MISMATCH`                |
+| ENV14 | Every must-provide key of every hosted component's contract is declared.      | `W_ENV_CONFIG_MISSING`                 |
+| ENV15 | Every `for:`-scoped key is a property of that target's contract.              | `W_ENV_CONFIG_UNDECLARED`              |
 
-ENV1–ENV8 and ENV11 are checkable from the entity alone; ENV9–ENV10 need the
-resolved catalog. Common SRN rules apply to both artifacts unchanged — an
-unknown role, or a suffix on a kind with no roles, is `E_SRN_ARTIFACT` before
-ENV11 is ever reached.
+ENV1–ENV8 and ENV11 are checkable from the entity alone; ENV9–ENV10 and
+ENV12–ENV15 need the resolved catalog, and the last four are silent where the
+target publishes no config contract. Common SRN rules apply to both artifacts
+unchanged — an unknown role, or a suffix on a kind with no roles, is
+`E_SRN_ARTIFACT` before ENV11 is ever reached.
 
 ---
 
@@ -371,14 +454,16 @@ computation precisely because they are solution-level.
 Apply in order; the first `yes` wins:
 
 | # | Question                                                                          | If yes                                          |
-|---|------------------------------------------------------------------------------------|--------------------------------------------------|
-| 1 | Does it originate requests or receive outcomes?                                   | Continue. If **no**, it is not an actor at all.  |
-| 2 | Do we own and describe its internals in *this* solution?                          | It is a **component**.                           |
-| 3 | Must anything name it in a `uses`, `exposes`, `depends-on`, or `implements` edge? | It is an **`external` component**.                |
-| 4 | Otherwise                                                                          | **Actor**.                                       |
+|---|-----------------------------------------------------------------------------------|-------------------------------------------------|
+| 1 | Does it originate requests or receive outcomes?                                   | Continue. If **no**, it is not an actor at all. |
+| 2 | Do we own and describe its internals in *this* solution?                          | It is a **component**.                          |
+| 3 | Must anything name it in a `uses`, `exposes`, `depends-on`, or `implements` edge? | It is an **`external` component**.              |
+| 4 | Otherwise                                                                         | **Actor**.                                      |
 
 Question 3 is the mechanical part and settles the case that competes most often.
-**An actor is not a legal target of those four edges** — so the moment a
+**No forward edge accepts an actor target** — the set is `uses`, `exposes`,
+`depends-on`, `implements`, `realizes` and `measures`, and it grew by two
+without admitting one — so the moment a
 component must declare `depends-on` or `uses` toward a third party, that third
 party has to be an `external` component or the edge is unwriteable. Protocol
 participant lists, by contrast, accept components, products **and** actors, so a
@@ -389,7 +474,7 @@ portal cannot tell that `psp` and `psp-acquirer` are the same company.
 
 ## Fields
 
-| Field        | Type                                                    | Required | Rule                                    |
+| Field        | Type                                                    | Required | Rule                                     |
 |--------------|---------------------------------------------------------|----------|------------------------------------------|
 | `actor-type` | `human \| system \| external-system \| service-account` | yes      | Closed enum.                             |
 | `goals`      | list of one-line strings, ≥ 1, each ≤ 200 chars         | yes      | What this actor wants, in its own terms. |
@@ -438,8 +523,9 @@ For a `service-account`, state the delegated capability **and** the principal:
 
 `uses` is legal and useful toward a **component** (the surface the actor
 touches) and toward an **environment** (where a service account holds
-credentials); `supersedes` toward another actor. `exposes`, `depends-on` and
-`implements` are unavailable — their legal source kinds are component/product.
+credentials); `supersedes` toward another actor. `exposes`, `depends-on`,
+`implements` and `realizes` are unavailable — their legal source kinds are
+component/product — and `measures` is a metric's edge alone.
 
 **Do not author `uses` toward a protocol from an actor** — participation is
 authored once, on the protocol side (`protocols.md`), and duplicating it here
@@ -483,10 +569,10 @@ rejection or supersession; a duplicate inside one bucket is `W_ADR_ORDINAL`.
 
 ## Fields
 
-| Field             | Type                                             | Required    | Rule                                                        |
-|-------------------|--------------------------------------------------|-------------|--------------------------------------------------------------|
-| `decision-status` | `proposed \| accepted \| rejected \| superseded` | yes         | The decision's standing. Closed enum.                        |
-| `date`            | ISO-8601 calendar date `YYYY-MM-DD`              | yes         | When it reached its current standing (`E_ADR_DATE`). Quote it. |
+| Field             | Type                                             | Required    | Rule                                                               |
+|-------------------|--------------------------------------------------|-------------|--------------------------------------------------------------------|
+| `decision-status` | `proposed \| accepted \| rejected \| superseded` | yes         | The decision's standing. Closed enum.                              |
+| `date`            | ISO-8601 calendar date `YYYY-MM-DD`              | yes         | When it reached its current standing (`E_ADR_DATE`). Quote it.     |
 | `deciders`        | list of strings                                  | conditional | Non-empty once the decision was actually taken (`E_ADR_DECIDERS`). |
 
 `date` carries no time and no timezone: `2026-03-11T09:00:00Z` is `E_ADR_DATE`.
@@ -568,9 +654,9 @@ ordinal would only invite renumbering.
 
 ## Fields
 
-| Field              | Type                              | Required | Rule                                       |
-|--------------------|-----------------------------------|----------|---------------------------------------------|
-| `requirement-type` | `functional \| non-functional`    | yes      | Closed enum.                                |
+| Field              | Type                              | Required | Rule                                                  |
+|--------------------|-----------------------------------|----------|-------------------------------------------------------|
+| `requirement-type` | `functional \| non-functional`    | yes      | Closed enum.                                          |
 | `priority`         | `must \| should \| could \| wont` | yes      | MoSCoW, **no apostrophe** — `won't` is `E_FM_SCHEMA`. |
 
 The type split is binary because it is the only distinction that changes how the
@@ -596,7 +682,7 @@ obligation.
 **A prose section under a required heading, not frontmatter data.** All
 violations are `E_REQ_CRITERIA`:
 
-| Rule                                                                                   | Violation                                          |
+| Rule                                                                                   | Violation                                           |
 |----------------------------------------------------------------------------------------|-----------------------------------------------------|
 | `## Acceptance criteria` appears **exactly once**, level 2, this exact casing.         | `## Acceptance Criteria`, `### Acceptance criteria` |
 | Its content **begins with a markdown unordered list** (`-`), before any other heading. | A paragraph where the list should be                |
@@ -671,27 +757,31 @@ requirement *means* rather than sharpening it, it is a new requirement.
 
 ## Error classes introduced by these four kinds
 
-| Code                         | Meaning                                                                                    |
-|------------------------------|---------------------------------------------------------------------------------------------|
-| `E_ENV_TOPOLOGY_SCHEMA`      | `topology.yaml` fails its schema (shape, types, `min > max`, unknown non-`x-` key).        |
-| `E_ENV_CONFIG_SCHEMA`        | `config.yaml` fails its schema (casing, duplicate `(key, for)`, secret without `source`).  |
-| `E_ENV_TARGET_KIND`          | An SRN in either environment artifact resolves to something other than component/product.  |
-| `E_ENV_REGION_UNKNOWN`       | A host entry names a region not declared in the file's `regions` list.                     |
-| `E_ENV_SECRET_VALUE`         | A config entry marked `secret: true` carries a literal `value`.                            |
-| `W_ENV_HOST_UNDECLARED`      | Host entry for a component that does not declare this environment.                         |
-| `W_ENV_CONFIG_ORPHAN`        | Config entry scoped `for:` a component that does not run in this environment.              |
-| `E_COMP_LIBRARY_ENVIRONMENT` | A `library` component declares an environment via `uses`.                                  |
-| `W_COMP_NO_ENVIRONMENT`      | A runtime-bearing component declares no environment.                                       |
-| `W_ACTOR_PARTICIPATION_EDGE` | Actor authors a `uses` edge to a protocol.                                                 |
-| `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no workflow step.                        |
-| `E_ADR_DATE`                 | `date` missing, or not a bare `YYYY-MM-DD` calendar date.                                  |
-| `E_ADR_DECIDERS`             | A taken decision with an absent or empty `deciders` list.                                  |
-| `E_ADR_SECTIONS`             | A canonical body section missing, at the wrong level, or spelled differently.              |
-| `W_ADR_SUPERSESSION`         | `superseded` with no superseding ADR, or a `supersedes` target not marked `superseded`.    |
-| `W_ADR_ORDINAL`              | Two ADRs in one bucket share an ordinal prefix.                                            |
+| Code                         | Meaning                                                                                                                     |
+|------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `E_ENV_TOPOLOGY_SCHEMA`      | `topology.yaml` fails its schema (shape, types, `min > max`, unknown non-`x-` key).                                         |
+| `E_ENV_CONFIG_SCHEMA`        | `config.yaml` fails its schema (casing, duplicate `(key, for)`, secret without `source`).                                   |
+| `E_ENV_TARGET_KIND`          | An SRN in either environment artifact resolves to something other than component/product.                                   |
+| `E_ENV_REGION_UNKNOWN`       | A host entry names a region not declared in the file's `regions` list.                                                      |
+| `E_ENV_SECRET_VALUE`         | A config entry marked `secret: true` carries a literal `value`.                                                             |
+| `E_ENV_CONFIG_VALUE`         | A declared `value:` fails its key's subschema in the target's config contract.                                              |
+| `E_ENV_SECRET_MISMATCH`      | An entry's `secret:` disagrees with the contract's `writeOnly:`, in either direction.                                       |
+| `W_ENV_HOST_UNDECLARED`      | Host entry for a component that does not declare this environment.                                                          |
+| `W_ENV_CONFIG_ORPHAN`        | Config entry scoped `for:` a component that does not run in this environment.                                               |
+| `W_ENV_CONFIG_MISSING`       | A hosted component requires a key — `required`, no `default` — that this target lacks.                                      |
+| `W_ENV_CONFIG_UNDECLARED`    | A `for:`-scoped key that the target's config contract does not declare.                                                     |
+| `E_COMP_LIBRARY_ENVIRONMENT` | A `library` component declares an environment via `uses`.                                                                   |
+| `W_COMP_NO_ENVIRONMENT`      | A runtime-bearing component declares no environment.                                                                        |
+| `W_ACTOR_PARTICIPATION_EDGE` | Actor authors a `uses` edge to a protocol.                                                                                  |
+| `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no workflow step.                                                         |
+| `E_ADR_DATE`                 | `date` missing, or not a bare `YYYY-MM-DD` calendar date.                                                                   |
+| `E_ADR_DECIDERS`             | A taken decision with an absent or empty `deciders` list.                                                                   |
+| `E_ADR_SECTIONS`             | A canonical body section missing, at the wrong level, or spelled differently.                                               |
+| `W_ADR_SUPERSESSION`         | `superseded` with no superseding ADR, or a `supersedes` target not marked `superseded`.                                     |
+| `W_ADR_ORDINAL`              | Two ADRs in one bucket share an ordinal prefix.                                                                             |
 | `E_REQ_CRITERIA`             | The `## Acceptance criteria` section is missing, duplicated, mis-levelled, not opened by a list, empty, or uses checkboxes. |
-| `W_REQ_UNIMPLEMENTED`        | A `priority: must` requirement that no component `implements`.                             |
-| `W_REQ_WONT_IMPLEMENTED`     | A `priority: wont` requirement that some component claims to implement.                    |
+| `W_REQ_UNIMPLEMENTED`        | A `priority: must` requirement that no component `implements`.                                                              |
+| `W_REQ_WONT_IMPLEMENTED`     | A `priority: wont` requirement that some component claims to implement.                                                     |
 
 Placement, frontmatter shape and reference errors reuse the common classes:
 `E_SRN_PLACEMENT`, `E_SRN_DANGLING`, `E_SRN_CROSS_SOLUTION` (`srn.md`),

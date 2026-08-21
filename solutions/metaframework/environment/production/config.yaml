@@ -40,6 +40,8 @@ config:
     description: Numeric id of the GitHub App. Not a secret.
 
   - key: GITHUB_APP_PRIVATE_KEY
+    secret: true
+    source: k8s:secret/metaframework#github-app-private-key
     description: >-
       SECRET, deploy time only — never committed, never on the volume, redacted
       in telemetry. Nothing outranks it: it mints installation tokens rather
@@ -49,9 +51,13 @@ config:
     description: Public half of the user-to-server sign-in flow.
 
   - key: GITHUB_APP_CLIENT_SECRET
+    secret: true
+    source: k8s:secret/metaframework#github-app-client-secret
     description: SECRET, supplied at deploy time. Identity flow only; grants no repository access.
 
   - key: HUB_SESSION_SECRET
+    secret: true
+    source: k8s:secret/metaframework#hub-session-secret
     description: >-
       SECRET, supplied at deploy time. Signs the session cookie. Rotating it
       signs everyone out, which is the intended blast radius — sessions are the

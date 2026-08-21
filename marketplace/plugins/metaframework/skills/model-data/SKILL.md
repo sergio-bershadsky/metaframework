@@ -1,6 +1,6 @@
 ---
 name: model-data
-description: This skill should be used when the user asks to "add a datamodel", "model this order/cart/invoice in the catalog", "create a schema.json", "add a JSON Schema entity", "write an abstract base model", "add a mixin", "build a discriminated union", "promote a $defs shape to its own datamodel", "extract a shared type", "where should this shared model live", "pick usage storage or exchange", "what should the $id be", or asks whether a schema edit is additive or needs a swap — in a metaframework solution catalog under `solutions/`. It owns the `datamodel` kind only — use `add-entity` for a product, component, actor, environment, ADR or requirement, and `protocol-design` for a protocol (a payload datamodel comes back here). For rewriting an EXISTING published schema, decide the mechanism with `evolve-entity` first.
+description: This skill should be used when the user asks to "add a datamodel", "model this order/cart/invoice in the catalog", "create a schema.json", "add a JSON Schema entity", "write an abstract base model", "add a mixin", "build a discriminated union", "promote a $defs shape to its own datamodel", "extract a shared type", "where should this shared model live", "pick usage storage or exchange", "add a config contract", "declare the environment variables this component reads", "usage: config", "what should the $id be", or asks whether a schema edit is additive or needs a swap — in a metaframework solution catalog under `solutions/`. It owns the `datamodel` kind only — use `add-entity` for a product, component, actor, environment, ADR or requirement, and `protocol-design` for a protocol (a payload datamodel comes back here). For rewriting an EXISTING published schema, decide the mechanism with `evolve-entity` first.
 ---
 
 # Authoring a datamodel
@@ -13,13 +13,13 @@ handful that are not are the expensive ones.
 
 ## Where the rules live — do not restate them here
 
-| Need                                                            | Read                                                              |
-|-----------------------------------------------------------------|-------------------------------------------------------------------|
-| Schema conventions, error codes, the additive/swap keyword table | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/schemas.md`      |
-| Placement, artifact filenames, `examples/`                       | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`    |
-| Common + per-kind frontmatter, relation edges                    | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md`  |
+| Need                                                               | Read                                                             |
+|--------------------------------------------------------------------|------------------------------------------------------------------|
+| Schema conventions, error codes, the additive/swap keyword table   | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/schemas.md`     |
+| Placement, artifact filenames, `examples/`                         | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md`   |
+| Common + per-kind frontmatter, relation edges                      | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md` |
 | The consolidating principle, reference syntax, the `..` arithmetic | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`         |
-| Version bumps, the swap procedure                                | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`    |
+| Version bumps, the swap procedure                                  | `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/evolution.md`   |
 
 **When `framework/spec/` is present in the repository it is authoritative and
 wins over the bundled copies** — read `framework/spec/kinds/datamodel.md` first
@@ -62,11 +62,11 @@ Any entity in the solution may reference any datamodel of that solution, so
 "who needs to see it" is never the question. Ask **who is asked to approve a
 change to it**:
 
-| Signal                                                        | Bucket                             |
-|---------------------------------------------------------------|------------------------------------|
-| One component writes it and owns its meaning                  | that component's `datamodel/`      |
-| Several components of one product share it                    | that product's `datamodel/`        |
-| Two products, or the solution's vocabulary, depend on it      | the solution's `datamodel/`        |
+| Signal                                                   | Bucket                        |
+|----------------------------------------------------------|-------------------------------|
+| One component writes it and owns its meaning             | that component's `datamodel/` |
+| Several components of one product share it               | that product's `datamodel/`   |
+| Two products, or the solution's vocabulary, depend on it | the solution's `datamodel/`   |
 
 Solution level is not the safe default. It makes every change a solution-wide
 review. In the acme fixture `base-record`, `money` and `auditable` are
@@ -92,18 +92,27 @@ wrong costs a swap. Decide before creating the directory.
 with no protocol reference today may be pure storage or an exchange model whose
 protocol is not written yet.
 
-| Value      | Means                                                              | Fixture archetype                        |
-|------------|--------------------------------------------------------------------|------------------------------------------|
-| `storage`  | Persisted; this shape never crosses a boundary.                    | —                                        |
-| `exchange` | Exists only in flight — request, response, or event body.          | `order-request` ("never persisted in this shape") |
-| `both`     | The same shape is persisted *and* published.                       | `order` — the aggregate and the settlement payload |
+| Value      | Means                                                                   | Fixture archetype                                                        |
+|------------|-------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| `storage`  | Persisted; this shape never crosses a boundary.                         | —                                                                        |
+| `exchange` | Exists only in flight — request, response, or event body.               | `order-request` ("never persisted in this shape")                        |
+| `both`     | The same shape is persisted *and* published.                            | `order` — the aggregate and the settlement payload                       |
+| `config`   | Read out of a process environment at start-up. Neither stored nor sent. | `checkout/datamodel/config` — one secret DSN over an inherited log level |
 
 `both` is not a hedge. It widens the review surface: an additive change then
 needs both a migration plan and a producer/consumer rollout order. Declare the
 narrower value and widen it when the second use actually appears — `usage` is
 frontmatter metadata, so widening it is an ordinary `version` bump. Declaring
-`storage` on a model a protocol names as a payload is `W_DM_USAGE_MISMATCH`, so
-the value is a checked claim, not a label.
+`storage` **or `config`** on a model a protocol names as a payload is
+`W_DM_USAGE_MISMATCH`, so the value is a checked claim, not a label. On a config
+contract that warning is rarely the protocol's fault: a component's settings are
+not a wire payload.
+
+`config` is **not** a widening of the other three and never combines with them.
+The four values answer one question — where do instances of this model live —
+and `config` is the fourth destination: a process's environment, supplied by
+whatever deploys it. It is also the only value that switches on rules of its
+own; see below.
 
 Set `abstract: true` **only** for a model that is never instantiated on its own
 — a base or a mixin. It is not a way to say "nothing uses it yet". An abstract
@@ -111,15 +120,95 @@ model is excluded from the store/exchange views, MUST NOT carry `examples/`, and
 raises `W_DM_ABSTRACT_USE` when a protocol payload or an `exposes` edge points
 at it. Using one as an `allOf` base is the intended use and is never flagged.
 
+#### `usage: config` — a component's configuration contract
+
+**A configuration contract is an ordinary datamodel entity carrying
+`usage: config`, in the `datamodel/` bucket of the component it configures.**
+Same directory shape, same required `$id` and `x-srn`, same registry, same
+`allOf` inheritance, same additive-evolution rules. There is **no new field and
+no new edge**: the link between a component and its contract is
+ownership-by-placement plus the `usage` value. A `config-schema:` field on the
+component was considered and rejected — placement already states it. The entity
+**name** is free and nothing keys on it; the discriminator is `usage: config`.
+In the shipped catalogs every **concrete** contract is named `config`, and only
+the shared abstract mixins carry descriptive names — `platform-config`,
+`settlement-bus-config`, `telemetry-config`. Follow that: a bare `config` is
+this component's, a named one is a surface several components share.
+
+An *instance* of such a schema is the configuration one process actually sees:
+one flat map of key to value, which is what a process environment is. Every rule
+below is that shape, stated in JSON Schema.
+
+| Rule                                                                                                          | Violation                    |
+|---------------------------------------------------------------------------------------------------------------|------------------------------|
+| Root `type` is `object`, and every property name matches `^[A-Z][A-Z0-9_]*$`.                                 | `E_DM_CONFIG_SHAPE`          |
+| Every property is a **scalar** — `string`, `number`, `integer`, `boolean`, or an `enum`/`const` over scalars. | `E_DM_CONFIG_SHAPE`          |
+| No `$ref` below the root; the only one a contract carries is a root `allOf` branch naming another contract.   | `E_DM_CONFIG_SHAPE`          |
+| At most one **concrete** (`abstract: false`) config contract per `datamodel/` bucket.                         | `E_DM_CONFIG_SHAPE`          |
+| No `default`, `const`, `examples`, or single-member `enum` on a `writeOnly` property.                         | `E_DM_CONFIG_SECRET_DEFAULT` |
+| No `examples/` instance carrying a key the contract marks `writeOnly`.                                        | `E_DM_CONFIG_SECRET_DEFAULT` |
+
+`SCREAMING_SNAKE_CASE` here and kebab-case everywhere else is deliberate: every
+other datamodel's property names are the catalog's vocabulary, these are the
+*runtime's*. An environment's `config.yaml` has required that same pattern since
+v1, so the two sides join by string equality and nothing else. Flat, because
+that join is a set comparison over key names and no two runtimes agree on how to
+flatten a nested object. `additionalProperties` stays unset, as everywhere else
+— a contract states what the component *needs*, never that nothing else may be
+set, and every process inherits `PATH` and its orchestrator's whole environment.
+
+Three stock keywords, read at their plain meanings — no framework extension:
+
+| Keyword           | On a config contract it means                                      |
+|-------------------|--------------------------------------------------------------------|
+| `writeOnly: true` | **This key is a secret**; its value never enters the catalog.      |
+| `default: …`      | What the component uses when nothing supplies one. Never a secret. |
+| `required: […]`   | The key is present in the resolved configuration.                  |
+
+They compose, and the composition is the whole point:
+
+```text
+must-provide set  =  required  minus  every key carrying a `default`
+```
+
+That set, and only that set, is what `W_ENV_CONFIG_MISSING` checks each
+environment against (`environments.md`). A defaulted key an environment
+overrides is normal; a required-no-default key nobody declares is a deployment
+that cannot start, found in review instead of at 3am. `readOnly` has no meaning
+here — configuration flows one way.
+
+**Shared surfaces are mixins, and mixins are abstract.** Keys every component
+reads — OTEL endpoints, a log level — are promoted to their own `usage: config`
+datamodel marked `abstract: true` and reached by an `allOf` branch: ordinary
+inheritance, ordinary `E_DM_CLOSED_BASE` if the mixin closes itself. The bucket
+rule counts **concrete** contracts only, so any number of abstract ones may sit
+at solution, product or component level. A *concrete* contract belongs in the
+bucket of something that runs — a component. One in a product or solution bucket
+is legal by the placement rule and useless by the join's: nothing runs there, so
+no environment ever reads it.
+
+The shipped pair, worth reading before writing the first one —
+`solutions/acme/datamodel/platform-config/` is the `abstract: true` mixin
+carrying `LOG_LEVEL` (required, `default: "info"` — so it is never on anyone's
+must-provide list), and
+`solutions/acme/product/shop/component/checkout/datamodel/config/`
+`allOf`-references it and adds `DATABASE_URL` (required, `writeOnly: true`, no
+default — an obligation on whoever deploys checkout).
+
+**Adding a key to `required` is not additive** (`E_DM_NOT_ADDITIVE`): in this
+kind's instance vocabulary it rejects every deployment that was running
+yesterday. Land the key optional-with-default and leave it there — that is the
+ordinary end state for a config key, not a waypoint.
+
 ### 3. Pick the composition shape
 
-| Situation                                                        | Shape                                                              |
-|-------------------------------------------------------------------|--------------------------------------------------------------------|
-| Two or more concrete models share identity/lifecycle properties  | An `abstract: true` base; each derives via root-level `allOf` + `$ref` |
-| A cross-cutting property set with no identity of its own         | The same mechanism. "Mixin" is a word, not a flag — order in `allOf` is irrelevant |
-| One field holds one of several alternative shapes                | `oneOf` over `$ref`s to concrete sibling entities, each tagged by a shared `const` property |
-| A shape repeats inside **one** document only                     | `$defs` + `#/$defs/name`                                            |
-| …and a second entity now needs that shape                        | **Promote it** to its own datamodel entity                          |
+| Situation                                                       | Shape                                                                                       |
+|-----------------------------------------------------------------|---------------------------------------------------------------------------------------------|
+| Two or more concrete models share identity/lifecycle properties | An `abstract: true` base; each derives via root-level `allOf` + `$ref`                      |
+| A cross-cutting property set with no identity of its own        | The same mechanism. "Mixin" is a word, not a flag — order in `allOf` is irrelevant          |
+| One field holds one of several alternative shapes               | `oneOf` over `$ref`s to concrete sibling entities, each tagged by a shared `const` property |
+| A shape repeats inside **one** document only                    | `$defs` + `#/$defs/name`                                                                    |
+| …and a second entity now needs that shape                       | **Promote it** to its own datamodel entity                                                  |
 
 Inheritance is stock `allOf` + `$ref` and nothing else — there is no `extends`,
 no `x-inherits`, no portal-side merge. A schema whose root carries `allOf`
@@ -217,10 +306,13 @@ Skeleton — every keyword here is load-bearing:
 
 **`$schema` here is the dialect discriminator, and it was already there.** Every
 addressable artifact in the framework declares, in its own bytes, which grammar
-it is written in, under a key fixed per role: `transport.yaml`, `states.json`,
-`workflows/*.yaml`, `journey.yaml`, `topology.yaml` and `config.yaml` carry a
-`$schema` holding the canonical URL of a *framework* meta-schema. A
-`schema.json` needs no such invention. `$schema` on a JSON Schema document
+it is written in, under a key fixed per role — two keys for the one role that
+recognises two dialects. `states.json`, `workflows/*.yaml`, `journey.yaml`,
+`topology.yaml`, `config.yaml` and a mini-spec `transport.yaml` carry a `$schema`
+holding the canonical URL of a *framework* meta-schema, while a `transport.yaml`
+written in the AsyncAPI dialect that same role admits carries AsyncAPI's own
+`asyncapi: 3.1.0` and no framework key at all. A `schema.json` needs no such
+invention: `$schema` on a JSON Schema document
 already means the meta-schema of the dialect it is written in — natively, and
 before this framework existed — so the discriminator this kind owes is already
 written, and the value stays **exactly**
@@ -286,6 +378,10 @@ version history in words. Link with full `srn://…` form; prose links may pin.
   `$vocabulary` authors a dialect, and the dialect is fixed.
 - **Every file in `examples/` must validate against the *flattened* schema** —
   including `required` inherited through `allOf` (`E_DM_EXAMPLE_INVALID`).
+- **A `writeOnly` key never carries a value, in any file.** A `default` on one is
+  `E_DM_CONFIG_SECRET_DEFAULT`, and so is an `examples/` instance that sets it —
+  both are the same finding, a secret in a public git repository. The rest of the
+  `usage: config` discipline is in §2.
 - **Any edit to any file in the entity directory bumps `version`** — schema-only
   and examples-only edits included. Only a `status`-alone change is exempt.
 - **Renaming a property is never additive**, at any version number. Add the new
@@ -302,12 +398,12 @@ The test is mechanical: **version N+1 MUST accept every instance version N
 accepted.** The full keyword table is in `schemas.md`. Four rows are the ones
 authors get wrong:
 
-| Edit                                              | Looks like | Actually            |
-|---------------------------------------------------|------------|---------------------|
-| Add an `allOf` `$ref` to a base with `required`   | addition   | tightening → swap   |
-| Add or tighten a `pattern`                        | doc polish | tightening → swap   |
-| Set `"additionalProperties": false`               | hygiene    | tightening → swap   |
-| A `$ref` target evolves additively                | a change here | no edit, no bump — the obligation sits with the target |
+| Edit                                            | Looks like    | Actually                                               |
+|-------------------------------------------------|---------------|--------------------------------------------------------|
+| Add an `allOf` `$ref` to a base with `required` | addition      | tightening → swap                                      |
+| Add or tighten a `pattern`                      | doc polish    | tightening → swap                                      |
+| Set `"additionalProperties": false`             | hygiene       | tightening → swap                                      |
+| A `$ref` target evolves additively              | a change here | no edit, no bump — the obligation sits with the target |
 
 `E_DM_NOT_ADDITIVE` covers only the decidable subset; a clean build is evidence,
 not proof. Semantic breaks — same name, same type, new meaning — are invisible
@@ -347,8 +443,8 @@ monorepo — a catalog-only repository is checked exactly the same way.
 Zero **error** diagnostics is the pass condition, and it exits non-zero when
 there are any, which is also what makes it a CI gate. Output is one entry per
 diagnostic — `severity  CODE  catalog-relative-path`, then the message — closing
-with a summary line like `0 errors, 6 warnings — 324 entities across 3
-solutions.` Report pass/fail and every diagnostic with its code and file. Codes
+with a summary line of the form `<n> errors, <n> warnings — <n> entities across
+<n> solutions.` Report pass/fail and every diagnostic with its code and file. Codes
 are documented in `schemas.md` and in `framework/spec/kinds/datamodel.md`. If a
 diagnostic demands removing, renaming, narrowing or moving an entity, that is not
 a fix — stop and say it requires a swap.

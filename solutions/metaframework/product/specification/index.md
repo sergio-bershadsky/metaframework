@@ -1,9 +1,9 @@
 ---
 name: specification
 kind: product
-version: 3
+version: 4
 title: Specification
-summary: The normative contract under framework/spec — 17 documents, 11,765 lines, that the portal implements and the authoring kit distils.
+summary: The normative contract under framework/spec — 17 documents, 12,931 lines, that the portal implements and the authoring kit distils.
 status: review
 owner: sergio
 lifecycle: incubating
@@ -31,7 +31,7 @@ tags:
 ---
 
 `framework/spec/` is the normative statement of what a catalog is: 17 markdown
-documents, 11,765 lines, written in the framework's own format — each one carries
+documents, 12,931 lines, written in the framework's own format — each one carries
 the frontmatter shape it prescribes for solution entities. Five are core
 contracts binding on every kind; twelve are kind contracts, one per ontology
 kind. Measured 2026-08-21 with `wc -l`; it was 14 documents and 7,279 lines
@@ -135,12 +135,19 @@ regions:
 ```
 
 An instance count measures how much a format is worth describing; being named
-from inside 70 files across three catalogs settles it whatever the count says.
-`openapi.yaml` and `examples/` stay out under both readings, and for reasons that
-survive the change: OpenAPI announces itself with a native `openapi:` key against
-a meta-schema that was never the framework's to write, and an example is an
+from inside 66 files across three catalogs settles it whatever the count says
+(12 `transport.yaml`, 24 workflows, 9 `journey.yaml`, 8 `states.json`, 7
+`topology.yaml`, 6 `config.yaml`; measured 2026-08-21). `openapi.yaml` and
+`examples/` stay out under both readings, and for reasons that survive the
+change: OpenAPI announces itself with a native `openapi:` key against a
+meta-schema that was never the framework's to write, and an example is an
 instance of its sibling schema, carrying that schema's dialect and none of its
-own.
+own. The four `transport.yaml` files not in that 66 are out for the *first*
+reason, not the second — they are written in the AsyncAPI dialect their role also
+admits ([0017](srn://metaframework/adr/0017-transport-asyncapi)), so they
+announce themselves with `asyncapi:` and name no framework meta-schema. That
+subtracts nothing from `transport-document`: the wires AsyncAPI cannot describe
+keep the mini-spec permanently, and 12 files name it today.
 
 So this list stopped being bookkeeping. `exposes` above and the `/schemas` route
 are one fact seen twice — the route accepts a path only when its SRN names a

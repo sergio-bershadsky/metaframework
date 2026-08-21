@@ -1,6 +1,6 @@
 ---
 name: validate-catalog
-description: This skill should be used when the user asks to "validate the catalog", "check the catalog", "run the catalog check", "why is the catalog failing", "`metaframework check` is red", "how do I check a catalog outside the framework repo", "what does E_SRN_DANGLING mean", "fix these diagnostics", or names any metaframework diagnostic code (E_SRN_*, E_FM_*, E_STRUCT_*, E_DM_*, E_VER_*, E_PROTO_*, E_JRN_*, E_MET_*, W_CAP_*, W_*). It should also be used immediately after any skill or command creates or edits an entity, since the catalog check is the pass condition for that work. It covers running the check, reading its output, mapping each code family to its usual cause and fix, which warnings matter, and what the check deliberately does not cover. This is legality only — for whether the decomposition, placement and relation graph are any GOOD, use `review-solution`.
+description: This skill should be used when the user asks to "validate the catalog", "check the catalog", "run the catalog check", "why is the catalog failing", "`metaframework check` is red", "how do I check a catalog outside the framework repo", "what does E_SRN_DANGLING mean", "fix these diagnostics", or names any metaframework diagnostic code (E_SRN_*, E_FM_*, E_STRUCT_*, E_DM_*, E_ENV_*, E_VER_*, E_PROTO_*, E_JRN_*, E_MET_*, W_CAP_*, W_ENV_*, W_*). It should also be used immediately after any skill or command creates or edits an entity, since the catalog check is the pass condition for that work. It covers running the check, reading its output, mapping each code family to its usual cause and fix, which warnings matter, and what the check deliberately does not cover. This is legality only — for whether the decomposition, placement and relation graph are any GOOD, use `review-solution`.
 ---
 
 # Validate a metaframework catalog
@@ -57,7 +57,7 @@ error   E_SRN_DANGLING  acme/product/fulfilment/index.md
         "/product/fulfilment/requirement/carrier-failover" resolves to
         srn://acme/product/fulfilment/requirement/carrier-failover, which does not exist
 
-1 error, 6 warnings — 324 entities across 3 solutions.
+1 error, 6 warnings — <n> entities across <n> solutions.
 ```
 
 Each entry is `severity  CODE  catalog-relative-path` and then the message. The
@@ -125,7 +125,7 @@ in `references/diagnostics.md`.
 | `E_STRUCT_NESTED_ENTITY`   | error      | An `index.md` below a non-container entity (only solution, product and component may own).                                                                                                             | Move the child under a real container, or the parent is the wrong kind.                                                                                                      |
 | `E_STRUCT_MISSING_INDEX`   | error      | An entity exists below a directory that has no `index.md`.                                                                                                                                             | Create the missing parent `index.md` — or fix the parent's `E_FM_SCHEMA`, which is the usual real cause.                                                                     |
 | `E_STRUCT_DUPLICATE_SRN`   | error      | Two directories resolving to one SRN — a symlink, or a case-insensitive filesystem.                                                                                                                    | Remove the duplicate. Symlinks are never a legitimate reuse mechanism (rule C5).                                                                                             |
-| `W_ARTIFACT_DIALECT`       | warning    | A sibling artifact written before the dialect rule and declaring none, or one whose `$schema` is not the meta-schema URL its role recognises. Never raised on `schema.json` or `examples/*.json`.      | Add the role's declaration as the file's first key — the per-role keys and URLs are in `references/diagnostics.md`. It bumps the owning entity's `version`, once per entity. |
+| `W_ARTIFACT_DIALECT`       | warning    | A sibling artifact declaring no dialect, or one no row of its role recognises — `transport.yaml` has two rows and either satisfies it. Never on `schema.json` or `examples/*.json`.                    | Add the role's declaration as the file's first key — the per-role keys and URLs are in `references/diagnostics.md`. It bumps the owning entity's `version`, once per entity. |
 | `W_REF_DEPRECATED`         | warning    | The reference target has `status: deprecated`.                                                                                                                                                         | Migrate to the successor named by the target's derived `superseded-by`, or accept it.                                                                                        |
 | `W_REF_STALE_PIN`          | warning    | A `@N` pin that resolves but no longer matches the target's current `version`.                                                                                                                         | Bump the pin, or leave it if the freeze is deliberate — historic versions resolve from git.                                                                                  |
 
@@ -145,14 +145,38 @@ owns a number.
 | `W_CAP_UNREALIZED`         | warning    | No product or component `realizes` the capability.                                                                                                                                          | Read it against `status`. On `draft` it is the to-do list; on **`approved`** it means an agreed description of something the business cannot do. |
 | `W_CAP_REALIZATION_EDGE`   | warning    | A capability authors `uses` toward a component — the inverse of `realizes` written by hand.                                                                                                 | Delete it and write `realizes` on the component. The portal already derives `realized-by`.                                                       |
 
-**Journey artifact codes are not in this table, and that is the point.**
-`E_JRN_SCHEMA`, `E_JRN_NAME`, `E_JRN_STEP_COUNT`, `E_JRN_BRANCH`,
-`W_JRN_ACTOR_ABSENT` and `W_JRN_UNDOCUMENTED_INTEGRATION` come from the
-`journey.yaml` parser, which runs when the portal **renders** the journey entity
-— exactly like `E_PROTO_*`. The catalog loader reads `journey.yaml` only as a
-generic artifact (so a YAML *syntax* error surfaces) and never validates it
-against the mini-spec, so a green check says nothing about a journey's steps.
-Open the entity's page after writing or editing one.
+Codes from the environment lane. They run in the check because
+`withEnvironmentChecks` composes them into the catalog after the schema
+registry: `topology.yaml` and `config.yaml` are validated against their content
+models, and each `config.yaml` entry is then joined against the hosted
+component's **configuration contract** — the `usage: config` datamodel in that
+component's own `datamodel/` bucket.
+
+| Code                         | Severity | Usual cause                                                                                                                                                                                      | Fix                                                                                                                                                  |
+|------------------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_ENV_TOPOLOGY_SCHEMA`      | error    | `topology.yaml` does not parse, or breaks its content model: an unknown non-`x-` key, a region name that is not kebab-case or is declared twice, `replicas.min` above `max`, no `hosts:` at all. | Read the message — it carries the position (`hosts[2].tier`) and the constraint.                                                                     |
+| `E_ENV_CONFIG_SCHEMA`        | error    | `config.yaml` the same way: a key that is not `SCREAMING_SNAKE_CASE`, a list-valued `value:`, the same `(key, for)` pair twice, `secret: true` with no `source:`.                                | Same. A key holds one scalar; a list is a delimiter convention the runtime owns and the contract types as a string.                                  |
+| `E_ENV_TARGET_KIND`          | error    | A host's `component:` or an entry's `for:` naming something that is not a `component` or a `product` — an actor, a datamodel, or an artifact address.                                            | Name the deployable container. Placement and configuration are about things that run.                                                                |
+| `E_ENV_REGION_UNKNOWN`       | error    | A host names a region the file's own `regions:` list does not declare.                                                                                                                           | Declare the region or fix the typo. An absent `regions:` on a host is legal and means "not recorded".                                                |
+| `E_ENV_SECRET_VALUE`         | error    | An entry marked `secret: true` carrying a literal `value:`.                                                                                                                                      | Delete the value, name a `source:`. Absolute: the file is public the moment it is committed, so treat the value as leaked.                           |
+| `E_ENV_CONFIG_VALUE`         | error    | A `value:` that fails its key's subschema in the resolved contract — an unknown enum member, a number out of range.                                                                              | Fix the value, or the contract if the contract is the wrong one. A quoted scalar is read in its declared type, so `"8000"` for an `integer` is fine. |
+| `E_ENV_SECRET_MISMATCH`      | error    | The entry's `secret:` disagrees with the contract's `writeOnly:` for that key, in either direction.                                                                                              | Decide which file is wrong. If it is this one, the value has been in git and is burned.                                                              |
+| `E_DM_CONFIG_SHAPE`          | error    | A `usage: config` datamodel that is not one flat process environment: a kebab-case key, a nested property, a `$ref` below the root — or two concrete contracts in one `datamodel/` bucket.       | Flatten it and `SCREAMING_SNAKE` the keys. A surface several components share is `abstract: true`, reached by a root `allOf`.                        |
+| `E_DM_CONFIG_SECRET_DEFAULT` | error    | A `writeOnly` property carrying `default`, `const`, `examples` or a one-member `enum`; or an `examples/*.json` instance carrying a key the contract marks `writeOnly`.                           | Delete the value. `writeOnly` says the value arrives at deploy time; the catalog's job was to say the key is expected.                               |
+
+The four `W_ENV_*` warnings this lane emits are in the warnings section below.
+
+**Journey and protocol artifact codes fail this check too.** `E_JRN_SCHEMA`,
+`E_JRN_NAME`, `E_JRN_STEP_COUNT`, `E_JRN_BRANCH`, `W_JRN_ACTOR_ABSENT`,
+`W_JRN_UNDOCUMENTED_INTEGRATION` and the `E_PROTO_*` families come from the
+mini-spec parsers, and `withArtifactChecks` runs those parsers over every
+artifact during the load — the same dispatch table the entity page uses, so the
+check and the page derive the same findings from the same file. A broken
+`journey.yaml` therefore exits non-zero. Two things a green check still does not
+prove: that a journey entity **has** a `journey.yaml` (only artifacts that exist
+are parsed), and that a step's `touches`, `protocol` or `actor` resolves to the
+right *kind* — the parser refuses an artifact address there and leaves the
+kind question to nobody.
 
 `E_STRUCT_KIND_PLACEMENT` is **retired** and must never be emitted or cited —
 every placement violation is `E_SRN_PLACEMENT` now, raised while the path is
@@ -184,6 +208,11 @@ Which warnings matter:
   owning entity's `version`, once per entity however many of its files gain the
   line together. Never raised on `schema.json` (whose missing dialect is already
   the error `E_DM_DIALECT`) or on `examples/*.json` (which carries none by rule).
+  One role has **two** recognised dialects: a `transport.yaml` satisfies this
+  code with the framework's `$schema` **or** with AsyncAPI's own
+  `asyncapi: 3.1.0`, and neither is the deprecated one. Never "fix" a warned
+  transport by converting the document — add the mini-spec `$schema`, which is
+  the line the message names and the right answer for every wire.
 - **`W_REF_DEPRECATED`** — matters. It means a swap is unfinished. Each one is a
   referrer that still has to be migrated before the old entity can rest.
 - **`W_REF_STALE_PIN`** — matters when unintentional. A pin at `@1` against a
@@ -205,6 +234,22 @@ Which warnings matter:
   is in the wrong file rather than wrong in substance. The first is an inverse
   edge written by hand; the second is a judgement about accountability that
   should be visible rather than blocked.
+- **`W_ENV_CONFIG_MISSING`** — matters most of the four environment warnings. It
+  says a component deployed to this environment requires a key that has no
+  default and that no entry here declares: a process that will not start. The
+  fix is an entry for the key, with a `source:` if it is a secret — **a
+  declaration with no value counts as provided**, because the value arrives at
+  deploy time and the catalog's job was to say the key is expected.
+- **`W_ENV_HOST_UNDECLARED`, `W_ENV_CONFIG_ORPHAN`** — both mean the two sides of
+  membership disagree: a `topology.yaml` host entry, or a config entry's `for:`,
+  naming a container that declares no `uses` edge to this environment. Warnings
+  rather than errors because during a rollout the environment file may lead the
+  component's own declaration by a commit or two. Standing ones are dead
+  configuration; add the `uses` edge or delete the entry.
+- **`W_ENV_CONFIG_UNDECLARED`** — a `for:`-scoped key that is no property of that
+  component's config contract, usually a key renamed or dropped in the component
+  and left behind here. Land the contract change first, then the environment: the
+  reverse order flags the same key as `W_ENV_CONFIG_MISSING` in between.
 
 ## What this check does not cover
 
@@ -246,11 +291,13 @@ available here. The check proves the tree *loads*. It does not prove the tree is
   (`W_REQ_UNIMPLEMENTED`), a `library` declaring an environment
   (`E_COMP_LIBRARY_ENVIRONMENT`), a journey entity with no `journey.yaml`
   (`E_JRN_ARTIFACT_MISSING`) or with an unrecognised file beside it
-  (`W_JRN_ARTIFACT_UNKNOWN`), and the kind checks on a journey step's own
-  references (`E_JRN_TOUCHES_KIND`, `E_JRN_PROTOCOL_KIND`,
-  `W_JRN_PROTOCOL_UNRELATED` — these need the resolved catalog and no module
-  runs them yet). These are author discipline. Verify them by reading. The full
-  list is in `references/diagnostics.md`.
+  (`W_JRN_ARTIFACT_UNKNOWN`), a step's named protocol being unrelated to what the
+  step touches (`W_JRN_PROTOCOL_UNRELATED`), and the *kind* half of the checks on
+  a journey step's own references (`E_JRN_TOUCHES_KIND`, `E_JRN_PROTOCOL_KIND`,
+  `E_JRN_ACTOR_KIND` — the parser refuses an artifact address there, and the
+  question of whether the target is a component, a protocol or an actor needs the
+  resolved catalog that no module hands it). These are author discipline. Verify
+  them by reading. The full list is in `references/diagnostics.md`.
 - **Not a modelling review.** Whether the decomposition, placement and relation
   graph make sense is the `catalog-reviewer` agent's job, not this check's.
 

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: journey
-version: 4
+version: 5
 status: review
 title: Kind — Journey
 summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec, its SRN address and dialect header, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
@@ -56,6 +56,40 @@ is coarse and sits next to four kinds that are not.
 | a **metric**        | Numbers about a path — completion rate, drop-off, elapsed time — are a metric ([metric.md](metric.md)). A journey carries no measurement, no timing, and no volume.                                                                                          |
 | a **process model** | No branching, no gateways, no swimlanes, no parallelism, no compensation. Those turn a path into BPMN, and BPMN is a modelling exercise the catalog does not want ([below](#no-branching-in-v1-and-why)).                                                    |
 | a **runtime trace** | Steps are described positions, not observed events. A journey is what the solution says happens; what actually happened is telemetry, and telemetry has no SRN.                                                                                              |
+
+**And a journey is not an Arazzo workflow.** That is the *workflow file* row
+asked again about a format rather than about a kind, and it gets the same
+answer. The Arazzo Specification is the industry standard for exactly the
+artifact that row fences off — one executor chaining API calls, grounded in an
+OpenAPI or AsyncAPI description — and for that artifact it is the right format.
+It is not a format for an actor's path across touchpoints, and adopting it here
+would cost this kind the check it exists for. `actor` and `touches` have no
+Arazzo carrier beyond an `x-` extension, and those two fields *are* the
+mechanism of `W_JRN_UNDOCUMENTED_INTEGRATION`
+([below](#crossing-a-product-boundary)): the kind's flagship check would then
+run entirely on data that the standard's own tooling is obliged to ignore. In
+the other direction Arazzo requires what a journey does not have — a
+`sourceDescriptions` list with at least one entry, a `stepId` on every step,
+and on each step an `operationId`, `operationPath`, or `workflowId` naming the
+call it makes. `steps[4]` of the [worked example](#worked-example) below is a
+customer clicking a tracking link in an email, `protocol: none`; writing it as
+an Arazzo step means fabricating a source description, an operation to call,
+and an identifier for it, for a hop whose entire content is that no system
+carries it. `onSuccess`/`onFailure` step transitions would re-import the
+branching [No branching in v1](#no-branching-in-v1-and-why) rules out, at the
+moment the format was adopted to buy interoperability.
+
+There is no industry machine format for an actor's path to adopt instead. That
+absence is the reason this document specifies a mini-spec at all, and it is a
+finding rather than an oversight — the nearest candidate, mermaid's `journey`
+diagram type, was evaluated separately and rejected for the same class of
+reason: its syntax requires a satisfaction score on every task, a number the
+catalog does not have and that
+[Deliberately not supported](#deliberately-not-supported) rules out by name; the
+portal draws a `flowchart TD` instead
+(`framework/portal/src/lib/journey/mermaid.ts`). Both questions are closed. A
+journey is written in the mini-spec below; Arazzo, wherever this catalog adopts
+it, is a protocol's artifact and never a journey's.
 
 ## Placement
 

@@ -1,18 +1,19 @@
 ---
 kind: spec
 name: datamodel
-version: 8
+version: 9
 status: review
 title: DataModel kind
-summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, artifact addresses (.schema, examples.*) and the .schema normalization rule, how the artifact-dialect contract lands on a kind that already declared its dialect, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, the portal schema registry, derived views, and schema-level additive evolution.
+summary: The datamodel kind contract — schema.json in JSON Schema 2020-12, the required canonical $id and x-srn, $refs as canonical schema URLs, artifact addresses (.schema, examples.*) and the .schema normalization rule, how the artifact-dialect contract lands on a kind that already declared its dialect, deprecated as the standard lifecycle keyword, allOf inheritance, composition patterns, config contracts under usage:config and their flat SCREAMING_SNAKE discipline, the portal schema registry, derived views, and schema-level additive evolution.
 ---
 
 # DataModel kind
 
-A **datamodel** describes a data structure that is persisted in storage or
-exchanged over a protocol. It is the only kind whose contract surface is fully
-machine-checkable: the prose in `index.md` states intent and invariants, and the
-sibling `schema.json` states the shape, in stock JSON Schema.
+A **datamodel** describes a data structure that is persisted in storage,
+exchanged over a protocol, or read by a component as its configuration. It is
+the only kind whose contract surface is fully machine-checkable: the prose in
+`index.md` states intent and invariants, and the sibling `schema.json` states
+the shape, in stock JSON Schema.
 
 This document adds to the common contracts; it never overrides them. Read
 [structure.md](../structure.md) for placement, [srn.md](../srn.md) for
@@ -765,10 +766,10 @@ instance-superset rule holds and no swap is needed.
 On top of the common fields in [frontmatter.md](../frontmatter.md), the
 datamodel kind adds exactly two:
 
-| Field      | Type                          | Required | Rule                                                                 |
-| ---------- | ----------------------------- | -------- | -------------------------------------------------------------------- |
-| `usage`    | `storage \| exchange \| both` | yes      | Where instances of this model live. No default — the author decides. |
-| `abstract` | boolean                       | no       | Default `false`. `true` = a base/mixin never instantiated directly.  |
+| Field      | Type                                    | Required | Rule                                                                  |
+| ---------- | --------------------------------------- | -------- | --------------------------------------------------------------------- |
+| `usage`    | `storage \| exchange \| both \| config` | yes      | Where instances of this model live. No default — the author decides.  |
+| `abstract` | boolean                                 | no       | Default `false`. `true` = a base/mixin never instantiated directly.   |
 
 ```yaml
 usage: both
@@ -785,9 +786,25 @@ storage or may be an exchange model whose protocol is not written yet. Because i
 cannot be inferred, it has no default. On an `abstract: true` model, `usage`
 declares the intended domain of its descendants.
 
+**Why `config` is a fourth value and not a tag.** It answers the same question
+the other three do — where do instances of this model live — with a fourth
+answer: in a process's environment, supplied by whatever deploys it. That is not
+a facet of storage or exchange, it is a third destination with its own pressures,
+its own instance vocabulary (`^[A-Z][A-Z0-9_]*$`, not kebab-case), and its own
+join to the environment kind. It also *turns on a discipline*: a `usage: config`
+model is checked against rules no other datamodel obeys
+([below](#config-contracts--usage-config)), and `tags` change no behaviour by
+construction. The enum grew by one member, which is an ordinary additive spec
+change ([evolution.md](../evolution.md)) — the three existing values keep their
+meanings and no model on disk has to move.
+
 Consistency check: a datamodel named as a protocol message payload while
-declaring `usage: storage` is reported as `W_DM_USAGE_MISMATCH` (a warning — the
-protocol may be ahead of the datamodel's review).
+declaring `usage: storage` **or `usage: config`** is reported as
+`W_DM_USAGE_MISMATCH` (a warning — the protocol may be ahead of the datamodel's
+review). On a config contract the warning is rarely the protocol's fault and
+almost always a real finding: a component's configuration is not a wire payload,
+and a protocol carrying one is either sending its own settings to somebody or
+naming the wrong model.
 
 **Why `abstract` is required as a flag.** Nothing in a JSON Schema distinguishes
 "base class, never instantiated" from "concrete model that nobody has derived
@@ -829,6 +846,274 @@ relations:
     - /datamodel/money@1      # good — pins a version the URL $ref cannot carry
     - /datamodel/base-record  # redundant — unpinned, and schema.json already $refs it
 ```
+
+## Config contracts — `usage: config`
+
+A component reads its configuration before it reads anything else, and until now
+the catalog described that surface from one side only. An environment's
+`config.yaml` said which keys a *target* provides ([environment.md](environment.md));
+nothing anywhere said which keys a *component* requires, so the most valuable
+check — a component needs a key no environment provides — had no operands.
+The missing half is a schema, and a schema is what this kind is for.
+
+**A component's configuration contract is an ordinary datamodel entity carrying
+`usage: config`, in that component's `datamodel/` bucket.** Same directory
+shape, same required `$id` and `x-srn`, same registry, same `allOf` inheritance,
+same additive-evolution rules. Nothing below replaces any of that; it adds a
+discipline that applies to this one `usage` value.
+
+```text
+solutions/acme/product/shop/component/checkout/datamodel/config/
+├── index.md          # usage: config, abstract: false
+└── schema.json       # the keys checkout reads, and what a legal value is
+```
+
+**No new role, no new edge, no new field.** The link between a component and its
+contract is ownership-by-placement plus the `usage` value — the contract sits in
+the bucket of the component it configures, exactly as an order model sits in the
+bucket of the component that owns the order. A `config-schema:` field on the
+component was considered and rejected on the standing rule for derived fields:
+placement already states the ownership, and a second statement of one fact
+drifts. The entity **name** is free and nothing keys on it; `config` is the
+obvious choice and every example here uses it, but the discriminator is
+`usage: config`, because a portal matching on a directory name would be a second
+addressing scheme sitting beside the SRN.
+
+### The contract
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/acme/product/shop/component/checkout/datamodel/config",
+  "x-srn": "srn://acme/product/shop/component/checkout/datamodel/config",
+  "title": "Checkout configuration",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://schemas.metaframework.dev/acme/datamodel/otel-config" }
+  ],
+  "properties": {
+    "LOG_LEVEL": {
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info",
+      "description": "Root log level."
+    },
+    "DATABASE_URL": {
+      "type": "string",
+      "pattern": "^postgres(ql)?://",
+      "writeOnly": true,
+      "description": "Primary Postgres DSN. Secret — the value never enters the catalog."
+    },
+    "PAYMENT_TIMEOUT_MS": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3000,
+      "description": "Per-attempt acquirer timeout."
+    },
+    "FEATURE_INSTANT_REFUNDS": {
+      "type": "boolean",
+      "default": false,
+      "description": "Kill switch for instant refunds."
+    }
+  },
+  "required": ["LOG_LEVEL", "DATABASE_URL"]
+}
+```
+
+An **instance** of this schema is the configuration one process actually sees:
+one flat map of key to value, which is what a process environment is. That is
+why the discipline below is what it is — every rule in it is the shape of a
+process environment, stated in JSON Schema.
+
+### The discipline
+
+| Rule                                                                                                            | Violation                    |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Root `type` is `object`.                                                                                        | `E_DM_CONFIG_SHAPE`          |
+| Every property name matches `^[A-Z][A-Z0-9_]*$`.                                                                | `E_DM_CONFIG_SHAPE`          |
+| Every property is a **scalar** — `string`, `number`, `integer`, `boolean`, or an `enum`/`const` over scalars.   | `E_DM_CONFIG_SHAPE`          |
+| No `$ref` below the root: the only `$ref` a contract carries is a root `allOf` branch naming another contract.  | `E_DM_CONFIG_SHAPE`          |
+| At most one **concrete** (`abstract: false`) config contract per `datamodel/` bucket.                           | `E_DM_CONFIG_SHAPE`          |
+| No `default`, `const`, `examples`, or single-member `enum` on a `writeOnly` property.                           | `E_DM_CONFIG_SECRET_DEFAULT` |
+| No `examples/` instance carrying a key the contract marks `writeOnly`.                                          | `E_DM_CONFIG_SECRET_DEFAULT` |
+
+One code covers the first five because they are one fact — *this bucket does not
+present one well-formed contract* — and splitting it would mint five codes an
+author never needs to tell apart to fix the file. One code covers the last two
+for the same reason, and it is the reason that matters: both are **a secret
+value in git**.
+
+```json
+{ "properties": { "database-url": { "type": "string" } } }
+                    /* E_DM_CONFIG_SHAPE — kebab-case; a process environment
+                       has no such key                                        */
+{ "properties": { "DATABASE": { "type": "object" } } }
+                    /* E_DM_CONFIG_SHAPE — nesting; see below                 */
+{ "properties": { "TOTAL": { "$ref": "…/acme/datamodel/money" } } }
+                    /* E_DM_CONFIG_SHAPE — a $ref below the root is a nested
+                       object wearing a URL                                   */
+{ "properties": { "API_TOKEN": { "writeOnly": true, "default": "dev-token" } } }
+                    /* E_DM_CONFIG_SECRET_DEFAULT — a secret value in git,
+                       whatever the environment it was meant for              */
+```
+
+**Why `SCREAMING_SNAKE_CASE` here and kebab-case everywhere else.** Property
+names in every other datamodel are the catalog's vocabulary; these are the
+*runtime's*. `DATABASE_URL` is what an operator copy-pastes, what a container
+image documents, and what `grep -r DATABASE_URL solutions/` finds unambiguously
+against SRN segments, which are kebab-case by grammar. The environment side has
+required exactly this pattern for `key:` since v1 ([environment.md](environment.md));
+the contract states the same pattern so the two sides can be joined by string
+equality and nothing else.
+
+**Why flat, and why nesting is out of this release.** The join the contract
+exists for is *provides ⊇ requires*, computed by comparing two sets of key
+names. A nested object has no key name until somebody fixes a flattening
+convention — `DATABASE__URL`, `DATABASE_URL`, `database.url` — and every runtime
+that offers one offers a different one. Picking one here would put a convention
+nobody's process actually implements into the middle of the only check this
+design is for. Flat keys are also what the instances already are — every config
+entry in every catalog shipped with this framework is a flat scalar key, because
+that is what an environment variable can be. Nesting can arrive later as an
+additive widening of the contract; it cannot arrive as a guess.
+
+**`additionalProperties` stays unset**, as on every other model. A contract
+states what the component *needs*, never that nothing else may be set: a process
+inherits `PATH`, its runtime's whole environment, and every platform key its
+orchestrator injects, and a schema that forbade them would be false about every
+deployment that ever ran. The environment side reports an *undeclared* key as a
+warning, which is the right severity for a fact a contract cannot be complete
+about.
+
+### Three keywords, three different jobs
+
+`writeOnly`, `default` and `required` are stock 2020-12 meta-data and validation
+keywords, and each is read here with its plain meaning. No framework extension
+is defined, for the same reason `deprecated` needed none
+([above](#deprecated--the-standard-lifecycle-keyword)): a generator, an editor
+and a validator already know what these say.
+
+| Keyword           | On a config contract it means                                       |
+| ----------------- | ------------------------------------------------------------------- |
+| `writeOnly: true` | **This key is a secret**; its value never enters the catalog.       |
+| `default: …`      | What the component uses when nothing supplies one. Never a secret.  |
+| `required: […]`   | The key is present in the resolved configuration — see below.       |
+
+`writeOnly` is the stock keyword read at its own definition: a value supplied
+*to* the owning authority and never read back out of it. The owning authority
+here is the catalog, which is a public git repository, so "never read back out"
+is precisely the property a secret needs. A `default` on such a property is a
+contradiction in the keyword's own terms and a secret in git in the reviewer's,
+which is why it is an error rather than a lint.
+
+**`required` and `default` compose, and the composition is the whole join.**
+`LOG_LEVEL` above is both required and defaulted: the process always has a log
+level, because it supplies one itself if nobody else does. `DATABASE_URL` is
+required and has no default, and there is nothing the process can do about it —
+that key is an obligation on whoever deploys it. So:
+
+```text
+must-provide set  =  required  minus  every key carrying a `default`
+```
+
+That set, and only that set, is what `W_ENV_CONFIG_MISSING` checks an
+environment against ([environment.md](environment.md)). A defaulted key that
+some environment overrides is normal; a required-no-default key that no
+environment declares is a deployment that cannot start, discovered in review
+rather than at 3am.
+
+**`readOnly` has no meaning here** and is not used. Configuration flows one way.
+
+### Shared surfaces are mixins, and mixins are abstract
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME` are read by every
+instrumented component in a solution. Writing them into each contract is the
+copy-paste this kind already has a mechanism against: promote them to their own
+`usage: config` datamodel, mark it `abstract: true`, and `allOf`-reference it —
+ordinary inheritance, ordinary composition trap, ordinary `E_DM_CLOSED_BASE` if
+the mixin closes itself.
+
+```json
+{
+  "$id": "https://schemas.metaframework.dev/acme/datamodel/otel-config",
+  "x-srn": "srn://acme/datamodel/otel-config",
+  "type": "object",
+  "properties": {
+    "OTEL_EXPORTER_OTLP_ENDPOINT": { "type": "string", "format": "uri" },
+    "OTEL_SERVICE_NAME": { "type": "string", "minLength": 1 }
+  },
+  "required": ["OTEL_SERVICE_NAME"]
+}
+```
+
+**The join reads the flattened contract**, not the file: the effective field
+table and the `required` union are computed exactly as
+[the flattening algorithm](#flattening-algorithm) already computes them, so a
+mixin's required-no-default keys are the deriving component's obligations too.
+Nothing about the join is aware that inheritance happened.
+
+This is why the bucket rule counts **concrete** contracts only. A mixin has no
+component to be the contract of — it is a shape several contracts share — so any
+number of abstract `usage: config` models may sit in any bucket, at solution,
+product or component level, and a product-level one is the natural home for a
+surface a product's components share. What must be unambiguous is the answer to
+"which contract is *this component's*", and that answer is: the one concrete
+config contract in its own bucket, or none.
+
+A **concrete** contract therefore belongs in the bucket of a container that
+runs, which means a component. Putting one in a product or solution bucket is
+legal by the letter of the placement rule and useless by the join's: nothing
+runs there, so no environment ever reads it and no diagnostic ever fires on it.
+If several components share the surface, that is what `abstract: true` is for.
+
+### `examples/` and evolution
+
+An `examples/` instance of a config contract is a **set of values**, so the rule
+about secrets is absolute rather than advisory: an example that carries a key
+the contract marks `writeOnly` is a secret in git, and it is
+`E_DM_CONFIG_SECRET_DEFAULT` whichever file it is in. Examples of non-secret
+keys are useful and encouraged — a worked `local` configuration is exactly the
+documentation an onboarding developer wants — and, like every other example,
+they are validated against the schema (`E_DM_EXAMPLE_INVALID`).
+
+Evolution needs no new rules, and the general ones say something worth stating
+outright: **adding a key to `required` is not additive**, because it rejects a
+configuration that version N accepted — which in this kind's instance vocabulary
+means "every deployment that was running yesterday". `E_DM_NOT_ADDITIVE` catches
+it, and the fix is the one the format was built for:
+
+```json
+/* version 3 → 4, legal: the component now reads a new key and knows what to do
+   without it                                                                  */
+{ "properties": { "PAYMENT_RETRY_LIMIT": { "type": "integer", "default": 3 } } }
+
+/* version 3 → 4, E_DM_NOT_ADDITIVE: every environment that does not already
+   declare this key is now invalid, and none of them was asked                 */
+{ "required": ["LOG_LEVEL", "DATABASE_URL", "PAYMENT_RETRY_LIMIT"] }
+```
+
+Land the key as optional-with-default, let the environments declare it, and
+leave it there — optional-with-default is the ordinary end state for a config
+key, not a waypoint. Promoting it to required-no-default afterwards is still a
+tightening and still needs a swap; the only thing that buys is a build error
+where a warning already exists, and `W_ENV_CONFIG_MISSING` is already reporting
+the same fact per environment.
+
+### What the environment side does with it
+
+The contract is one half of a join the [environment](environment.md) kind owns.
+Four diagnostics live there, and they are listed here only so a contract author
+knows what their file is about to be checked against:
+
+| Code                      | On the environment side                                                             |
+|---------------------------|-------------------------------------------------------------------------------------|
+| `E_ENV_CONFIG_VALUE`      | A declared `value:` fails the key's subschema in this contract.                     |
+| `E_ENV_SECRET_MISMATCH`   | An entry's `secret:` disagrees with this contract's `writeOnly:`.                   |
+| `W_ENV_CONFIG_MISSING`    | A hosted component's required-no-default key that the environment does not declare. |
+| `W_ENV_CONFIG_UNDECLARED` | A `for:`-scoped key this contract does not declare.                                 |
+
+None of them is raised on the datamodel. A contract with no environment is a
+perfectly good contract — it is a component nobody has deployed yet — and the
+absence produces no diagnostic on this kind at all.
 
 ## The schema registry
 
@@ -922,17 +1207,18 @@ latest.
 Nothing below is authored. All of it is computed from `schema.json`, the
 frontmatter, and the catalog graph.
 
-| Derived view            | Computed from                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------------- |
-| Inheritance tree        | Root-level `allOf` `$ref` edges across all datamodels (child → base), plus `abstract`. |
-| Effective field table   | Flattening the root `allOf` conjunction (algorithm below).                             |
-| Variant map             | `oneOf` branches with a shared `const` tag property.                                   |
-| Referenced-by (schemas) | Inverse of all `$ref` edges — which schemas embed or extend this one.                  |
-| Carried by protocols    | Inverse of the datamodel references in protocol artifacts (`kinds/protocol.md`).       |
-| Owning component        | The entity's own path — the container whose `datamodel/` bucket holds it.              |
-| Using components        | Inverse of `uses`/`exposes` relation edges targeting this datamodel.                   |
-| Instance examples       | `examples/*.json`, rendered and validated against the schema.                          |
-| Version history         | The git version→commit index ([evolution.md](../evolution.md)).                        |
+| Derived view            | Computed from                                                                                |
+|-------------------------|----------------------------------------------------------------------------------------------|
+| Inheritance tree        | Root-level `allOf` `$ref` edges across all datamodels (child → base), plus `abstract`.       |
+| Effective field table   | Flattening the root `allOf` conjunction (algorithm below).                                   |
+| Variant map             | `oneOf` branches with a shared `const` tag property.                                         |
+| Referenced-by (schemas) | Inverse of all `$ref` edges — which schemas embed or extend this one.                        |
+| Carried by protocols    | Inverse of the datamodel references in protocol artifacts (`kinds/protocol.md`).             |
+| Owning component        | The entity's own path — the container whose `datamodel/` bucket holds it.                    |
+| Using components        | Inverse of `uses`/`exposes` relation edges targeting this datamodel.                         |
+| Instance examples       | `examples/*.json`, rendered and validated against the schema.                                |
+| Provided-by (config)    | `usage: config` only — every hosting environment's `config.yaml` entries for this component. |
+| Version history         | The git version→commit index ([evolution.md](../evolution.md)).                              |
 
 Every `$ref` edge is stored and displayed as an **SRN pair**, mapped from the
 URLs (`schema_url_to_srn`, above). Authors write URLs because tools dereference
@@ -1309,27 +1595,29 @@ Checks this example demonstrates:
 
 New, kind-specific:
 
-| Code                   | Meaning                                                                                                                            |
-|------------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| `E_DM_SCHEMA_MISSING`  | Datamodel entity directory has no `schema.json`.                                                                                   |
-| `E_DM_SCHEMA_INVALID`  | `schema.json` is not valid against the 2020-12 meta-schema (or is not valid JSON).                                                 |
-| `E_DM_DIALECT`         | `$schema` missing or not exactly the 2020-12 dialect URI.                                                                          |
-| `E_DM_ID_MISSING`      | Root `$id` absent — every document must state its identity.                                                                        |
-| `E_DM_ID_MISMATCH`     | Root `$id` ≠ the entity's canonical schema URL (wrong entity, wrong host, a serving address, or a version pin).                    |
-| `E_DM_ID_FORBIDDEN`    | `$id` present *below* the root, where it would re-base every `$ref` beneath it.                                                    |
-| `E_DM_SRN_MISSING`     | `x-srn` absent — the SRN must survive a schema leaving the catalog.                                                                |
-| `E_DM_SRN_MISMATCH`    | `x-srn` ≠ the unversioned SRN of the entity directory the file sits in (a `@N` pin included).                                      |
-| `E_DM_KEYWORD`         | Forbidden keyword used (`$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`).                                                |
-| `E_DM_REF_TARGET`      | A `$ref` is not a canonical schema URL (relative path, SRN, serving address, foreign host, bucket, version pin, artifact address). |
-| `E_DM_FOREIGN_DEFS`    | `$ref` points into another entity's `$defs`.                                                                                       |
-| `E_DM_INHERIT_CYCLE`   | Cycle in the root-`allOf` inheritance graph.                                                                                       |
-| `E_DM_CLOSED_BASE`     | `"additionalProperties": false` on a schema used as an `allOf` base.                                                               |
-| `E_DM_EXAMPLE_INVALID` | A file in `examples/` fails validation against the entity's own schema.                                                            |
-| `E_DM_NOT_ADDITIVE`    | Detectable instance-superset violation between version N (git) and N+1 (filesystem).                                               |
-| `W_DM_ABSTRACT_USE`    | Abstract datamodel used as a payload/`exposes` target, or carrying `examples/`.                                                    |
-| `W_DM_UNION_TAG`       | `oneOf` union without a derivable shared `const` tag property.                                                                     |
-| `W_DM_CONTRADICTION`   | Derived model contradicts (rather than restricts) an inherited constraint.                                                         |
-| `W_DM_USAGE_MISMATCH`  | Model named as a protocol payload while declaring `usage: storage`.                                                                |
+| Code                         | Meaning                                                                                                                            |
+|------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `E_DM_SCHEMA_MISSING`        | Datamodel entity directory has no `schema.json`.                                                                                   |
+| `E_DM_SCHEMA_INVALID`        | `schema.json` is not valid against the 2020-12 meta-schema (or is not valid JSON).                                                 |
+| `E_DM_DIALECT`               | `$schema` missing or not exactly the 2020-12 dialect URI.                                                                          |
+| `E_DM_ID_MISSING`            | Root `$id` absent — every document must state its identity.                                                                        |
+| `E_DM_ID_MISMATCH`           | Root `$id` ≠ the entity's canonical schema URL (wrong entity, wrong host, a serving address, or a version pin).                    |
+| `E_DM_ID_FORBIDDEN`          | `$id` present *below* the root, where it would re-base every `$ref` beneath it.                                                    |
+| `E_DM_SRN_MISSING`           | `x-srn` absent — the SRN must survive a schema leaving the catalog.                                                                |
+| `E_DM_SRN_MISMATCH`          | `x-srn` ≠ the unversioned SRN of the entity directory the file sits in (a `@N` pin included).                                      |
+| `E_DM_KEYWORD`               | Forbidden keyword used (`$dynamicRef`, `$dynamicAnchor`, `$anchor`, `$vocabulary`).                                                |
+| `E_DM_REF_TARGET`            | A `$ref` is not a canonical schema URL (relative path, SRN, serving address, foreign host, bucket, version pin, artifact address). |
+| `E_DM_FOREIGN_DEFS`          | `$ref` points into another entity's `$defs`.                                                                                       |
+| `E_DM_INHERIT_CYCLE`         | Cycle in the root-`allOf` inheritance graph.                                                                                       |
+| `E_DM_CLOSED_BASE`           | `"additionalProperties": false` on a schema used as an `allOf` base.                                                               |
+| `E_DM_EXAMPLE_INVALID`       | A file in `examples/` fails validation against the entity's own schema.                                                            |
+| `E_DM_NOT_ADDITIVE`          | Detectable instance-superset violation between version N (git) and N+1 (filesystem).                                               |
+| `E_DM_CONFIG_SHAPE`          | A `usage: config` contract breaks the flat/casing discipline, or a bucket holds two concrete ones.                                 |
+| `E_DM_CONFIG_SECRET_DEFAULT` | A secret value in git: a `default`/`const`/`examples` on a `writeOnly` property, or an `examples/` instance carrying one.          |
+| `W_DM_ABSTRACT_USE`          | Abstract datamodel used as a payload/`exposes` target, or carrying `examples/`.                                                    |
+| `W_DM_UNION_TAG`             | `oneOf` union without a derivable shared `const` tag property.                                                                     |
+| `W_DM_CONTRADICTION`         | Derived model contradicts (rather than restricts) an inherited constraint.                                                         |
+| `W_DM_USAGE_MISMATCH`        | Model named as a protocol payload while declaring `usage: storage` or `usage: config`.                                             |
 
 Retired, in three waves. These codes have no subject any more and MUST NOT be
 emitted:

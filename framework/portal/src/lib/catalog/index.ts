@@ -1,5 +1,7 @@
 import path from 'node:path'
 import { cache } from 'react'
+import { environmentDiagnostics } from '../environment/environment'
+import { configContractDiagnostics, readConfigContracts } from '../schema/config-contract'
 import { type SchemaRegistry, buildSchemaRegistry } from '../schema/registry'
 import { artifactDiagnostics } from './artifact-checks'
 import { catalogFingerprint } from './fingerprint'
@@ -80,6 +82,31 @@ export function withArtifactChecks(catalog: Catalog): Catalog {
 }
 
 /**
+ * Fold in the config contract and the environment artifacts, which are one
+ * subject and so are one step.
+ *
+ * They could not ride {@link withArtifactChecks} with the other mini-spec
+ * parsers, and the reason is the shape of the check rather than an accident of
+ * layering: four of the environment rules read a **datamodel's** flattened
+ * schema (`usage: config` — kinds/datamodel.md), so they need the registry, and
+ * the registry needs the catalog. Hence the order here — load, parse artifacts,
+ * build the registry, and only then join the two kinds against each other.
+ *
+ * `topology.yaml` and `config.yaml` were parsed by the loader and validated by
+ * nothing until this landed; the seven codes that reported the gap are in
+ * lib/environment/environment.ts's own docblock.
+ */
+export function withEnvironmentChecks({ catalog, registry }: LoadedCatalog): LoadedCatalog {
+  const contracts = readConfigContracts(catalog, registry)
+  const diagnostics = [
+    ...configContractDiagnostics(catalog, registry),
+    ...environmentDiagnostics(catalog, contracts),
+  ]
+  if (diagnostics.length === 0) return { catalog, registry }
+  return { catalog: { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }, registry }
+}
+
+/**
  * Per-request memoised catalog.
  *
  * Which of the two strategies below applies is decided by
@@ -91,7 +118,7 @@ export function withArtifactChecks(catalog: Catalog): Catalog {
  * catalog really is static input to a build.
  */
 const load = async (): Promise<LoadedCatalog> =>
-  withSchemaRegistry(withArtifactChecks(await loadCatalog({ catalogDir: catalogDir() })))
+  withEnvironmentChecks(withSchemaRegistry(withArtifactChecks(await loadCatalog({ catalogDir: catalogDir() }))))
 
 /**
  * Working-tree catalog cache, keyed on {@link catalogFingerprint}.

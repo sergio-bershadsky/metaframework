@@ -25,17 +25,17 @@ other stray key.
 
 ## Common fields — every kind
 
-| Field       | Type                                | Required | Rule                                                                                                    |
-|-------------|-------------------------------------|----------|---------------------------------------------------------------------------------------------------------|
-| `name`      | string, kebab-case                  | yes      | MUST equal the directory name (`E_FM_NAME_MISMATCH`).                                                   |
-| `kind`      | one of the twelve kinds             | yes      | MUST equal the bucket the directory sits in (`E_FM_KIND_LOCATION`).                                     |
-| `version`   | integer ≥ 1                         | yes      | Integer, never a string; bumped per `evolution.md`.                                                     |
-| `title`     | string, ≤ 80 chars                  | yes      | Human display name; any characters.                                                                     |
-| `summary`   | string, one line, ≤ 200 chars       | yes      | One sentence, no markdown; shown in catalog lists.                                                      |
-| `status`    | enum: `draft`, `review`, `approved`, `deprecated` | yes | Review state of **this document** — never the described thing's real-world stage.          |
-| `owner`     | string                              | no       | Responsible team/person handle, e.g. `team-payments`.                                                   |
-| `relations` | map of edge type → list of SRN refs | no       | Typed **outgoing** edges; see below.                                                                    |
-| `tags`      | list of kebab-case strings          | no       | Free navigation facets; no semantics attached.                                                          |
+| Field       | Type                                              | Required | Rule                                                                              |
+|-------------|---------------------------------------------------|----------|-----------------------------------------------------------------------------------|
+| `name`      | string, kebab-case                                | yes      | MUST equal the directory name (`E_FM_NAME_MISMATCH`).                             |
+| `kind`      | one of the twelve kinds                           | yes      | MUST equal the bucket the directory sits in (`E_FM_KIND_LOCATION`).               |
+| `version`   | integer ≥ 1                                       | yes      | Integer, never a string; bumped per `evolution.md`.                               |
+| `title`     | string, ≤ 80 chars                                | yes      | Human display name; any characters.                                               |
+| `summary`   | string, one line, ≤ 200 chars                     | yes      | One sentence, no markdown; shown in catalog lists.                                |
+| `status`    | enum: `draft`, `review`, `approved`, `deprecated` | yes      | Review state of **this document** — never the described thing's real-world stage. |
+| `owner`     | string                                            | no       | Responsible team/person handle, e.g. `team-payments`.                             |
+| `relations` | map of edge type → list of SRN refs               | no       | Typed **outgoing** edges; see below.                                              |
+| `tags`      | list of kebab-case strings                        | no       | Free navigation facets; no semantics attached.                                    |
 
 `kind` enum — twelve kinds, eleven of which are also bucket words:
 
@@ -61,7 +61,7 @@ fields above, and never overrides them.
 |---------------|-------------------------------------------------------------------------|------------------------------|
 | `solution`    | `vision`                                                                | `scope`, `contacts`          |
 | `product`     | `lifecycle`                                                             | `primary-actors`             |
-| `component`   | `component-type`, `lifecycle`                                           | —                            |
+| `component`   | `component-type`, `lifecycle`                                           | `criticality`                |
 | `datamodel`   | `usage`                                                                 | `abstract` (default `false`) |
 | `protocol`    | `participants` (≥ 2), `style`                                           | `conforms-to`                |
 | `actor`       | `actor-type`, `goals` (≥ 1)                                             | —                            |
@@ -72,6 +72,12 @@ fields above, and never overrides them.
 | `journey`     | `actor`                                                                 | —                            |
 | `metric`      | `metric-type`, `target`, `window`, `direction`                          | —                            |
 
+`criticality` is the one kind field that is not an enum: an OPTIONAL integer
+`1`..`4` on a component, `1` being highest. It has **no default** — absent means
+"not assessed", never tier 4 — and it carries no SLA semantics; it is blast
+radius and review priority. `criticality: "2"` is `E_FM_SCHEMA` (integer, not a
+string) and so is `criticality: 5` (the scale is closed at 4).
+
 Value sets, all closed — anything outside is `E_FM_SCHEMA`:
 
 | Field                   | Values                                                                                                           |
@@ -79,7 +85,7 @@ Value sets, all closed — anything outside is `E_FM_SCHEMA`:
 | `lifecycle` (product)   | `concept`, `incubating`, `active`, `maintenance`, `sunset`, `retired`                                            |
 | `lifecycle` (component) | `planned`, `in-development`, `released`, `sunset`, `retired`                                                     |
 | `component-type`        | `service`, `library`, `ui`, `job`, `datastore`, `gateway`, `external`, `content`, `application`, `specification` |
-| `usage`                 | `storage`, `exchange`, `both`                                                                                    |
+| `usage`                 | `storage`, `exchange`, `both`, `config`                                                                          |
 | `style`                 | `point-to-point`, `bus`, `request-response`                                                                      |
 | `actor-type`            | `human`, `system`, `external-system`, `service-account`                                                          |
 | `environment-type`      | `dev`, `staging`, `production`, `edge`, `local`                                                                  |
@@ -96,6 +102,17 @@ differ and are validated per kind — the schema is a discriminated union on
 is valid on a product. The `sunset` / `retired` tail is shared and means the same
 thing on both.
 
+**`usage: config` is the fourth value and the only one that turns on rules.** It
+answers the same question the other three do — where do instances of this model
+live — with a fourth answer: in a process's environment. A `usage: config`
+datamodel is a component's **configuration contract**, and declaring it commits
+the `schema.json` beside it to a discipline no other datamodel obeys: flat
+scalar properties named `^[A-Z][A-Z0-9_]*$` (`E_DM_CONFIG_SHAPE`), `writeOnly`
+for secrets with no `default` on them (`E_DM_CONFIG_SECRET_DEFAULT`), and at
+most one **concrete** contract per `datamodel/` bucket. The rules and the
+environment-side join are in `schemas.md` and `environments.md`; the three older
+values stayed exactly what they were.
+
 Shapes of the three newest kinds' fields:
 
 - `capability` adds **nothing**. Any kind-specific field on a capability is
@@ -110,11 +127,11 @@ Shapes of the three newest kinds' fields:
   literal of the grammar `metric-type` selects (`E_MET_TARGET`); `window` is
   `instant` or a rolling duration (`E_MET_WINDOW`).
 
-  | `metric-type` | `target` literal        | Example       |
-  |---------------|-------------------------|---------------|
-  | `ratio`       | decimal + `%`           | `"99.9%"`     |
-  | `duration`    | decimal + `ms/s/m/h/d`  | `"400ms"`     |
-  | `count`       | bare decimal, may be negative | `"1200"` |
+  | `metric-type` | `target` literal              | Example       |
+  |---------------|-------------------------------|---------------|
+  | `ratio`       | decimal + `%`                 | `"99.9%"`     |
+  | `duration`    | decimal + `ms/s/m/h/d`        | `"400ms"`     |
+  | `count`       | bare decimal, may be negative | `"1200"`      |
   | `amount`      | decimal, space, ISO 4217 code | `"12.50 EUR"` |
 
   Quoting is load-bearing for exactly one case — a `count` target of `1200`,
@@ -161,12 +178,12 @@ The single easiest thing in the contract to get wrong.
 > **`status` is the review state of the DESCRIPTION.
 > `lifecycle` is the delivery state of the THING DESCRIBED.**
 
-| Field             | Is about                                          | Values                                                           |
-|-------------------|---------------------------------------------------|-------------------------------------------------------------------|
-| `status`          | **this `index.md`** — the description you read    | `draft` `review` `approved` `deprecated`                         |
-| `lifecycle`       | **the product** as a funded portfolio position    | `concept` `incubating` `active` `maintenance` `sunset` `retired` |
-| `lifecycle`       | **the component** as a thing built and shipped    | `planned` `in-development` `released` `sunset` `retired`         |
-| `decision-status` | **the decision** an ADR records                   | `proposed` `accepted` `rejected` `superseded`                    |
+| Field             | Is about                                       | Values                                                           |
+|-------------------|------------------------------------------------|------------------------------------------------------------------|
+| `status`          | **this `index.md`** — the description you read | `draft` `review` `approved` `deprecated`                         |
+| `lifecycle`       | **the product** as a funded portfolio position | `concept` `incubating` `active` `maintenance` `sunset` `retired` |
+| `lifecycle`       | **the component** as a thing built and shipped | `planned` `in-development` `released` `sunset` `retired`         |
+| `decision-status` | **the decision** an ADR records                | `proposed` `accepted` `rejected` `superseded`                    |
 
 The two axes **cross**, and every cell of the crossing is legal. The one the
 framework exists for is the design-first case:
@@ -233,15 +250,15 @@ exactly the error the field exists to prevent.
 solution-absolute, or relative; optionally `@`-pinned). The v1 edge set is
 closed:
 
-| Edge         | Legal source kinds | Legal target kinds                           | Meaning                                         |
-|--------------|--------------------|----------------------------------------------|-------------------------------------------------|
-| `uses`       | any                | datamodel, protocol, environment, component  | Source consumes the target (client side).       |
-| `exposes`    | component, product | protocol, datamodel                          | Source offers the target as its public surface. |
-| `depends-on` | component, product | component, product                           | Structural dependency, coarser than `uses`.     |
-| `implements` | component, product | requirement                                  | Source **satisfies** the requirement.           |
+| Edge         | Legal source kinds | Legal target kinds                           | Meaning                                             |
+|--------------|--------------------|----------------------------------------------|-----------------------------------------------------|
+| `uses`       | any                | datamodel, protocol, environment, component  | Source consumes the target (client side).           |
+| `exposes`    | component, product | protocol, datamodel                          | Source offers the target as its public surface.     |
+| `depends-on` | component, product | component, product                           | Structural dependency, coarser than `uses`.         |
+| `implements` | component, product | requirement                                  | Source **satisfies** the requirement.               |
 | `realizes`   | component, product | capability                                   | Source is part of how the business does that thing. |
-| `measures`   | metric             | capability, component, protocol, requirement | Source is a number about the target.            |
-| `supersedes` | any                | same kind as source                          | Swap edge: successor → predecessor.             |
+| `measures`   | metric             | capability, component, protocol, requirement | Source is a number about the target.                |
+| `supersedes` | any                | same kind as source                          | Swap edge: successor → predecessor.                 |
 
 `realizes` and `measures` are the later arrivals; the set grew by appending and
 no existing edge changed source kinds, target kinds, or meaning. Only the
@@ -437,21 +454,21 @@ direction: higher      # E_FM_SCHEMA — "higher than what?"; the value spells i
 
 Kind-specific codes on the frontmatter surface:
 
-| Code                     | Meaning                                                                                       |
-|--------------------------|-----------------------------------------------------------------------------------------------|
-| `E_PROD_ACTOR_TARGET`    | A `primary-actors` entry does not resolve to a solution-level actor.                          |
-| `E_PROTO_PARTICIPANTS`   | `participants` missing or fewer than two.                                                     |
-| `E_PROTO_ALIAS_DUP`      | Two participants share an alias.                                                              |
-| `E_PROTO_PARTICIPANT_KIND` | A participant `ref` is not a component, product or actor.                                   |
-| `E_ADR_DATE`             | `date` is not a bare `YYYY-MM-DD`.                                                            |
-| `E_ADR_DECIDERS`         | `deciders` empty once the decision is accepted/rejected/superseded.                           |
-| `E_JRN_ACTOR_KIND`       | The journey's `actor` resolves to something that is not an actor.                             |
-| `E_MET_TARGET`           | `target` is not a literal of the grammar its `metric-type` selects.                           |
-| `E_MET_WINDOW`           | `window` is neither `instant` nor a rolling duration literal.                                 |
-| `E_MET_NO_SUBJECT`       | A metric with no `measures` edge, or an empty one. A number with no subject.                  |
-| `W_MET_SUBJECT_SCOPE`    | The metric is filed outside its subject's ownership line. Capability subjects never raise it. |
-| `W_CAP_UNREALIZED`       | No product or component `realizes` this capability — aspiration, not architecture.            |
-| `W_CAP_REALIZATION_EDGE` | A capability authors `uses` toward a component; realization is the component's own edge.      |
+| Code                       | Meaning                                                                                       |
+|----------------------------|-----------------------------------------------------------------------------------------------|
+| `E_PROD_ACTOR_TARGET`      | A `primary-actors` entry does not resolve to a solution-level actor.                          |
+| `E_PROTO_PARTICIPANTS`     | `participants` missing or fewer than two.                                                     |
+| `E_PROTO_ALIAS_DUP`        | Two participants share an alias.                                                              |
+| `E_PROTO_PARTICIPANT_KIND` | A participant `ref` is not a component, product or actor.                                     |
+| `E_ADR_DATE`               | `date` is not a bare `YYYY-MM-DD`.                                                            |
+| `E_ADR_DECIDERS`           | `deciders` empty once the decision is accepted/rejected/superseded.                           |
+| `E_JRN_ACTOR_KIND`         | The journey's `actor` resolves to something that is not an actor.                             |
+| `E_MET_TARGET`             | `target` is not a literal of the grammar its `metric-type` selects.                           |
+| `E_MET_WINDOW`             | `window` is neither `instant` nor a rolling duration literal.                                 |
+| `E_MET_NO_SUBJECT`         | A metric with no `measures` edge, or an empty one. A number with no subject.                  |
+| `W_MET_SUBJECT_SCOPE`      | The metric is filed outside its subject's ownership line. Capability subjects never raise it. |
+| `W_CAP_UNREALIZED`         | No product or component `realizes` this capability — aspiration, not architecture.            |
+| `W_CAP_REALIZATION_EDGE`   | A capability authors `uses` toward a component; realization is the component's own edge.      |
 
 Journey artifact codes (`E_JRN_SCHEMA`, `E_JRN_NAME`, `E_JRN_STEP_COUNT`,
 `E_JRN_BRANCH`, `W_JRN_*`) belong to `journey.yaml`, not to frontmatter — see

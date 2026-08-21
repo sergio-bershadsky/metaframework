@@ -81,13 +81,13 @@ work — a release bot, a service account — is an actor.
 **Capability, product, component, requirement, journey.** Five kinds compete for
 the same sentence. Apply in order; the first `yes` wins:
 
-| # | Question                                                             | If yes                                                          |
-|---|----------------------------------------------------------------------|-----------------------------------------------------------------|
-| 1 | Is it funded, delivered and owned as a unit — a team and a roadmap?  | `product`. `shop` is a product; *sell goods online* is what it realizes. |
-| 2 | Does it have an inside we describe — code, a runtime, an interface?  | `component`. A capability has no inside; it is realized, not built. |
-| 3 | Is it a statement that must be **true**, decidable by written criteria? | `requirement`. *Orders dispatch within 24 h* passes or fails.  |
-| 4 | Does the **order** of steps across the solution matter to it?        | `journey`. A capability is a verb, a journey is a path.         |
-| 5 | Otherwise — the business can do it, and it survives a rewrite        | `capability`.                                                    |
+| # | Question                                                                | If yes                                                                   |
+| - | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 1 | Is it funded, delivered and owned as a unit — a team and a roadmap?     | `product`. `shop` is a product; *sell goods online* is what it realizes. |
+| 2 | Does it have an inside we describe — code, a runtime, an interface?     | `component`. A capability has no inside; it is realized, not built.      |
+| 3 | Is it a statement that must be **true**, decidable by written criteria? | `requirement`. *Orders dispatch within 24 h* passes or fails.            |
+| 4 | Does the **order** of steps across the solution matter to it?           | `journey`. A capability is a verb, a journey is a path.                  |
+| 5 | Otherwise — the business can do it, and it survives a rewrite           | `capability`.                                                            |
 
 The mechanical test when the table leaves it ambiguous: **write the sentence,
 then imagine replacing every system behind it** — different vendor, language,
@@ -215,18 +215,18 @@ Every entity carries the common contract — `name` (MUST equal the directory
 name), `kind` (MUST equal the bucket), `version` (integer), `title`, `summary`
 (one line, ≤ 200 chars), `status` — plus its own required fields:
 
-| Kind          | Required kind fields                                                    | Optional            | Sensible values for a new entity              |
-|---------------|-------------------------------------------------------------------------|---------------------|-----------------------------------------------|
-| `solution`    | `vision`                                                                | `scope`, `contacts` | `vision` in the user's own words              |
-| `product`     | `lifecycle`                                                             | `primary-actors`    | `lifecycle: concept` or `incubating`          |
-| `component`   | `component-type`, `lifecycle`                                           | —                   | `lifecycle: planned` for a design-first entity |
-| `actor`       | `actor-type`, `goals` (≥ 1)                                             | —                   | goals verb-first, from the actor's side       |
-| `environment` | `environment-type`                                                      | —                   | —                                             |
-| `requirement` | `requirement-type`, `priority`                                          | —                   | `priority` is one of must/should/could/wont   |
-| `adr`         | `decision-status`, `date`; `deciders` once accepted/rejected/superseded | —                   | `decision-status: proposed` while arguing     |
-| `capability`  | **none at all**                                                         | —                   | the common contract is the whole frontmatter  |
-| `journey`     | `actor`                                                                 | —                   | one SRN, not a list; the protagonist          |
-| `metric`      | `metric-type`, `target`, `window`, `direction`                          | —                   | quote `target` and `window`, always           |
+| Kind          | Required kind fields                                                    | Optional            | Sensible values for a new entity               |
+| ------------- | ----------------------------------------------------------------------- | ------------------- | ---------------------------------------------- |
+| `solution`    | `vision`                                                                | `scope`, `contacts` | `vision` in the user's own words               |
+| `product`     | `lifecycle`                                                             | `primary-actors`    | `lifecycle: concept` or `incubating`           |
+| `component`   | `component-type`, `lifecycle`                                           | `criticality`       | `lifecycle: planned` for a design-first entity |
+| `actor`       | `actor-type`, `goals` (≥ 1)                                             | —                   | goals verb-first, from the actor's side        |
+| `environment` | `environment-type`                                                      | —                   | —                                              |
+| `requirement` | `requirement-type`, `priority`                                          | —                   | `priority` is one of must/should/could/wont    |
+| `adr`         | `decision-status`, `date`; `deciders` once accepted/rejected/superseded | —                   | `decision-status: proposed` while arguing      |
+| `capability`  | **none at all**                                                         | —                   | the common contract is the whole frontmatter   |
+| `journey`     | `actor`                                                                 | —                   | one SRN, not a list; the protagonist           |
+| `metric`      | `metric-type`, `target`, `window`, `direction`                          | —                   | quote `target` and `window`, always            |
 
 New entities start at `version: 1`, `status: draft`. Enum values are closed —
 anything outside them is `E_FM_SCHEMA`. See `_shared/references/frontmatter.md`
@@ -467,7 +467,7 @@ framework monorepo. `--dir <path>` or `CATALOG_DIR=<path>` override the search.
 Zero **error** diagnostics is the pass condition — the command exits non-zero on
 any error, so the same line is the CI gate. Output is one entry per diagnostic
 (`severity  CODE  catalog-relative-path`, then the message) closing with a
-summary like `0 errors, 6 warnings — 324 entities across 3 solutions.` Report
+summary of the form `<n> errors, <n> warnings — <n> entities across <n> solutions.` Report
 pass/fail and every diagnostic with its code, file and fix. Invoke the
 **`validate-catalog`** skill to read the output — it carries the code→cause→fix
 table, the cascade rules, and what this check does not cover.

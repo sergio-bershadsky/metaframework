@@ -1,7 +1,7 @@
 ---
 name: protocol-model
 kind: component
-version: 4
+version: 5
 title: Protocol model
 summary: Workflow mini-spec parser, XState-subset validator, mermaid compiler, generated meta-schema and XState normalizer — five modules, one question, and none of their diagnostics reaches /diagnostics.
 status: review
@@ -166,20 +166,26 @@ Its suites run against hermetic fixtures and are never pointed at `solutions/`.
 
 `transport.yaml` has a full mini-spec in the protocol kind document — a closed
 `kind` enum, binding blocks, the `spec`/surface-list exclusivity rule — and
-**this component has no parser for it**. Grepping `src` for `transport` outside
-tests returns 17 hits across eleven files on 2026-08-21, and not one is a
-parser: comments, the protocol kind's blurb string in `lib/ui/kind.ts`, the
-role-table row in `lib/srn/artifacts.ts` that makes the file addressable, and
-the dialect-registry row in `lib/catalog/dialects.ts` that lets the `$schema`
-header of [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects)
-be recognised and stripped. Identity, in other words, and no reader: none of
-those lines looks at a field of the document beneath. The file still renders as
-generic YAML like any other, and `E_PROTO_TRANSPORT_SCHEMA`,
-`E_PROTO_TRANSPORT_BINDING`, `E_PROTO_TRANSPORT_SPEC_CONFLICT` and
-`E_PROTO_SPEC_FILE` appear in `src` only as four rows of the debt register in
-`lib/catalog/diagnostic-coverage.test.ts`. The catalog has 16 authored
-`transport.yaml` files (`find solutions -name transport.yaml`, 2026-08-21) —
-nine in acme, four in brass, two in this product and one under
+**this component has no parser for it**, in either of the two dialects that file
+now admits. Grepping `src` for `transport` outside tests returns 20 hits across
+eleven files on 2026-08-21, and not one is a parser: comments, the protocol
+kind's blurb string in `lib/ui/kind.ts`, the role-table row in
+`lib/srn/artifacts.ts` that makes the file addressable, and the two
+dialect-registry rows in `lib/catalog/dialects.ts` — the framework `$schema` that
+[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects)
+requires, read and stripped, and the native `asyncapi:` that
+[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi) added
+beside it, recognised and left in place. Identity, in other words, and no reader:
+none of those lines looks at a field of the document beneath. The file still
+renders as generic YAML like any other, and `E_PROTO_TRANSPORT_SCHEMA`,
+`E_PROTO_TRANSPORT_BINDING`, `E_PROTO_TRANSPORT_SPEC_CONFLICT`,
+`E_PROTO_TRANSPORT_ASYNCAPI` and `E_PROTO_SPEC_FILE` appear in `src` as five rows
+of the debt register in `lib/catalog/diagnostic-coverage.test.ts`, and once more
+as a comment in `dialects.test.ts` — nowhere else. The AsyncAPI row reads "the
+AsyncAPI dialect is detected and never read", which is the whole of what a second
+dialect cost this component. The catalog has 16 authored `transport.yaml` files
+(`find solutions -name transport.yaml`, 2026-08-21) — nine in acme, four in
+brass, two in this product and one under
 [devops](srn://metaframework/product/devops) — and not one of them has ever been
 validated by anything.
 

@@ -28,6 +28,8 @@ config:
     description: Optional. Unset, the GitHub path is simply unavailable and the local mount still works.
 
   - key: GITHUB_APP_PRIVATE_KEY
+    secret: true
+    source: env-file:docker/.env#GITHUB_APP_PRIVATE_KEY
     description: >-
       SECRET. Optional here. A developer wanting the GitHub path registers their
       own App against a test repository rather than sharing production's key —
@@ -37,9 +39,13 @@ config:
     description: Optional, with the same reading as above.
 
   - key: GITHUB_APP_CLIENT_SECRET
+    secret: true
+    source: env-file:docker/.env#GITHUB_APP_CLIENT_SECRET
     description: SECRET, optional. Identity flow only; grants no repository access.
 
   - key: HUB_SESSION_SECRET
+    secret: true
+    source: env-file:docker/.env#HUB_SESSION_SECRET
     description: >-
       SECRET. Any value works locally; production's is supplied at deploy time.
       A default committed under docker/ is how a development secret reaches

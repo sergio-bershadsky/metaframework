@@ -787,7 +787,7 @@ export async function unbumpedChanges(relDir: string, options: HistoryOptions & 
   const safe = safeCatalogPath(relDir, options)
   if (!safe) return []
 
-  return listed(`unbumped ${root} ${safe}`, async () => {
+  return listed(`unbumped\0${root}\0${safe}`, async () => {
     const { context } = await resolveContext(root)
     if (!context) return []
 

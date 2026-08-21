@@ -3,17 +3,25 @@
 > Reproduced **verbatim** from `solutions/acme/protocol/settlement/`: the
 > `index.md` frontmatter (its prose body is not reproduced — the heading below
 > says so) and then all three artifact files, complete and unabridged, dialect
-> header included. Nothing is elided. When the repository is present, read the
-> originals; this copy exists because an installed plugin cannot see them.
+> header and comments included. Nothing is elided. Every block below is
+> generated from the file on disk, never hand-copied. When the repository is
+> present, read the originals; this copy exists because an installed plugin
+> cannot see them.
 
-A `bus` protocol at the solution root: Kafka transport with an authoritative
-surface list, one workflow with fan-out, and a compound state machine. Read it
-alongside `references/artifacts.md`, which carries the rules each file obeys.
+A `bus` protocol at the solution root: a Kafka transport written as an **AsyncAPI
+3.1.0 document**, one workflow with fan-out, and a compound state machine. Read
+it alongside `references/artifacts.md`, which carries the rules each file obeys.
 
-Each of the three artifacts opens with its `$schema` dialect header, and that
-first line is part of what you are copying. The three URLs differ — one names
-`transport-document`, one `workflow-document`, one `state-machine-document` —
-because the key declares the grammar of *that file*, not of the protocol.
+Each of the three artifacts opens with a dialect header, and that first line is
+part of what you are copying — but they are **not the same key**, and that is the
+lesson this protocol carries that no other file states as plainly. `states.json`
+and `workflows/settle-order.yaml` are written in framework mini-specs, so each
+carries the framework's `$schema` at a different meta-schema URL — one
+`state-machine-document`, one `workflow-document`. `transport.yaml` is written in
+the *other* dialect its role admits, so it carries AsyncAPI's own `asyncapi: 3.1.0`
+and the framework adds nothing beside it. Same protocol, same directory, same
+addresses; three files, two kinds of discriminator, because the key declares the
+grammar of *that file* and nothing else.
 
 ## `index.md` frontmatter
 
@@ -21,7 +29,7 @@ because the key declares the grammar of *that file*, not of the protocol.
 ---
 name: settlement
 kind: protocol
-version: 3
+version: 4
 title: Settlement
 summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
 status: approved
@@ -59,33 +67,82 @@ because the message × datamodel matrix is derived from the artifacts below.
 ## `transport.yaml`
 
 ```yaml
-$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
-kind: kafka
-summary: Settlement facts published by shop and consumed by billing.
-encoding: avro
-auth:
-  - sasl-scram
-  - mtls
-kafka:
-  cluster: acme-settlement
-  topics:
-    - name: acme.settlement.order-paid.v1
-      key: order-id
-      message: /product/shop/component/checkout/component/payment/datamodel/order@3
-      partitions: 12
-      retention: 30d
-      summary: Emitted once an order reaches the paid state and funds are captured.
-    - name: acme.settlement.ledger-entry-posted.v1
-      key: order-id
-      message: /product/billing/datamodel/ledger-entry@1
-      partitions: 12
-      retention: 30d
-      summary: One event per posted double-entry leg, published by the ledger.
-    - name: acme.settlement.reconciliation-report.v1
-      key: batch-id
-      partitions: 1
-      retention: 90d
-      summary: Nightly reconciliation outcome; its payload model is still under design.
+asyncapi: 3.1.0
+x-srn: srn://acme/protocol/settlement
+info:
+  title: Settlement
+  version: unversioned
+  description: Settlement facts published by shop and consumed by billing.
+defaultContentType: application/vnd.apache.avro
+servers:
+  acme-settlement:
+    host: "{host}"
+    # The plain spelling, not `kafka-secure`. `protocol` is required, so one of
+    # the two must be written; the mini-spec's `kafka` binding carries no `tls`
+    # field at all — unlike `http`, `grpc` and `websocket`, which do — so the
+    # file this replaces made no claim about the wire. The `auth` labels below
+    # are the only security fact it ever stated, and they carry over verbatim.
+    protocol: kafka
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - sasl-scram
+      - mtls
+channels:
+  order-paid:
+    address: acme.settlement.order-paid.v1
+    summary: Emitted once an order reaches the paid state and funds are captured.
+    bindings:
+      kafka:
+        partitions: 12
+        topicConfiguration:
+          retention.ms: 2592000000    # was `retention: 30d`
+        bindingVersion: "0.5.0"
+    messages:
+      order-paid:
+        x-srn-payload: /product/shop/component/checkout/component/payment/datamodel/order@3
+        x-srn-partition-key: order-id
+
+  ledger-entry-posted:
+    address: acme.settlement.ledger-entry-posted.v1
+    summary: One event per posted double-entry leg, published by the ledger.
+    bindings:
+      kafka:
+        partitions: 12
+        topicConfiguration:
+          retention.ms: 2592000000    # was `retention: 30d`
+        bindingVersion: "0.5.0"
+    messages:
+      ledger-entry-posted:
+        x-srn-payload: /product/billing/datamodel/ledger-entry@1
+        x-srn-partition-key: order-id
+
+  reconciliation-report:
+    address: acme.settlement.reconciliation-report.v1
+    summary: Nightly reconciliation outcome; its payload model is still under design.
+    # No `messages` map: the mini-spec named no payload here either, and
+    # `messages` is optional.
+    #
+    # `x-srn-partition-key` normally sits on a Message Object, mirroring where
+    # AsyncAPI's own kafka `key` sits. This is the one channel in the catalog
+    # with a `key` and no `message` — 9 keyed topics, 8 with a message — and both
+    # alternatives lie: dropping `batch-id` loses a fact the source stated, and
+    # minting an empty Message Object to hang it on invents a payload the source
+    # withheld. So the key rides the Channel, and only where a channel declares
+    # no `messages`.
+    x-srn-partition-key: batch-id
+    bindings:
+      kafka:
+        partitions: 1
+        topicConfiguration:
+          retention.ms: 7776000000    # was `retention: 90d`
+        bindingVersion: "0.5.0"
+
+# No `operations` block. The mini-spec's kafka surface list records no direction,
+# and `action` is send/receive relative to one application — inventing a side
+# here would say more than the file it replaces. Who publishes and who consumes
+# is in `participants` in index.md, where it always was.
 ```
 
 ## `workflows/settle-order.yaml`
@@ -191,10 +248,12 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
   + component/payment`, `product/billing + component/ledger`, and
   `product/billing + component/reconciliation`. The common prefix is empty, so
   the NCA is the solution root — which is where the directory sits.
-- **Dialect.** Each of `transport.yaml`, `workflows/settle-order.yaml` and
-  `states.json` carries its `$schema` as its **first** key, naming that file's
-  grammar and no revision of it. An artifact that declares nothing still loads —
-  it is read as the legacy dialect and warned with `W_ARTIFACT_DIALECT` on the
+- **Dialect.** Each artifact declares one as its **first** key, naming that
+  file's grammar and no revision of it: `workflows/settle-order.yaml` and
+  `states.json` carry the framework's `$schema` at their own meta-schema URLs,
+  `transport.yaml` carries AsyncAPI's native `asyncapi: 3.1.0`. Both are
+  recognised, so `W_ARTIFACT_DIALECT` fires on none of them. An artifact that
+  declares nothing still loads — read as the legacy dialect and warned on the
   entity, never broken — so this bullet is the one the checker cannot fail for
   you with an error.
 - **Back-edges.** All three component participants declare `exposes` or `uses`
@@ -202,11 +261,22 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
 - **Style.** `bus`, and every step is `kind: event` with no `call` anywhere — no
   `W_PROTO_STYLE_MISMATCH`. The list-valued `to` is legal precisely because the
   steps are events.
-- **Transport.** `topics` is present and `spec` is absent, so no
-  `E_PROTO_TRANSPORT_SPEC_CONFLICT`. The third topic declares no `message`,
-  which is legal — a surface entry's payload is optional.
-- **Channels.** All three `channel` values match topic `name`s, so
-  `W_PROTO_WF_CHANNEL_UNKNOWN` does not fire.
+- **Transport profile.** All six AsyncAPI-dialect rules hold: `x-srn` equals the
+  entity SRN, `info.title` equals the frontmatter `title`, `info.version` is the
+  literal `unversioned`, `servers` has exactly one entry whose `protocol` is
+  admitted for a `kafka` wire, `channels` is non-empty, and `operations` is
+  absent — legal, and honest, because the mini-spec form this replaced recorded
+  no direction to convert. `E_PROTO_TRANSPORT_SPEC_CONFLICT` cannot arise here:
+  `spec` is a mini-spec key and this dialect has none. The third channel declares
+  no `messages` map, which is legal — a channel's payload is optional — and it is
+  the reason its `x-srn-partition-key` sits on the **Channel** rather than on a
+  Message. That placement is the rule's one exception and applies only where a
+  channel declares no `messages`; the other two keys in this file are on Messages,
+  where they belong.
+- **Channels.** All three workflow `channel` values match a channel `address`, so
+  `W_PROTO_WF_CHANNEL_UNKNOWN` does not fire. In this dialect the channelId would
+  have matched too; the `address` is written because that is the topic name a
+  Kafka operator would recognise.
 - **States.** `id` equals `name`; every event matches `^[A-Z][A-Z0-9_]*$` and
   maps to a message in the workflow (`ORDER_PAID` ⇔ `order-paid`,
   `LEDGER_ENTRY_POSTED` ⇔ `ledger-entry-posted`, `RECONCILIATION_REPORT` ⇔
@@ -218,8 +288,23 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
 - Nested `alt` with `otherwise`, `loop` with `max`, and a self-call —
   `solutions/acme/product/shop/protocol/order-placement/workflows/place-order.yaml`,
   which sits exactly at the depth-3 ceiling.
-- An HTTP transport with an authoritative `operations` list —
-  `solutions/acme/product/shop/protocol/order-placement/transport.yaml`.
+- **The mini-spec dialect of `transport.yaml`**, which this protocol no longer
+  uses at all — an HTTP transport with an authoritative `operations` list, at
+  `solutions/acme/product/shop/protocol/order-placement/transport.yaml`. Read it
+  before you assume the field tables in `references/artifacts.md` describe the
+  file above.
+- **An AsyncAPI transport that does carry `operations`** —
+  `solutions/brass/protocol/game-transport/transport.yaml`, a `websocket` wire.
+  Its mini-spec form recorded `direction` on every entry, so there was something
+  to convert: `client-to-server` became `receive` and `server-to-client` became
+  `send`, read from the participant its root `id` names. It is also where the
+  websocket channel rule is visible: its five mini-spec entries became **five
+  channels**, not five messages on one, because W9 matches a workflow step's
+  `channel:` against a channel `address` or channelId and its two workflows name
+  all five. Two pairs share an `address` — three socket.io events across five
+  channels — which is legal and is why each entry keeps its own channelId. Read
+  its inline comments rather than assuming; they record why the file is shaped as
+  it is.
 - An HTTP transport that delegates to an external spec file instead —
   `solutions/acme/product/billing/component/ledger/protocol/refund-request/transport.yaml`
   with its sibling `openapi.yaml`.

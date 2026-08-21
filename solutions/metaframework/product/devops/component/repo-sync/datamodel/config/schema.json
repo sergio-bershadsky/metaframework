@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/metaframework/product/devops/component/repo-sync/datamodel/config",
+  "x-srn": "srn://metaframework/product/devops/component/repo-sync/datamodel/config",
+  "title": "Repo sync configuration",
+  "description": "The process environment repo-sync reads: its volume, its limits, and the App credentials it mints fetch tokens with.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://schemas.metaframework.dev/metaframework/product/devops/datamodel/telemetry-config"
+    }
+  ],
+  "properties": {
+    "HUB_DATA_DIR": {
+      "type": "string",
+      "pattern": "^/",
+      "description": "Absolute mount point of the volume holding mirrors and worktrees. Defaultless: a wrong path rebuilds every mirror silently."
+    },
+    "HUB_DATA_MAX_BYTES": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total volume cap in bytes. Defaultless: uncapped, the failure is every git fetch breaking at once, not disk full."
+    },
+    "HUB_WORKTREE_IDLE_TTL": {
+      "type": "string",
+      "minLength": 1,
+      "description": "How long an unleased worktree survives before eviction. Typed string: lifecycle is planned and the grammar is unfixed."
+    },
+    "HUB_LEASE_TTL": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Server-side expiry for a worktree lease; must exceed the slowest render. Typed string for the same reason as the TTL above."
+    },
+    "HUB_LOCAL_REPO": {
+      "type": "string",
+      "pattern": "^/",
+      "description": "Absolute host directory mounted read-only, for the no-GitHub path. Declared by compose only; production has no host to mount."
+    },
+    "GITHUB_APP_ID": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Numeric id of the GitHub App, used to mint installation tokens. Not a secret, and typed so a client id in this key fails."
+    },
+    "GITHUB_APP_PRIVATE_KEY": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true,
+      "description": "Secret. Mints installation tokens rather than being one, so nothing here outranks it. Never committed, never on the volume."
+    }
+  },
+  "required": [
+    "HUB_DATA_DIR",
+    "HUB_DATA_MAX_BYTES"
+  ]
+}

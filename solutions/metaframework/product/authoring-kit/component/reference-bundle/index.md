@@ -48,8 +48,8 @@ Nothing else in the plugin can fail that way.
 
 ## What it is a distillation of
 
-11,765 lines of `framework/spec/` become 4,497 — a 2.6× compression (11,765 /
-4,497 = 2.62) that drops worked examples, rationale and the spec's own
+12,931 lines of `framework/spec/` become 5,070 — a 2.6× compression (12,931 /
+5,070 = 2.55) that drops worked examples, rationale and the spec's own
 cross-referencing, and keeps the rules an author must not get wrong. Eight of
 the ten files name a spec document in their opening blockquote and concede
 precedence to it. `srn.md` opens:

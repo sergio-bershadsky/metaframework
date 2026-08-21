@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/brass/product/play/component/server/datamodel/config",
+  "x-srn": "srn://brass/product/play/component/server/datamodel/config",
+  "title": "Server configuration",
+  "description": "The process environment the boardgame.io server reads. Two knobs; neither is owed by an environment.",
+  "type": "object",
+  "properties": {
+    "PORT": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 8000,
+      "description": "Listen port. Defaults to 8000 in code and is 8080 in production; both probes target whatever this resolves to."
+    },
+    "CLIENT_ORIGIN": {
+      "type": "string",
+      "pattern": "^https?://[^,\\s]+$",
+      "description": "One origin added to the socket handshake allowlist. Not required: localhost and 127.0.0.1 are admitted on any port already."
+    }
+  },
+  "required": [
+    "PORT"
+  ]
+}

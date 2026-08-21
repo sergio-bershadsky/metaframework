@@ -1,9 +1,9 @@
 ---
 name: kind-contracts
 kind: component
-version: 4
+version: 5
 title: Kind contracts
-summary: One document per ontology kind — twelve files, 7,323 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
+summary: One document per ontology kind — twelve files, 9,393 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
 status: review
 owner: sergio
 component-type: library
@@ -26,27 +26,27 @@ tags:
   - kinds
 ---
 
-`framework/spec/kinds/` — twelve documents, 7,323 lines, one per ontology kind.
+`framework/spec/kinds/` — twelve documents, 9,393 lines, one per ontology kind.
 Versions and line counts measured 2026-08-20:
 
 | Document         | Version | Lines | Adds                                                            |
-| ---------------- | ------- | ----- | --------------------------------------------------------------- |
+|------------------|---------|-------|-----------------------------------------------------------------|
 | `solution.md`    | 5       | 328   | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7.      |
-| `product.md`     | 4       | 286   | `lifecycle`, `primary-actors`.                                  |
-| `component.md`   | 4       | 526   | `component-type`, `lifecycle`, environment declaration.         |
-| `datamodel.md`   | 6       | 1216  | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.       |
-| `protocol.md`    | 4       | 1242  | `participants`/`style`, `transport.yaml`, workflows, states.    |
+| `product.md`     | 5       | 300   | `lifecycle`, `primary-actors`.                                  |
+| `component.md`   | 5       | 668   | `component-type`, `lifecycle`, environment declaration.         |
+| `datamodel.md`   | 9       | 1,658 | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.       |
+| `protocol.md`    | 7       | 2,183 | `participants`/`style`, `transport.yaml`, workflows, states.    |
 | `actor.md`       | 4       | 446   | `actor-type`, `goals`, protocol participation.                  |
-| `environment.md` | 3       | 448   | `environment-type`, `topology.yaml`, `config.yaml`.             |
+| `environment.md` | 6       | 812   | `environment-type`, `topology.yaml`, `config.yaml`.             |
 | `adr.md`         | 3       | 418   | `decision-status`, `date`, `deciders`, the body template.       |
 | `requirement.md` | 3       | 493   | `requirement-type`, `priority`, `## Acceptance criteria`.       |
 | `capability.md`  | 2       | 584   | Nothing — zero kind fields, deliberately; target of `realizes`. |
-| `journey.md`     | 2       | 686   | `actor`, and the ordered unbranched `journey.yaml`.             |
+| `journey.md`     | 5       | 853   | `actor`, and the ordered unbranched `journey.yaml`.             |
 | `metric.md`      | 2       | 650   | `metric-type`, `target`, `window`, `direction`; `measures`.     |
 
 The last three arrived together in decision-record amendment `2026-08-20-a`.
-They are 1,920 of these 7,323 lines — a quarter of the component, written in a
-day — and two of them, `capability.md` and `metric.md`, are the only documents
+They are 2,087 of these 9,393 lines — a little over a fifth of the
+component, written in a day — and two of them, `capability.md` and `metric.md`, are the only documents
 anywhere in `framework/spec/` that still carry `status: draft`.
 
 The set is **closed but no longer fixed**, and `index.md` now says so in its own
@@ -136,16 +136,24 @@ this catalog are checked by author discipline alone.
 
 `transport.yaml` has a complete mini-spec in `protocol.md` — a closed `kind`
 enum, six binding blocks, six surface lists, the `spec`/surface-list exclusivity
-rule — and sixteen authored instances (`find solutions -name transport.yaml`,
-2026-08-21). Nothing in `framework/portal/src` validates one: the file renders as
-generic YAML and `E_PROTO_TRANSPORT_*` is implemented nowhere.
+rule — and, since
+[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi), a
+second admitted grammar for three of those six kinds, with its own profile rules
+on top of AsyncAPI. Sixteen authored instances, 12 in the mini-spec and 4 in
+AsyncAPI (`find solutions -name transport.yaml`, 2026-08-21). Nothing in `framework/portal/src` validates either: the file renders
+as generic YAML and `E_PROTO_TRANSPORT_*` is implemented nowhere.
 `environment.md`'s `topology.yaml` is in the same position with seven instances.
 
 What both formats now have in `src` is an *identity*, not a reader.
 `lib/srn/artifacts.ts` gives each a role row so it can be addressed, and
 `lib/catalog/dialects.ts` gives each a dialect row so the `$schema` header
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) requires
-can be recognised and stripped. Neither row looks at a single field of the
+can be recognised and stripped. The `transport` role has **two** such rows —
+[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi) admits
+an AsyncAPI 3.x document under the same filename for the `kafka`, `websocket` and
+`amqp` wires, discriminated by its own `asyncapi:` key and left unstripped, while
+`http`, `grpc` and `in-process` keep the mini-spec — so the transport role is
+specified twice over and read neither time. No row looks at a single field of the
 document beneath it.
 
 That gap is why

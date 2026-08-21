@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/acme/datamodel/settlement-bus-config",
+  "x-srn": "srn://acme/datamodel/settlement-bus-config",
+  "title": "Settlement bus configuration",
+  "description": "Broker access for the participants of the settlement protocol. Extended through allOf; never a contract on its own.",
+  "type": "object",
+  "properties": {
+    "KAFKA_BOOTSTRAP": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9.-]+:[0-9]+(,[A-Za-z0-9.-]+:[0-9]+)*$",
+      "description": "Bootstrap servers for the settlement bus: host:port, comma-separated. No default \u2014 a guessed broker fails at first publish."
+    }
+  },
+  "required": [
+    "KAFKA_BOOTSTRAP"
+  ]
+}

@@ -14,3 +14,7 @@ portal-protocol.png
 # raw.githubusercontent URLs, so they only render once they are committed here.
 *.png
 !docs/screenshots/*.png
+
+# Python bytecode — a .pyc was committed into the shipped plugin once already
+__pycache__/
+*.py[cod]

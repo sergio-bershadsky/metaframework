@@ -1,7 +1,7 @@
 ---
 name: journey-document
 kind: datamodel
-version: 1
+version: 2
 title: Journey document
 summary: journey.yaml — one actor's path across the solution as 2 to 12 flat steps, no branches, and the product-crossing check the journey kind exists for.
 status: review
@@ -16,8 +16,8 @@ tags:
 
 `journey.yaml` beside a journey's `index.md`: **one actor's path across the
 solution**, in order, from first contact to outcome. Specified in
-`framework/spec/kinds/journey.md` (version 3, 734 lines) under "The journey.yaml
-mini-spec"; parsed by `framework/portal/src/lib/journey/journey.ts` (407 lines).
+`framework/spec/kinds/journey.md` (version 5, 853 lines) under "The journey.yaml
+mini-spec"; parsed by `framework/portal/src/lib/journey/journey.ts` (414 lines).
 Measured 2026-08-21 with `find solutions -name journey.yaml`: **9 instances** — 2
 in `solutions/acme`, 3 in `solutions/brass`, 4 in this solution — carrying 62
 steps between them.
@@ -201,7 +201,7 @@ implemented and reports nothing on this role, which is the only shape of silence
 that means the header is there rather than unchecked.
 
 **The key is stripped before any parser sees it.** `adoptDialect`
-(`framework/portal/src/lib/catalog/dialects.ts:166`) records the dialect on the
+(`framework/portal/src/lib/catalog/dialects.ts:192`) records the dialect on the
 artifact and then deletes the key from the parsed document, at the single point
 in `loadCatalog` where every artifact has been read and nothing downstream has
 been handed one (`catalog/load.ts:249`). So the model `parseJourney` builds is
