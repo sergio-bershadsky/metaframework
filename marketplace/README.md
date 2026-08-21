@@ -76,12 +76,18 @@ the shared reference bundle the skills read.
 Add the marketplace, then install the plugin:
 
 ```text
-/plugin marketplace add /Users/sergey/work/bershadsky/metaframework/marketplace
+/plugin marketplace add sergio-bershadsky/metaframework
 /plugin install metaframework@metaframework
 ```
 
-From a git remote, point `marketplace add` at the repository instead of the
-local path. To develop against it without installing:
+The marketplace manifest lives at the **repository root**
+(`.claude-plugin/marketplace.json`) rather than in this directory, which is what
+lets the GitHub shorthand above work: `marketplace add` clones the repository
+and looks for the manifest at its root. The manifest's `source` points back down
+here, so the plugin itself still lives in `marketplace/plugins/metaframework`.
+A local path works too — point it at the repository root, not at this folder.
+
+To develop against it without installing:
 
 ```bash
 claude --plugin-dir /Users/sergey/work/bershadsky/metaframework/marketplace/plugins/metaframework

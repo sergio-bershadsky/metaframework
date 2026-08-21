@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "metaframework",
   "version": "0.1.0",
-  "description": "Authoring toolkit for the metaframework — describe a software solution as a reviewable file catalog of SRN-addressed entities",
+  "description": "Authoring toolkit for the metaframework \u2014 describe a software solution as a reviewable file catalog of SRN-addressed entities",
   "owner": {
     "name": "Sergio Bershadsky",
     "email": "sergio.bershadsky@gmail.com"
@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "metaframework",
-      "source": "./plugins/metaframework",
+      "source": "./marketplace/plugins/metaframework",
       "description": "Author and evolve metaframework solution catalogs: SRN identity, kind-bucketed directories, frontmatter contracts, JSON Schema data models, additive-only evolution, and portal-enforced integrity",
       "version": "0.1.0",
       "category": "development"

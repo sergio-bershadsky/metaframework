@@ -78,6 +78,39 @@ async function main() {
 /* ------------------------------------------------------------------ catalog */
 
 /**
+ * What to do when there is no catalog yet — the other half of the error.
+ *
+ * "Create solutions/<name>/index.md" was technically complete and practically
+ * useless: it tells somebody the shape of the first file and nothing about what
+ * belongs in it, and the frontmatter contracts, the placement grammar and the
+ * eleven kinds are not guessable from an error message. The two honest answers
+ * are a guided one and a manual one, in that order — the guided one is the
+ * reason the authoring kit exists, and somebody hitting this message has almost
+ * certainly not heard of it.
+ *
+ * Deliberately not a tutorial. Four lines of commands and a link; anything
+ * longer stops being read, and the skills themselves carry the interview.
+ */
+function bootstrapGuide() {
+  return [
+    bold('Starting from nothing?'),
+    'The authoring kit is a Claude Code plugin: it interviews you, proposes an',
+    'SRN tree, and writes the catalog once you have agreed to the shape.',
+    '',
+    `  ${dim('# in Claude Code, from the repository you want the catalog to live in')}`,
+    '  /plugin marketplace add sergio-bershadsky/metaframework',
+    '  /plugin install metaframework@metaframework',
+    '  /solution-new',
+    '',
+    `${dim('  /entity-new adds one entity afterwards; /catalog-check reads the diagnostics.')}`,
+    '',
+    'By hand, the smallest catalog that loads is one file:',
+    `  ${CATALOG_DIR_NAME}/<name>/index.md, with frontmatter naming a solution.`,
+    `  ${dim('See https://github.com/sergio-bershadsky/metaframework#readme')}`,
+  ]
+}
+
+/**
  * Turn a resolution into a directory to serve, or into the error the tool owes
  * its user: every path tried, and a non-zero exit.
  */
@@ -93,8 +126,10 @@ function catalogOrExit(invocation) {
         'starting in the working directory and walking up:',
         ...resolution.searched.map((candidate) => `  ${candidate}`),
         '',
-        `Create ${CATALOG_DIR_NAME}/<name>/index.md, or name an existing catalog with`,
-        '`metaframework --dir <path>` (or CATALOG_DIR=<path>).',
+        'If you already have a catalog elsewhere, name it:',
+        '  metaframework --dir <path>          (or CATALOG_DIR=<path>)',
+        '',
+        ...bootstrapGuide(),
       ].join('\n'),
     )
   }
