@@ -1,8 +1,12 @@
 {
   "name": "metaframework",
   "private": true,
+  "//": "This root manifest is never published — the publishable package is framework/portal (@bershadsky/metaframework). `version` exists only so that `npm publish` run here fails with npm's own 'marked as private' message instead of crashing on semver.parse(undefined) with 'Cannot read properties of null (reading prerelease)', which is what it did. Use `npm run release`.",
+  "version": "0.0.0",
   "description": "Reviewable, file-based solution descriptions with a catalog portal",
   "scripts": {
+    "release": "cd framework/portal && npm publish",
+    "release:dry": "cd framework/portal && npm publish --dry-run",
     "dev": "npm --prefix framework/portal run dev",
     "build": "npm --prefix framework/portal run build",
     "start": "npm --prefix framework/portal run start",
