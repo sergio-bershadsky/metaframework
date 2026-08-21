@@ -1,6 +1,6 @@
 {
   "name": "@bershadsky/metaframework",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Serve a metaframework solution catalog — a reviewable file tree of markdown entities — as a live portal, with reload on change",
   "keywords": [
     "architecture",
