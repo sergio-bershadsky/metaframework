@@ -1,5 +1,5 @@
 import matter from 'gray-matter'
-import { ArrowUpRight, ChevronRight, FileWarning } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, FileWarning, UserRound } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -131,17 +131,32 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
 
   return (
     <article className="px-8 py-8">
-      <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-        {ancestors.map((ancestor) => (
-          <span key={ancestor.srn} className="flex items-center gap-1">
-            <Link href={entityHref(ancestor.srn)} className="focusable rounded font-mono hover:text-foreground">
-              {ancestor.frontmatter.name}
-            </Link>
-            <ChevronRight className="size-3 opacity-50" aria-hidden />
-          </span>
-        ))}
-        <span className="font-mono text-foreground/80">{entity.frontmatter.name}</span>
-      </nav>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          {ancestors.map((ancestor) => (
+            <span key={ancestor.srn} className="flex items-center gap-1">
+              <Link href={entityHref(ancestor.srn)} className="focusable rounded font-mono hover:text-foreground">
+                {ancestor.frontmatter.name}
+              </Link>
+              <ChevronRight className="size-3 opacity-50" aria-hidden />
+            </span>
+          ))}
+          <span className="font-mono text-foreground/80">{entity.frontmatter.name}</span>
+        </nav>
+        {/* Top right, on the breadcrumb line. This one streams — it walks commits
+            and diffs pairs, so it must not hold up first paint — and resolves in place. */}
+        {!historical && (
+          <div className="shrink-0">
+            <Suspense fallback={<VersionCheckPending />}>
+              <VersionCheckStreamed
+                relDir={entity.relDir}
+                srn={entity.srn}
+                available={history.unavailable === null}
+              />
+            </Suspense>
+          </div>
+        )}
+      </div>
 
       {/* Above the header, not below it: by the time a reader reaches the prose
           they have already started believing it. */}
@@ -227,20 +242,13 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
             options={options}
             reach={floorOf(history)}
           />
-          {/* Beside the version it is about. This one streams: it walks commits
-              and diffs pairs, so it must not hold up first paint — the chip
-              renders in its pending state and resolves in place. */}
-          {!historical && (
-            <Suspense fallback={<VersionCheckPending />}>
-              <VersionCheckStreamed
-                relDir={entity.relDir}
-                srn={entity.srn}
-                available={history.unavailable === null}
-              />
-            </Suspense>
-          )}
           {view.frontmatter.owner && (
-            <span className="inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            <span
+              title="Owner"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground"
+            >
+              <UserRound className="size-3 shrink-0 opacity-70" aria-hidden />
+              <span className="sr-only">Owner: </span>
               {view.frontmatter.owner}
             </span>
           )}
