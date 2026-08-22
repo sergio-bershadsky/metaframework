@@ -1,0 +1,109 @@
+# Serving `schemas.metaframework.dev`
+
+Every datamodel in every metaframework catalog carries a `$id` on the canonical
+host. That is **identity**, not retrieval — `framework/portal/src/lib/schema/url.ts`
+is explicit that `CANONICAL_SCHEMA_HOST` is a constant rather than
+configuration, because registries and caches key on `$id` and two deployments
+that disagree about a schema's identity is a defect rather than a setting.
+
+JSON Schema permits an `$id` that never resolves. But eight of those URLs are
+the framework's own — the meta-schemas an artifact's `$schema:` header names —
+and those should answer. This is how.
+
+## What is served, and what is not
+
+**Only** `solutions/metaframework/product/specification/datamodel/` — the eight
+formats the spec defines: `entity-frontmatter`, `schema-document`,
+`workflow-document`, `state-machine-document`, `transport-document`,
+`journey-document`, `topology-document`, `config-document`.
+
+Nothing else, ever. The specification product states the rule: *identity is
+global for every datamodel in every catalog; retrieval from the canonical host
+is global for these eight and local for everything else.* A private catalog's
+schemas keep their canonical `$id` and are served by that catalog's own portal
+under its `SCHEMA_BASE_URL`. Publishing them here would contradict the spec and
+put somebody's private architecture on the open web because a build script
+globbed one directory too many — so the scope is a constant in the builder and
+a test asserts a foreign datamodel in the same tree is not picked up.
+
+## Build
+
+```bash
+npm run schemas:build          # → dist/schemas/
+```
+
+Output:
+
+```text
+dist/schemas/
+  _headers
+  index.html
+  metaframework/product/specification/datamodel/
+    config-document              ← extensionless, JSON body
+    entity-frontmatter
+    …
+```
+
+The paths are extensionless because the `$id` is, and the `$id` is the
+contract. Bytes are copied unmodified: the document served and the document
+reviewed in the repository are the same file, which a test asserts.
+
+The build **fails** rather than warns if a schema's `$id` disagrees with the URL
+it would be served at. Serving a document that calls itself something else is
+worse than serving nothing — a resolver caches it under the `$id` it read, and
+every `$ref` that followed the URL there now points at a document that does not
+exist.
+
+`dist/` is git-ignored. A committed copy would be a second, staler answer to a
+URL that must have exactly one.
+
+## Cloudflare Pages
+
+| Setting | Value |
+| ---------------------- | ------------------------------------------------ |
+| Build command | `npm run schemas:build` |
+| Build output directory | `dist/schemas` |
+| Root directory | *(repository root)* |
+| Node version | matches `engines` in `framework/portal/package.json` |
+
+The build has **no dependencies** — it is one Node script over files already in
+the repository — so `npm ci` is not required for it and the deploy is fast.
+
+### DNS
+
+The apex `metaframework.dev` is not what the schemas use. Every `$id` names the
+**`schemas.`** subdomain, so that host needs its own record: attach
+`schemas.metaframework.dev` as a custom domain on the Pages project, which
+creates the `CNAME` for you.
+
+Verify with the URL an artifact actually names, not with the apex:
+
+```bash
+curl -sI https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+# HTTP/2 200
+# content-type: application/schema+json; charset=utf-8
+# access-control-allow-origin: *
+```
+
+### Headers
+
+`_headers` is generated, and mirrors the portal's own `/schemas` route
+(`src/app/schemas/[...path]/route.ts`) so both deployments answer alike:
+
+- `application/schema+json` — JSON Schema's own media type, which stock tooling
+  content-negotiates on, and which a static host cannot infer from a path with
+  no extension.
+- `Access-Control-Allow-Origin: *` — the point of publishing is that other
+  tools can read it, including browser-based validators subject to CORS. The
+  site is read-only and the contents are public by construction.
+- `max-age=300, stale-while-revalidate=3600` — deliberately short and
+  deliberately **not** `immutable`: the URL addresses the *current* schema of an
+  entity, so a redeploy must not be shadowed by a stale cache.
+
+## After it is live
+
+`solutions/metaframework/product/specification/index.md` says the header "can
+also resolve". That sentence describes retrieval of these eight documents, not
+the existence of the domain — it becomes true when this site answers, and needs
+no edit then. It is worth re-reading once, because until then it is a claim
+running ahead of the fact.

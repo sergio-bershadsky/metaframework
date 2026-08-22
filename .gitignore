@@ -18,3 +18,8 @@ portal-protocol.png
 # Python bytecode — a .pyc was committed into the shipped plugin once already
 __pycache__/
 *.py[cod]
+
+# The generated schema site (framework/portal/scripts/build-schema-site.mjs).
+# Cloudflare Pages builds it on deploy; a committed copy would be a second,
+# staler answer to a URL that must have exactly one.
+dist/
