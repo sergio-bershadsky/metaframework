@@ -1,7 +1,7 @@
 ---
 name: 0002-fail-open-pricing
 kind: adr
-version: 1
+version: 2
 title: Promotion evaluation is advisory and fails open
 summary: An unavailable growth never blocks an order — checkout prices undiscounted and the customer sees no offer.
 status: approved
@@ -95,10 +95,14 @@ be switched off. When checkout authors its `uses` edge the two products co-own
 the surface, and three things become due at once:
 
 1. [promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation)
-   moves to `srn://acme/protocol/promotion-evaluation`. Its component
-   participants span two products, so the nearest-common-ancestor rule already
-   places it at the solution root; it sits in growth's bucket only because
-   growth still owns the contract unilaterally.
+   is swapped for a successor at `srn://acme/protocol/promotion-evaluation`. Its
+   component participants span two products, so the nearest-common-ancestor rule
+   already places it at the solution root; it sits in growth's bucket only
+   because growth still owns the contract unilaterally, and `/diagnostics`
+   reports that as `W_STRUCT_PROTOCOL_NCA` in the meantime. Version 1 of this
+   ADR said the entity "moves", which is not an operation this framework has:
+   the SRN is the path, so the successor is authored at the root with a
+   `supersedes` edge and this one is deprecated in place and kept.
 2. The fallback ceiling in AC-5 becomes a shared alert rather than a growth one.
 3. This ADR is revisited, because "advisory" is a much weaker promise once shop
    has planned its basket UI around the discount being there.

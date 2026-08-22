@@ -1,7 +1,7 @@
 ---
 name: catalog-renders-without-git
 kind: requirement
-version: 1
+version: 2
 title: The catalog renders without git, and says why the past is missing
 summary: A tarball, a shallow clone, or an image with no git binary must still render every entity and name the reason history is unreachable.
 status: review
@@ -44,8 +44,8 @@ did not load" into a describable outcome set, which is also why
 [git](srn://metaframework/actor/git) is modelled as an actor at all: an
 unnamed dependency produces unnamed failures.
 
-AC-5 comes from a real edge in the code. The version→commit index reads at most
-200 commits; if the log is capped, the oldest visible revision has no
+AC-5 comes from a real edge in the code. The version→commit index reads
+at most 200 commits; if the log is capped, the oldest visible revision has no
 predecessor, and comparing against nothing would manufacture a diagnostic out of
 the cap.
 

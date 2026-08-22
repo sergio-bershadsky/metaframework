@@ -1,7 +1,7 @@
 ---
 name: guided-authoring
 kind: capability
-version: 2
+version: 3
 title: Get a conformant description written by somebody who has not read the rules
 summary: Put a person or a model in front of an empty directory and have them produce a catalog that is legal, without them having read the specification first.
 status: review
@@ -77,9 +77,9 @@ lists realizers is a marketing sentence:
   carries.** Eleven of sixty-eight rule-bearing sections carry no example, and
   forty-two of ninety-five error codes are never shown being triggered
   ([every-rule-has-an-example](srn://metaframework/product/specification/requirement/every-rule-has-an-example),
-  measured 2026-08-20 over fourteen documents — before `kinds/capability.md`,
-  `kinds/journey.md` and `kinds/metric.md` were part of the set, so the
-  denominator has since grown and the counts have not been retaken). An example
+  measured 2026-08-20, before `kinds/capability.md`, `kinds/journey.md` and
+  `kinds/metric.md` were part of the set, so the denominator has since grown and
+  the counts have not been retaken). An example
   is the part of a rule a first-time author can copy, so those sections are where
   this capability is thinnest.
 - **The fallback path has never been exercised.** The kit is built to work
@@ -102,5 +102,5 @@ lists realizers is a marketing sentence:
 - *A CLI.* There is none, by decision
   ([0011-no-cli-in-v1](srn://metaframework/adr/0011-no-cli-in-v1)). The guidance
   is prose a model reads, and the only executable artifact in the kit is
-  `skills/review-solution/scripts/catalog_facts.py` — 838 lines of stdlib-only
-  Python, measured 2026-08-20 — which prints candidates for a human to judge.
+  `skills/review-solution/scripts/catalog_facts.py`, stdlib-only Python — which
+  prints candidates for a human to judge.

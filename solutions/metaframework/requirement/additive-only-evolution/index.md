@@ -1,7 +1,7 @@
 ---
 name: additive-only-evolution
 kind: requirement
-version: 2
+version: 3
 title: A contract surface is never reduced, only extended or swapped
 summary: An entity's contract surface may be extended with a version bump or replaced by a successor that is swapped in; it is never narrowed in place.
 status: review
@@ -76,9 +76,10 @@ AC-5 is written knowing the spec violates it. Two defects, both greppable:
   two amendments. `index.md@4`, `srn.md@4`, `evolution.md@3` and
   `frontmatter.md@3` exist in no commit, so the version→commit index cannot
   resolve them.
-- **Substantive edits without a bump.** Commit `bae08e4` changed 132 lines of
-  `srn.md` leaving `version: 1`; commit `4aa3f68` changed `frontmatter.md` (71
-  lines) and `structure.md` (45 lines) leaving both at `version: 1`. Both
+- **Substantive edits without a bump.** Commit `bae08e4` rewrote a large part of
+  `srn.md` leaving `version: 1`; commit `4aa3f68` edited both `frontmatter.md`
+  and `structure.md` leaving both at `version: 1` —
+  `git show --stat bae08e4 4aa3f68` is the evidence. Both
   `kinds/datamodel.md` and `kinds/protocol.md` were *born* at version 2 — no v1
   of either was ever committed.
 

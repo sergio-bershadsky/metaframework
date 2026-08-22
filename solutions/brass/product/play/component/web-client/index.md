@@ -1,7 +1,7 @@
 ---
 name: web-client
 kind: component
-version: 2
+version: 3
 title: Web client
 summary: The React SPA served by nginx — routing, lobby, board, HUD and interaction; the human's whole interface.
 status: review
@@ -32,7 +32,7 @@ only thing a [player](srn://brass/actor/player) ever touches.
 
 ## The shape of the app
 
-There is no router dependency. `App.tsx` is twenty-three lines: one `pushState`
+There is no router dependency. `App.tsx` is one `pushState`
 helper, a `popstate` listener, and a single regex — `/play/:matchID` renders the play
 page, everything else renders the home page. `BrassClient` wraps boardgame.io's React
 client with `SocketIO` transport and `BrassBoard` as the board component, and

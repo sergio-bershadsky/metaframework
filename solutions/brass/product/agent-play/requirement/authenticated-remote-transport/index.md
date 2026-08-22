@@ -1,7 +1,7 @@
 ---
 name: authenticated-remote-transport
 kind: requirement
-version: 1
+version: 3
 title: No public MCP endpoint exists until it is authenticated
 summary: A remote MCP transport is a move-injection surface, so authentication is a precondition for exposing one at all. Deliberately unmet.
 status: draft
@@ -48,11 +48,20 @@ Unmet here therefore means "the guard is in place because the door does not
 exist", not "the door is open". The risk is that the door is easy to add — the
 ingress already terminates TLS for
 [brass.bershadsky.dev](srn://brass/environment/production) and adding a path is
-three lines of YAML — and the guard is not.
+a one-entry ingress edit — and the guard is not.
 
-AC-5 exists for exactly that reason: three lines of YAML is small enough to
-happen without a decision, and this is not a decision that should be made in a
+AC-5 exists for exactly that reason: an edit that small is easy to make without
+a decision, and this is not a decision that should be made in a
 template.
+
+`W_REQ_UNIMPLEMENTED` is raised against this page because nothing carries an
+`implements` edge to it, and that is the requirement working rather than
+failing. AC-1 is literally that no `/mcp` ingress path exists while this is
+unmet, so the component that could claim the edge is the one this requirement
+forbids anyone building yet. Parking the edge on
+[mcp-server](srn://brass/product/agent-play/component/mcp-server) would claim a
+guard nobody wrote. The warning is how an unmet `must` stays visible, and it
+should clear on the same commit that opens the door — not before it.
 
 ## Measured where
 

@@ -1,7 +1,7 @@
 ---
 name: catalog-author
 kind: actor
-version: 2
+version: 3
 title: Catalog author
 summary: The person who writes index.md, schema.json, workflows and states.json — and the named beneficiary of the portal's diagnostics page.
 status: review
@@ -26,11 +26,11 @@ datamodel, `workflows/*.yaml` and `states.json` for a protocol. Not a role that
 exists elsewhere and happens to touch the catalog — the catalog **is** the
 artifact, and this actor is the one who produces it.
 
-In this repository that is one person. 52 commits, one author (Sergey
-Bershadsky), every one dated 2026-08-19; `git log --format=%ad --date=short |
-sort -u` returns exactly one line. The two catalogs written so far —
-`solutions/acme` (99 entities) and `solutions/brass` (98) — are the whole
-evidence of use.
+In this repository that is one person: `git shortlog -sn` credits every commit
+to Sergey Bershadsky, and `git log --format=%ad --date=short | sort -u` fits on
+a screen. The catalogs under `solutions/` are the whole evidence of use —
+`ls solutions` names them, and each carries a solution page that states its own
+scope and what it was written from.
 
 ## Why this actor and `reviewer` are not the same entity
 
@@ -44,11 +44,14 @@ implying a team.
 
 ## The affordance that exists for them
 
-`/diagnostics` is the one. Its own docstring says why: "With no CLI in v1, this
-page IS the integrity gate." There is no validator binary, no pre-commit hook and
-no CI, so the entire mechanical feedback loop for this actor is either the portal
-page or the vitest suite behind it —
-`cd framework/portal && npx vitest run src/lib/catalog`.
+`/diagnostics` is the one. Its own docstring still says why — "With no CLI in
+v1, this page *is* the integrity gate" — and that sentence has been overtaken:
+`framework/portal/bin/metaframework.mjs check` prints the same report from a
+terminal, and `.github/workflows/ci.yml` runs it on every push and pull request.
+So this actor now has three mechanical loops rather than one — the portal page,
+the CLI, and the vitest suite behind both
+(`cd framework/portal && npx vitest run src/lib/catalog`) — and what is still
+missing is a pre-commit hook, so all three report after the fact.
 
 The [authoring-kit](srn://metaframework/product/authoring-kit) is the other half
 of the loop, and it is aimed at this actor only indirectly: the skills are

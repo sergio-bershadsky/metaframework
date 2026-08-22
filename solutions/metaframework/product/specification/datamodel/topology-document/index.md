@@ -1,7 +1,7 @@
 ---
 name: topology-document
 kind: datamodel
-version: 2
+version: 3
 title: Topology document
 summary: topology.yaml — regions, replica ranges and one sentence of scaling intent for an environment's hosted components; fully specified, and as of this version every rule it states is checked.
 status: review
@@ -17,19 +17,18 @@ tags:
 `topology.yaml` beside an environment's `index.md`: **where the components of
 this solution actually run** — regions, zones, replica ranges, one sentence of
 scaling intent per host. OPTIONAL, unlike its journey counterpart. Specified in
-`framework/spec/kinds/environment.md` (version 6, 812 lines) §"`topology.yaml`";
-measured 2026-08-21 with `find solutions -name topology.yaml`: **7 instances** —
-2 in `solutions/acme`, 2 in `solutions/brass`, 3 in this solution — carrying 21
-host entries.
+`framework/spec/kinds/environment.md` §"`topology.yaml`". Every solution here
+carries a few — `find solutions -name topology.yaml` is the census — and each
+one lists the hosts of one environment.
 
 ## Why it is here at all, below the bar
 
 The product page
 [specification](srn://metaframework/product/specification) set an explicit
 threshold for this bucket — normatively specified, hand-authored, at least eight
-instances on disk — and listed `topology.yaml` (4 instances at the time) among
-the formats it kept **out**. At 7 it still does not clear that bar, and this
-entity is not an argument that it does.
+instances on disk — and listed `topology.yaml` among the formats it kept
+**out**. It still does not clear that bar, and this entity is not an argument
+that it does.
 
 What changed is the reason a meta-schema exists.
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) makes
@@ -63,12 +62,13 @@ tests, and 20 of those are the reader:
   measurement in
   [0016-topology-format-deferred](srn://metaframework/adr/0016-topology-format-deferred)
   had to be rewritten around.
-- `lib/srn/artifacts.ts:45` — the role-table row,
+- `lib/srn/artifacts.ts` — the `ARTIFACT_ROLES` row,
   `{ kind: 'environment', role: 'topology', file: 'topology.yaml', depth: 1 }`.
-- `lib/catalog/dialects.ts:133` — the dialect-table row added by 0015.
-- `lib/catalog/index.ts:95` — where `withEnvironmentChecks` folds the reader into
+- `lib/catalog/dialects.ts` — the `'environment:topology'` dialect ruling added
+  by 0015.
+- `lib/catalog/index.ts` — where `withEnvironmentChecks` folds the reader into
   the load pipeline.
-- `lib/catalog/frontmatter.ts:200` — a comment about why environments are not
+- `lib/catalog/frontmatter.ts` — a comment about why environments are not
   folded into a frontmatter field.
 
 `components/entity/entity-artifacts.tsx` dispatches on entity kind *and*
@@ -89,8 +89,8 @@ artifacts are parsed into `artifact.data` and never validated", and
 `W_ENV_HOST_UNDECLARED` beside `W_ENV_CONFIG_ORPHAN` under "no
 environment/component hosting cross-check exists". That register is a ratchet
 rather than an exemption: the inventory suite fails the moment an entry gains an
-emitter, so implementing a rule forces its line out of the map. All seven lines
-are out. Where the table used to be there is now a comment saying the section is
+emitter, so implementing a rule forces its line out of the map. Every one of
+them is out. Where the table used to be there is now a comment saying the section is
 empty and why, and `environment.md` v6 states **eleven** codes rather than
 seven — every one of them emitted:
 
@@ -134,7 +134,7 @@ Four rules, and three of them are about what the file may *not* claim:
   than an error so a rollout may lead by a commit or two. This solution's own
   `production` topology holds the cleanest illustration in the repository: the
   portal runs on that instance and is deliberately *not* a host entry, with a
-  16-line comment explaining that adding one would assert a membership the
+  comment beside it explaining that adding one would assert a membership the
   member does not claim.
 - **Absent `regions` on a host means placement is not recorded** — and
   specifically not "everywhere". The spec puts the negation in bold in its own

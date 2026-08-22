@@ -1,7 +1,7 @@
 ---
 name: idem-cap
 kind: requirement
-version: 2
+version: 3
 title: Idempotent payment capture
 summary: A payment capture replayed with the same idempotency key must charge the customer exactly once.
 status: approved
@@ -11,7 +11,7 @@ priority: must
 relations:
   uses:
     - /product/shop/protocol/order-placement
-    - /product/shop/component/checkout/component/payment/datamodel/order@3
+    - /product/shop/component/checkout/component/payment/datamodel/order@4
 tags:
   - payments
   - reliability

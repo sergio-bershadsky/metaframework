@@ -1,7 +1,7 @@
 ---
 name: reference-bundle
 kind: component
-version: 4
+version: 5
 title: Reference bundle
 summary: Ten distilled reference files carried inside the plugin, because an installed plugin cannot see framework/spec on disk.
 status: review
@@ -19,11 +19,12 @@ tags:
   - distillation
 ---
 
-`skills/_shared/references/` — ten markdown files, 4,497 lines, measured
-2026-08-21 with `wc -l`: `protocols.md` (760), `environments.md` (698),
-`structure.md` (583), `journeys.md` (545), `schemas.md` (469), `frontmatter.md`
-(458), `srn.md` (326), `evolution.md` (325), `philosophy.md` (177),
-`decomposition.md` (156).
+`skills/_shared/references/` — one markdown file per contract: `protocols.md`,
+`environments.md`, `structure.md`, `journeys.md`, `schemas.md`,
+`frontmatter.md`, `srn.md`, `evolution.md`, `philosophy.md` and
+`decomposition.md`. `protocols.md` is the longest of them and
+`decomposition.md` the shortest; `wc -l` over the directory is the current
+figure, and it moves whenever the spec does.
 
 Responsibility in one sentence: **carry the spec where the spec cannot travel.**
 
@@ -48,9 +49,11 @@ Nothing else in the plugin can fail that way.
 
 ## What it is a distillation of
 
-12,931 lines of `framework/spec/` become 5,070 — a 2.6× compression (12,931 /
-5,070 = 2.55) that drops worked examples, rationale and the spec's own
-cross-referencing, and keeps the rules an author must not get wrong. Eight of
+`framework/spec/` becomes roughly a third of itself — a compression that drops
+worked examples, rationale and the spec's own cross-referencing, and keeps the
+rules an author must not get wrong. Both operands move on every spec commit, so
+the ratio is stated as a shape rather than as a figure; `wc -l` over the two
+directories is the arithmetic. Eight of
 the ten files name a spec document in their opening blockquote and concede
 precedence to it. `srn.md` opens:
 
@@ -83,7 +86,7 @@ the only file here that distils no rule at all. It says what the catalog is
 *for* — component-driven product management, the catalog as an intermediate
 representation as well as a knowledge base, and state living here while
 transition lives in the task manager — and it names no `framework/spec/`
-document anywhere in its 177 lines, which is why the precedence blockquote every
+document anywhere, which is why the precedence blockquote every
 other file opens with is absent. It is also the file read first:
 `skills/solution-design/SKILL.md` and `skills/review-solution/SKILL.md` both open
 by requiring it, and `commands/solution-new.md` puts it at the head of the

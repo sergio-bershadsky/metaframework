@@ -1,0 +1,112 @@
+# A Score workload description of
+# srn://metaframework/product/devops/component/repo-sync.
+#
+# NOT an addressable artifact. This directory is `_`-prefixed, which the loader
+# and the fingerprint both skip by name (framework/portal/src/lib/catalog/
+# load.ts and fingerprint.ts), so nothing here is an entity, a role or a
+# dialect. See ../README.md for what recognising it would cost.
+#
+# Every value below is a value the catalog already states. Where the catalog
+# states no value, the key is present and its value is deferred to the platform
+# — because Score has no spelling for "declared and deliberately undecided",
+# which topology.yaml and config.yaml both do have.
+apiVersion: score.dev/v1b1
+
+metadata:
+  name: repo-sync
+  annotations:
+    # The one join back to the catalog that survives generation: score-compose
+    # copies this onto the compose service and score-k8s onto the pod template,
+    # so a container in either topology names the entity that describes it.
+    # This points OUT of the file at an entity; nothing points AT the file, so
+    # it adds no address and no role-table row.
+    srn: srn://metaframework/product/devops/component/repo-sync
+
+containers:
+  repo-sync:
+    # `.` is Score's spelling for "the image is supplied at generate time"
+    # (`--image` or `--build`). The catalog names no image: 0005-one-image-two-
+    # topologies says `docker/` holds the Dockerfiles, and the product page says
+    # there is no `docker/` directory. So the honest value is the placeholder,
+    # and the cost is that the decision leaves the file for the command line.
+    image: "."
+
+    variables:
+      # The only key either environment states a VALUE for, and both state the
+      # same one — compose/config.yaml and production/config.yaml agree on
+      # /var/lib/metaframework, per git-state-survives-a-restart AC-1.
+      HUB_DATA_DIR: /var/lib/metaframework
+
+      # UNSET AND REQUIRED in both environments. The contract
+      # (../../component/repo-sync/datamodel/config/schema.json) requires it and
+      # gives it no default on purpose; neither config.yaml supplies a value.
+      HUB_DATA_MAX_BYTES: ${resources.env.HUB_DATA_MAX_BYTES}
+
+      # production only. A single score.yaml cannot say "this key exists in one
+      # environment and not the other", so both appear here and both resolve to
+      # whatever the platform holds — which under compose is an empty string.
+      HUB_WORKTREE_IDLE_TTL: ${resources.env.HUB_WORKTREE_IDLE_TTL}
+      HUB_LEASE_TTL: ${resources.env.HUB_LEASE_TTL}
+
+      # compose only, for the same reason in the other direction: production has
+      # no host to mount from, so this key is meaningless there and still has to
+      # be listed here.
+      HUB_LOCAL_REPO: ${resources.env.HUB_LOCAL_REPO}
+
+      GITHUB_APP_ID: ${resources.env.GITHUB_APP_ID}
+      # Secret. production/config.yaml sources it from
+      # k8s:secret/metaframework#github-app-private-key and compose from
+      # env-file:docker/.env — two origins Score cannot distinguish, because
+      # `variables` is a map of string to string and a resource output is a
+      # string. Which origin is used is the provisioner's decision, not this
+      # file's.
+      GITHUB_APP_PRIVATE_KEY: ${resources.env.GITHUB_APP_PRIVATE_KEY}
+
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${resources.env.OTEL_EXPORTER_OTLP_ENDPOINT}
+      # "Per-process, so a trace can tell the router from the syncer"
+      # (../../datamodel/telemetry-config/schema.json). The component's own name
+      # is the value that sentence describes.
+      OTEL_SERVICE_NAME: repo-sync
+
+    volumes:
+      # The volume repo-sync owns: one bare mirror per repository and one
+      # worktree per branch, at the same path in both topologies. The mount
+      # point is HUB_DATA_DIR's declared value and must stay equal to it.
+      /var/lib/metaframework:
+        source: ${resources.data}
+
+resources:
+  # score-compose provisions a named local volume that survives `docker compose
+  # down`; score-k8s's DEFAULT provisioner emits `emptyDir: {}`, which does not
+  # survive a pod restart and so fails git-state-survives-a-restart AC-2. The
+  # same four lines, two behaviours. See ../README.md.
+  data:
+    type: volume
+
+  # Everything the deployment supplies at deploy time. score-compose ships an
+  # `environment` provisioner; score-k8s ships none, and refuses to generate at
+  # all without a custom one.
+  env:
+    type: environment
+
+# NOT DECLARED, and deliberately left out rather than invented:
+#
+#   service.ports — protocol/worktree-lease/transport.yaml declares `kind: http`,
+#     `base-path: /lease` and `tls: false`, and NO port. Score's servicePort
+#     requires `port` as an integer, so the lease surface cannot be described
+#     here without choosing a number the catalog has not chosen. Consequence:
+#     catalog-router has no `service-port` resource to point at, and the
+#     worktree-lease edge is absent from both generated topologies.
+#
+#   livenessProbe — transport.yaml declares `GET /health`, "liveness for the
+#     orchestrator". Score's httpProbe requires BOTH `path` and `port`; the path
+#     is declared and the port is not, so the probe cannot be written.
+#
+#   resources.limits — production/topology.yaml states the memory limits are
+#     "a DECISION NOT YET MADE" and unset. Score has no spelling for a stated
+#     non-decision, so the block is absent rather than guessed.
+#
+#   replicas — Score has none, at any level. `replicas: { min: 1, max: 1 }` and
+#     the sentence explaining why two would corrupt worktree administration stay
+#     in production/topology.yaml, which is exactly ADR 0016 criterion (a):
+#     placement is the environment's claim, not the workload's.

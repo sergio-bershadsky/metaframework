@@ -1,7 +1,7 @@
 ---
 name: metaframework
 kind: solution
-version: 3
+version: 4
 title: Metaframework
 summary: The repository that describes itself — the catalog specification, the portal that renders a catalog, and the plugin that teaches an author to write one.
 status: review
@@ -139,29 +139,38 @@ organised lives in the kit's.
   floor, and a pack audit. So "nothing gates a commit" is false as of
   2026-08-20.
 
-  It is false in roughly seventeen other places too — `grep -rn 'no CI'
+  It is false in many other places too — `grep -rn 'no CI'
   solutions/metaframework` finds them, across the portal's ADRs, its
-  requirements, the specification and the kit. Those sentences were true when
-  written and are now stale, and they are listed here rather than quietly
-  corrected because correcting them is an edit to each entity's prose and
-  version, which is a reviewable change per page and not a sweep. This
-  paragraph is the forward pointer until somebody makes it.
+  requirements, the specification and the kit. A second sentence of the same
+  shape travels with it: "`git log --merges` returns nothing", which
+  `grep -rn 'merges. returns nothing' solutions/metaframework` finds in the
+  reviewer actor, the audit journey, `review-first-change` and
+  [0012-review-is-git-native](srn://metaframework/adr/0012-review-is-git-native).
+  It has been false since 2026-08-20, when `feat/console-mermaid-and-brass`
+  merged.
+
+  Those sentences were true when written and are now stale, and they are listed
+  here rather than quietly corrected because correcting them is an edit to each
+  entity's prose and version, which is a reviewable change per page and not a
+  sweep. This paragraph is the forward pointer until somebody makes it — and
+  the two statements above are the whole of what it defers, so a claim of this
+  shape found anywhere else is a defect, not a known gap.
 - **`https://schemas.metaframework.dev` resolves nowhere.** It is an identity
   constant at `framework/portal/src/lib/schema/url.ts:46`, deliberately not
   configuration. Bytes are served only by the portal's own `/schemas` route at
   `SCHEMA_BASE_URL`, default `http://localhost:3000`. A consumer that wants to
   fetch rather than trust a cache maps one host onto the other in resolver
   config.
-- **The spec is unratified.** Of the seventeen documents under `framework/spec/`,
-  fifteen carry `status: review` and two — `kinds/capability.md` and
-  `kinds/metric.md` — carry `status: draft`. Not one is `approved`, and on
+- **The spec is unratified.** Every document under `framework/spec/` carries
+  `status: review`, except `kinds/capability.md` and `kinds/metric.md`, which
+  carry `status: draft`. Not one is `approved`, and on
   conflict `docs/decision-record.md` wins anyway.
 - **Roughly fifty specified diagnostic codes are implemented nowhere**,
   concentrated in protocol, environment, ADR and requirement validation —
   including `E_ADR_SECTIONS` and `E_REQ_CRITERIA`. This solution's own ADRs and
   requirements are therefore checked by author discipline, not by the loader.
-- **The repository is one day old.** 52 commits, one author, all dated
-  2026-08-19, zero merge commits. Nothing here has an operating history, a team,
+- **The repository is days old.** One author, one merge commit, and
+  `git log --format=%ad --date=short | sort -u` fits on a screen. Nothing here has an operating history, a team,
   or a user outside this machine.
 
 ## How to read a claim in this catalog

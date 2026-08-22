@@ -1,7 +1,7 @@
 ---
 name: merchant-tile-state
 kind: datamodel
-version: 1
+version: 2
 title: Merchant tile state
 summary: A merchant tile in a commerce slot — which goods it buys, whether it takes anything, and whether its free barrel is still there.
 status: review
@@ -28,11 +28,11 @@ three seats and `["manufacturer"], ["cotton"]` at four.
 
 Three distinct states, and only two fields to express them:
 
-| `all`   | `buys`      | meaning                                        | `beer` at setup |
-| ------- | ----------- | ---------------------------------------------- | --------------- |
-| `true`  | `[]`        | accepts any sellable good                      | 1               |
-| `false` | non-empty   | accepts exactly those industries                | 1               |
-| `false` | `[]`        | **blank tile** — accepts nothing                | 0               |
+| `all`   | `buys`    | meaning                          | `beer` at setup |
+|---------|-----------|----------------------------------|-----------------|
+| `true`  | `[]`      | accepts any sellable good        | 1               |
+| `false` | non-empty | accepts exactly those industries | 1               |
+| `false` | `[]`      | **blank tile** — accepts nothing | 0               |
 
 The blank is the one worth stating: `all: false` with an empty `buys` is not a
 missing value, it is a real tile that buys nothing and carries no barrel. Code

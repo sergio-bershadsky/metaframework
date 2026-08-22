@@ -1,7 +1,7 @@
 ---
 name: carrier-booking
 kind: protocol
-version: 3
+version: 4
 title: Carrier booking
 summary: Synchronous booking of one parcel with one carrier, including the retry across carriers when the first refuses.
 status: approved
@@ -106,3 +106,21 @@ That machine is the state of the *conversation*, not of any participant. The
 carrier has its own internal states, acme has never seen them, and the
 [shipment](srn://acme/product/fulfilment/datamodel/shipment@1) `status` enum is a
 projection of this machine rather than a second opinion about it.
+
+## The Arazzo description
+
+`arazzo.yaml` re-describes this exchange as the delivery orchestrator drives it,
+in the OpenAPI Initiative's
+[Arazzo](https://spec.openapis.org/arazzo/latest.html) format, grounded in
+`openapi.yaml` — a booking and its cancellation, with the response codes that
+document declares standing in for the `alt` fragments of the workflow files.
+`requestQuotes` and `getBooking` get no step: no workflow file shows the
+orchestrator calling either, and this description covers only operations one
+does.
+
+An Arazzo Description has a single executor, so it describes one participant's
+path and never the whole exchange: `workflows/` stays the authoritative
+choreography, and the sequence diagrams on this page derive from it alone. The
+file is unvalidated — snapshotted with the entity, served as authored, and
+judged by nothing: the framework states no rule about its contents. The portal
+reads it to draw a step graph of each workflow, which checks nothing.

@@ -1,7 +1,7 @@
 ---
 name: catalog-tree
 kind: component
-version: 2
+version: 3
 title: Catalog tree
 summary: The navigation rail — four lenses over the same tree, text and facet filters, focus, and preferences read through an external store.
 status: review
@@ -18,7 +18,7 @@ tags:
   - navigation
 ---
 
-`src/components/catalog-tree.tsx`, 866 lines, the single client component in the
+`src/components/catalog-tree.tsx`, the single client component in the
 rail. It renders the `TreeNode` projection that
 [tree-projection](srn://metaframework/product/portal/component/catalog-loader/component/tree-projection)
 builds; it never sees the entity graph, and that is the whole reason the

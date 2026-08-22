@@ -1,7 +1,7 @@
 ---
 name: audit-a-catalog
 kind: journey
-version: 3
+version: 4
 title: Audit a catalog
 summary: A reviewer's path through the portal to a judgement — five surfaces, one crossing out of the product, and a loop that never closes.
 status: review
@@ -65,8 +65,8 @@ conversation over
 That protocol is fully specified on both sides and spoken by nobody: its
 initiator,
 [history-panel](srn://metaframework/product/portal/component/console/component/history-panel),
-is 507 lines of working client that nothing renders — measured 2026-08-20 over
-`src/components/history/history-panel.tsx`. A journey step naming that protocol
+is working client that nothing renders — `src/components/history/history-panel.tsx`
+and the diff view beside it. A journey step naming that protocol
 would describe a hop that has never happened, which is exactly the kind of claim
 this catalog is written not to make.
 

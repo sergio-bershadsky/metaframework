@@ -1,7 +1,7 @@
 ---
 name: entity-frontmatter
 kind: datamodel
-version: 2
+version: 3
 title: Entity frontmatter
 summary: The YAML block every entity index.md opens with — the common contract plus the kind's own fields, as a discriminated union on kind.
 status: review
@@ -14,11 +14,11 @@ tags:
 ---
 
 The one format every entity in every catalog carries. `framework/spec/frontmatter.md`
-(version 8, 513 lines) owns the common half; each of the twelve `kinds/*.md`
-documents owns the fields its kind adds on top. Measured 2026-08-21 there are
-344 instances on disk — 112 in `solutions/acme`, 111 in `solutions/brass`, 121
-in this solution — one per entity, no exceptions, because a directory under
-`solutions/` *is* an entity if and only if it holds an `index.md`.
+owns the common half; each `kinds/*.md` document owns the fields its kind adds
+on top. There is exactly one instance per entity, no exceptions, because a
+directory under `solutions/` *is* an entity if and only if it holds an
+`index.md` — so the instance count is the entity count, and every solution page
+renders its own.
 
 `usage: both` is the accurate answer and not a hedge. These blocks are persisted
 as files — the framework's own first principle is that the filesystem is the
@@ -28,7 +28,7 @@ authoring kit's skills.
 
 ## The executable form
 
-`framework/portal/src/lib/catalog/frontmatter.ts` (370 lines) is the same
+`framework/portal/src/lib/catalog/frontmatter.ts` is the same
 contract as code, and it is the second source the sibling `schema.json` here is
 answerable to — the normative document first, this module beside it:
 
@@ -149,7 +149,7 @@ did not have and the only author of `measures` — and 2 tripped three.
 
 ## Absent
 
-Nothing validates the frontmatter of `framework/spec/` itself. All 17 documents
-there use `kind: spec`, which is not in the twelve-value enum above, and they
+Nothing validates the frontmatter of `framework/spec/` itself. Every document
+there uses `kind: spec`, which is not in the twelve-value enum above, and they
 live outside `solutions/`, so the loader never opens them. The format's own
 definition sits among the documents the format does not describe.

@@ -1,7 +1,7 @@
 ---
 name: identity-admin
 kind: actor
-version: 1
+version: 2
 title: Identity administrator
 summary: Human operator who grants and revokes access, and who must answer to an auditor for both.
 status: approved
@@ -58,3 +58,20 @@ at a past instant, not about grants that are in force now, which is why
 - Machine administration — a pipeline that provisions service accounts — is
   [release-bot](srn://acme/actor/release-bot) borrowing a principal, not this
   actor with a script.
+
+## No protocol names this actor
+
+`W_ACTOR_ORPHAN` is raised against this page and the finding is true. The only
+protocol the identity product owns is
+[authorization-check](srn://acme/product/identity/protocol/authorization-check),
+whose four participants are all components evaluating a decision between
+themselves, and neither acme journey — [first-purchase](srn://acme/journey/first-purchase),
+[coupon-redemption](srn://acme/journey/coupon-redemption) — gives an
+administrator a step. Nothing in this catalog describes granting or revoking
+access as a conversation.
+
+Adding this actor to `authorization-check`'s participant list would clear the
+warning by misstating that protocol, which has no human in it and is not where a
+grant is authored. The honest way to clear it is to write the
+access-administration protocol the three goals above imply, and nobody has. That
+is a modelling gap, not a missing edge, so the warning stays until it is closed.

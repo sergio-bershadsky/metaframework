@@ -1,7 +1,7 @@
 ---
 name: entity-view
 kind: component
-version: 3
+version: 4
 title: Entity view
 summary: One entity, at whichever version the URL asks for — header, prose, kind fields, relations, contents, artifacts, and the ?v=N historical path.
 status: review
@@ -28,8 +28,8 @@ tags:
   - entity-page
 ---
 
-The page a reviewer spends their time on: `src/app/(console)/catalog/[...srn]/page.tsx`
-(519 lines) plus six components under `src/components/entity/` and five shared
+The page a reviewer spends their time on: `src/app/(console)/catalog/[...srn]/page.tsx`,
+the components under `src/components/entity/`, and five shared
 renderers — `kind-badge`, `srn-address`, `entity-link`, `markdown`,
 `version-picker`.
 
@@ -103,7 +103,7 @@ never discover".
 
 ## Artifact dispatch
 
-`EntityArtifacts` (322 lines) is where the file becomes the unit. Dispatch is by
+`EntityArtifacts` is where the file becomes the unit. Dispatch is by
 entity kind **and** filename: `schema.json` counts as a shape only on a
 datamodel, `workflows/*.yaml` only on a protocol, `states.json` only on a
 protocol. A renderer that understands the artifact contributes a drawing; one

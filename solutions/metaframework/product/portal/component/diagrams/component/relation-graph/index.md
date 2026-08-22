@@ -1,7 +1,7 @@
 ---
 name: relation-graph
 kind: component
-version: 2
+version: 3
 title: Relation graph
 summary: The frontmatter relation edges of one entity drawn as a graph, scoped to one hop, with edge types told apart by line rather than by colour.
 status: review
@@ -20,8 +20,8 @@ tags:
   - graph
 ---
 
-`src/components/diagrams/relation-graph.tsx` (693 lines), React Flow over the
-shared ELK layout, fed by `src/components/entity/entity-graph.tsx` (64 lines).
+`src/components/diagrams/relation-graph.tsx`, React Flow over the
+shared ELK layout, fed by `src/components/entity/entity-graph.tsx`.
 It draws the five authored edge types of `frontmatter.md` plus the derived
 inbound ones, around the entity whose page it is on.
 

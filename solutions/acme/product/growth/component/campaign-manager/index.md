@@ -1,7 +1,7 @@
 ---
 name: campaign-manager
 kind: component
-version: 2
+version: 3
 title: Campaign manager
 summary: The authoring surface — where a marketer writes campaigns, promos, and segment rules, and only there.
 status: review
@@ -15,7 +15,7 @@ relations:
     - /datamodel/money@1
     - /product/growth/protocol/redemption-events
   exposes:
-    - /product/growth/datamodel/campaign@1
+    - /product/growth/datamodel/campaign@2
     - /product/growth/datamodel/audience-segment@1
     - /product/growth/datamodel/promo@1
   depends-on:

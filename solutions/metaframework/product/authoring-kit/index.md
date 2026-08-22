@@ -1,7 +1,7 @@
 ---
 name: authoring-kit
 kind: product
-version: 3
+version: 4
 title: Authoring kit
 summary: A Claude Code plugin distributed through a Claude marketplace — seven skills, three commands, one agent and a distilled copy of the spec, teaching a model to author and evolve a catalog.
 status: review
@@ -26,9 +26,8 @@ tags:
 `marketplace/plugins/metaframework/` — a Claude Code plugin, distributed through
 the Claude marketplace at `marketplace/`: seven skills, three commands, one
 agent, nine shared reference files, nine skill-local reference files and one
-Python script. 10,245 lines of markdown and Python (`wc -l` over every `.md`
-and `.py` file in the plugin; `plugin.json`, the 19-line manifest, is the only
-file not counted).
+Python script — markdown and Python, and nothing that compiles. `plugin.json`
+is a short manifest and the only file in the tree that is neither.
 
 It ships no build, no binary and no runtime. Its whole substance is prose
 written to be read by a model at the moment it is about to write a catalog
@@ -102,8 +101,8 @@ job is to know what the check means, not to be the check.
 ## Where it is already drifting
 
 `skills/validate-catalog/SKILL.md:26` says "Two files run";
-`framework/portal/src/lib/catalog` holds ten test files today and the run
-prints ten. Nothing in the repository detects that: no test, no lint, no CI
+the suite under `framework/portal/src/lib/catalog` has grown well past two, and
+the run prints what it finds. Nothing in the repository detects that: no test, no lint, no CI
 compares the kit's claims against the portal or the spec.
 [kit-works-without-the-spec](srn://metaframework/product/authoring-kit/requirement/kit-works-without-the-spec)
 records the obligation and the fact that nothing enforces it.

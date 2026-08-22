@@ -1,7 +1,7 @@
 ---
 name: schema-service
 kind: component
-version: 3
+version: 4
 title: Schema service
 summary: The /schemas route handler — a three-layer path whitelist, a sha256 ETag, and CORS, so a tool that has never heard of this framework can fetch a schema.
 status: review
@@ -17,6 +17,8 @@ relations:
     - ../srn
   uses:
     - /environment/local
+  implements:
+    - /requirement/stock-tooling-schema-consumption
   realizes:
     - /capability/schema-interoperability
 tags:
@@ -24,7 +26,7 @@ tags:
   - interoperability
 ---
 
-`src/app/schemas/[...path]/route.ts`, 139 lines. `GET` and `OPTIONS`, read-only,
+`src/app/schemas/[...path]/route.ts`. `GET` and `OPTIONS`, read-only,
 `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`.
 
 **`component-type: service` is the nearest fit and not the true one.** This is a
@@ -34,6 +36,27 @@ renders a datamodel page can also hand its `schema.json` to somebody else. The
 `component-type` enum has no value for "HTTP endpoint inside a monolith", and
 the spec's instruction for that case is to take the nearest value and write the
 nuance down rather than invent an eighth.
+
+## The obligation it carries
+
+`implements` names
+[stock-tooling-schema-consumption](srn://metaframework/requirement/stock-tooling-schema-consumption),
+and the edge was missing until 2026-08-21 while the requirement pointed back at
+this component the whole time. Two of that requirement's criteria are this
+handler and nothing else: AC-3 is the `Access-Control-Allow-Origin: *` and the
+`OPTIONS` branch below, and AC-4 is the served `$id` staying canonical rather
+than becoming the address it was fetched from — the half of AC-4 that only a
+serving route can get wrong. AC-1 is the registry's, AC-2 is a dated
+measurement, AC-5 belongs to the URL↔SRN mapping in `lib/schema/url.ts`. One
+component satisfying part of a solution-level obligation is the shape the edge
+is for; the requirement's whole "What is in the repository" section is written
+that way, and claiming otherwise would be the overclaim.
+
+Its counterpart is
+[schema-closure-filesystem-reads](srn://metaframework/metric/schema-closure-filesystem-reads),
+which already `measures` both that requirement and the capability below. A
+number pointing at an obligation that nothing claimed to satisfy was the
+asymmetry `W_REQ_UNIMPLEMENTED` found.
 
 ## Why it exists at all
 

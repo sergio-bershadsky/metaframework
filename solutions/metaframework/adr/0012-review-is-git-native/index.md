@@ -1,7 +1,7 @@
 ---
 name: 0012-review-is-git-native
 kind: adr
-version: 1
+version: 2
 title: Review is git-native and the portal is read-only
 summary: Files are the review surface; the portal presents the catalog and never edits it, so no review workflow is built into the tool.
 status: review
@@ -60,8 +60,8 @@ the framework carries, and it is a field in a file like any other.
   state and would be a lie at an old revision. Only what the document itself
   authored is reconstructed.
 - **The obligation this decision creates is met by nothing.** There is no
-  `.github/`, no `CODEOWNERS`, no pull-request template and no CI; 52 commits
-  carry zero merge commits. "Git-native review" currently means one person
+  `.github/`, no `CODEOWNERS`, no pull-request template and no CI, and
+  `git log --merges` returns nothing. "Git-native review" currently means one person
   reading their own diff, and that gap is recorded as
   [review-first-change](srn://metaframework/requirement/review-first-change)
   rather than left to be discovered.

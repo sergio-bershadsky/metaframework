@@ -1,0 +1,60 @@
+# A Score workload description of
+# srn://metaframework/product/devops/component/catalog-router.
+#
+# NOT an addressable artifact — see ../README.md and the sibling repo-sync file.
+apiVersion: score.dev/v1b1
+
+metadata:
+  name: catalog-router
+  annotations:
+    srn: srn://metaframework/product/devops/component/catalog-router
+
+containers:
+  catalog-router:
+    # As with repo-sync: no image exists, and `.` defers it to `--image`.
+    image: "."
+
+    variables:
+      # The contract's one required key
+      # (../../component/catalog-router/datamodel/config/schema.json). Secret in
+      # both environments: k8s:secret/metaframework#hub-session-secret in
+      # production, env-file:docker/.env in compose.
+      HUB_SESSION_SECRET: ${resources.env.HUB_SESSION_SECRET}
+
+      # The identity half of the GitHub App. Optional by contract: unset, the
+      # GitHub path is unavailable and the local mount still works.
+      GITHUB_APP_CLIENT_ID: ${resources.env.GITHUB_APP_CLIENT_ID}
+      GITHUB_APP_CLIENT_SECRET: ${resources.env.GITHUB_APP_CLIENT_SECRET}
+
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${resources.env.OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_SERVICE_NAME: catalog-router
+
+resources:
+  env:
+    type: environment
+
+# NOT DECLARED, and deliberately left out rather than invented:
+#
+#   service.ports — compose/topology.yaml calls this component "the only
+#     published port" and names no number; production/topology.yaml says "the
+#     only component reachable from outside" and adds "TLS termination is
+#     unresolved". Score's servicePort requires an integer, so the ingress
+#     surface of this product is absent from both generated topologies.
+#
+#   the worktree-lease edge — the component's `uses` edge to
+#     /product/devops/protocol/worktree-lease is the one dependency Score has a
+#     native shape for (`type: service-port`, params `workload` and `port`,
+#     outputs `hostname` and `port`). It is not written because that shape needs
+#     a named port on repo-sync's `service` block, which cannot exist for the
+#     reason above. The catalog's config contract for this component also
+#     declares no key naming the syncer, so there is nothing to translate.
+#
+#   CATALOG_DIR — production/config.yaml declares it, and this component's
+#     contract does not: it is read by
+#     srn://metaframework/product/portal/component/catalog-loader, which
+#     declares no environment. Putting it here would assert this component reads
+#     a key its own contract denies.
+#
+#   the portal itself — this gateway fronts catalog-loader, and the portal
+#     declares only /environment/local. No workload file describes it, so the
+#     thing being rendered is missing from both generated topologies too.

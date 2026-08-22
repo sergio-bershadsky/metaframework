@@ -1,7 +1,7 @@
 ---
 name: every-rule-has-an-example
 kind: requirement
-version: 1
+version: 2
 title: Every normative rule carries a worked example
 summary: The spec's own bar — a rule without an example is a spec defect — measured against the 14 documents it governs, and currently not met.
 status: review
@@ -24,8 +24,8 @@ specification holds itself to:
 > Every normative rule in this spec is accompanied by at least one concrete
 > example. A rule without an example is an incomplete rule and a spec defect.
 
-It is a large part of why the 14 documents run to 7,279 lines for a format with
-nine kinds: 216 fenced blocks, repeatedly pairing a legal form with the
+It is a large part of why the spec runs as long as it does for a format this
+small: hundreds of fenced blocks, repeatedly pairing a legal form with the
 violation written beside it. It is also what makes the spec distillable — the
 reference bundle a model reads instead of the repository keeps the examples and
 drops the prose, because an example is the part that survives compression.
@@ -74,7 +74,7 @@ document is measured.
     reading the markdown, splitting on fenced blocks, and matching two regular
     expressions. Nothing in `framework/portal/src` participates.
 - **AC-4** A document that prescribes validation rules states them in normative language, so the bar is measurable against it.
-  - **Not met, and the exception is exact.** `kinds/actor.md` — 447 lines —
+  - **Not met, and the exception is exact.** `kinds/actor.md`
     contains **zero** occurrences of MUST, MUST NOT, SHOULD, SHOULD NOT, MAY or
     REQUIRED, while its §"Validation rules" prescribes six checks, ACT1–ACT6,
     each with an error code. By `index.md:29`'s own definition — "A statement

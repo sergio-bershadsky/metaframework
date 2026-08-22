@@ -1,7 +1,7 @@
 ---
 name: production
 kind: environment
-version: 2
+version: 3
 title: Production
 summary: The live target — a single-node k3s cluster on Hetzner serving brass.bershadsky.dev behind Traefik.
 status: review
@@ -31,11 +31,11 @@ which of the two a reader should believe.
 Client and server share an origin, and the split is done at the ingress rather than
 by CORS:
 
-| Path         | Backend        | Why                                                      |
-| ------------ | -------------- | -------------------------------------------------------- |
-| `/games`     | `brass-server` | Every boardgame.io lobby REST route lives under it.      |
+| Path         | Backend        | Why                                                           |
+|--------------|----------------|---------------------------------------------------------------|
+| `/games`     | `brass-server` | Every boardgame.io lobby REST route lives under it.           |
 | `/socket.io` | `brass-server` | The transport; the `/brass` namespace is multiplexed over it. |
-| `/`          | `brass-client` | nginx serving the SPA, with history fallback for `/play/`. |
+| `/`          | `brass-client` | nginx serving the SPA, with history fallback for `/play/`.    |
 
 The consequence is that the built client image carries no environment-specific host:
 `net.ts` resolves the server as `window.location.origin` in a production build. That

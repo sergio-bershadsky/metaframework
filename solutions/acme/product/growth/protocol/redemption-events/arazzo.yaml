@@ -1,0 +1,75 @@
+# Arazzo Description — one participant's path across this bus. Unvalidated
+# here: this framework snapshots and serves the file and states no rule about
+# its contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface");
+# the portal reads it only to draw the step graph beside this source.
+# workflows/redeem-coupon.yaml stays the authoritative choreography, and the
+# sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. An Arazzo Description has one executor; a bus has none. These
+# workflows are written for `campaign-manager`, the participant index.md types
+# `publisher-consumer` and the only one in redeem-coupon.yaml whose path is a
+# sequence rather than a single publish. Coupon-service's side is the first step
+# of each workflow alone.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block, deliberately. Direction is stated per step
+# instead, and it is taken from redeem-coupon.yaml's `from`/`to`.
+arazzo: 1.1.0
+info:
+  title: Redemption events
+  summary: The campaign manager's path across the growth bus.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Two workflows, because a redemption and its reversal are two facts on two
+    channels — never an edit of the first, which is what makes gross and net
+    campaign cost both derivable.
+
+    `increment-spent` and `decrement-spent` in redeem-coupon.yaml are self-calls
+    on the campaign manager's own running total. They touch no channel, so they
+    have no step here.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: absorb-a-redemption
+    summary: Charge a burnt code to its campaign, and close the campaign if that spent the budget.
+    description: >-
+      The first fact of workflows/redeem-coupon.yaml and the `opt` that may
+      follow it. Arazzo carries no guard, so "spent has reached the campaign
+      budget" is stated here and enforced nowhere in this file. Between the
+      threshold being crossed and the second step landing, the promotion engine
+      keeps offering the promo — the bounded overspend accepted in
+      adr/0002-fail-open-pricing.
+    steps:
+      - stepId: receive-redemption-recorded
+        description: >-
+          Published inside the transaction that incremented redeemed-count, so a
+          published fact is always durable. Keyed by campaign-id, so every fact
+          about one budget arrives in publication order on one partition. No
+          successCriteria: this channel declares exactly one message and it is
+          unambiguously the successful outcome, which is the case the Arazzo
+          Specification allows the criteria to be omitted in.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/redemption-recorded"
+        action: receive
+      - stepId: send-campaign-state-changed
+        description: The promotion engine's cache-invalidation signal.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/campaign-state-changed"
+        action: send
+        dependsOn:
+          - receive-redemption-recorded
+  - workflowId: absorb-a-reversal
+    summary: Take in a reversed redemption.
+    description: >-
+      The second `opt` of workflows/redeem-coupon.yaml, which fires when the
+      order behind a redemption is later cancelled or refunded. The
+      compensating decrement is the campaign manager's own arithmetic and
+      touches no channel, so this workflow is the receive alone.
+    steps:
+      - stepId: receive-redemption-reversed
+        description: The same record with reversed-at set.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/redemption-reversed"
+        action: receive

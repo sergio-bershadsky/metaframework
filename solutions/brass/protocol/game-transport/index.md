@@ -1,7 +1,7 @@
 ---
 name: game-transport
 kind: protocol
-version: 3
+version: 4
 title: Game transport
 summary: The socket.io conversation on namespace /brass — every move a seat submits and every state the authority broadcasts.
 status: review
@@ -137,3 +137,21 @@ because that is also what the code does, inside `endEra`.
 this protocol carries five moves that have nothing to do with Brass.
 `workflows/play-a-turn.yaml` is the loop the whole product exists for: one or
 two actions, then the commit that ends the turn.
+
+## The Arazzo description
+
+`arazzo.yaml` re-describes this exchange as one seat drives it, in the OpenAPI
+Initiative's [Arazzo](https://spec.openapis.org/arazzo/latest.html) format,
+grounded in `transport.yaml` — sync and sit-down, then the actions and the
+commit that make a turn. This is the one protocol in the catalog whose AsyncAPI
+document declares `operations`, so its steps name operations rather than channel
+pointers — and every `action` in it is the mirror of the one in
+`transport.yaml`, because that document is written from the authority's side and
+Arazzo's `action` is the executor's.
+
+An Arazzo Description has a single executor, so it describes one participant's
+path and never the whole exchange: `workflows/` stays the authoritative
+choreography, and the sequence diagrams on this page derive from it alone. The
+file is unvalidated — snapshotted with the entity, served as authored, and
+judged by nothing: the framework states no rule about its contents. The portal
+reads it to draw a step graph of each workflow, which checks nothing.

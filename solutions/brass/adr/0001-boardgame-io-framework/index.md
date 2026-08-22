@@ -1,7 +1,7 @@
 ---
 name: 0001-boardgame-io-framework
 kind: adr
-version: 1
+version: 2
 title: Build on boardgame.io
 summary: Turn logic, server authority, secret state and seeded replay come from boardgame.io rather than from code we write.
 status: review
@@ -47,9 +47,9 @@ things it provides appear in this catalog as decisions rather than as gaps.
 
 ## Consequences
 
-- [server](srn://brass/product/play/component/server) is twenty-six lines: a
-  `Server({ games, origins })` call and a port. The whole authoritative tier is
-  configuration.
+- [server](srn://brass/product/play/component/server) is a
+  `Server({ games, origins })` call and a port, and nothing else. The whole
+  authoritative tier is configuration.
 - Turn order, which is a *rule* in Brass, has to be expressed through the
   framework's `turn.order` hooks and manual `events.endTurn({next})` calls
   rather than as a plain function over player state. The engine drives turns

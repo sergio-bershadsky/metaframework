@@ -1,7 +1,7 @@
 ---
 name: gdpr-erasure
 kind: requirement
-version: 2
+version: 3
 title: Erasure of personal data on request
 summary: A verified erasure request removes or anonymizes a customer's personal data across every component within 30 days.
 status: approved
@@ -11,7 +11,7 @@ priority: must
 relations:
   uses:
     - /environment/production
-    - /product/shop/component/checkout/component/payment/datamodel/order@3
+    - /product/shop/component/checkout/component/payment/datamodel/order@4
 tags:
   - compliance
   - privacy

@@ -1,7 +1,7 @@
 ---
 name: catalog-loader
 kind: component
-version: 4
+version: 6
 title: Catalog loader
 summary: The fail-soft walk from filesystem to entity graph — the zod frontmatter contract, relation resolution, the derived inverse index, and the dev fingerprint cache.
 status: review
@@ -12,7 +12,7 @@ relations:
   depends-on:
     - ../srn
   uses:
-    - /product/specification/datamodel/entity-frontmatter@1
+    - /product/specification/datamodel/entity-frontmatter@3
   implements:
     - /requirement/zero-error-catalog-load
   realizes:
@@ -22,9 +22,9 @@ tags:
   - validation
 ---
 
-`src/lib/catalog/` — `load.ts` (423 lines), `frontmatter.ts` (179), `types.ts`
-(71), `index.ts` (204), `fingerprint.ts` (72), `mentions.ts` (83), `href.ts`
-(14). It is the only reader of `solutions/` in the whole repository, and
+`src/lib/catalog/` — `load.ts`, `frontmatter.ts`, `types.ts`, `index.ts`,
+`fingerprint.ts`, `mentions.ts` and `href.ts`, with `load.ts` carrying most of
+it. It is the only reader of `solutions/` in the whole repository, and
 everything the portal knows about a catalog it learned here.
 
 ## The discovery rule is one sentence

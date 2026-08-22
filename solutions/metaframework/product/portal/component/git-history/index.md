@@ -1,7 +1,7 @@
 ---
 name: git-history
 kind: component
-version: 3
+version: 4
 title: Git history
 summary: Every historical read in the portal, shelled out to git through an argv array, classified into four failure reasons, and never permitted to throw.
 status: review
@@ -20,7 +20,7 @@ tags:
   - history
 ---
 
-`src/lib/history/git.ts`, 895 lines, the single largest module in `src/lib`.
+`src/lib/history/git.ts`, the single largest module in `src/lib`.
 The catalog keeps only current versions on disk, so every historical read goes
 through git.
 

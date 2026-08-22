@@ -1,7 +1,7 @@
 ---
 name: brass
 kind: solution
-version: 1
+version: 2
 title: Brass Online
 summary: "Human-versus-human online Brass: Birmingham, with a second seat an LLM can take through MCP."
 status: review
@@ -82,8 +82,8 @@ product speaks every surface the first one offers.
 
 Start with [rules](srn://brass/product/play/component/rules) and its three
 sub-components — that is where the substance is. Then
-[server](srn://brass/product/play/component/server), which is twenty-six lines of
-configuration over the framework, and
+[server](srn://brass/product/play/component/server), which is configuration over
+the framework and nothing more, and
 [boardgame-io](srn://brass/product/play/component/boardgame-io), which explains why
 that is enough. The browser side reads top-down from
 [web-client](srn://brass/product/play/component/web-client). The deployment story

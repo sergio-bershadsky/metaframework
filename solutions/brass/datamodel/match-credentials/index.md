@@ -1,7 +1,7 @@
 ---
 name: match-credentials
 kind: datamodel
-version: 1
+version: 2
 title: Match credentials
 summary: The per-seat secret issued once at join, cached client-side, and presented on every move for the rest of the match.
 status: review
@@ -61,5 +61,5 @@ user pick, or scoping the key to a per-tab id.
 
 The credential authorises moves in one match and nothing more. It grants no
 access to the lobby API, cannot create or delete matches, and is not checked by
-any route this repository added — the server is 26 lines of framework
-configuration. There is no revocation, and no rotation.
+any route this repository added — the server is framework configuration and
+nothing else. There is no revocation, and no rotation.

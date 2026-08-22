@@ -1,7 +1,7 @@
 ---
 name: settlement
 kind: protocol
-version: 4
+version: 5
 title: Settlement
 summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
 status: approved
@@ -66,3 +66,19 @@ The message-to-datamodel matrix on this page is derived from `transport.yaml`
 and `workflows/`; the payload models are deliberately absent from `relations`,
 which carries only the non-payload dependency on
 [production](srn://acme/environment/production).
+
+## The Arazzo description
+
+`arazzo.yaml` re-describes this exchange as the reconciliation component drives
+it, in the OpenAPI Initiative's
+[Arazzo](https://spec.openapis.org/arazzo/latest.html) format, grounded in
+`transport.yaml` — the two facts one settled order produces, and the nightly
+report published back. Payment's side of that exchange is the first step alone,
+and the ledger's is the second, which is why neither is written.
+
+An Arazzo Description has a single executor, so it describes one participant's
+path and never the whole exchange: `workflows/` stays the authoritative
+choreography, and the sequence diagrams on this page derive from it alone. The
+file is unvalidated — snapshotted with the entity, served as authored, and
+judged by nothing: the framework states no rule about its contents. The portal
+reads it to draw a step graph of each workflow, which checks nothing.

@@ -1,7 +1,7 @@
 ---
 name: config-document
 kind: datamodel
-version: 2
+version: 3
 title: Config document
 summary: config.yaml — which configuration keys a target provides and where their values come from, never a value that is a secret; the rule is one sentence, and as of this version a reader enforces it.
 status: review
@@ -18,16 +18,16 @@ tags:
 this target provides**. The convention is one sentence long — an environment
 declares which keys it provides and where their values come from; it never
 carries a secret value. OPTIONAL. Specified in
-`framework/spec/kinds/environment.md` (version 6, 812 lines) §"`config.yaml` —
-the configuration surface"; measured 2026-08-21 with
-`find solutions -name config.yaml`: **6 instances** — 1 in `solutions/acme`, 2 in
-`solutions/brass`, 3 in this solution — carrying 39 entries.
+`framework/spec/kinds/environment.md` §"`config.yaml` — the configuration
+surface". Every solution here declares at least one, this one the most;
+`find solutions -name config.yaml` is the census, and it moves whenever an
+environment is added.
 
 It enters this bucket for the same reason
 [topology-document](srn://metaframework/product/specification/datamodel/topology-document)
-does, and below the same bar: the eight-instance threshold the product page set
-put `config.yaml` (3 instances at the time) out of scope, and 6 does not clear
-it either.
+does, and below the same bar: the instance threshold the product page set put
+`config.yaml` out of scope when it was written, and the file has not multiplied
+fast enough to clear it since.
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) is what
 admits it — the dialect a `config.yaml` declares is this entity's canonical
 `$id`, and a discriminator needs something to point at.
@@ -57,7 +57,7 @@ worth more than deleting it: the test for `exchange` is the boundary, not the
 existence of a reader.
 
 `grep -rn "config\.yaml" framework/portal/src` returns 15 hits, 8 of them
-outside tests: the role-table row at `lib/srn/artifacts.ts:46`, one line of
+outside tests: the `ARTIFACT_ROLES` row in `lib/srn/artifacts.ts`, one line of
 `lib/catalog/dialects.ts`, one in `lib/catalog/index.ts` where the check is
 folded into the load pipeline, and five in the reader itself.
 `components/entity/entity-artifacts.tsx` still has no environment branch, so the
@@ -124,8 +124,8 @@ something that does not get tired, and the thing it enforces was already true.
   carrying `usage: config`, and `component.md` gained no field. The check is
   `W_ENV_CONFIG_MISSING`, and it is a warning for the ordering reason that
   survives the join — land the component change first and the `config.yaml`
-  change second, and the window between the two commits is a warning rather than
-  a broken build.
+  change second, and the window between them is a warning rather than a broken
+  build.
 
 No top-level `version:` key. The `x-` escape hatch reaches the top level and
 every entry, and **no file on disk uses it**.

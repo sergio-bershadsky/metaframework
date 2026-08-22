@@ -1,7 +1,7 @@
 ---
 name: state-machine-document
 kind: datamodel
-version: 2
+version: 3
 title: State machine document
 summary: states.json — an XState v5 machine config, pinned to a subset that createMachine() must accept verbatim; the strongest exchange case in the set.
 status: review
@@ -20,20 +20,23 @@ tags:
 `states.json` beside a protocol's `index.md`: the state of **one conversation**
 as the protocol sees it, never the internal state of any single participant.
 Specified in `framework/spec/kinds/protocol.md`; validated by
-`framework/portal/src/lib/protocol/states.ts` (613 lines). Measured 2026-08-21
-with `find solutions -name states.json`: **8 instances** — 6 in `solutions/acme`,
-2 in `solutions/brass`, none in this solution.
+`framework/portal/src/lib/protocol/states.ts`. Most protocols carry none, and
+`find solutions -name states.json` returns nothing at all under
+`solutions/metaframework`: this solution describes no conversation with enough
+state to be worth a chart.
 
-That is exactly the eight-instance threshold this catalog applied, and the
-smallest of the six formats admitted by it. Two of this product's eight formats
-sit below it —
+It sat exactly on the eight-instance threshold when that threshold was applied,
+which is the closest any admitted format came to failing it. Two of this
+product's eight formats were below the bar at that moment —
 [topology-document](srn://metaframework/product/specification/datamodel/topology-document)
-at 7 and
+and
 [config-document](srn://metaframework/product/specification/datamodel/config-document)
-at 6 — and neither is a counter-example, because
+— and neither is a counter-example, because
 [specification](srn://metaframework/product/specification) admitted them under a
 different rule: a dialect URL needs an entity behind it whatever the instance
-count says.
+count says. That is also why none of these three carries its count here. The
+bar was a one-time judgement, not a property of the format, and re-measuring it
+on every commit would tell a reader nothing the rule did not already settle.
 
 ## Why `usage: exchange`
 
@@ -76,7 +79,7 @@ checked, because plenty of messages carry no state change.
 Decision-record amendment 2026-08-19-e (commit 5b8a3e8, 2026-08-19 21:18) rebuilt
 the state chart on mermaid `stateDiagram-v2`, always. The artifact and its
 validator were untouched: `parseStates` stays validator and model, and
-`framework/portal/src/lib/protocol/mermaid.ts` (241 lines) is a pure, tested
+`framework/portal/src/lib/protocol/mermaid.ts` is a pure, tested
 function that decides every word on the drawing. The component only renders that
 text and post-processes the SVG.
 

@@ -1,7 +1,7 @@
 ---
 name: schema-document
 kind: datamodel
-version: 2
+version: 3
 title: Schema document
 summary: The schema.json profile — 2020-12, a canonical $id, a required x-srn, four forbidden keywords, and cross-entity refs as absolute URLs.
 status: review
@@ -16,14 +16,12 @@ tags:
 
 Every datamodel entity in every catalog owns exactly one `schema.json`, and this
 is the profile it must satisfy. Specified in `framework/spec/kinds/datamodel.md`
-(version 9, 1,658 lines — the second-longest document in the spec, behind
-`protocol.md` and ahead of `srn.md`); validated by
-`framework/portal/src/lib/schema/registry.ts` (1,415 lines). Measured 2026-08-21
-with `find solutions -name schema.json`: **82 instances** — 36 in
-`solutions/acme`, 33 in `solutions/brass`, 13 in this solution. The count was 61
-across two solutions on 2026-08-19; the growth is this solution being authored
-and the arrival of `usage: config` contracts, which are ordinary datamodels
-obeying this profile and one extra discipline of their own.
+— the second-longest document in the spec, behind `protocol.md` and ahead of
+`srn.md`; validated by `framework/portal/src/lib/schema/registry.ts`. It is the
+most numerous artifact in the catalog by a wide margin —
+`find solutions -name schema.json` is the census — and it keeps growing, partly
+because `usage: config` contracts are ordinary datamodels obeying this profile
+and one extra discipline of their own.
 
 `usage: exchange` and not `both`, because these documents are literally served
 over HTTP to consumers outside the repository —

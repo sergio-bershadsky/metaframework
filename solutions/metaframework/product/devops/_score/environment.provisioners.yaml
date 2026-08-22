@@ -1,0 +1,61 @@
+# The price of the k8s half.
+#
+# score-compose ships an `environment` provisioner (`local-env://default-
+# provisioners/environment`, verified in its 0.45.0 tree). score-k8s ships none,
+# and without one it refuses to generate at all:
+#
+#   Error: failed to provision resources: resource
+#   'environment.default#repo-sync.env' is not supported by any provisioner.
+#   Please implement a custom resource provisioner to support this resource type.
+#
+# So "one artifact set, two topologies" costs this file. Copy it into a
+# score-k8s state directory before generating:
+#
+#   score-k8s init
+#   cp environment.provisioners.yaml .score-k8s/00-metaframework.provisioners.yaml
+#   score-k8s generate repo-sync/score.yaml --image=metaframework/repo-sync:dev
+#
+# Every row below is a key the two score.yaml files resolve through
+# `resources.env`, and every one of them is authored somewhere in the catalog
+# already — nothing here is invented, and nothing here is a second place to
+# author it. Where they come from, exactly:
+#
+#   - nine of the ten are rows of solutions/metaframework/environment/
+#     production/config.yaml;
+#   - HUB_LOCAL_REPO is not. It is compose-only — environment/compose/
+#     config.yaml declares it and production deliberately does not — and it is
+#     here because one workload file serves both topologies and Score has no
+#     spelling for "this key exists in one environment and not the other"
+#     (../README.md, the "one workload file, one key set" row). Under k8s it
+#     resolves to the empty string, which is the honest value for a key that
+#     names a developer's host checkout.
+#
+# The other direction is not symmetric either, and that is fine: five
+# production/config.yaml keys have no row. HUB_DATA_DIR and OTEL_SERVICE_NAME
+# are stated literally in the score.yaml files, so nothing resolves them through
+# this resource; CATALOG_DIR, SIGNOZ_TRACE_RETENTION_DAYS and SCHEMA_BASE_URL
+# appear in neither component's config contract at all — they belong to
+# components these two files do not describe.
+#
+# A row with `source: k8s:secret/metaframework#K` in config.yaml becomes a
+# secretKeyRef against Secret `metaframework`, key `K`. A row with neither
+# `value` nor `source` has no declared origin — production/config.yaml supplies
+# those at deploy time and says so in prose — so it resolves to the empty string
+# and the cluster is expected to override it.
+#
+# NOT an addressable artifact, and not a component: this is deployment
+# machinery, which the product page argues is placement rather than behaviour.
+- uri: template://metaframework/environment
+  type: environment
+  description: Resolves devops config keys against environment/production/config.yaml.
+  outputs: |
+    GITHUB_APP_PRIVATE_KEY: {{ encodeSecretRef "metaframework" "github-app-private-key" }}
+    GITHUB_APP_CLIENT_SECRET: {{ encodeSecretRef "metaframework" "github-app-client-secret" }}
+    HUB_SESSION_SECRET: {{ encodeSecretRef "metaframework" "hub-session-secret" }}
+    HUB_DATA_MAX_BYTES: ""
+    HUB_WORKTREE_IDLE_TTL: ""
+    HUB_LEASE_TTL: ""
+    HUB_LOCAL_REPO: ""
+    GITHUB_APP_ID: ""
+    GITHUB_APP_CLIENT_ID: ""
+    OTEL_EXPORTER_OTLP_ENDPOINT: ""

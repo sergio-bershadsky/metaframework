@@ -1,7 +1,7 @@
 ---
 name: schema-bundler
 kind: component
-version: 2
+version: 3
 title: Schema bundler
 summary: json-schema-ref-parser with a catalog resolver ordered ahead of the http one, so a canonical $ref is satisfied from disk and the no-network claim is test-enforced.
 status: review
@@ -13,7 +13,7 @@ tags:
   - offline
 ---
 
-`src/lib/schema/dereference.ts`, 92 lines. `bundleSchema(entity, catalogDir)`
+`src/lib/schema/dereference.ts`. `bundleSchema(entity, catalogDir)`
 returns one self-contained document plus the catalog-relative paths of every
 file it pulled in.
 

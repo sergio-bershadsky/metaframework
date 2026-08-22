@@ -1,7 +1,7 @@
 ---
 name: state-chart
 kind: component
-version: 2
+version: 3
 title: State chart
 summary: A protocol's states.json drawn by mermaid, always, with interactivity recovered from the generated SVG only where it can be verified.
 status: review
@@ -22,7 +22,7 @@ tags:
   - mermaid
 ---
 
-`src/components/diagrams/state-chart.tsx` (493 lines), rendering mermaid
+`src/components/diagrams/state-chart.tsx`, rendering mermaid
 `stateDiagram-v2` text produced by `statesToMermaid()` in
 [protocol-model](srn://metaframework/product/portal/component/protocol-model).
 There are 8 `states.json` files in the catalog today.

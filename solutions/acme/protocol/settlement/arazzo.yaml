@@ -1,0 +1,77 @@
+# Arazzo Description — one participant's path across this bus. Unvalidated
+# here: this framework snapshots and serves the file and states no rule about
+# its contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface");
+# the portal reads it only to draw the step graph beside this source.
+# workflows/settle-order.yaml stays the authoritative choreography, and the
+# sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. An Arazzo Description has one executor; a bus has none. These
+# workflows are written for `reconciliation`, the one participant of
+# settle-order.yaml that both consumes and publishes on this bus, so it is the
+# only side whose path is a sequence rather than a single publish. Payment's
+# side is the first step alone, and the ledger's is the second.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block, deliberately — its own comment says inventing a
+# direction there would say more than the mini-spec it replaced. Direction is
+# stated per step below instead, and it is taken from settle-order.yaml's
+# `from`/`to`, which is where this catalog has always kept it.
+arazzo: 1.1.0
+info:
+  title: Settlement
+  summary: Reconciliation's path across the settlement bus.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Two workflows because settle-order.yaml describes two cadences: a per-order
+    pair of facts that arrive as they happen, and a nightly report that is
+    published inside a window. Writing them as one sequence would claim a report
+    follows every settled order, which is the one thing the `opt` in that file
+    says is not true.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: observe-a-settlement
+    summary: Take in the two facts one settled order produces.
+    description: >-
+      The first two steps of workflows/settle-order.yaml, seen from
+      reconciliation. Both channels are keyed by order-id, so the pair for one
+      order arrives in publication order on one partition — which is what makes
+      the dependency below a real ordering rather than a hopeful one.
+    steps:
+      - stepId: receive-order-paid
+        description: >-
+          Published after funds are captured, never before; a reversal is a new
+          fact rather than an edit. No successCriteria: this channel declares
+          exactly one message and it is unambiguously the successful outcome,
+          which is the case the Arazzo Specification allows the criteria to be
+          omitted in.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/order-paid"
+        action: receive
+      - stepId: receive-ledger-entry-posted
+        description: >-
+          One event per posted leg, debit and credit. settle-order.yaml draws
+          this as caused by the paid order above, which is the dependency
+          declared here.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/ledger-entry-posted"
+        action: receive
+        dependsOn:
+          - receive-order-paid
+  - workflowId: publish-a-reconciliation-report
+    summary: Publish the nightly outcome.
+    description: >-
+      The `opt` of workflows/settle-order.yaml, which fires on the nightly
+      window rather than on a settled order. Arazzo carries no guard, so the
+      window is stated here and enforced nowhere in this file.
+    steps:
+      - stepId: send-reconciliation-report
+        description: >-
+          This channel declares no messages map — transport.yaml withheld the
+          payload model because the mini-spec it replaced named none — so no
+          requestBody is spelled out here either.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/reconciliation-report"
+        action: send

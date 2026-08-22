@@ -1,7 +1,7 @@
 ---
 name: kit-works-without-the-spec
 kind: requirement
-version: 2
+version: 3
 title: The kit produces correct catalogs without the spec on disk
 summary: An installed plugin cannot see framework/spec, so the bundled distillation must be sufficient on its own and must agree with the spec when both are present.
 status: review
@@ -50,8 +50,8 @@ and it must **agree** with the spec whenever both are visible.
   - **Currently false.** `skills/validate-catalog/SKILL.md:26` says "Two files
     run", and `:29` shows a pass as `Test Files  2 passed (2)` — now softened
     by "Test counts drift as the fixture grows; the pass/fail line is the
-    signal", but `framework/portal/src/lib/catalog` holds ten test files today
-    and the run prints ten.
+    signal", but the suite under `framework/portal/src/lib/catalog` has long
+    since grown past two.
 - A catalog authored with the plugin installed outside this repository loads with
   zero error diagnostics.
   - **Never attempted.** Both catalogs in the repository — `solutions/acme` and
@@ -61,8 +61,9 @@ and it must **agree** with the spec whenever both are visible.
 ## Rationale
 
 `marketplace/README.md` gives the reason the duplication exists: "an installed
-plugin cannot see `framework/spec/` on disk". 9,832 lines of specification become
-3,562 lines of distillation, and the compression is where fidelity is lost —
+plugin cannot see `framework/spec/` on disk". The specification becomes a
+distillation a fraction of its size, and the compression is where fidelity is
+lost —
 worked examples and rationale go first, and a rule whose only clear statement was
 inside an example goes with them.
 

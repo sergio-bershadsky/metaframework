@@ -1,7 +1,7 @@
 ---
 name: no-account-play
 kind: requirement
-version: 1
+version: 2
 title: A player joins from a link with no signup
 summary: Opening an invite link and typing a name is the entire onboarding; there is no account, no password and no email.
 status: review
@@ -11,7 +11,7 @@ priority: should
 relations:
   uses:
     - /protocol/lobby-api
-    - /datamodel/match-credentials@1
+    - /datamodel/match-credentials@2
 tags:
   - onboarding
   - lobby
@@ -51,7 +51,7 @@ The credential key is the match id alone, so two tabs of the same browser
 profile on the same invite link share one entry: the second tab silently loads
 the first tab's seat and plays as that player. It is the most likely way a real
 session goes wrong, it is recorded on
-[match-credentials](srn://brass/datamodel/match-credentials@1), and it is not
+[match-credentials](srn://brass/datamodel/match-credentials@2), and it is not
 fixed.
 
 ## Out of scope

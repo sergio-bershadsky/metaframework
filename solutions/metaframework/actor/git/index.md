@@ -1,7 +1,7 @@
 ---
 name: git
 kind: actor
-version: 1
+version: 2
 title: git
 summary: The git binary the portal shells out to for every historical read, and whose absence the portal is built to survive.
 status: review
@@ -20,8 +20,8 @@ A binary the portal invokes and does not ship. It is the storage layer for every
 version of every entity older than the working tree: the catalog keeps only
 current versions on disk, so a `?v=2` page is a `git show` and nothing else.
 
-`framework/portal/src/lib/history/git.ts` is 895 lines and holds the whole
-conversation. It calls `execFile` with an argv array, never a shell string, with
+`framework/portal/src/lib/history/git.ts` holds the whole conversation, and is
+the largest module in `src/lib`. It calls `execFile` with an argv array, never a shell string, with
 `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, a 15-second timeout
 and a 32 MB buffer. It pins `-c log.follow=false` — the comment says why:
 `evolution.md` forbids moving an entity, and the version→commit index does not
@@ -52,9 +52,19 @@ A protocol would need a `transport.yaml`, whose `kind` enum is closed at
 `http | grpc | amqp | kafka | websocket | in-process`, and none of those is a
 local subprocess exec. Forcing `in-process` plus an `x-` nuance field would
 manufacture a conversation out of a library calling a binary. The degradation
-story lives here and in the requirement instead. This actor is consequently
-named in no participant list and would be `W_ACTOR_ORPHAN` if that check were
-implemented, which it is not.
+story lives here and in the requirement instead.
+
+This actor is consequently named in no participant list, and v1 of this document
+said it "would be `W_ACTOR_ORPHAN` if that check were implemented, which it is
+not". The check is implemented now, and the warning stands — correctly, and
+without anything to fix. ACT6's severity is a warning for exactly this: the
+finding is "no protocol names this actor", which is true, and the reason is
+written two paragraphs up. The alternative — a `protocol` entity whose
+`transport.yaml` claimed `in-process` for a subprocess `execFile` — would clear
+the warning by putting a false statement in a machine-readable file, which is a
+worse catalog than an explained one. A reader who wants the whole set of
+warnings this catalog stands behind will find them on `/diagnostics`, each one
+answered on the page it points at.
 
 ## What is not modelled
 

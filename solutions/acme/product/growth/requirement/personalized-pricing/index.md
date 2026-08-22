@@ -1,7 +1,7 @@
 ---
 name: personalized-pricing
 kind: requirement
-version: 1
+version: 2
 title: Per-individual pricing from behavioural signals
 summary: Recorded non-goal — acme will not price a basket differently for one named person than for their segment.
 status: approved
@@ -28,9 +28,12 @@ one that was accepted. The next person to ask meets a recorded answer with
 reasoning they can attack, rather than an empty catalog and a conversation that
 starts from nothing.
 
-## Acceptance criteria
+The criteria below are the ones it would have had to satisfy, had it been
+accepted. They are recorded in the ordinary shape rather than as prose, because
+a declined requirement is re-read against the same criteria the next time it is
+proposed.
 
-Had it been accepted, it would have had to satisfy all of these:
+## Acceptance criteria
 
 - A discount's value is a function of an individual account's history, evaluated
   at request time rather than materialized nightly.

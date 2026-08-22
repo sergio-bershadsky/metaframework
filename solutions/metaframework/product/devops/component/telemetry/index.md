@@ -1,7 +1,7 @@
 ---
 name: telemetry
 kind: component
-version: 1
+version: 2
 title: Telemetry
 summary: OpenTelemetry instrumentation compiled into every process here — traces and logs to a collector, and the one place that knows what must never be recorded.
 status: review
@@ -61,8 +61,8 @@ Stated so the instrumentation is not "everything, and then a sampling problem":
   `framework/portal/src/lib/catalog/fingerprint.ts`. Whether a request paid the
   rebuild is the single most useful thing a trace here can say.
 
-Not the render. The portal is 23,277 lines of components and instrumenting them
-from outside would produce a flame graph of React, which answers no question
+Not the render. Instrumenting the portal's components from outside would
+produce a flame graph of React, which answers no question
 anybody has about this product.
 
 ## The honest limits

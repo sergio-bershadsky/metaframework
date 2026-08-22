@@ -1,7 +1,7 @@
 ---
 name: schema-registry
 kind: component
-version: 3
+version: 5
 title: Schema registry
 summary: Identity and validation for every schema.json — the canonical host constant, the E_DM_* profile validator, one ajv instance keyed by $id, and the allOf inheritance DAG.
 status: review
@@ -12,7 +12,7 @@ relations:
   depends-on:
     - ../srn
   uses:
-    - /product/specification/datamodel/schema-document@1
+    - /product/specification/datamodel/schema-document@3
   realizes:
     - /capability/schema-interoperability
 tags:
@@ -20,8 +20,8 @@ tags:
   - identity
 ---
 
-`src/lib/schema/url.ts` (156 lines) and `src/lib/schema/registry.ts` (1,403).
-Two files, one job seen from two angles: what a schema **is called**, and
+`src/lib/schema/url.ts` and `src/lib/schema/registry.ts`, the second an order of
+magnitude larger than the first. Two files, one job seen from two angles: what a schema **is called**, and
 whether it is **legal**. Splitting them into two components would have produced
 two entries in the tree whose summaries a reader could not tell apart.
 

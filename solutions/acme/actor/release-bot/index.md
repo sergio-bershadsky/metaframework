@@ -1,7 +1,7 @@
 ---
 name: release-bot
 kind: actor
-version: 1
+version: 2
 title: Release bot
 summary: CI identity that applies migrations and promotes builds on behalf of team-platform.
 status: approved
@@ -39,3 +39,16 @@ Write access to [production](srn://acme/environment/production) and
 deployment. It never reads order or payment data; the
 [gdpr-erasure](srn://acme/requirement/gdpr-erasure) obligation is therefore not
 in its path.
+
+## No protocol names this actor
+
+`W_ACTOR_ORPHAN` is raised against this page and stands. Both goals are
+deployment work, and deployment is the one thing this catalog says outright it
+does not describe — the pipeline runtime is in another repository. There is no
+migration or promotion protocol here for a participant list to put this
+credential in, and the two edges it does hold are environments it writes to,
+which is reach rather than a modelled conversation.
+
+Authoring a deployment protocol to clear the warning would describe software acme
+deliberately excluded from this catalog. A credential inventory entry is allowed
+to talk to nobody; that it talks to nobody *here* is the accurate finding.

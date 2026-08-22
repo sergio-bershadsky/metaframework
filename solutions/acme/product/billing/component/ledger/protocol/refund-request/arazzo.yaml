@@ -1,0 +1,48 @@
+# Arazzo Description — the initiator-facing surface of this exchange, as the
+# support console drives it. Unvalidated here: this framework snapshots and
+# serves the file and states no rule about its contents (kinds/protocol.md,
+# "arazzo.yaml — the orchestration surface"); the portal reads it only to draw
+# the step graph beside this source. workflows/request-refund.yaml stays the
+# authoritative choreography, and the sequence diagram on this page derives
+# from it alone.
+arazzo: 1.1.0
+info:
+  title: Refund request
+  summary: The support agent's path through the ledger's refund surface.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    One initiator, one call. The reversing legs the ledger promises in its 202
+    are posted asynchronously and travel over settlement, which is a different
+    protocol with a different description.
+sourceDescriptions:
+  - name: openapi
+    type: openapi
+    url: ./openapi.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: request-refund
+    summary: Ask for a refund against a settled order.
+    description: >-
+      The `request-refund` call of workflows/request-refund.yaml, from the
+      caller's side. The two outcomes that file draws as an `alt` are the two
+      responses openapi.yaml declares — 202 accepted, 409 already fully
+      refunded. Arazzo carries no conditional fragment, so the rejected branch
+      is a failure action here; the workflow file remains the authority on what
+      the exchange looks like from outside one participant.
+    steps:
+      - stepId: request-refund
+        description: >-
+          openapi.yaml declares neither a request body nor a parameter for this
+          operation, so this step names none. Authorization is the agent's own
+          identity, per index.md, and is a transport concern rather than a
+          parameter of the operation.
+        operationId: requestRefund
+        successCriteria:
+          - condition: $statusCode == 202
+        onFailure:
+          - name: already-fully-refunded
+            type: end
+            criteria:
+              - condition: $statusCode == 409

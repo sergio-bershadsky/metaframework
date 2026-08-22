@@ -1,7 +1,7 @@
 ---
 name: transport-document
 kind: datamodel
-version: 3
+version: 4
 title: Transport document
 summary: The transport.yaml mini-spec — one protocol, one wire, six binding blocks and the spec-XOR-surface-list rule; one of two dialects of the transport role, fully specified and read by no code at all.
 status: review
@@ -18,9 +18,9 @@ tags:
 the wire**, one protocol, one transport. Specified in
 `framework/spec/kinds/protocol.md` §"`transport.yaml`" — a
 closed six-value `kind` enum, a binding block per kind, six surface lists, an
-external-spec link and an exclusivity rule between the last two. Measured
-2026-08-21 with `find solutions -name transport.yaml`: **16 instances** — 9 in
-`solutions/acme`, 4 in `solutions/brass`, 3 in this solution.
+external-spec link and an exclusivity rule between the last two. It is the most
+numerous protocol artifact in the catalog; `find solutions -name transport.yaml`
+is the census.
 
 **This entity is one of the transport role's two dialects, and no longer the
 only one.** [0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi)

@@ -1,7 +1,7 @@
 ---
 name: operator
 kind: actor
-version: 1
+version: 2
 title: Operator
 summary: Whoever keeps the hosted deployment running — the first role in this solution that is answerable for something being up, and today the same person as everyone else.
 status: review
@@ -77,3 +77,24 @@ GitHub is not an actor either. It is
 [github](srn://metaframework/product/devops/component/github), an `external`
 component, because things this solution calls are components and things that
 call this solution are actors — and devops calls GitHub, not the reverse.
+
+## No protocol names this actor
+
+`W_ACTOR_ORPHAN` is raised against this page, and it stands for the same reason
+as on [git](srn://metaframework/actor/git): the finding is true and the fix would
+be a lie. The one devops protocol,
+[worktree-lease](srn://metaframework/product/devops/protocol/worktree-lease), is a
+conversation between the router and the sync loop with no human on either lane.
+The four journeys this solution holds are led by
+[reviewer](srn://metaframework/actor/reviewer) twice, by
+[catalog-author](srn://metaframework/actor/catalog-author), and by
+[ai-author](srn://metaframework/actor/ai-author); no step in any of them hands a
+move to this one.
+
+An operator does walk [read-a-branch](srn://metaframework/journey/read-a-branch),
+as the section above says — but a journey has one `actor`, and changing it here
+would rewrite whose journey it is to clear a warning about a different entity.
+The accurate statement is the one this page already makes: the role exists
+structurally, nothing in the described system talks to it yet, and the day
+something does — an alert, a lease it has to break by hand — the warning goes on
+its own.

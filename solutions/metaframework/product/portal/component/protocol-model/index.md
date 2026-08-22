@@ -1,9 +1,9 @@
 ---
 name: protocol-model
 kind: component
-version: 5
+version: 6
 title: Protocol model
-summary: Workflow mini-spec parser, XState-subset validator, mermaid compiler, generated meta-schema and XState normalizer — five modules, one question, and none of their diagnostics reaches /diagnostics.
+summary: Workflow parser, XState-subset validator, mermaid compiler, generated meta-schema, XState normalizer and Arazzo reader — six modules, one question, and none of their diagnostics reaches /diagnostics.
 status: review
 owner: sergio
 component-type: library
@@ -12,8 +12,8 @@ relations:
   depends-on:
     - ../srn
   uses:
-    - /product/specification/datamodel/workflow-document@2
-    - /product/specification/datamodel/state-machine-document@2
+    - /product/specification/datamodel/workflow-document@3
+    - /product/specification/datamodel/state-machine-document@3
   realizes:
     - /capability/derived-visualization
 tags:
@@ -21,11 +21,11 @@ tags:
   - diagrams
 ---
 
-`src/lib/protocol/` — five source modules, 2,187 lines: `workflow.ts` (1,109),
-`states.ts` (613), `mermaid.ts` (241), `state-machine-document.ts` (118) and
-`xstate.ts` (106), against 1,658 lines of tests in five suites. A `vendor/`
-directory beside them holds one third-party schema, pinned and licensed.
-Measured 2026-08-21 with `wc -l`. One component, because all five answer the
+`src/lib/protocol/` — six source modules: `workflow.ts`, `states.ts`,
+`mermaid.ts`, `state-machine-document.ts`, `xstate.ts` and `arazzo.ts`, with
+`workflow.ts` by far the largest, against a test suite for each of them. A
+`vendor/` directory beside them holds one third-party schema, pinned and
+licensed. One component, because all six answer the
 same question: turn a protocol's sibling artifact into something that can be
 drawn, stated in prose, and handed to somebody else's parser unchanged.
 
@@ -154,6 +154,31 @@ meta-schema published at
 [state-machine-document](srn://metaframework/product/specification/datamodel/state-machine-document),
 which is the only one of the two that a `states.json` can name.
 
+## `arazzo.ts` — the one module that reads without judging
+
+The newest module, and the only one whose contract is defined by what it
+refuses to do. `arazzo.yaml` joined the role table under
+[0020-arazzo-as-a-sibling-role](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)
+as an **unvalidated** artifact: `framework/spec/kinds/protocol.md` states no
+field table for it, and `metaframework check` raises nothing from its contents.
+Unvalidated is not unread, and this module is the difference. `readArazzo()`
+turns the already-parsed YAML into a typed tree; `arazzoGraph()` turns one
+workflow of that tree into nodes and edges, numbers and ids only, the same
+no-DOM discipline `layoutWorkflow()` keeps; `arazzoSummary()` states the same
+graph in prose.
+
+Everything about it is shaped by having no grammar to assert. It returns `null`
+rather than throwing for any input at all, emits no diagnostic and is reachable
+from no diagnostic path, and treats every field as optional — including the ones
+the Arazzo specification marks REQUIRED, because a document this reader does not
+understand is not a document it is entitled to reject. Where it declines to draw
+something it records that in `omitted` rather than letting the picture imply it
+was the whole file; the raw source pane beside it is the file.
+
+This is the only module here that reads an artifact the framework does not own
+the meta-schema for, and the only one for which "no parser" was never the
+alternative on offer — the alternative was no drawing.
+
 ## Where these diagnostics go
 
 Nowhere. **No `E_PROTO_*` code ever reaches
@@ -167,8 +192,8 @@ Its suites run against hermetic fixtures and are never pointed at `solutions/`.
 `transport.yaml` has a full mini-spec in the protocol kind document — a closed
 `kind` enum, binding blocks, the `spec`/surface-list exclusivity rule — and
 **this component has no parser for it**, in either of the two dialects that file
-now admits. Grepping `src` for `transport` outside tests returns 20 hits across
-eleven files on 2026-08-21, and not one is a parser: comments, the protocol
+now admits. Grepping `src` for `transport` outside tests turns up nothing that
+reads one: comments, the protocol
 kind's blurb string in `lib/ui/kind.ts`, the role-table row in
 `lib/srn/artifacts.ts` that makes the file addressable, and the two
 dialect-registry rows in `lib/catalog/dialects.ts` — the framework `$schema` that
@@ -183,11 +208,9 @@ renders as generic YAML like any other, and `E_PROTO_TRANSPORT_SCHEMA`,
 of the debt register in `lib/catalog/diagnostic-coverage.test.ts`, and once more
 as a comment in `dialects.test.ts` — nowhere else. The AsyncAPI row reads "the
 AsyncAPI dialect is detected and never read", which is the whole of what a second
-dialect cost this component. The catalog has 16 authored `transport.yaml` files
-(`find solutions -name transport.yaml`, 2026-08-21) — nine in acme, four in
-brass, two in this product and one under
-[devops](srn://metaframework/product/devops) — and not one of them has ever been
-validated by anything.
+dialect cost this component. Every catalog under `solutions/` authors
+`transport.yaml` files — `find solutions -name transport.yaml` lists them, in
+both dialects — and not one of them has ever been validated by anything.
 
 Two more gaps in the same direction: `W_PROTO_WF_CHANNEL_UNKNOWN` — which would
 check a step's `channel` against the transport's surface list — cannot exist

@@ -1,7 +1,7 @@
 ---
 name: redemption-events
 kind: protocol
-version: 3
+version: 4
 title: Redemption events
 summary: Event bus carrying burnt coupons and reversals from coupon-service to everything that keeps a running total.
 status: approved
@@ -97,3 +97,19 @@ campaign as the bus reveals it, not the internal state of any consumer;
 `workflows/redeem-coupon.yaml` is the burn-and-fan-out exchange. The
 message-to-datamodel matrix on this page is derived from those files, which is
 why the payload models do not appear in `relations`.
+
+## The Arazzo description
+
+`arazzo.yaml` re-describes this exchange as the campaign manager drives it, in
+the OpenAPI Initiative's [Arazzo](https://spec.openapis.org/arazzo/latest.html)
+format, grounded in `transport.yaml` — a redemption charged to a campaign and
+the closure that may follow it, and separately the reversal that may arrive
+later. The running totals are the component's own arithmetic, touch no channel,
+and have no step.
+
+An Arazzo Description has a single executor, so it describes one participant's
+path and never the whole exchange: `workflows/` stays the authoritative
+choreography, and the sequence diagrams on this page derive from it alone. The
+file is unvalidated — snapshotted with the entity, served as authored, and
+judged by nothing: the framework states no rule about its contents. The portal
+reads it to draw a step graph of each workflow, which checks nothing.

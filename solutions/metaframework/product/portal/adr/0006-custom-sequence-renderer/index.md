@@ -1,7 +1,7 @@
 ---
 name: 0006-custom-sequence-renderer
 kind: adr
-version: 1
+version: 2
 title: Sequence diagrams are hand-rolled SVG, not a graph library
 summary: A sequence diagram is a grid, not a free graph, so it is drawn by 616 lines of the portal's own SVG over a pure layout pass.
 status: review
@@ -47,8 +47,8 @@ renderer deliberately."
 ## Consequences
 
 - **The geometry is testable without a DOM.** `layoutWorkflow()` lives in
-  `lib/protocol/workflow.ts` and is covered by `workflow.test.ts` (763 lines).
-  What is *not* covered is the 616 lines of painting: there is no component test
+  `lib/protocol/workflow.ts` and is covered by `workflow.test.ts`.
+  What is *not* covered is the painting: there is no component test
   in this repository at all.
 - **It stays a static import while both React Flow canvases are lazy.**
   `navigable.tsx` defers the graph and the map through `next/dynamic` because

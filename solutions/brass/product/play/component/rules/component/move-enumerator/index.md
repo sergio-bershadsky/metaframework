@@ -1,7 +1,7 @@
 ---
 name: move-enumerator
 kind: component
-version: 3
+version: 4
 title: Move enumerator
 summary: The shared legal-move enumerator and the read-only resource planners every client narrows against.
 status: review
@@ -11,7 +11,7 @@ lifecycle: released
 relations:
   exposes:
     - /protocol/legal-move-api
-    - /product/play/component/rules/component/move-enumerator/datamodel/legal-move@1
+    - /product/play/component/rules/component/move-enumerator/datamodel/legal-move@2
   depends-on:
     - /product/play/component/rules/component/engine-core
   implements:

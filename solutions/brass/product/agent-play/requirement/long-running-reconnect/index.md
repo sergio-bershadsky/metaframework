@@ -1,7 +1,7 @@
 ---
 name: long-running-reconnect
 kind: requirement
-version: 1
+version: 2
 title: A dropped agent resumes the same seat mid-game
 summary: A socket that drops during a multi-hour match must be re-established into the same seat. Currently unmet — no reconnect path exists.
 status: draft
@@ -55,6 +55,12 @@ has no timer, the table waits on it forever.
 It is a `must` because a table blocked by an abandoned seat is a broken game,
 and it is `draft` because nothing implements it. Phase P-MCP-2 of the MCP plan
 names reconnection explicitly.
+
+`W_REQ_UNIMPLEMENTED` follows from the three gaps above and is correct: no
+component implements this, because the reconnect path, the seat release and the
+credential store are all things that do not exist. The warning is the `must`
+staying visible until one of them does. Adding an `implements` edge now would
+say the opposite of every sentence on this page.
 
 ## Measured where
 

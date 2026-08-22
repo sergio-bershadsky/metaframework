@@ -1,7 +1,7 @@
 ---
 name: play
 kind: product
-version: 1
+version: 2
 title: Play
 summary: The playable online game — rules engine, authoritative server, and the browser client humans sit down at.
 status: review
@@ -44,7 +44,7 @@ of it has been written but not yet signed off.
   (what is legal right now) and
   [bgio-game](srn://brass/product/play/component/rules/component/bgio-game) (the one
   file that knows boardgame.io exists).
-- [server](srn://brass/product/play/component/server) — twenty-six lines over the
+- [server](srn://brass/product/play/component/server) — a thin layer over the
   framework, and the only authority on state.
 - [web-client](srn://brass/product/play/component/web-client) — a React SPA served
   by nginx, with six sub-components covering the board, the HUD, the interaction

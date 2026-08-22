@@ -1,7 +1,7 @@
 ---
 name: journey-document
 kind: datamodel
-version: 2
+version: 3
 title: Journey document
 summary: journey.yaml — one actor's path across the solution as 2 to 12 flat steps, no branches, and the product-crossing check the journey kind exists for.
 status: review
@@ -16,11 +16,9 @@ tags:
 
 `journey.yaml` beside a journey's `index.md`: **one actor's path across the
 solution**, in order, from first contact to outcome. Specified in
-`framework/spec/kinds/journey.md` (version 5, 853 lines) under "The journey.yaml
-mini-spec"; parsed by `framework/portal/src/lib/journey/journey.ts` (414 lines).
-Measured 2026-08-21 with `find solutions -name journey.yaml`: **9 instances** — 2
-in `solutions/acme`, 3 in `solutions/brass`, 4 in this solution — carrying 62
-steps between them.
+`framework/spec/kinds/journey.md` under "The journey.yaml mini-spec"; parsed by
+`framework/portal/src/lib/journey/journey.ts`. Every solution here carries
+several, this one the most; `find solutions -name journey.yaml` is the census.
 
 This is the sixth format, and the product page
 [specification](srn://metaframework/product/specification) already stated the
@@ -41,7 +39,7 @@ frontmatter says nothing about the path, so there is no second statement of it �
 and it is simultaneously the contract between an author and three derived forms
 that must agree, all three built from one `parseJourney` call in
 `components/entity/entity-artifacts.tsx`: the mermaid `flowchart TD` from
-`lib/journey/mermaid.ts` (220 lines), the `JourneyLegend` ladder beneath it, and
+`lib/journey/mermaid.ts`, the `JourneyLegend` ladder beneath it, and
 `journeySummary()`, which narrates the same parsed model in sentences because
 the drawing is `aria-hidden` and the prose is what a screen reader actually
 hears.

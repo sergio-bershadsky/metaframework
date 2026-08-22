@@ -1,7 +1,7 @@
 ---
 name: tree-projection
 kind: component
-version: 2
+version: 3
 title: Tree projection
 summary: The serialisable TreeNode view of the entity graph and its four lenses — a component because it exists to cross the RSC boundary, not to load anything.
 status: review
@@ -13,7 +13,7 @@ tags:
   - navigation
 ---
 
-`src/lib/catalog/tree.ts`, 306 lines, with a 376-line test. `buildTree()` turns
+`src/lib/catalog/tree.ts`, with a test suite longer than itself. `buildTree()` turns
 the loaded `Catalog` into `TreeNode` — srn, name, title, kind, status, version,
 owner, children, and one boolean saying whether the entity itself carries an
 error diagnostic. That is the whole shape.

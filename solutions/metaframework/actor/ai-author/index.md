@@ -1,7 +1,7 @@
 ---
 name: ai-author
 kind: actor
-version: 2
+version: 3
 title: AI author
 summary: The model runtime that authors the catalog through the plugin's skills — the reader every SKILL.md description is actually written for.
 status: review
@@ -38,7 +38,7 @@ The runtime is outside the ownership boundary. Its internals are not described
 here, its behaviour cannot be changed from this repository, and the only
 negotiation available is the wording of a skill and the phrasing of a rule. What
 *is* ours is the plugin: the seven skills, the three commands, the agent, and the
-3,562-line reference bundle it reads when `framework/spec/` is not on disk.
+reference bundle it reads when `framework/spec/` is not on disk.
 
 The boundary test's third question settles it: does anything have to name this
 counterpart in a `uses`, `exposes`, `depends-on` or `implements` edge? Nothing

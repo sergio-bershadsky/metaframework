@@ -1,7 +1,7 @@
 ---
 name: srn
 kind: component
-version: 2
+version: 3
 title: SRN parser and resolver
 summary: The zero-dependency implementation of the framework's identity syntax, where placement is enforced as grammar and the sealed universe is enforced at all.
 status: review
@@ -13,9 +13,9 @@ tags:
   - grammar
 ---
 
-`framework/portal/src/lib/srn/srn.ts` — 307 lines, no runtime dependency, not
+`framework/portal/src/lib/srn/srn.ts` — no runtime dependency, not
 even `zod`. It is the bottom of the portal: every other module imports it and it
-imports nothing of ours. `srn.test.ts` is 415 lines, longer than the module, and
+imports nothing of ours. `srn.test.ts` is longer than the module itself, and
 commit `6a1b1f1` calls those tests *spec-derived* — they are read out of
 [srn.md](srn://metaframework/product/specification/component/core-contracts),
 not out of the implementation.

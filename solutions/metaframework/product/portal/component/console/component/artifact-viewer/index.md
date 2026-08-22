@@ -1,7 +1,7 @@
 ---
 name: artifact-viewer
 kind: component
-version: 2
+version: 3
 title: Artifact viewer
 summary: Monaco source panes and the JSON Schema view, joined to their drawings by a line index built from the file's own parse tree.
 status: review
@@ -63,7 +63,7 @@ server component can be passed to a client component but cannot be handed
 callbacks afterwards. Hovering a diagram element lights its lines; moving the
 caret lights the element those lines produce.
 
-`source-map.test.ts` (240 lines) is the only test in this component's surface.
+`source-map.test.ts` is the only test in this component's surface.
 
 ## Monaco, and the three decisions in it
 
@@ -88,7 +88,7 @@ caret lights the element those lines produce.
    first would leave the one reference a reader actually wants to follow, the
    `$ref` to the base a model extends, unclickable.
 
-`editor.worker.ts` (13 lines) and `json.worker.ts` (9 lines) look orphaned to a
+`editor.worker.ts` and `json.worker.ts` look orphaned to a
 static-import scan. They are referenced only through
 `new Worker(new URL('./json.worker.ts', import.meta.url))` in `monaco.ts`,
 because that literal-relative-URL form is the only shape a bundler recognises.

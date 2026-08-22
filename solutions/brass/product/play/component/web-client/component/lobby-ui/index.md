@@ -1,7 +1,7 @@
 ---
 name: lobby-ui
 kind: component
-version: 3
+version: 4
 title: Lobby UI
 summary: Routing, room creation, seat claiming, credential storage, and the pre-game seating screen.
 status: review
@@ -13,7 +13,7 @@ relations:
     - /environment/production
     - /environment/local
     - /protocol/lobby-api
-    - /datamodel/match-credentials@1
+    - /datamodel/match-credentials@2
   depends-on:
     - /product/play/component/boardgame-io
   implements:
@@ -48,7 +48,7 @@ on mount, which is what makes a page refresh rejoin the same seat. The key is th
 match, not the seat — so two tabs of the same browser opening the same invite link
 find the same entry and both act as the seat claimed first. That is a real defect on
 this path; it is recorded on
-[match-credentials](srn://brass/datamodel/match-credentials@1), where the shape that
+[match-credentials](srn://brass/datamodel/match-credentials@2), where the shape that
 causes it lives.
 
 ## Why the join is "first free seat" and not a chooser

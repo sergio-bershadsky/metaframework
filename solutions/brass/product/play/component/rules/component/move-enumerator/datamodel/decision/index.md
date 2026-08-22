@@ -1,7 +1,7 @@
 ---
 name: decision
 kind: datamodel
-version: 1
+version: 2
 title: Decision
 summary: One unit of resource sourcing and every source that could satisfy it; zero candidates means the move is illegal.
 status: review
@@ -16,11 +16,11 @@ Exactly one cube, one barrel or one tile-sale, plus the full list of sources tha
 could satisfy it. The planners emit an array of these; the UI walks it; and the
 three counts it can take mean three different things:
 
-| candidates | meaning                                  | UI behaviour                       |
-| ---------- | ---------------------------------------- | ---------------------------------- |
-| 0          | the unit is **unsatisfiable**            | the move is illegal — never offered |
-| 1          | `forced: true`                            | apply silently, never prompt        |
-| 2 or more  | a real choice                             | prompt                              |
+| candidates | meaning                       | UI behaviour                        |
+|------------|-------------------------------|-------------------------------------|
+| 0          | the unit is **unsatisfiable** | the move is illegal — never offered |
+| 1          | `forced: true`                | apply silently, never prompt        |
+| 2 or more  | a real choice                 | prompt                              |
 
 That table is the whole content of
 [0005-prompt-only-real-choices](srn://brass/product/play/adr/0005-prompt-only-real-choices),

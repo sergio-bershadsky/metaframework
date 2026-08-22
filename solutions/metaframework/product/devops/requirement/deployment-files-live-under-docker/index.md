@@ -1,7 +1,7 @@
 ---
 name: deployment-files-live-under-docker
 kind: requirement
-version: 1
+version: 2
 title: Every deployment file lives under docker/
 summary: One directory holds the compose file, the Dockerfiles, the chart and the environment templates — so the deployment surface is a place a reviewer can list rather than a pattern they have to know.
 status: review
@@ -77,3 +77,17 @@ be enforced mechanically today, and nothing enforces it: the repository's CI
 gates the catalog, the types, the lint and the tests, and has no opinion about
 file placement. If this requirement is approved, AC-2 is a three-line CI step
 and is the cheapest thing on this page to make real.
+
+`W_REQ_UNIMPLEMENTED` is raised against this page for the same reason and is
+accurate. No component can honestly claim to implement a layout constraint over
+files that are not in the tree, and the three devops components that do author
+`implements` edges —
+[catalog-router](srn://metaframework/product/devops/component/catalog-router),
+[repo-sync](srn://metaframework/product/devops/component/repo-sync) and
+[telemetry](srn://metaframework/product/devops/component/telemetry) — implement
+other obligations. The edge belongs to
+[devops](srn://metaframework/product/devops) itself once `docker/` lands, since
+this is a constraint on the product's own shape rather than on any one
+component's behaviour. Until then the warning is the honest report, and parking
+the edge somewhere to clear the count would replace a true finding with a false
+claim.

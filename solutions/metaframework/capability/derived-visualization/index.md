@@ -1,7 +1,7 @@
 ---
 name: derived-visualization
 kind: capability
-version: 1
+version: 2
 title: See a system drawn, without anybody having drawn it
 summary: Turn a written description into pictures computed from it, so that a diagram cannot disagree with the thing it depicts.
 status: review
@@ -21,9 +21,9 @@ that can go stale.
 That last clause is the doing. Drawing a system is not hard and every
 organisation already does it; the diagrams are simply wrong by the following
 quarter, because a drawing is a copy and a copy drifts. Computing the drawing
-from the description removes the copy: measured 2026-08-20,
-`src/components/diagrams/` is 3,440 lines and `src/lib/diagrams/` is 1,667, and
-between them they hold no coordinates anybody typed. There is no diagram source
+from the description removes the copy: between them,
+`src/components/diagrams/` and `src/lib/diagrams/` hold no coordinates anybody
+typed. There is no diagram source
 format in this repository, no `.drawio`, and no mermaid a human wrote.
 
 Rebuild every renderer — the three rendering technologies in use today are
@@ -48,11 +48,16 @@ already the result of two reversals
   remove.
 - **Nothing leaves the screen.** There is no export — no SVG download, no PNG, no
   print, no copy-as-text. A picture here is something read in place.
-- **Five drawings, not a drawing tool.** Relations at one hop, a solution's
-  structure, a workflow, a state machine, and — since decision-record amendment
-  `2026-08-20-a` — a journey's walk, drawn by
-  `src/components/diagrams/journey-diagram.tsx` (233 lines) over
-  `src/lib/journey/mermaid.ts` (220). A composition graph for a datamodel's
+- **Six drawings, not a drawing tool.** Relations at one hop, a solution's
+  structure, a workflow, a state machine, a journey's walk — that one since
+  decision-record amendment `2026-08-20-a`, drawn by
+  `src/components/diagrams/journey-diagram.tsx` over
+  `src/lib/journey/mermaid.ts` — and, since
+  [0020-arazzo-as-a-sibling-role](srn://metaframework/adr/0020-arazzo-as-a-sibling-role),
+  one workflow of an `arazzo.yaml` as a step graph
+  ([arazzo-graph](srn://metaframework/product/portal/component/diagrams/component/arazzo-graph)).
+  That last one is the only drawing taken from a document this framework does
+  not validate, which is why it reports what it did not draw. A composition graph for a datamodel's
   `allOf` DAG is rendered as a lineage list rather than a graph, and an
   environment's `topology.yaml` is drawn by nothing at all — `topology` has zero
   mentions anywhere in `src`.
@@ -75,8 +80,8 @@ failure this kind invites.
 
 `protocol-model` carries its own edge rather than hiding under `diagrams`
 because it sits outside that subtree: it is the parser and the validator that
-turn `workflows/*.yaml` and `states.json` into something drawable, and two of the
-four drawings do not exist without it.
+turn `workflows/*.yaml` and `states.json` into something drawable — and, now,
+`arazzo.yaml` too — so three of the six drawings do not exist without it.
 
 ## Not this
 
@@ -90,7 +95,7 @@ four drawings do not exist without it.
   [specification](srn://metaframework/product/specification).
 - *Verified drawings.* Only the geometry is tested — the pure layout modules
   under `src/lib/diagrams/`, plus `narrateWorkflow` and `statesToMermaid` in
-  `protocol-model`. `find src -name '*.test.tsx'` returns nothing, so every one
-  of the 3,440 lines under `src/components/diagrams/` is verified by looking at
-  it, the journey renderer included. That is a fact about how well this capability is realized and belongs on
+  `protocol-model`. `find src -name '*.test.tsx'` returns nothing, so every line
+  under `src/components/diagrams/` is verified by looking at it, the journey
+  renderer included. That is a fact about how well this capability is realized and belongs on
   this page rather than in its definition.

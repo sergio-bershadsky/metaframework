@@ -1,7 +1,7 @@
 ---
 name: merchant-operator
 kind: actor
-version: 1
+version: 2
 title: Merchant operator
 summary: Staff member who curates the sellable catalog and corrects stock counts.
 status: review
@@ -43,3 +43,10 @@ The other two halves of the old role are
 `review`, not `approved`: the stock-correction goal is still being argued over
 with team-shop, because it implies a write path into
 [inventory](srn://acme/product/shop/component/inventory) that no protocol currently describes.
+
+`W_ACTOR_ORPHAN` follows from the same open argument and is correct: with no
+protocol describing the stock-correction write path, no participant list can name
+this actor, and neither acme journey gives it a step. The `uses` edge to
+inventory states reach, which the framework deliberately does not count as
+participation. The warning is that unfinished conversation showing up in the
+diagnostics list; it clears when the protocol is written, and not before.

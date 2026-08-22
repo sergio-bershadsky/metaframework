@@ -1,7 +1,7 @@
 ---
 name: rule-example-coverage
 kind: metric
-version: 1
+version: 2
 title: Rule example coverage
 summary: Share of the specification's rule-bearing sections that carry at least one fenced example, counted from the markdown alone.
 status: review
@@ -76,9 +76,9 @@ same absence the requirement records about itself.
 - **A document can score perfectly by declining to be normative.** The
   denominator counts sections that use an RFC 2119 keyword, so a document that
   prescribes rules without marking them leaves the sample entirely.
-  `framework/spec/kinds/actor.md` is the standing case: 446 lines, zero
-  occurrences of any keyword — `grep -cE "MUST|SHOULD|MAY|REQUIRED"` returns 0,
-  measured 2026-08-20 — and a §"Validation rules" prescribing six checks with six
+  `framework/spec/kinds/actor.md` is the standing case: zero occurrences of any
+  keyword — `grep -cE "MUST|SHOULD|MAY|REQUIRED"` returns 0, measured
+  2026-08-20 — and a §"Validation rules" prescribing six checks with six
   error codes. By the spec's own definition — "a statement without a
   keyword is descriptive, not normative" — it contains no rules to want examples
   for. That is the cheapest available way to move this number and it makes the

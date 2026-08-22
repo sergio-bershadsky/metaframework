@@ -1,9 +1,9 @@
 ---
 name: specification
 kind: product
-version: 4
+version: 6
 title: Specification
-summary: The normative contract under framework/spec — 17 documents, 12,931 lines, that the portal implements and the authoring kit distils.
+summary: The normative contract under framework/spec — the core and kind documents the portal implements, the authoring kit distils, and the meta-schema datamodels they name.
 status: review
 owner: sergio
 lifecycle: incubating
@@ -30,18 +30,18 @@ tags:
   - contract
 ---
 
-`framework/spec/` is the normative statement of what a catalog is: 17 markdown
-documents, 12,931 lines, written in the framework's own format — each one carries
-the frontmatter shape it prescribes for solution entities. Five are core
-contracts binding on every kind; twelve are kind contracts, one per ontology
-kind. Measured 2026-08-21 with `wc -l`; it was 14 documents and 7,279 lines
-before decision-record amendment `2026-08-20-a` added `kinds/capability.md`,
-`kinds/journey.md` and `kinds/metric.md`. Those three account for 2,053 of the
-4,486 lines added since; the other 2,433 are the fourteen older documents growing
-under the amendments that followed — most recently
+`framework/spec/` is the normative statement of what a catalog is: markdown
+documents written in the framework's own format — each one carries the
+frontmatter shape it prescribes for solution entities. Five are core contracts
+binding on every kind; the rest are kind contracts, one per ontology kind. The
+set grows: decision-record amendment `2026-08-20-a` added `kinds/capability.md`,
+`kinds/journey.md` and `kinds/metric.md`, and the older documents have been
+growing under the amendments that followed — most recently
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects), which
 reached into `index.md`, `structure.md` and `evolution.md` at once. **A document
-count is stable and a line count is not**, which is why the count above is dated.
+count is stable and a line count is not**, which is why neither is written down
+here: `ls framework/spec/**/*.md` answers the first and `wc -l` the second, and
+both answer correctly on every commit.
 
 It is modelled as a product rather than as a paragraph in this solution's
 `index.md` for one reason, and the reason is structural rather than stylistic: a
@@ -66,9 +66,9 @@ Two, and the seam between them is a precedence rule the spec states about itself
 
 - [core-contracts](srn://metaframework/product/specification/component/core-contracts)
   — `index.md`, `structure.md`, `srn.md`, `frontmatter.md`, `evolution.md`.
-  3,461 lines. Binding on every kind.
+  Binding on every kind.
 - [kind-contracts](srn://metaframework/product/specification/component/kind-contracts)
-  — `kinds/*.md`, twelve documents, 8,304 lines. Each adds fields, artifacts and
+  — `kinds/*.md`, one per ontology kind. Each adds fields, artifacts and
   rules *on top of* the core, never overriding them.
 
 `index.md` fixes the direction: "Where two documents appear to disagree, the
@@ -97,8 +97,9 @@ responsibility**. The spec decides what a `schema.json` or a `workflows/*.yaml`
 must be; the portal is one implementation of that judgement and the plugin's
 reference bundle is one distillation of it. Filing them under the parser would
 tell a reader that the parser owns the contract, which is backwards — and it
-would leave `transport.yaml` homeless, because that format has 13 authored
-instances in this repository and no portal code at all.
+would leave `transport.yaml` homeless, because that format is authored in every
+catalog here and no portal module interprets it — `dialects.ts` reads which
+dialect a file declares and stops there.
 
 The threshold applied to the first five was: normatively specified,
 hand-authored, and at least eight instances on disk. In, with counts measured
@@ -111,8 +112,8 @@ own v1 intent is to treat a linked spec as an opaque attachment.
 **The sixth came in under that same rule.** `kinds/journey.md` specifies
 `journey.yaml` normatively — required rather than optional, with its own
 top-level fields, step schema, `x-` escape hatch and twelve error codes — and
-`find solutions -name journey.yaml | wc -l` returns 9 as of 2026-08-21, past the
-bar the paragraph above sets. This page used to say so and stop there, on the
+`find solutions -name journey.yaml | wc -l` clears the bar the paragraph above
+sets. This page used to say so and stop there, on the
 grounds that adding `datamodel/journey-document` changes what the product
 `exposes` and is therefore a decision about the product rather than a correction
 to a page; the decision has since been made. The format is still parsed by
@@ -120,8 +121,9 @@ to a page; the decision has since been made. The format is still parsed by
 anywhere.
 
 **The seventh and eighth did not, and the rule that admitted them is a different
-rule.** `topology.yaml` (7 instances) and `config.yaml` (6) are both under the
-eight-instance bar and both are datamodels here now, because
+rule.** `topology.yaml` and `config.yaml` were both under the eight-instance bar
+when it was applied, and both are datamodels here now anyway — not because the
+count later moved, which it did, but because
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) has
 every artifact declare its own dialect in its own bytes, under the canonical URL
 of the meta-schema that defines that dialect — and a discriminator with nothing
@@ -135,19 +137,30 @@ regions:
 ```
 
 An instance count measures how much a format is worth describing; being named
-from inside 66 files across three catalogs settles it whatever the count says
-(12 `transport.yaml`, 24 workflows, 9 `journey.yaml`, 8 `states.json`, 7
-`topology.yaml`, 6 `config.yaml`; measured 2026-08-21). `openapi.yaml` and
-`examples/` stay out under both readings, and for reasons that survive the
-change: OpenAPI announces itself with a native `openapi:` key against a
-meta-schema that was never the framework's to write, and an example is an
-instance of its sibling schema, carrying that schema's dialect and none of its
-own. The four `transport.yaml` files not in that 66 are out for the *first*
-reason, not the second — they are written in the AsyncAPI dialect their role also
-admits ([0017](srn://metaframework/adr/0017-transport-asyncapi)), so they
-announce themselves with `asyncapi:` and name no framework meta-schema. That
-subtracts nothing from `transport-document`: the wires AsyncAPI cannot describe
-keep the mini-spec permanently, and 12 files name it today.
+from inside the artifacts themselves settles it whatever the count says, and the
+naming is total rather than partial. Every `workflows/*.yaml`, every
+`journey.yaml`, every `states.json`, every `topology.yaml` and every
+`config.yaml` in every catalog in this repository carries that `$schema` line —
+no exceptions, which is a stronger statement than any census of them and one
+that does not go stale when a catalog is added.
+
+`openapi.yaml` and `examples/` stay out under both readings, and for reasons
+that survive the change: OpenAPI announces itself with a native `openapi:` key
+against a meta-schema that was never the framework's to write, and an example is
+an instance of its sibling schema, carrying that schema's dialect and none of its
+own. `arazzo.yaml`, added to the role table by
+[0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role), stays out for
+OpenAPI's reason exactly: it announces itself with `arazzo:`, so there is no
+`arazzo-document` datamodel to write and none is planned.
+
+`transport.yaml` is the one role that splits, and it splits exactly: a
+`transport.yaml` names the framework meta-schema if and only if it is written in
+the mini-spec dialect, and names `asyncapi:` instead if and only if it is written
+in the other dialect its role admits
+([0017](srn://metaframework/adr/0017-transport-asyncapi)). The AsyncAPI ones are
+out for the *first* reason, not the second. That subtracts nothing from
+`transport-document`: the wires AsyncAPI cannot describe — `http`, `grpc` and
+`in-process` — keep the mini-spec permanently.
 
 So this list stopped being bookkeeping. `exposes` above and the `/schemas` route
 are one fact seen twice — the route accepts a path only when its SRN names a
@@ -172,8 +185,8 @@ global for these eight and local for everything else.
 holds itself to no mechanical check.
 
 **Not one of its 17 documents is approved.** Fifteen carry `status: review` and
-two — `kinds/capability.md` and `kinds/metric.md` — carry `status: draft`, at
-versions between 2 and 8. The thing that actually wins on conflict is
+two — `kinds/capability.md` and `kinds/metric.md` — carry `status: draft`, and
+every one of them is on a version above its first. The thing that actually wins on conflict is
 `docs/decision-record.md`, which `index.md` names in its opening paragraph. This
 product is `lifecycle: incubating` for exactly that reason: it is in use and
 load-bearing, and its contracts are still moving. `docs/decision-record.md`
@@ -196,9 +209,10 @@ The spec asks every entity to bump `version` on every content change
   amendments *d* and *e*. `index.md@4`, `srn.md@4`, `evolution.md@3` and
   `frontmatter.md@3` therefore exist in no commit, and a version→commit index
   cannot resolve them.
-- **Substantive edits without a bump.** Commit bae08e4 changed 132 lines of
-  `srn.md` and left `version: 1`; commit 4aa3f68 changed `frontmatter.md` (71
-  lines) and `structure.md` (45 lines) and left both at `version: 1`. In the same
+- **Substantive edits without a bump.** Commit `bae08e4` rewrote a large part of
+  `srn.md` and left `version: 1`; commit `4aa3f68` edited both `frontmatter.md`
+  and `structure.md` and left both at `version: 1` —
+  `git show --stat bae08e4 4aa3f68` is the evidence. In the same
   commit `kinds/datamodel.md` and `kinds/protocol.md` were *born* at `version: 2`,
   so no v1 of either was ever committed.
 

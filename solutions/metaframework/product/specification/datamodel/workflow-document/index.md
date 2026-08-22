@@ -1,7 +1,7 @@
 ---
 name: workflow-document
 kind: datamodel
-version: 2
+version: 3
 title: Workflow document
 summary: The workflows/*.yaml mini-spec — ordered message steps plus three fragment forms, designed to be as legible raw as rendered.
 status: review
@@ -17,9 +17,10 @@ tags:
 One named, ordered exchange between a protocol's participants, in a file at
 `workflows/<name>.yaml` beside the protocol's `index.md`. Specified in
 `framework/spec/kinds/protocol.md` under "The workflow mini-spec"; parsed by
-`framework/portal/src/lib/protocol/workflow.ts` (1,091 lines). Measured
-2026-08-19 across `solutions/acme` and `solutions/brass`, before this solution
-was authored: 22 files across 14 `workflows/` directories.
+`framework/portal/src/lib/protocol/workflow.ts`. Most protocols in the catalog
+own a `workflows/` directory and several own more than one file in it; the
+protocol page renders what is there, and `find solutions -name "*.yaml" -path
+"*/workflows/*"` is the census.
 
 `usage: both`. The file on disk is the record — there is no other statement of
 the exchange — and it is also the contract between an author and two derived

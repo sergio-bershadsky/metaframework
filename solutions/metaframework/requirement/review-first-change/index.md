@@ -1,7 +1,7 @@
 ---
 name: review-first-change
 kind: requirement
-version: 2
+version: 3
 title: A change to a described system is reviewed as a diff before it lands
 summary: The file diff is the review surface; a change to the catalog should be read and judged before it is merged, and today nothing makes that happen.
 status: review
@@ -46,8 +46,9 @@ Nothing, and this is the honest inventory:
 - No CI configuration of any kind, anywhere in the tree.
 - No `CODEOWNERS`, no pull-request template, no branch-protection artefact
   committed to the repository.
-- 52 commits, one author, **zero merge commits**. Branching is practised — there
-  is a second branch and a remote — but no review artefact exists in-repo.
+- One author, **zero merge commits** — `git log --merges` returns nothing.
+  Branching is practised — there is a second branch and a remote — but no review
+  artefact exists in-repo.
 
 So AC-1 holds by construction and is the only one that does. AC-2 is currently a
 person reading their own diff. AC-3 requires the reviewer to remember to open
@@ -74,5 +75,5 @@ unmet obligation, and the difference matters to whoever picks this repository up
 Review *quality*. What makes a description good rather than merely legal is the
 subject of the `review-solution` skill on the authoring kit's
 [plugin](srn://metaframework/product/authoring-kit/component/plugin)
-component and its 562-line checklist. This requirement is only about the loop
+component and its review checklist. This requirement is only about the loop
 existing.

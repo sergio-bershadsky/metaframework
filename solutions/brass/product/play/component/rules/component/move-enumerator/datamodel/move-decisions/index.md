@@ -1,7 +1,7 @@
 ---
 name: move-decisions
 kind: datamodel
-version: 1
+version: 2
 title: Move decisions
 summary: Every resource decision one planned move raises, grouped by coal, iron, beer and sell-merchant.
 status: review
@@ -20,14 +20,14 @@ read: nothing here mutates the game state.
 
 Which arrays are populated is entirely a function of the move:
 
-| planned move            | coal              | iron           | beer                     | merchant             |
-| ----------------------- | ----------------- | -------------- | ------------------------ | -------------------- |
-| `build`                 | tile spec's coal  | tile spec's iron | empty                   | empty                |
-| `network`, canal era    | empty             | empty          | empty                    | empty                |
-| `network`, single rail  | 1                 | empty          | empty                    | empty                |
-| `network`, double rail  | 1 per link        | empty          | 1                        | empty                |
-| `develop`               | empty             | 1 per tile     | empty                    | empty                |
-| `sell`                  | empty             | empty          | per tile's beers-to-sell | 1 per tile           |
+| planned move           | coal             | iron             | beer                     | merchant   |
+|------------------------|------------------|------------------|--------------------------|------------|
+| `build`                | tile spec's coal | tile spec's iron | empty                    | empty      |
+| `network`, canal era   | empty            | empty            | empty                    | empty      |
+| `network`, single rail | 1                | empty            | empty                    | empty      |
+| `network`, double rail | 1 per link       | empty            | 1                        | empty      |
+| `develop`              | empty            | 1 per tile       | empty                    | empty      |
+| `sell`                 | empty            | empty            | per tile's beers-to-sell | 1 per tile |
 
 A canal-era link is genuinely free of decisions — every canal link costs 3 money
 and nothing else — which is why the whole record comes back empty and the UI

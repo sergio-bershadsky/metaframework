@@ -1,7 +1,7 @@
 ---
 name: history-service
 kind: component
-version: 2
+version: 3
 title: History service
 summary: Four read-only git operations behind /api/history — live, reachable, and with zero callers inside the application today.
 status: review
@@ -20,7 +20,7 @@ tags:
   - history
 ---
 
-`src/app/api/history/[...path]/route.ts`, 90 lines. `GET` only, `runtime =
+`src/app/api/history/[...path]/route.ts`. `GET` only, `runtime =
 'nodejs'` because `child_process` rules out the edge runtime, `dynamic =
 'force-dynamic'`.
 
@@ -30,12 +30,12 @@ one: it is a route handler in the console's own process.
 
 ## Four operations
 
-| `op`    | Needs        | Returns                                    |
-| ------- | ------------ | ------------------------------------------ |
-| `log`   | —            | the entity's revisions and version index   |
-| `files` | `commit`     | the entity's files at that commit          |
-| `show`  | `commit?`    | one file's content at a revision           |
-| `diff`  | `commit`     | a diff against `parent`, `worktree`, or another hash |
+| `op`    | Needs     | Returns                                              |
+|---------|-----------|------------------------------------------------------|
+| `log`   | —         | the entity's revisions and version index             |
+| `files` | `commit`  | the entity's files at that commit                    |
+| `show`  | `commit?` | one file's content at a revision                     |
+| `diff`  | `commit`  | a diff against `parent`, `worktree`, or another hash |
 
 Everything is a whitelist: `safeCatalogPath()` on the catch-all segments (not
 re-decoded — Next has already decoded them once), `isCommitHash()` on `commit`

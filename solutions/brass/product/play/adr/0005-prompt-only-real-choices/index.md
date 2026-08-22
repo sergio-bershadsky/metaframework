@@ -1,7 +1,7 @@
 ---
 name: 0005-prompt-only-real-choices
 kind: adr
-version: 1
+version: 2
 title: Prompt only when the choice is real
 summary: A resource decision with one candidate is taken silently; only decisions with two or more distinct options reach the player.
 status: review
@@ -12,7 +12,7 @@ deciders:
   - sergio-bershadsky
 relations:
   uses:
-    - /product/play/component/rules/component/move-enumerator/datamodel/decision@1
+    - /product/play/component/rules/component/move-enumerator/datamodel/decision@2
 tags:
   - ui
   - interaction
@@ -36,7 +36,7 @@ is precisely the habit that makes the rare real choice go wrong.
 ## Decision
 
 The planner returns one
-[decision](srn://brass/product/play/component/rules/component/move-enumerator/datamodel/decision@1)
+[decision](srn://brass/product/play/component/rules/component/move-enumerator/datamodel/decision@2)
 per unit consumed, each with its full candidate list. A decision is shown to the
 player **iff it has more than one candidate**. Forced decisions are taken
 silently, and a decision with zero candidates means the move is not playable

@@ -1,7 +1,7 @@
 ---
 name: promotion-engine
 kind: component
-version: 5
+version: 6
 title: Promotion engine
 summary: Stateless evaluator on the checkout hot path — decides what a cart is worth and answers within a budget.
 status: review
@@ -13,9 +13,9 @@ relations:
     - /environment/production
     - /environment/staging
     - /datamodel/money@1
-    - /product/growth/datamodel/campaign@1
+    - /product/growth/datamodel/campaign@2
     - /product/growth/datamodel/promo@1
-    - /product/shop/component/checkout/datamodel/cart@1
+    - /product/shop/component/checkout/datamodel/cart@2
   exposes:
     - /product/growth/protocol/promotion-evaluation
     - /product/growth/datamodel/promotion-quote@1
@@ -98,10 +98,15 @@ the engine served correct prices from it for an hour — the component dependenc
 was gone, the datamodel dependency was exactly as binding as ever. Recording only
 the component edge would have made that hour unexplainable.
 
-The pins are `@1` because that is what the parser was written against, and they
-will move when someone reads the newer revision rather than when it appears. A
-pin that tracks latest by default records nothing; the whole value of the number
-is that a human put it there.
+A pin moves when someone reads the newer revision, not when it appears. A pin
+that tracks latest by default records nothing; the whole value of the number is
+that a human put it there. `promo@1` is therefore still `@1` — nobody has read a
+later one, because there is no later one — and `campaign` and `cart` are at `@2`
+because their v2 was read. Both bumps changed `usage` from `storage` to `both`
+and the prose around it; neither touched a `schema.json`, so the shapes this
+process is written against are byte-identical across the move. That is the
+easiest kind of pin to advance and it is still a decision, recorded here rather
+than inferred from a date.
 
 ## Why it reads shop's cart model
 

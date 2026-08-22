@@ -1,7 +1,7 @@
 ---
 name: 0005-one-image-two-topologies
 kind: adr
-version: 1
+version: 2
 title: One set of images, two topologies, and the compose file is the source
 summary: Docker Compose under /docker is how this runs locally and the Helm chart deploys the same images to Hetzner — two placements of one artifact set, never two builds.
 status: review
@@ -67,6 +67,26 @@ graph expressed for a cluster, plus the things only a cluster has.
   catalog and the tests; it does not build images and does not deploy. Deploying
   is a person running a command, and pretending otherwise on this page would be
   the same kind of aspirational claim the rest of the catalog avoids.
+- **"One artifact set" was tested against Score, and the pair this record names
+  is not the pair Score covers.** The prototype
+  [0016-topology-format-deferred](srn://metaframework/adr/0016-topology-format-deferred)
+  left open now exists under this product's `_score/` directory — two workload
+  files, run through `score-compose` 0.45.0 and `score-k8s` 0.16.0 on
+  2026-08-21. All 14 configuration keys the two components' contracts declare
+  survived into both outputs, and secrets arrived in Kubernetes as
+  `valueFrom.secretKeyRef` rather than as values. Three things did not.
+  `score-helm` is deprecated by its own README, so the chart half of this
+  record is uncovered and the prototype exercises *compose file* and *raw
+  manifests* instead — and rendering those manifests into a chart produces the
+  unreadable chart the Kompose alternative was rejected for. `score-k8s` ships
+  no `environment` provisioner and refuses to generate at all without a custom
+  one, so the deploy-time-configuration half of this product costs a file
+  before anything runs. And one `type: volume` resource became a durable named
+  volume under compose and `emptyDir: {}` under Kubernetes — the same drift
+  this record accepts as its cost, except with **one** description rather than
+  two, and located below the artifact where reading it cannot reveal it. The
+  duplication above is therefore still the honest position, and the prototype
+  changes nothing on this page beyond recording that it was measured.
 
 ## Alternatives considered
 

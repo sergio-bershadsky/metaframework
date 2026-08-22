@@ -1,7 +1,7 @@
 ---
 name: devops
 kind: product
-version: 1
+version: 2
 title: DevOps
 summary: The operational apparatus that runs the portal as a service — GitHub-backed catalogs, a worktree per branch, containers, telemetry and a chart.
 status: review
@@ -133,7 +133,7 @@ create-successor-and-deprecate exercise across twenty-two entities instead of a
 Three components are ours and two describe systems we do not own. The density is
 deliberately matched to
 [portal](srn://metaframework/product/portal), which carries thirteen components
-over 23,277 lines — roughly 1,800 lines apiece. An earlier draft of this page
+over a comparable body of code. An earlier draft of this page
 had seven components for a product whose novel code is a syncer, a router and
 some instrumentation, which would have been four times more granular than its
 own sibling. Inconsistent decomposition density across one solution is the
@@ -158,6 +158,19 @@ are placement and configuration, and the ontology already has a home for both:
 component would have needed a `component-type` the enum does not have — there is
 no value for "a packaging artifact" — and the correct response to that gap is to
 use the kind that fits rather than to force one that does not.
+
+The one experiment run against that boundary lives in `_score/`, which the
+loader and the fingerprint both skip by name, so it is not an entity, not
+addressable and not checked. It is the Score prototype
+[0016-topology-format-deferred](srn://metaframework/adr/0016-topology-format-deferred)
+left open — two `score.yaml` workload files, for
+[repo-sync](srn://metaframework/product/devops/component/repo-sync) and
+[catalog-router](srn://metaframework/product/devops/component/catalog-router),
+run through `score-compose` and `score-k8s` to test
+[0005](srn://metaframework/product/devops/adr/0005-one-image-two-topologies)'s
+"one artifact set, two topologies". Its findings are recorded beside it and
+summarised in 0005's consequences; nothing here depends on it and deleting the
+directory costs nothing.
 
 ## This product cannot be built without changing portal
 

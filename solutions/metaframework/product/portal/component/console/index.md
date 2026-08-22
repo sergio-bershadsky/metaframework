@@ -1,7 +1,7 @@
 ---
 name: console
 kind: component
-version: 2
+version: 3
 title: Console
 summary: The console chrome and the design tokens every other surface reads — shell, masthead, ontology hues, and the one hex mirror of the palette.
 status: review
@@ -21,9 +21,9 @@ tags:
 
 The frame everything else in the portal is drawn inside, plus the token layer
 that decides what a colour means. Five files carry it:
-`src/app/(console)/layout.tsx`, `src/components/app-shell.tsx` (57 lines),
-`src/components/diagnostics-indicator.tsx` (43 lines), `src/app/globals.css`
-(414 lines) and `src/lib/ui/{kind,console-tokens}.ts` (132 + 22 lines).
+`src/app/(console)/layout.tsx`, `src/components/app-shell.tsx`,
+`src/components/diagnostics-indicator.tsx`, `src/app/globals.css` and
+`src/lib/ui/{kind,console-tokens}.ts`.
 
 ## The shell
 
@@ -70,7 +70,7 @@ console drifts out of tune with itself". Nothing regenerates them; if a token in
 ## The cascade-layer declaration
 
 `globals.css` opens with `@layer theme, base, stoplight, components, utilities;`
-before the Tailwind import, and the 18-line comment above it is the most
+before the Tailwind import, and the comment above it is the most
 expensive thing in this component. Stoplight's Mosaic stylesheet is unscoped: it
 sets Inter globally, redefines `--font-mono`, and resets heading sizes to
 `inherit`. Unlayered, it beats every Tailwind utility. Layered too low — below

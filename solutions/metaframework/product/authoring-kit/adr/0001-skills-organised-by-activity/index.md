@@ -1,7 +1,7 @@
 ---
 name: 0001-skills-organised-by-activity
 kind: adr
-version: 2
+version: 3
 title: Organise the skills by activity, not by entity kind
 summary: Skills are cut by what the author is doing — design, add, evolve, validate, review — because one skill per kind would make seven skills fight over the same trigger phrases.
 status: review
@@ -25,8 +25,8 @@ of trigger phrases a model is expected to match against a user's request. Nothin
 routes; matching is the routing.
 
 The catalog has nine kinds, and the obvious cut is one skill per kind. It has an
-appealing symmetry: the specification is already organised that way —
-`framework/spec/kinds/` holds nine documents — and each kind has its own
+appealing symmetry: the specification is already organised that way — one
+document per kind under `framework/spec/kinds/` — and each kind has its own
 frontmatter fields and its own rules.
 
 The competing observation is that the *work* does not divide that way. "Add a
@@ -55,7 +55,7 @@ those two and covers the other seven kinds. The dispatch rule lives in one place
   the three creation skills are disjoint by kind, the two audit skills disjoint
   by question.
 - The expensive activities got a home they would not have had otherwise.
-  `evolve-entity` is 234 lines plus a 279-line swap walkthrough covering a
+  `evolve-entity` is a skill plus a swap walkthrough covering a
   procedure that touches every kind; under a per-kind cut that procedure would
   have been copied nine times or omitted eight.
 - The cost lands on `add-entity`. One 255-line skill now carries seven kinds'

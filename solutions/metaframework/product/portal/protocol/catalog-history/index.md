@@ -1,7 +1,7 @@
 ---
 name: catalog-history
 kind: protocol
-version: 2
+version: 3
 title: Catalog history
 summary: The four-operation conversation between the history panel and /api/history — fully implemented on both sides, and held by nobody.
 status: review
@@ -33,8 +33,8 @@ rule is what makes that answer an addressable entity instead of the bare
 
 ## Why it is modelled at all
 
-Because it is the honest shape of the code. `history-panel.tsx` (458 lines) and
-`diff-view.tsx` (217) are the only client of `/api/history` in the repository;
+Because it is the honest shape of the code. `history-panel.tsx` and
+`diff-view.tsx` are the only client of `/api/history` in the repository;
 nothing imports them. The service answers four operations correctly. Both halves
 of a working conversation are present and unwired, and a catalog that left this
 out would describe a system in which the endpoint has no purpose, which is a

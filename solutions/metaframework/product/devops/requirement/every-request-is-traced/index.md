@@ -1,7 +1,7 @@
 ---
 name: every-request-is-traced
 kind: requirement
-version: 1
+version: 2
 title: Every request is traced, and no trace carries a credential
 summary: A reader's request produces one trace spanning auth, lease, fetch and catalog load — enough to answer "why was that slow" without attaching to a process, and never enough to leak a token.
 status: review
@@ -55,7 +55,7 @@ exactly where nobody looks for one.
 ## Where the trace stops, stated once
 
 At the portal. Rendering appears as one span with a duration and no inside,
-because instrumenting 23,277 lines of someone else's product is a change to a
+because instrumenting a product we do not own, by hand, is a change to a
 product this work does not touch. AC-2 is written the way it is precisely
 because of this: the loader's own numbers — ~18ms to fingerprint against ~2.2s
 to rebuild, per `framework/portal/src/lib/catalog/fingerprint.ts` — are visible

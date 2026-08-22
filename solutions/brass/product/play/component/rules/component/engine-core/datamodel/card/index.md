@@ -1,7 +1,7 @@
 ---
 name: card
 kind: datamodel
-version: 1
+version: 2
 title: Card
 summary: A hand card — a location face, an industry face, or one of the two wild kinds; every action discards exactly one.
 status: review
@@ -20,8 +20,8 @@ game — see
 
 Four faces, discriminated by `type`:
 
-| `type`          | carries      | authorises                                                     |
-| --------------- | ------------ | -------------------------------------------------------------- |
+| `type`          | carries      | authorises                                                      |
+|-----------------|--------------|-----------------------------------------------------------------|
 | `location`      | `city`       | building any industry in that city                              |
 | `industry`      | `industries` | building one of those industries anywhere in your network       |
 | `wild-location` | nothing      | building any industry in any city **except** the farm breweries |

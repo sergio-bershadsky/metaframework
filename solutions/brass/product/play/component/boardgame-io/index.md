@@ -1,7 +1,7 @@
 ---
 name: boardgame-io
 kind: component
-version: 3
+version: 4
 title: boardgame.io
 summary: The turn-based game framework this solution does not own — lobby REST, socket transport, storage, authority.
 status: review
@@ -21,8 +21,9 @@ x-version: ^0.50.2
 ---
 
 An open-source turn-based game framework, described here as far as this solution's
-boundary requires and no further. Without this node in the graph, "the server is
-twenty-six lines" reads as a gap in the description instead of as the decision it is.
+boundary requires and no further. Without this node in the graph, "the server
+is only configuration" reads as a gap in the description instead of as the
+decision it is.
 
 ## Why a component and not an actor
 

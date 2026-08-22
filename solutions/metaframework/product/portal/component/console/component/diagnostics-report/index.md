@@ -1,7 +1,7 @@
 ---
 name: diagnostics-report
 kind: component
-version: 2
+version: 3
 title: Diagnostics report
 summary: The /diagnostics page — with no CLI in v1, this is the integrity gate, and it can only show what the loader and the schema registry found.
 status: review
@@ -19,7 +19,7 @@ tags:
   - console
 ---
 
-`src/app/(console)/diagnostics/page.tsx`, 96 lines, plus
+`src/app/(console)/diagnostics/page.tsx`, plus
 `components/diagnostics-indicator.tsx` which puts the error and warning counts
 in the masthead of every page. Its own docstring states the claim this component
 exists to make:

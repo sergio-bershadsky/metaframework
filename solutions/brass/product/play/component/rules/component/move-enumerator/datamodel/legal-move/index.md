@@ -1,7 +1,7 @@
 ---
 name: legal-move
 kind: datamodel
-version: 1
+version: 2
 title: Legal move
 summary: One rule-legal move, tagged by kind, carrying its target and every hand card that could authorise it.
 status: review
@@ -31,16 +31,16 @@ and the reason the client is forbidden from re-deriving legality —
 A discriminated union on `kind`, one branch per action the game defines plus the
 turn-commit gate:
 
-| `kind`         | payload                                | notes                                                       |
-| -------------- | -------------------------------------- | ----------------------------------------------------------- |
-| `build`        | `city`, `slot-index`, `industry`       | one entry per legal (city, slot, industry) triple            |
-| `network`      | `edges`                                | one or two edges; two only in the rail era                   |
-| `develop`      | `industries`                            | one or two industries, possibly the same one twice          |
-| `sell`         | `tile-ids`                              | one tile per entry as enumerated today                      |
-| `loan`         | none                                    | offered while income level minus 3 stays above -10          |
-| `scout`        | `cards` (exactly 3)                     | illegal while already holding a wild                        |
-| `pass`         | none                                    | always legal                                                |
-| `confirm-turn` | none                                    | the **only** move offered while `awaiting-commit` is set     |
+| `kind`         | payload                          | notes                                                    |
+|----------------|----------------------------------|----------------------------------------------------------|
+| `build`        | `city`, `slot-index`, `industry` | one entry per legal (city, slot, industry) triple        |
+| `network`      | `edges`                          | one or two edges; two only in the rail era               |
+| `develop`      | `industries`                     | one or two industries, possibly the same one twice       |
+| `sell`         | `tile-ids`                       | one tile per entry as enumerated today                   |
+| `loan`         | none                             | offered while income level minus 3 stays above -10       |
+| `scout`        | `cards` (exactly 3)              | illegal while already holding a wild                     |
+| `pass`         | none                             | always legal                                             |
+| `confirm-turn` | none                             | the **only** move offered while `awaiting-commit` is set |
 
 `confirm-turn` is not an action and takes no card — it is the gate from
 [0001-turn-commit-gate](srn://brass/product/play/component/rules/adr/0001-turn-commit-gate).

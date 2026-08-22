@@ -1,7 +1,7 @@
 ---
 name: payment
 kind: component
-version: 6
+version: 7
 title: Payment
 summary: Orchestrates authorization, capture, and refund against the card acquirer, and publishes settlement facts.
 status: approved
@@ -16,7 +16,7 @@ relations:
   exposes:
     - /product/shop/protocol/order-placement
     - /protocol/settlement
-    - /product/shop/component/checkout/component/payment/datamodel/order@3
+    - /product/shop/component/checkout/component/payment/datamodel/order@4
   depends-on:
     - /product/shop/component/checkout/component/payment/component/psp
   implements:
@@ -30,7 +30,7 @@ x-jira-epic: SHOP-142
 
 The sub-component that talks to money. It authorizes, captures, and refunds
 through [/product/shop/component/checkout/component/payment/component/psp](srn://acme/product/shop/component/checkout/component/payment/component/psp), owns the
-[order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@3) aggregate as it
+[order](srn://acme/product/shop/component/checkout/component/payment/datamodel/order@4) aggregate as it
 exists after authorization, and publishes the settled fact onto the
 [settlement](srn://acme/protocol/settlement) bus for
 [billing](srn://acme/product/billing) to pick up.

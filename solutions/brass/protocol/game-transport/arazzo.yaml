@@ -1,0 +1,145 @@
+# Arazzo Description — the initiator-facing surface of this exchange, as one
+# seat drives it. Unvalidated here: this framework snapshots and serves the
+# file and states no rule about its contents (kinds/protocol.md, "arazzo.yaml —
+# the orchestration surface"); the portal reads it only to draw the step graph
+# beside this source. workflows/*.yaml stay the authoritative choreography, and
+# the sequence diagrams on this page derive from them alone.
+#
+# DIRECTION. transport.yaml is written from the authority's side — its own
+# comment says so, and its `id` is the game-server. Arazzo's step `action` is
+# the executor's intent instead, and the executor here is a seat, so every
+# `action` below is the mirror of the AsyncAPI operation it names: the seat
+# `send`s what the server `receive`s. That inversion is the Arazzo
+# Specification's own, not a local convention — its Step Object example drives
+# `placeOrder` with `action: send` against an AsyncAPI document that declares
+# `placeOrder` as `action: receive`.
+arazzo: 1.1.0
+info:
+  title: Game transport
+  summary: One seat's path across the socket, from sync to a committed turn.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Both workflows are written for the web-client seat. The mcp seat drives the
+    identical sequence — the transport carries no marker that distinguishes
+    them, which is the point index.md makes about the bot badge — so a second
+    description of it would be the same file with a different title.
+
+    Every step names an operation of transport.yaml by `operationId`. Two of the
+    five channels share a socket.io event with another channel, so an
+    address-level reference would be ambiguous where an operation reference is
+    not; the Arazzo Specification prefers `operationId` over a path reference
+    for exactly this reason.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: seat-and-start
+    summary: Sync a seat, sit down, and start the match.
+    description: >-
+      workflows/seat-and-start.yaml, reduced to the wire steps this seat itself
+      sends or receives. Two things in that file have no carrier here and stay
+      there: the `loop` over colour, avatar and ready — Arazzo has no loop
+      construct — and the `state-update` fan-out to the other seats, which is
+      the same broadcast this seat receives, seen from outside it.
+    steps:
+      - stepId: sync
+        description: >-
+          Wire event "sync" with (matchID, playerID, credentials). The seat is
+          authenticated here; the lobby only minted the credential.
+        operationId: sync-request
+        action: send
+      - stepId: receive-sync-response
+        description: >-
+          The first state a seat ever sees, already filtered by playerView. No
+          successCriteria: this channel declares exactly one message and it is
+          unambiguously the successful outcome, which is the case the Arazzo
+          Specification allows the criteria to be omitted in.
+        operationId: sync-response
+        action: receive
+        dependsOn:
+          - sync
+      - stepId: receive-match-data
+        description: >-
+          The framework's own per-seat metadata, including isConnected. It
+          disagrees with G.seats on purpose; only G.seats says who is playing.
+        operationId: match-data
+        action: receive
+        dependsOn:
+          - sync
+      - stepId: sit-down
+        description: >-
+          A move envelope carrying (name, ai). No requestBody is spelled out:
+          transport.yaml binds this channel's payload by reference to
+          datamodel/move-envelope and names no field of it here.
+        operationId: move-submit
+        action: send
+        dependsOn:
+          - receive-sync-response
+      - stepId: receive-seated-state
+        operationId: state-update
+        action: receive
+        dependsOn:
+          - sit-down
+      - stepId: host-start
+        description: >-
+          Refused for anyone but the host, and refused until at least two seats
+          are joined, coloured and ready. Those guards are the workflow file's;
+          Arazzo carries no guard.
+        operationId: move-submit
+        action: send
+        dependsOn:
+          - receive-seated-state
+      - stepId: receive-opening-state
+        description: >-
+          The phase is now canalEra, the deck is built for the seated count,
+          hands are dealt, and turn order is randomised.
+        operationId: state-update
+        action: receive
+        dependsOn:
+          - host-start
+  - workflowId: play-a-turn
+    summary: Submit actions and commit the turn.
+    description: >-
+      workflows/play-a-turn.yaml, reduced to the wire steps this seat itself
+      sends or receives. The action pair below is a `loop` there, taken up to
+      twice per turn; Arazzo has no loop construct, so it is written once and
+      the count stays in the workflow file. A rejected move produces no message
+      on the update channel at all, so the absence of `receive-move-result` is
+      how this description carries `invalid-move` — which that file already
+      marks as not a wire message.
+    steps:
+      - stepId: make-move
+        description: One of build, network, develop, sell, loan, scout, pass.
+        operationId: move-submit
+        action: send
+      - stepId: receive-move-result
+        description: >-
+          Broadcast to every seat including the sender, each copy filtered by
+          playerView. The sender learns its move landed the same way a spectator
+          would.
+        operationId: state-update
+        action: receive
+        dependsOn:
+          - make-move
+      - stepId: confirm-turn
+        description: >-
+          The engine never ends a turn by itself. Until this lands, the
+          turn-scoped undo stack is still live.
+        operationId: move-submit
+        action: send
+        dependsOn:
+          - receive-move-result
+      - stepId: receive-committed-state
+        description: >-
+          Which of the three outcomes workflows/play-a-turn.yaml draws — next
+          seat, round advanced, or era over — is visible only in the state that
+          arrives. They share one wire event and one channel, so they are one
+          step here.
+        operationId: state-update
+        action: receive
+        dependsOn:
+          - confirm-turn

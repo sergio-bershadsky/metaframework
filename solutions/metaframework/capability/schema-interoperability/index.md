@@ -1,7 +1,7 @@
 ---
 name: schema-interoperability
 kind: capability
-version: 1
+version: 2
 title: Hand a data contract to a tool that has never heard of this framework
 summary: Let an outside program resolve a catalog's data models from a URL alone — every reference followed, no clone, no plugin, nothing taught.
 status: review
@@ -26,7 +26,7 @@ which is the `must` this doing is judged against.
 It is also the one capability here with a measurement behind it rather than an
 argument. With the portal running, a stock `json-schema-ref-parser` — given
 nothing but a starting URL — retrieved the full transitive closure of the deepest
-schema in `solutions/acme`: eight documents, ending
+schema in `solutions/acme`, ending
 `resolved without a single filesystem read: true`
 (`docs/decision-record.md:239-252`). Under the form that preceded it, the same
 tool handed the same starting point resolved nothing.

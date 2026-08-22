@@ -1,7 +1,7 @@
 ---
 name: checkout
 kind: component
-version: 8
+version: 9
 title: Checkout
 summary: Converts a cart into a paid order — pricing, tax, stock reservation, and payment orchestration.
 status: approved
@@ -16,7 +16,7 @@ relations:
     - /product/shop/component/checkout/protocol/tax-quoting
   exposes:
     - /product/shop/protocol/order-placement
-    - /product/shop/component/checkout/datamodel/cart@1
+    - /product/shop/component/checkout/datamodel/cart@2
   depends-on:
     - /product/shop/component/inventory
     - /product/billing/component/ledger

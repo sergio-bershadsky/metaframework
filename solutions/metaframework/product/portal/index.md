@@ -1,7 +1,7 @@
 ---
 name: portal
 kind: product
-version: 2
+version: 3
 title: Portal
 summary: The Next.js console that renders a catalog — the surface where a product's current state and the decisions around it are read.
 status: review
@@ -21,10 +21,9 @@ tags:
   - read-only
 ---
 
-`framework/portal` — a single Next.js 16.3.1 / React 19.2.8 application, 23,277
-lines of TypeScript, TSX and CSS under `src/`, 16 test files, 395 tests, ~1.2s
-(measured 2026-08-19 with `npx vitest run`). It reads `solutions/` and `.git/`
-and writes nothing. It is the product this solution's directive is about: the
+`framework/portal` — a single Next.js 16 / React 19 application:
+TypeScript, TSX and CSS under `src/`, with a test suite that runs in a couple of
+seconds. It reads `solutions/` and `.git/` and writes nothing. It is the product this solution's directive is about: the
 place where a reader finds out what a system currently is, and what was decided
 to make it that.
 
@@ -111,15 +110,15 @@ Three gaps, all greppable, all deliberately modelled rather than tidied away:
   `registry.test.ts`. They were the API of the schema explorer that Stoplight's
   `JsonSchemaViewer` replaced. The direct consequence is that `W_DM_UNION_TAG`,
   emitted only inside `buildSchemaBundle`, can never reach `/diagnostics`.
-- There are **zero component tests and zero end-to-end tests**. All 16 suites
-  live under `src/lib/**`; `find src -name '*.test.tsx'` returns nothing. Roughly
-  7,100 lines of components and app routes are unverified except where a test
+- There are **zero component tests and zero end-to-end tests**. Every suite
+  lives under `src/lib/**`; `find src -name '*.test.tsx'` returns nothing, so
+  the whole of `src/components` and `src/app` is unverified except where a test
   imports a route handler directly, which `fixture-check.test.ts` does for
   `/schemas` and nothing does for `/api/history`.
 
 ## Ownership
 
-One product, one owner, one author: 52 commits, all on 2026-08-19, all by Sergey
-Bershadsky. `framework/portal/README.md` is still unedited `create-next-app`
+One product, one owner, one author: `git shortlog -sn` on this repository
+returns a single name, Sergey Bershadsky. `framework/portal/README.md` is still unedited `create-next-app`
 boilerplate, and `AGENTS.md` is the generated Next.js block. The documentation
 of this product is this catalog.

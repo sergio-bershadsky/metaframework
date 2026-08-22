@@ -1,7 +1,7 @@
 ---
 name: solution-map
 kind: component
-version: 2
+version: 3
 title: Solution map
 summary: A whole solution as structure only, laid out in polar coordinates around a focus that the reader moves by clicking.
 status: review
@@ -21,7 +21,7 @@ tags:
   - map
 ---
 
-`src/components/diagrams/solution-map.tsx` (774 lines) plus the two routes
+`src/components/diagrams/solution-map.tsx` plus the two routes
 `src/app/(console)/map/page.tsx` and `map/[solution]/page.tsx`. It is the only
 whole-catalog view in the portal, and the only diagram that does not use ELK.
 

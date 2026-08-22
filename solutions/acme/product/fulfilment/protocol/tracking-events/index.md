@@ -1,7 +1,7 @@
 ---
 name: tracking-events
 kind: protocol
-version: 3
+version: 4
 title: Tracking events
 summary: Kafka bus carrying normalized carrier scans inward and derived delivery status outward to everyone who cares.
 status: approved
@@ -103,3 +103,19 @@ Deliberate. The delivery lifecycle already has a state machine, in
 [carrier-booking](srn://acme/product/fulfilment/protocol/carrier-booking), and the
 same lifecycle described twice would drift. This protocol carries observations
 about that machine; it does not have a conversation state of its own.
+
+## The Arazzo description
+
+`arazzo.yaml` re-describes this exchange as the tracking component drives it, in
+the OpenAPI Initiative's [Arazzo](https://spec.openapis.org/arazzo/latest.html)
+format, grounded in `transport.yaml` — a normalized scan taken in, and the
+status change or the exception folded out of it — two workflows, because those
+two publishes are separate `opt` fragments over the same scan rather than a
+sequence.
+
+An Arazzo Description has a single executor, so it describes one participant's
+path and never the whole exchange: `workflows/` stays the authoritative
+choreography, and the sequence diagrams on this page derive from it alone. The
+file is unvalidated — snapshotted with the entity, served as authored, and
+judged by nothing: the framework states no rule about its contents. The portal
+reads it to draw a step graph of each workflow, which checks nothing.

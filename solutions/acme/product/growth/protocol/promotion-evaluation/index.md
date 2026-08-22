@@ -1,7 +1,7 @@
 ---
 name: promotion-evaluation
 kind: protocol
-version: 5
+version: 6
 title: Promotion evaluation
 summary: Synchronous pricing conversation — checkout asks the engine what a cart is worth and gets a short-lived quote.
 status: review
@@ -51,11 +51,28 @@ root, next to [settlement](srn://acme/protocol/settlement).
 
 It sits in growth's bucket today because growth authored and still unilaterally
 owns the contract while the product is `incubating`; shop is a client that can
-be switched off. Moving the directory to `srn://acme/protocol/promotion-evaluation`
-is the first item on the graduation checklist in
+be switched off. `W_STRUCT_PROTOCOL_NCA` is therefore raised against this page,
+and it is right — the finding and this section reach the same conclusion. The
+section exists so that a reader arriving from `/diagnostics` finds the reason
+rather than a gap, and the warning stays until the reason stops holding.
+
+Relocating is the first item on the graduation checklist in
 [0002-fail-open-pricing](srn://acme/product/growth/adr/0002-fail-open-pricing),
 and it becomes due the moment checkout authors its `uses` edge — at that point
 the two products co-own the surface and the rule stops being a formality.
+
+Relocating means a **swap, not a move**. An earlier version of this section said
+the directory "moves" to `srn://acme/protocol/promotion-evaluation`, and no
+entity in this framework may be moved or renamed: the SRN *is* the path, so a
+move is a delete plus an unrelated create, and the version-to-commit index does
+not follow it. The legal execution is the swap procedure — author a successor
+protocol at the solution root at `version: 1`, `status: draft`, carrying a
+`supersedes` edge back to this entity; migrate the participants' component edges
+one at a time; set this entity to `status: deprecated` once the reverse-reference
+query shows nothing live pointing here; and leave it on disk permanently. Every
+version of this protocol stays reachable that way, which is the whole reason the
+rule exists — and a swap is why the checklist item is a piece of work rather than
+a `git mv`.
 
 ## The conversation is advisory
 

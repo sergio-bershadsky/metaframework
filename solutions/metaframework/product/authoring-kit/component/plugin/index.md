@@ -1,7 +1,7 @@
 ---
 name: plugin
 kind: component
-version: 2
+version: 3
 title: Claude Code plugin
 summary: The deliverable itself — seven skills, three commands, one read-only agent and a manifest, shipped and versioned as one Claude Code plugin whose only runtime is Claude.
 status: review
@@ -13,6 +13,8 @@ relations:
     - ../reference-bundle
   depends-on:
     - /product/portal/component/catalog-loader
+  implements:
+    - /requirement/additive-only-evolution
 tags:
   - plugin
   - claude-code
@@ -23,8 +25,8 @@ tags:
 [reference-bundle](srn://metaframework/product/authoring-kit/component/reference-bundle)
 and holds the one boundary inside this product that earns a second component.
 Everything else is here, because everything else ships, versions, fails and is
-owned together: `.claude-plugin/plugin.json` (19 lines) declares one name and
-one version, `0.1.0`, and there is no unit of delivery smaller than that.
+owned together: `.claude-plugin/plugin.json` declares one name and one version,
+`0.1.0`, and there is no unit of delivery smaller than that.
 
 ## What a Claude Code plugin is, stated plainly
 
@@ -52,15 +54,26 @@ version, fail or be owned separately from the plugin that carries it. The seven
 [0001-skills-organised-by-activity](srn://metaframework/product/authoring-kit/adr/0001-skills-organised-by-activity):
 by activity, never by entity kind.
 
-| Skill              | Owns                                                                                        | Size (lines)         |
-|--------------------|---------------------------------------------------------------------------------------------|----------------------|
-| `solution-design`  | Many entities at once, before any file exists: interview, decomposition heuristics, proposed SRN tree, sign-off gate. | 365 + 465 references |
-| `add-entity`       | One entity of a mechanical kind — everything except datamodel and protocol.                 | 482 + 1,097          |
-| `model-data`       | One datamodel: `schema.json`, canonical `$id`/`$ref`, `x-srn`, the promotion decision.      | 319 + 189            |
-| `protocol-design`  | One protocol: participants, NCA placement, `transport.yaml`, `workflows/`, `states.json`.   | 260 + 394            |
-| `evolve-entity`    | Anything already published: additive edit with a version bump, or the swap procedure.       | 264 + 279            |
-| `validate-catalog` | Legality: run the portal's check, read the cascade, know what it does not cover.            | 245 + 320            |
-| `review-solution`  | Judgement: a ranked architectural review, read-only, backed by `catalog_facts.py`.          | 230 + 689 + 838 script |
+| Skill              | Owns                                                                                                                  |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------|
+| `solution-design`  | Many entities at once, before any file exists: interview, decomposition heuristics, proposed SRN tree, sign-off gate. |
+| `add-entity`       | One entity of a mechanical kind — everything except datamodel and protocol.                                           |
+| `model-data`       | One datamodel: `schema.json`, canonical `$id`/`$ref`, `x-srn`, the promotion decision.                                |
+| `protocol-design`  | One protocol: participants, NCA placement, `transport.yaml`, `workflows/`, `states.json`, `arazzo.yaml`.              |
+| `evolve-entity`    | Anything already published: additive edit with a version bump, or the swap procedure.                                 |
+| `validate-catalog` | Legality: run the portal's check, read the cascade, know what it does not cover.                                      |
+| `review-solution`  | Judgement: a ranked architectural review, read-only, backed by `catalog_facts.py`.                                    |
+
+That table used to carry a **Size (lines)** column, and it is gone under
+[0018-measured-facts-are-derived-or-dated](srn://metaframework/adr/0018-measured-facts-are-derived-or-dated):
+seven skills times two or three operands is fifteen `wc -l` results that every
+edit to the kit falsifies, and they were in fact false. What the column was
+really being read for survives without a digit. In every skill but `model-data`
+the `references/` outweigh the `SKILL.md` that loads them, which is the
+progressive-disclosure rule holding; `model-data` is the exception because its
+single reference file is one worked pair rather than a body of procedure. `review-solution`
+is the only skill that ships a script. And `_shared/references/` is larger than
+any single skill's own files, which is the point of it being shared.
 
 Three seams inside the table are load-bearing. The three creation skills are
 disjoint by kind — the dispatch rule is a three-row table stated once, in
@@ -80,8 +93,8 @@ ever contained, which `git log` must prove rather than the author assume.
 
 ## The three commands, and the discipline that keeps them thin
 
-`solution-new.md` (38 lines), `entity-new.md` (63), `catalog-check.md` (47) —
-148 lines that route and nothing else. `/solution-new` → `solution-design`;
+`solution-new.md`, `entity-new.md` and `catalog-check.md` route and do nothing
+else. `/solution-new` → `solution-design`;
 `/entity-new` → `model-data`, `protocol-design` or `add-entity` by kind;
 `/catalog-check` → `validate-catalog`. Each states in its own wording that it is
 not the procedure — "Do not improvise a layout / frontmatter / a diagnosis from
@@ -93,12 +106,12 @@ recording a reason.
 
 ## The agent, and why it is weaker than the skill it mirrors
 
-`agents/catalog-reviewer.md` (99 lines) runs `review-solution`'s question as a
+`agents/catalog-reviewer.md` runs `review-solution`'s question as a
 background subagent. It is read-only and says so twice — "You are read-only.
 Never edit files." — and it declares `tools: Read, Grep, Glob`. **No Bash.** The
 skill's evidence step runs
-`skills/review-solution/scripts/catalog_facts.py` — 838 lines of stdlib-only
-Python that resolve a solution into one graph and print a census plus
+`skills/review-solution/scripts/catalog_facts.py`, stdlib-only Python that
+resolves a solution into one graph and print a census plus
 twenty-three `R_`-coded candidates. The script's own docstring bounds its
 authority — "This is a REVIEW AID, not a validator", "Every finding it prints
 is a CANDIDATE", and "several checks are heuristics that a well-modelled
@@ -113,20 +126,47 @@ the plugin says so.
 [catalog-loader](srn://metaframework/product/portal/component/catalog-loader)`
 — the plugin documents enforcement it does not perform. `validate-catalog` is a
 reader's manual over `framework/portal/src/lib/catalog`; the pass condition it
-teaches is `cd framework/portal && npx vitest run src/lib/catalog`, run by a
-person or a model, and there is no CLI to depend on instead. What the manual
+teaches is `metaframework check`, the published CLI, with
+`cd framework/portal && npx vitest run src/lib/catalog` kept only as a fallback
+for work inside this repository — and the skill says in as many words that
+earlier versions of it told authors to vendor the framework repository because
+that CLI did not yet exist. What the manual
 adds is what the diagnostics do not say for themselves: a cascade order
 (`E_SRN_*` on paths first, then `E_FM_SCHEMA`, then the entity's own `E_FM_*`,
 then references, then warnings), a code → cause → fix table written as causes,
 and an explicit inventory of what a green run does not prove.
 
-The manual is also where the plugin is stale today. `SKILL.md:26` says "Two
-files run" and `:29` shows a pass as `Test Files  2 passed (2)` — softened by
-"Test counts drift as the fixture grows; the pass/fail line is the signal", but
-still naming two of what are now ten test files in
-`framework/portal/src/lib/catalog`. Nothing detects that a claim in this plugin
-stopped being true, which is the point of
+The manual used to be where the plugin was stale: it named a fixed number of
+test files and showed a pass line quoting that number, in a directory that has
+gained files steadily since. That passage is gone, and the CLI is why — a
+`metaframework check` run prints its own totals, so the skill no longer has to
+quote any. Nothing, however, detects that a claim in this plugin stopped being
+true, which is the point of
 [kit-works-without-the-spec](srn://metaframework/product/authoring-kit/requirement/kit-works-without-the-spec).
+
+## The obligation it carries
+
+`implements` names
+[additive-only-evolution](srn://metaframework/requirement/additive-only-evolution),
+and the edge is the graph form of a sentence that requirement already carries:
+"AC-1 through AC-3 are held by author discipline and by the authoring kit's
+`evolve-entity` skill, which owns the additive-versus-swap decision." That is a
+satisfaction claim, and it stood in prose alone until 2026-08-21 —
+`W_REQ_UNIMPLEMENTED` on a `must` was reading the edges, which said nobody had
+claimed it.
+
+The claim is exactly as strong as the mechanism, and the mechanism is a skill a
+model reads: `evolve-entity` is the only part of the kit permitted near a
+published entity, and every creation skill and command hands off to it by name
+because the instinctive fix for a bad field is a removal, a rename or a narrowing
+— all three forbidden. Nothing here fails a build. AC-4's `E_VER_REGRESSION`
+lives in
+[git-history](srn://metaframework/product/portal/component/git-history) and is
+never run over `solutions/`, so it is deliberately not a second `implements`
+edge: a check that never executes against the catalog satisfies nothing about
+it. The requirement's own "What enforces this" section — "Almost nothing, and
+the honest inventory matters more than the principle" — stays true beside this
+edge, because `implements` says who holds the rule and not who proves it.
 
 ## What it is not
 

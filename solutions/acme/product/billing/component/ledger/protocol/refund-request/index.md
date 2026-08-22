@@ -1,7 +1,7 @@
 ---
 name: refund-request
 kind: protocol
-version: 2
+version: 3
 title: Refund request
 summary: Support-facing HTTP surface for requesting and tracking a refund against a settled order.
 status: review
@@ -62,3 +62,19 @@ is the person the refund can be asked about a year later.
 `review`. The refund reason taxonomy in the linked OpenAPI document is still
 being agreed with the finance controller, and until it settles the operation
 shape may still move.
+
+## The Arazzo description
+
+`arazzo.yaml` re-describes this exchange as the support console drives it, in
+the OpenAPI Initiative's [Arazzo](https://spec.openapis.org/arazzo/latest.html)
+format, grounded in `openapi.yaml` — the refund request and the two answers
+`openapi.yaml` declares to it. `getRefund` gets no step:
+`workflows/request-refund.yaml` does not show the agent reading a refund back,
+and this description covers only what a workflow file drives.
+
+An Arazzo Description has a single executor, so it describes one participant's
+path and never the whole exchange: `workflows/` stays the authoritative
+choreography, and the sequence diagrams on this page derive from it alone. The
+file is unvalidated — snapshotted with the entity, served as authored, and
+judged by nothing: the framework states no rule about its contents. The portal
+reads it to draw a step graph of each workflow, which checks nothing.

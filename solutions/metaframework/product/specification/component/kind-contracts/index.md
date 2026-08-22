@@ -1,9 +1,9 @@
 ---
 name: kind-contracts
 kind: component
-version: 5
+version: 7
 title: Kind contracts
-summary: One document per ontology kind — twelve files, 9,393 lines, each adding fields, artifacts and rules on top of the core contracts and never overriding them.
+summary: One document per ontology kind — each adding fields, artifacts and rules on top of the core contracts, and never overriding them.
 status: review
 owner: sergio
 component-type: library
@@ -26,28 +26,28 @@ tags:
   - kinds
 ---
 
-`framework/spec/kinds/` — twelve documents, 9,393 lines, one per ontology kind.
-Versions and line counts measured 2026-08-20:
+`framework/spec/kinds/` — one document per ontology kind. Versions are read from
+their own frontmatter:
 
-| Document         | Version | Lines | Adds                                                            |
-|------------------|---------|-------|-----------------------------------------------------------------|
-| `solution.md`    | 5       | 328   | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7.      |
-| `product.md`     | 5       | 300   | `lifecycle`, `primary-actors`.                                  |
-| `component.md`   | 5       | 668   | `component-type`, `lifecycle`, environment declaration.         |
-| `datamodel.md`   | 9       | 1,658 | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.       |
-| `protocol.md`    | 7       | 2,183 | `participants`/`style`, `transport.yaml`, workflows, states.    |
-| `actor.md`       | 4       | 446   | `actor-type`, `goals`, protocol participation.                  |
-| `environment.md` | 6       | 812   | `environment-type`, `topology.yaml`, `config.yaml`.             |
-| `adr.md`         | 3       | 418   | `decision-status`, `date`, `deciders`, the body template.       |
-| `requirement.md` | 3       | 493   | `requirement-type`, `priority`, `## Acceptance criteria`.       |
-| `capability.md`  | 2       | 584   | Nothing — zero kind fields, deliberately; target of `realizes`. |
-| `journey.md`     | 5       | 853   | `actor`, and the ordered unbranched `journey.yaml`.             |
-| `metric.md`      | 2       | 650   | `metric-type`, `target`, `window`, `direction`; `measures`.     |
+| Document         | Version | Adds                                                                          |
+|------------------|---------|-------------------------------------------------------------------------------|
+| `solution.md`    | 5       | Sealed universe, `vision`/`scope`/`contacts`, rules C1–C7.                    |
+| `product.md`     | 5       | `lifecycle`, `primary-actors`.                                                |
+| `component.md`   | 5       | `component-type`, `lifecycle`, environment declaration.                       |
+| `datamodel.md`   | 9       | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.                     |
+| `protocol.md`    | 8       | `participants`/`style`, `transport.yaml`, workflows, states, `arazzo.yaml`.   |
+| `actor.md`       | 5       | `actor-type`, `goals`, protocol and journey participation.                    |
+| `environment.md` | 6       | `environment-type`, `topology.yaml`, `config.yaml`.                           |
+| `adr.md`         | 4       | `decision-status`, `date`, `deciders`, the body template, dated measurements. |
+| `requirement.md` | 3       | `requirement-type`, `priority`, `## Acceptance criteria`.                     |
+| `capability.md`  | 2       | Nothing — zero kind fields, deliberately; target of `realizes`.               |
+| `journey.md`     | 6       | `actor`, and the ordered unbranched `journey.yaml`.                           |
+| `metric.md`      | 2       | `metric-type`, `target`, `window`, `direction`; `measures`.                   |
 
 The last three arrived together in decision-record amendment `2026-08-20-a`.
-They are 2,087 of these 9,393 lines — a little over a fifth of the
-component, written in a day — and two of them, `capability.md` and `metric.md`, are the only documents
-anywhere in `framework/spec/` that still carry `status: draft`.
+They are a substantial fraction of the component, written in a day — and two of
+them, `capability.md` and `metric.md`, are the only documents anywhere in
+`framework/spec/` that still carry `status: draft`.
 
 The set is **closed but no longer fixed**, and `index.md` now says so in its own
 words: "The set was opened, and it grows by appending. The founding decision
@@ -121,7 +121,7 @@ machine-readable form".
 
 This is the honest asymmetry between the two components. The core contracts are
 largely enforced by the portal loader; the kind contracts largely are not. Codes
-these twelve documents specify that appear nowhere in `framework/portal/src`
+these documents specify that appear nowhere in `framework/portal/src`
 include `E_ADR_SECTIONS` (the ADR's four required headings), `E_REQ_CRITERIA`
 (the requirement's `## Acceptance criteria` shape), `E_PROD_ACTOR_TARGET`,
 `E_PROTO_PARTICIPANT_KIND`, `E_PROTO_ALIAS_DUP`, `E_ENV_TOPOLOGY_SCHEMA`,
@@ -142,7 +142,7 @@ second admitted grammar for three of those six kinds, with its own profile rules
 on top of AsyncAPI. Sixteen authored instances, 12 in the mini-spec and 4 in
 AsyncAPI (`find solutions -name transport.yaml`, 2026-08-21). Nothing in `framework/portal/src` validates either: the file renders
 as generic YAML and `E_PROTO_TRANSPORT_*` is implemented nowhere.
-`environment.md`'s `topology.yaml` is in the same position with seven instances.
+`environment.md`'s `topology.yaml` is in the same position.
 
 What both formats now have in `src` is an *identity*, not a reader.
 `lib/srn/artifacts.ts` gives each a role row so it can be addressed, and

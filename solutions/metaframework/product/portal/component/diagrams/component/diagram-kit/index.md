@@ -1,7 +1,7 @@
 ---
 name: diagram-kit
 kind: component
-version: 3
+version: 4
 title: Diagram kit
 summary: The shared layout, interaction hooks and client boundary the graph diagrams are built on — one ELK module, one polar module, one highlight hook.
 status: review
@@ -14,8 +14,8 @@ tags:
 ---
 
 `src/lib/diagrams/{layout,polar,use-graph-highlight,use-expandable,use-polar-transition}.ts`
-(890 lines) and `src/components/diagrams/{navigable,expand-button,measure-probe}.tsx`
-(240). It has no runtime of its own; it runs inside the diagrams that import it,
+and `src/components/diagrams/{navigable,expand-button,measure-probe}.tsx`. It
+has no runtime of its own; it runs inside the diagrams that import it,
 which is why it declares no environment.
 
 ## One ELK module, on purpose
@@ -45,14 +45,14 @@ reports the true sizes back and layout re-runs. It must be a child of
 
 ## Polar, which is not ELK
 
-`polar.ts` (300 lines) exists because the solution map is not a flow. A state
+`polar.ts` exists because the solution map is not a flow. A state
 chart and a relation graph have a direction, and layered is the family that
 respects one; "what is around this thing" does not, and its honest shape is a
 centre with rings — depth is distance and nothing else is. Positions are stored
 as radius and angle and turned into x/y at the last moment, because re-centring
 interpolates the two **separately**, and an arc is only expressible if the arc
 is what you store. The module is free of React and of the DOM, which is what
-makes the geometry testable without a browser — `polar.test.ts`, 227 lines.
+makes the geometry testable without a browser — `polar.test.ts`.
 
 `use-polar-transition.ts` drives that motion one frame at a time, as React
 state rather than as CSS: React Flow derives every edge from the node positions

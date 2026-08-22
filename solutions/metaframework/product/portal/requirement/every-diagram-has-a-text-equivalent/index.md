@@ -1,7 +1,7 @@
 ---
 name: every-diagram-has-a-text-equivalent
 kind: requirement
-version: 1
+version: 2
 title: Every diagram states itself in words
 summary: Every derived drawing in the portal ships a text equivalent in the DOM that carries the same facts as the picture.
 status: review
@@ -19,7 +19,8 @@ tags:
 
 A picture the catalog cannot state in prose is a picture the catalog cannot
 review. Every drawing the portal derives — the relation graph, the solution map,
-the sequence diagram, the state chart — must ship, in the rendered DOM, a text
+the sequence diagram, the state chart, the Arazzo step graph — must ship, in the
+rendered DOM, a text
 form carrying the same facts: the entities, the connections between them, and
 the direction of each connection.
 

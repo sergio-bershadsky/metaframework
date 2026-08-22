@@ -1,7 +1,7 @@
 ---
 name: 0001-3d-board-react-three-fiber
 kind: adr
-version: 1
+version: 2
 title: A low-poly 3D board in React-Three-Fiber
 summary: The original board was a Three.js scene built from the board graph, with the data-dense UI as a React DOM overlay.
 status: approved
@@ -57,7 +57,7 @@ disabled, which is the opposite of what happened to the isometric prototype
 ([iso-renderer](srn://brass/product/play/component/web-client/component/iso-renderer),
 still mounted-capable and still in the bundle).
 
-What survives is four entries in `packages/client/package.json`: `three`,
+What survives in `packages/client/package.json` is `three`,
 `@react-three/fiber`, `@react-three/drei` and `@types/three`, none of them imported
 by anything. They cost nothing at runtime — an unimported package never reaches the
 bundle — and they cost an install and a lockfile entry on every CI run and every

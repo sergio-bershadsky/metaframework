@@ -1,12 +1,12 @@
 ---
 name: campaign
 kind: datamodel
-version: 1
+version: 2
 title: Campaign
-summary: The funded, time-boxed container every promo and coupon charges against — budget, window, and objective.
+summary: The funded, time-boxed container every promo and coupon charges against — budget, window, and objective, and the record published when one of the three changes.
 status: approved
 owner: team-growth
-usage: storage
+usage: both
 abstract: false
 tags:
   - promotions
@@ -17,6 +17,17 @@ A campaign is the unit a marketer plans in and the unit finance holds them to.
 It funds discounts, it does not describe one: nothing in this model says how
 much comes off a basket, and a campaign with no promos attached is a legal,
 meaningful, and quite common record.
+
+`usage: both`, and the second half is the reason this model has a version 2.
+[campaign-manager](srn://acme/product/growth/component/campaign-manager) is the
+only writer of the stored record, and it publishes that record whole on
+`acme.growth.campaign-state-changed.v1` — the cache-invalidation event on
+[redemption-events](srn://acme/product/growth/protocol/redemption-events) that
+tells the engine a budget is exhausted or a window has closed. A shape that is
+both a row and a Kafka message carries both sets of pressures at once: a
+migration plan on one side, a producer/consumer rollout order on the other, and
+declaring only `storage` hid the second from every reviewer who asked what
+crosses growth's boundary.
 
 It composes two bases at once —
 [base-record](srn://acme/datamodel/base-record@1) for identity and

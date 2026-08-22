@@ -1,7 +1,7 @@
 ---
 name: match-survives-refresh
 kind: requirement
-version: 1
+version: 2
 title: A reload rejoins the same seat
 summary: Refreshing the page returns a player to their own seat mid-game; a server restart does not, and that boundary is stated.
 status: review
@@ -10,7 +10,7 @@ requirement-type: functional
 priority: should
 relations:
   uses:
-    - /datamodel/match-credentials@1
+    - /datamodel/match-credentials@2
     - /protocol/game-transport
 tags:
   - resilience
@@ -51,7 +51,7 @@ state, not game state, and the client must not assume it survived.
 Because the credential key is the match id alone, a **second tab** of the same
 profile is indistinguishable from a reload and takes over the same seat. AC-5
 covers a different profile; the same-profile case is the collision recorded on
-[match-credentials](srn://brass/datamodel/match-credentials@1).
+[match-credentials](srn://brass/datamodel/match-credentials@2).
 
 ## Out of scope
 

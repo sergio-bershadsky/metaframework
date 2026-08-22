@@ -1,0 +1,99 @@
+# Arazzo Description — the initiator-facing surface of this exchange, as the
+# delivery orchestrator drives it. Unvalidated here: this framework snapshots
+# and serves the file and states no rule about its contents (kinds/protocol.md,
+# "arazzo.yaml — the orchestration surface"); the portal reads it only to draw
+# the step graph beside this source. workflows/*.yaml stay the authoritative
+# choreography, and the sequence diagrams on this page derive from them alone.
+arazzo: 1.1.0
+info:
+  title: Carrier booking
+  summary: The delivery orchestrator's path through the carrier gateway's booking surface.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    The orchestrator sees one answer per request. The carrier retry that
+    workflows/book-shipment.yaml draws as a `loop` is spent inside the gateway
+    and against an API this catalog deliberately does not describe, so it has no
+    step here — which is the same fact index.md states in prose, seen from the
+    caller's side.
+sourceDescriptions:
+  - name: openapi
+    type: openapi
+    url: ./openapi.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: book-shipment
+    summary: Ask for one parcel to be taken.
+    description: >-
+      The `request-booking` call of workflows/book-shipment.yaml. Its terminal
+      `alt` — a confirmed booking or `no-carrier-available` — is the 201 and the
+      502 openapi.yaml declares. The `opt` repricing notice is an event the
+      gateway raises rather than a response to this call, and has no carrier in
+      a single-executor description.
+    inputs:
+      type: object
+      required:
+        - shipment-id
+      properties:
+        shipment-id:
+          type: string
+          format: uuid
+          description: >-
+            The idempotency key openapi.yaml requires on this operation. A
+            replay under the same key returns the original booking; it never
+            produces a second parcel.
+    steps:
+      - stepId: book-shipment
+        description: >-
+          POST /. The Idempotency-Key header is the only parameter openapi.yaml
+          declares for this operation.
+        operationId: bookShipment
+        parameters:
+          - name: Idempotency-Key
+            in: header
+            value: $inputs.shipment-id
+        successCriteria:
+          - condition: $statusCode == 201
+        onFailure:
+          # No `retry` action. The retry budget belongs to the gateway, and an
+          # orchestrator that retried would be re-implementing the failover
+          # policy it delegated — see index.md and requirement/carrier-failover.
+          - name: idempotency-key-reused
+            type: end
+            criteria:
+              - condition: $statusCode == 409
+          - name: no-carrier-available
+            type: end
+            criteria:
+              - condition: $statusCode == 502
+  - workflowId: cancel-booking
+    summary: Withdraw a parcel before the carrier has collected it.
+    description: >-
+      The `cancel-booking` call of workflows/cancel-booking.yaml. That file's
+      `alt` is the 204 and the 409 openapi.yaml declares: cancellation is
+      available only until the first scan, after which the parcel is in the
+      carrier's custody and a return is a different, priced operation.
+    inputs:
+      type: object
+      required:
+        - shipment-id
+      properties:
+        shipment-id:
+          type: string
+          format: uuid
+    steps:
+      - stepId: cancel-booking
+        description: DELETE /{shipment-id}.
+        operationId: cancelBooking
+        parameters:
+          - name: shipment-id
+            in: path
+            value: $inputs.shipment-id
+        successCriteria:
+          - condition: $statusCode == 204
+        onFailure:
+          - name: already-collected
+            type: end
+            criteria:
+              - condition: $statusCode == 409

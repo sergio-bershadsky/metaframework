@@ -1,7 +1,7 @@
 ---
 name: sequence-diagram
 kind: component
-version: 2
+version: 3
 title: Sequence diagram
 summary: Hand-rolled SVG over a pure layout pass — lifelines as columns, steps as ordered rows, fragments as nested boxes, and an ordered list that is the diagram in words.
 status: review
@@ -20,7 +20,7 @@ tags:
   - protocol
 ---
 
-`src/components/diagrams/sequence-diagram.tsx` (616 lines), drawn from a
+`src/components/diagrams/sequence-diagram.tsx`, drawn from a
 protocol's `workflows/*.yaml` through `layoutWorkflow()` and `narrateWorkflow()`
 in
 [protocol-model](srn://metaframework/product/portal/component/protocol-model).

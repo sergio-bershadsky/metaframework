@@ -1,7 +1,7 @@
 ---
 name: lobby-api
 kind: protocol
-version: 2
+version: 3
 title: Lobby API
 summary: HTTP/JSON lobby served by boardgame.io — create a match, list the open ones, read one, and claim a seat.
 status: review
@@ -57,7 +57,7 @@ into a privileged one.
 ## We wrote none of it
 
 Every operation in `transport.yaml` is boardgame.io's, mounted by
-`Server({ games: [BrassGame] })` in a 26-line `packages/server/src/index.ts`.
+`Server({ games: [BrassGame] })` in a single short `packages/server/src/index.ts`.
 That is the point of
 [0001-boardgame-io-framework](srn://brass/adr/0001-boardgame-io-framework): the
 lobby is a solved problem and we bought it. The consequence recorded here is

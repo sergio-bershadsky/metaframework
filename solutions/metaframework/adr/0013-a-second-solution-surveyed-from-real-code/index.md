@@ -1,7 +1,7 @@
 ---
 name: 0013-a-second-solution-surveyed-from-real-code
 kind: adr
-version: 1
+version: 2
 title: The second catalog is surveyed from real code, not invented
 summary: A fixture written to exercise the ontology cannot falsify it, so the second solution describes a repository nobody wrote for this framework — and the prose records every place the model strained.
 status: review
@@ -120,13 +120,13 @@ and never by `srn://`.
 ### What it did not prove
 
 - **One repository, one describer.** The survey removes the "shaped to fit"
-  objection and not the "one author" one. This repository's 52 commits carry a
+  objection and not the "one author" one. This repository's history carries a
   single committer and zero merges, and the described catalog's own solution
   page lists the same handle as both architect and maintainer of the system it
   describes. Nothing in that system was changed by being described, and no
   maintainer disagreed with a claim, because there was no second maintainer.
-- **Nothing was measured about authoring cost.** 10,768 lines in one commit
-  says nothing about how long a survey takes, how much of it a model can do, or
+- **Nothing was measured about authoring cost.** `ec0f4be`'s 10,768 insertions
+  say nothing about how long a survey takes, how much of it a model can do, or
   how much of it a reader would have accepted.
 
 ## Alternatives considered

@@ -1,7 +1,7 @@
 ---
 name: server
 kind: component
-version: 3
+version: 4
 title: Game server
 summary: The authoritative boardgame.io server — lobby REST and socket transport on one port, adjudicating every move.
 status: review
@@ -31,7 +31,7 @@ tags:
 x-package: "@brass/server"
 ---
 
-Twenty-six lines of TypeScript. It constructs boardgame.io's `Server` with one game
+One short file of TypeScript. It constructs boardgame.io's `Server` with one game
 — `BrassGame` from [rules](srn://brass/product/play/component/rules) — an origin
 allowlist, and a port, and calls `run`. That is the entire component, and the
 brevity is the point: everything this service is responsible for is either the

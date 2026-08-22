@@ -1,7 +1,7 @@
 ---
 name: reviewer
 kind: actor
-version: 1
+version: 2
 title: Reviewer
 summary: The person who opens the catalog to learn what the system currently is, and to judge whether a proposed change is an improvement.
 status: review
@@ -48,7 +48,7 @@ modes.
 ## The loop this actor is supposed to close, and does not
 
 There is no pull-request template, no `CODEOWNERS`, no `.github/` directory at
-all, and no CI check. `git log --merges` returns nothing across all 52 commits.
+all, and no CI check. `git log --merges` returns nothing.
 So the review loop today is one person reading a diff in their own working tree,
 and the only mechanical help they get is
 [diagnostics-report](srn://metaframework/product/portal/component/console/component/diagnostics-report),

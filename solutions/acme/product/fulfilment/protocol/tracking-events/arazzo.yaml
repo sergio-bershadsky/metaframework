@@ -1,0 +1,75 @@
+# Arazzo Description — one participant's path across this bus. Unvalidated
+# here: this framework snapshots and serves the file and states no rule about
+# its contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface");
+# the portal reads it only to draw the step graph beside this source.
+# workflows/report-progress.yaml stays the authoritative choreography, and the
+# sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. An Arazzo Description has one executor; a bus has none. These
+# workflows are written for `tracking`, the participant that consumes the
+# normalized scan and publishes what it folds out of it — the only side of
+# report-progress.yaml whose path is a sequence rather than a single publish.
+# The gateway's side is the first step alone.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block, deliberately. Direction is stated per step
+# instead, and it is taken from report-progress.yaml's `from`/`to`.
+arazzo: 1.1.0
+info:
+  title: Tracking events
+  summary: The tracking component's path across the fulfilment bus.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Two workflows, because the two publishes in report-progress.yaml are
+    separate `opt` fragments over the same received scan rather than a sequence.
+    A dozen scans produce two status changes and, on a bad day, one exception;
+    writing them as one chain would claim all three follow every scan.
+
+    The first hop of that file — the courier's handheld reaching the gateway —
+    is not on this bus at all and names no channel there. It has no step here
+    for the same reason.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: announce-a-status-change
+    summary: Fold a scan and publish the status it changed to.
+    description: >-
+      The `opt` of workflows/report-progress.yaml that fires when the fold
+      changes a shipment's status — never once per scan. Arazzo carries no
+      guard, so that condition is stated here and enforced nowhere in this file.
+    steps:
+      - stepId: receive-tracking-event
+        description: >-
+          One event per carrier scan, already mapped onto acme's status
+          vocabulary at the gateway, so nothing downstream branches on a raw
+          carrier code. No successCriteria: this channel declares exactly one
+          message and it is unambiguously the successful outcome, which is the
+          case the Arazzo Specification allows the criteria to be omitted in.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/tracking-event"
+        action: receive
+      - stepId: send-delivery-status
+        description: Monotonic except for returned and lost.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/delivery-status"
+        action: send
+        dependsOn:
+          - receive-tracking-event
+  - workflowId: announce-an-exception
+    summary: Publish the subset of scans a human may have to act on.
+    description: >-
+      The second `opt` of workflows/report-progress.yaml — a failed attempt, an
+      undeliverable address, or a loss. Its fan-out to three consumers is the
+      bus doing its job and has no carrier in a single-executor description.
+    steps:
+      - stepId: receive-tracking-event
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/tracking-event"
+        action: receive
+      - stepId: send-delivery-exception
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/delivery-exception"
+        action: send
+        dependsOn:
+          - receive-tracking-event
