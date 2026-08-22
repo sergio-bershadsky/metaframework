@@ -288,8 +288,10 @@ it is the one role **specified** to be parsed rather than served
 as bytes, because this role feeds the transport card, the message × datamodel
 matrix and workflow rule W9, and serving it as bytes would darken all three
 ([What the AsyncAPI dialect must carry](#what-the-asyncapi-dialect-must-carry)).
-That is a requirement on a reader that does not exist yet — nothing in
-`framework/portal/src` opens `transport.yaml` in either dialect today.
+The reader exists — `lib/protocol/transport-checks.ts` opens
+`transport.yaml` in both dialects and judges it — but the three views it is
+specified to feed do not; see [What the portal derives from
+it](#what-the-portal-derives-from-it).
 
 Each of the three framework rows lands on a rule this document states, and lands
 outside it:
@@ -1025,10 +1027,9 @@ reading a migrated file sees N channels where its binding note led it to expect
 one, and generates N handlers over a single socket — which is the shape the
 application actually has.
 
-`solutions/brass/protocol/game-transport/transport.yaml` is the catalog's only
-websocket transport and is written this way: five mini-spec entries, five
-channels, three distinct `address` values, and every `channel:` in its two
-workflows resolving.
+`solutions/brass/protocol/game-transport/transport.yaml` is written this way:
+five mini-spec entries, five channels, three distinct `address` values, and
+every `channel:` in its two workflows resolving.
 
 `encoding` maps through a fixed table, the last two rows on AsyncAPI's own
 authority rather than IANA's — which is the authority that matters for a
@@ -1126,16 +1127,20 @@ feeds the transport card, the message × datamodel matrix, and the `channel` hal
 of workflow rule W9, so serving it as bytes would darken three views on precisely
 the protocols that adopted a standard.
 
-**This section specifies a reader that does not exist yet.** Measured in
-`framework/portal/src` on 2026-08-21: `lib/catalog/dialects.ts` carries the
-`asyncapi:` row, so the dialect is *detected* — the document loads, records
-`dialect.key: 'asyncapi'` and keeps its native key unstripped — and
-`lib/protocol/` holds modules for workflows and state machines and none for
-transports, in either dialect. The four rows below are therefore requirements,
-and `E_PROTO_TRANSPORT_ASYNCAPI`, `W_PROTO_TRANSPORT_HOST` and
-`W_PROTO_WF_CHANNEL_UNKNOWN` sit in the portal's debt register
-(`lib/catalog/diagnostic-coverage.test.ts`) with no emitter. A spec may specify
-ahead of its implementation; it must not describe one that is absent.
+**The rules below now have a reader; the derived views do not.** The two are
+separate claims and this section used to make only the first, so keep them apart.
+Measured 2026-08-22 by `ls framework/portal/src/lib/protocol/` and
+`grep -rn 'Transport card\|TransportCard' framework/portal/src`:
+`lib/protocol/transport-checks.ts` reads a `transport.yaml` in both dialects and
+`lib/catalog/artifact-checks.ts` dispatches to it, so
+`E_PROTO_TRANSPORT_ASYNCAPI` and `W_PROTO_TRANSPORT_HOST` have emitters and are
+out of the portal's debt register, as is `W_PROTO_WF_CHANNEL_UNKNOWN`
+(`lib/protocol/payload-checks.ts`). **None of the four rows in the table below is
+built.** There is no transport card, no message × datamodel matrix and no surface
+list in `framework/portal/src`; the file is parsed and judged, and nothing yet
+draws a view from it. Those rows are therefore still requirements ahead of their
+implementation, which a spec may state — it must not describe an implementation
+that is absent.
 
 | Derived view                | To be read from                                                         |
 | --------------------------- | ----------------------------------------------------------------------- |
@@ -1145,9 +1150,9 @@ ahead of its implementation; it must not describe one that is absent.
 | Workflow `channel` matching | a channel's `address`, or its channelId                                 |
 
 The last row is the AsyncAPI half of [W9](#workflow-validation-rules), which is
-one rule over two dialects and is stated once, there. W9 will stop being skipped
-for a transport in this dialect, because rule 5 makes `channels` non-empty and
-there is always something to check against.
+one rule over two dialects and is stated once, there. W9 is therefore never
+skipped for a transport in this dialect, because rule 5 makes `channels`
+non-empty and there is always something to check against.
 
 Everything outside that profile is carried in the artifact's raw bytes, served
 on the source pane, and derives nothing — the same standing every `x-` key
@@ -2405,13 +2410,27 @@ whose file is absent included.
 | `W_PROTO_ARAZZO_UNGROUNDED`       | An `arazzo.yaml` names a source document, operation, channel or workflow this protocol's own artifacts do not carry. |
 | `W_PROTO_ARTIFACT_UNKNOWN`        | Unrecognised file in the protocol entity directory.                                                                  |
 
-Enforcement is partial, and the gap is registered rather than hidden. Fifteen
-of the thirty-one classes above have an emitter — chiefly the workflow and
-states parsers, which the portal runs while rendering a protocol page, and now
-the `arazzo.yaml` grounding rule beside them. The other sixteen, including every
-`transport.yaml` rule in either dialect and every participant rule, are specified
-ahead of any reader and sit in the portal's debt register with no emitter
-(`framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`, whose ratchet
-forces an entry out the moment a rule gains one). Write a protocol as though all
-thirty-one were enforced: `metaframework check` will not tell you when one of
-the sixteen is broken.
+**All thirty-one classes above now have an emitter**, and the protocol kind was
+the last one that did not: the portal's debt register
+(`framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`) is empty for the
+first time since it was written. Sixteen of the thirty-one arrived at once, in
+four modules — `lib/protocol/transport-checks.ts` for every `transport.yaml` rule
+in both dialects, `participants-checks.ts` for the five participant rules,
+`spec-file-checks.ts` for the entity-directory and `style` rules, and
+`payload-checks.ts` for the payload and channel joins — alongside the workflow
+and states parsers and the `arazzo.yaml` grounding rule that were already there.
+
+One qualification, because "has an emitter" and "can fire" are different claims
+and this document should not blur them. `W_PROTO_STATES_EVENT_UNKNOWN` is written
+in `lib/protocol/states.ts` and needs `workflowMessages`, which neither call site
+passes — so the branch exists and nothing reaches it. That is a deliberate
+choice recorded at both call sites rather than an oversight, and it is the one
+class here a catalog can still break in silence.
+
+Two half-rules are also still unenforced and cannot appear in a register keyed by
+code, because the other half of each fires: a payload reference that resolves to
+a legal-but-absent SRN is `E_SRN_DANGLING`'s and nothing raises it on any of the
+three payload surfaces, and on the two *transport* surfaces `E_SRN_SYNTAX`,
+`E_SRN_CROSS_SOLUTION` and `E_SRN_ARTIFACT` have no owner either. Write a
+protocol as though all thirty-one were enforced; for those three gaps,
+`metaframework check` will still not tell you.

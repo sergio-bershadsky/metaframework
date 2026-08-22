@@ -989,7 +989,7 @@ about.
 `writeOnly`, `default` and `required` are stock 2020-12 meta-data and validation
 keywords, and each is read here with its plain meaning. No framework extension
 is defined, for the same reason `deprecated` needed none
-([above](#deprecated--the-standard-lifecycle-keyword)): a generator, an editor
+([below](#deprecated--the-standard-lifecycle-keyword)): a generator, an editor
 and a validator already know what these say.
 
 | Keyword           | On a config contract it means                                       |

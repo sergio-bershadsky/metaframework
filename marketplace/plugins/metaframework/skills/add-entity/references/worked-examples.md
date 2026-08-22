@@ -622,13 +622,13 @@ The four level-2 headings — `## Context`, `## Decision`, `## Consequences`,
 `## Alternatives considered` — are required with exactly this text and casing.
 Order is not enforced and extra sections are allowed.
 
-`deciders` is required and non-empty once `decision-status` is `accepted`,
-`rejected` or `superseded`; while a decision is still `proposed` it may be
-omitted. `date` is a bare calendar date, `YYYY-MM-DD`, no time and no timezone —
-and note that this example **quotes** it. Quote it always: the loader parses
-frontmatter with gray-matter, which turns an unquoted `2026-02-03` into a JS
-`Date`, and the zod schema wants a string, so the unquoted form the spec says is
-legal is `E_FM_SCHEMA` today. Every ADR in the fixture is quoted.
+`deciders` is required and non-empty when `decision-status` is `accepted` or
+`rejected`, and only then — `superseded` does not trigger it, and while a
+decision is still `proposed` it may be omitted. `date` is a bare calendar date,
+`YYYY-MM-DD`, no time and no timezone — and note that this example **quotes**
+it. Both spellings are legal: YAML 1.2 parses an unquoted `2026-02-03` as a
+timestamp, the loader receives a `Date`, and the portal normalizes it back to
+`YYYY-MM-DD`. Quote it anyway, as every ADR in the fixture does.
 
 The ordinal prefix `0001-` is unique **per bucket**, not per solution, and is
 never reused even after an ADR is rejected or superseded:

@@ -584,13 +584,13 @@ rejection or supersession; a duplicate inside one bucket is `W_ADR_ORDINAL`.
 |-------------------|--------------------------------------------------|-------------|--------------------------------------------------------------------|
 | `decision-status` | `proposed \| accepted \| rejected \| superseded` | yes         | The decision's standing. Closed enum.                              |
 | `date`            | ISO-8601 calendar date `YYYY-MM-DD`              | yes         | When it reached its current standing (`E_ADR_DATE`). Quote it.     |
-| `deciders`        | list of strings                                  | conditional | Non-empty once the decision was actually taken (`E_ADR_DECIDERS`). |
+| `deciders`        | list of strings                                  | conditional | Non-empty when `accepted` or `rejected` (`E_ADR_DECIDERS`).        |
 
 `date` carries no time and no timezone: `2026-03-11T09:00:00Z` is `E_ADR_DATE`.
-The spec says `deciders` is required for `accepted` and `rejected`; the portal
-schema also requires it for `superseded`, so write it there too. `deciders` are
-who **made the call** — `owner` is who maintains the record today, and two years
-later they are frequently different people.
+`deciders` is required for `accepted` and `rejected`, and for nothing else —
+`superseded` does not trigger it. `deciders` are who **made the call** — `owner`
+is who maintains the record today, and two years later they are frequently
+different people.
 
 ## Two status fields, and why
 
@@ -823,7 +823,7 @@ requirement *means* rather than sharpening it, it is a new requirement.
 | `W_ACTOR_PARTICIPATION_EDGE` | Actor authors a `uses` edge to a protocol.                                                                                  |
 | `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no journey names it.                                                      |
 | `E_ADR_DATE`                 | `date` missing, or not a bare `YYYY-MM-DD` calendar date.                                                                   |
-| `E_ADR_DECIDERS`             | A taken decision with an absent or empty `deciders` list.                                                                   |
+| `E_ADR_DECIDERS`             | `accepted` or `rejected` with an absent or empty `deciders` list.                                                           |
 | `E_ADR_SECTIONS`             | A canonical body section missing, at the wrong level, or spelled differently.                                               |
 | `W_ADR_SUPERSESSION`         | `superseded` with no superseding ADR, or a `supersedes` target not marked `superseded`.                                     |
 | `W_ADR_ORDINAL`              | Two ADRs in one bucket share an ordinal prefix.                                                                             |

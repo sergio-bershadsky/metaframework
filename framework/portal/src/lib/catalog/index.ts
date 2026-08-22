@@ -2,9 +2,13 @@ import path from 'node:path'
 import { cache } from 'react'
 import { actorDiagnostics } from '../actor/actor'
 import { adrDiagnostics } from '../adr/adr'
+import { datamodelEvolutionDiagnostics } from '../datamodel/additive'
 import { datamodelDiagnostics } from '../datamodel/datamodel'
 import { environmentDiagnostics } from '../environment/environment'
 import { journeyArtifactDiagnostics } from '../journey/artifacts'
+import { participantDiagnostics } from '../protocol/participants-checks'
+import { payloadDiagnostics } from '../protocol/payload-checks'
+import { protocolArtifactDiagnostics } from '../protocol/spec-file-checks'
 import { requirementDiagnostics } from '../requirement/requirement'
 import { structureDiagnostics } from '../structure/structure'
 import { configContractDiagnostics, readConfigContracts } from '../schema/config-contract'
@@ -116,7 +120,7 @@ export function withProseChecks(catalog: Catalog): Catalog {
  *
  * These are one step because they share one input and one position in the
  * pipeline, not because they share a subject. Every one of them is answerable
- * from the resolved catalog plus the two directory listings {@link catalogListings}
+ * from the resolved catalog plus the directory listings {@link catalogListings}
  * takes, and none of them needs the schema registry — so they compose exactly
  * where {@link withArtifactChecks} does and their order among themselves is
  * irrelevant.
@@ -131,6 +135,19 @@ export function withProseChecks(catalog: Catalog): Catalog {
  * Twenty-one error and warning classes reach /diagnostics through this call that
  * reached nothing before it. The register they came out of is
  * ./diagnostic-coverage.test.ts.
+ *
+ * The three protocol disciplines join on the same terms and for the same
+ * reasons, and it is worth naming what makes each of them a *kind* check rather
+ * than an artifact one, because the fourth member of that family — the
+ * `transport.yaml` reader — is an artifact check and sits in
+ * {@link withArtifactChecks} instead. `participantDiagnostics` and
+ * `payloadDiagnostics` are joins across the entity graph: a participant `ref`
+ * and a payload SRN are judged against the kind they resolve to, and
+ * `W_PROTO_PARTICIPANT_MISSING` reads the `exposes`/`uses` edges of *other*
+ * entities. `protocolArtifactDiagnostics` is a rule about the entity
+ * **directory**, so like JRN4/JRN9 it needs a listing and not a document.
+ * `transportDiagnostics` is the one that judges a single parsed file against a
+ * grammar, which is precisely what `withArtifactChecks` is for.
  */
 export function withKindChecks(catalog: Catalog, listings: CatalogListings): Catalog {
   const diagnostics = [
@@ -139,6 +156,9 @@ export function withKindChecks(catalog: Catalog, listings: CatalogListings): Cat
     ...actorDiagnostics(catalog),
     ...structureDiagnostics(catalog, listings.directories),
     ...journeyArtifactDiagnostics(catalog, listings.journeys),
+    ...participantDiagnostics(catalog),
+    ...payloadDiagnostics(catalog),
+    ...protocolArtifactDiagnostics(catalog, listings.protocols),
   ]
   if (diagnostics.length === 0) return catalog
   return { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }
@@ -188,6 +208,43 @@ export function withEnvironmentChecks({ catalog, registry }: LoadedCatalog): Loa
 }
 
 /**
+ * Fold in the additive-only rule for datamodels — `E_DM_NOT_ADDITIVE`.
+ *
+ * The only fold that is `async` for a reason of its own, and the only one that
+ * spawns a subprocess. Every other check in this pipeline is decidable from the
+ * files on disk; this one compares the working tree against a *commit*, because
+ * evolution.md keeps only current versions on the filesystem and every
+ * historical read goes through git.
+ *
+ * That is the objection the entity page raises against folding `E_VER_UNBUMPED`
+ * in here, and the two cases differ on the point that matters.
+ * `catalog-renders-without-git` requires that the absence of git degrade the
+ * portal rather than break it, and what this fold does with an unanswerable
+ * history is add nothing: `datamodelEvolutionDiagnostics` returns an empty list
+ * for a missing binary, a directory that is not a repository, and a shallow
+ * clone alike. So the diagnostics list is not *conditional* on git — it is the
+ * same list plus whatever git could establish. The other half of the objection
+ * is spec text rather than architecture: `kinds/datamodel.md` says "At build,
+ * the portal diffs the current `schema.json` against version N read from git and
+ * reports `E_DM_NOT_ADDITIVE`", which names the build and names no other
+ * surface.
+ *
+ * Placed after {@link withSchemaRegistry} for the same reason
+ * {@link withDatamodelChecks} is — not because it reads the registry (it does
+ * not), but because the registry's own `E_DM_*` errors are the ones that decide
+ * whether a `schema.json` is worth comparing at all, and a reader meeting both
+ * lists should meet them in that order.
+ */
+export async function withEvolutionChecks(
+  { catalog, registry }: LoadedCatalog,
+  options: { catalogDir?: string } = {},
+): Promise<LoadedCatalog> {
+  const diagnostics = await datamodelEvolutionDiagnostics(catalog, options)
+  if (diagnostics.length === 0) return { catalog, registry }
+  return { catalog: { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }, registry }
+}
+
+/**
  * Per-request memoised catalog.
  *
  * Which of the two strategies below applies is decided by
@@ -206,7 +263,9 @@ const load = async (): Promise<LoadedCatalog> => {
   // structure rules and the journey rules that read them.
   const listings = await catalogListings(dir, catalog)
   const checked = withKindChecks(withProseChecks(withArtifactChecks(catalog)), listings)
-  return withEnvironmentChecks(withDatamodelChecks(withSchemaRegistry(checked)))
+  return withEvolutionChecks(withEnvironmentChecks(withDatamodelChecks(withSchemaRegistry(checked))), {
+    catalogDir: dir,
+  })
 }
 
 /**

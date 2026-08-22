@@ -72,10 +72,15 @@ solutions/acme/product/shop/protocol/order-placement/
   (`framework/portal/src/lib/protocol/workflow.ts` builds every one of those
   schemas as a `z.strictObject` with no catchall). Measured 2026-08-21 against a
   scratch catalog; the spec rule stands and the implementation is what is behind
-  it. Two further gaps sit in the same place: nothing validates `transport.yaml`
-  at all, so **neither** line in the block above raises anything today, and
-  `E_PROTO_TRANSPORT_SCHEMA` has no emitter. Where the hatch *is* implemented and
-  can be relied on: entity frontmatter, and `journey.yaml` at both root and step.
+  it.
+
+  In `transport.yaml` the hatch **is** implemented, as of
+  `framework/portal/src/lib/protocol/transport-checks.ts`. Measured 2026-08-22 by
+  running `transportDiagnostics` over the block above: `x-gateway-route` raises
+  nothing and `gateway-route` raises exactly one `E_PROTO_TRANSPORT_SCHEMA`,
+  which is what the two annotations claim. Where the hatch can be relied on:
+  entity frontmatter, `transport.yaml`, and `journey.yaml` at both root and step.
+  Where it cannot: a workflow file, per the sentence above.
 
 - The **dialect header is framework-owned and admitted by name**, not through
   the `x-` hatch — so the bullet above never applies to it (see below).
@@ -154,9 +159,9 @@ arazzo: 1.1.0
   `asyncapi:`, `arazzo:` — belongs to its own format and is never stripped: a
   document that arrived without its own version key would be the poorer
   document, and none of the three is the framework's to remove.
-  That is a statement about ownership, not about what the portal reads — no
-  transport document is parsed in either dialect today (below). Raw bytes are
-  untouched in every case.
+  That is a statement about ownership, not about what the portal reads — the
+  portal parses a transport document in either dialect to *check* it and derives
+  no view from it (below). Raw bytes are untouched in every case.
 - No header, or a value **no row of this artifact's rows** recognises, is the
   **legacy dialect**: read as the format the spec defines today,
   `W_ARTIFACT_DIALECT` on the owning protocol, a warning that never breaks a
@@ -400,7 +405,8 @@ In v1 the portal treats a linked spec as an **opaque attachment**: a card with
 format, version and a raw link. Parsing a linked OpenAPI file to derive operation
 tables is deferred — which is also why the `channel` check below is skipped when
 a protocol links a spec instead of listing a surface. The AsyncAPI *dialect* is
-no exception: it is specified in full below and read by nothing yet.
+different: it is read and every rule below is enforced
+(`lib/protocol/transport-checks.ts`) — but no view is derived from it either.
 
 ```yaml
 # the smallest useful transport — the dialect header is part of it
@@ -499,9 +505,9 @@ and every step naming a websocket channel names a mini-spec entry name. Collapse
 N into one and N−1 of those references resolve to nothing, on a rewrite that lost
 no information. AsyncAPI's ws binding note ("the channel represents the
 connection") describes raw WebSockets and is not a cardinality constraint — the
-connection is stated once, in `servers.<id>.pathname`. The catalog has exactly one
-`websocket` transport, `solutions/brass/protocol/game-transport/transport.yaml`:
-five entries, five channels, three distinct `address` values, 15 workflow
+connection is stated once, in `servers.<id>.pathname`. The catalog's worked
+example is `solutions/brass/protocol/game-transport/transport.yaml`: five
+entries, five channels, three distinct `address` values, 15 workflow
 `channel:` references over 5 names, all resolving. Read its inline comments
 before you write your own.
 
@@ -552,16 +558,23 @@ under design. Read that file's comment before you copy the pattern.
 **The dialect is specified to be parsed rather than served as bytes** — unlike
 `openapi.yaml`, this role feeds the transport card, the message × datamodel
 matrix and workflow rule W9. In this dialect a step's `channel` matches a channel
-`address` or channelId, and W9 will stop being skipped. Everything outside the
+`address` or channelId, and W9 is therefore never skipped. Everything outside the
 profile rides in the raw bytes and derives nothing.
 
-That reader **does not exist yet.** The portal *detects* the dialect —
-`lib/catalog/dialects.ts` carries the `asyncapi:` row, the document loads and
-records `dialect.key: 'asyncapi'` — and reads no transport document in either
-dialect; `E_PROTO_TRANSPORT_ASYNCAPI`, `W_PROTO_TRANSPORT_HOST` and
-`W_PROTO_WF_CHANNEL_UNKNOWN` sit in the portal's debt register with no emitter.
-Write the file as if every rule here were enforced, because none of them is:
-nothing will tell you when you get it wrong.
+**That reader now exists, but it checks rather than draws — keep the two apart.**
+`lib/protocol/transport-checks.ts` reads a `transport.yaml` in both dialects and
+`lib/catalog/artifact-checks.ts` dispatches to it, so every rule in this section
+is enforced: `E_PROTO_TRANSPORT_ASYNCAPI` and `W_PROTO_TRANSPORT_HOST` have
+emitters, as does `W_PROTO_WF_CHANNEL_UNKNOWN` (`lib/protocol/payload-checks.ts`,
+which matches a step's `channel` against a channel `address` or channelId, so W9
+is no longer skipped on an AsyncAPI transport). The portal's debt register is
+empty.
+
+What is **not** built is the derived views. There is no transport card, no
+message × datamodel matrix and no surface list in `framework/portal/src`; the
+file is parsed and judged, and nothing draws a picture of it. So write the file
+as if every rule here were enforced — because now it is — and do not expect the
+portal to render a view from it beyond the source.
 
 <!-- verbatim-excerpt: solutions/acme/protocol/settlement/transport.yaml -->
 ```yaml
@@ -1021,8 +1034,9 @@ only. Payload shapes attach to the messages that carry those events.
 
 ## Payload binding to datamodels
 
-Every payload reference — a step's `payload`, and a surface entry's `request`,
-`response` or `message` — is an ordinary SRN (`srn.md`) that MUST resolve to an
+Every payload reference — a step's `payload`, a surface entry's `request`,
+`response` or `message`, and an AsyncAPI Message Object's `x-srn-payload` — is
+an ordinary SRN (`srn.md`) that MUST resolve to an
 entity of kind `datamodel` (`E_PROTO_PAYLOAD_KIND`), and SHOULD pin a version.
 An unpinned reference silently follows the datamodel's latest version, so a
 contract reviewed against `order@2` starts describing `order@3` with no diff on

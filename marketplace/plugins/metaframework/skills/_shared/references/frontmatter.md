@@ -66,7 +66,7 @@ fields above, and never overrides them.
 | `protocol`    | `participants` (≥ 2), `style`                                           | `conforms-to`                |
 | `actor`       | `actor-type`, `goals` (≥ 1)                                             | —                            |
 | `environment` | `environment-type`                                                      | —                            |
-| `adr`         | `decision-status`, `date`; `deciders` when accepted/rejected/superseded | —                            |
+| `adr`         | `decision-status`, `date`; `deciders` when accepted/rejected            | —                            |
 | `requirement` | `requirement-type`, `priority`                                          | —                            |
 | `capability`  | — **none at all**                                                       | —                            |
 | `journey`     | `actor`                                                                 | —                            |
@@ -162,14 +162,14 @@ Shapes of the non-scalar kind fields:
   fetched, never resolved. For *standards*, not for files — an OpenAPI document
   in the directory is bound in `transport.yaml` under `spec`.
 - `date` (adr) — calendar date `YYYY-MM-DD`, no time, no timezone
-  (`E_ADR_DATE`). **Quote it: `date: "2026-02-03"`.** The spec says the native
-  YAML timestamp is also accepted, but the portal parses frontmatter with
-  gray-matter, which turns an unquoted `2026-02-03` into a JS `Date`, and the
-  zod schema wants a string — so the unquoted form is `E_FM_SCHEMA` today. Every
-  ADR in `solutions/acme/` is quoted.
-- `deciders` (adr) — list of free-form handles; REQUIRED and non-empty once
-  `decision-status` is `accepted`, `rejected`, or `superseded`
-  (`E_ADR_DECIDERS`).
+  (`E_ADR_DATE`). Both spellings are accepted: YAML 1.2 parses an unquoted
+  `2026-02-03` as a timestamp, the loader receives a `Date`, and the portal
+  normalizes it back to `YYYY-MM-DD` — the kind document's own worked example is
+  unquoted. **Quote it anyway: `date: "2026-02-03"`.** That is house style, not
+  a way to avoid `E_FM_SCHEMA`; every ADR in `solutions/` is quoted.
+- `deciders` (adr) — list of free-form handles; REQUIRED and non-empty when
+  `decision-status` is `accepted` or `rejected`, and only then — `superseded`
+  does not trigger it (`E_ADR_DECIDERS`).
 
 ## `status` and `lifecycle` are different axes
 
@@ -461,7 +461,7 @@ Kind-specific codes on the frontmatter surface:
 | `E_PROTO_ALIAS_DUP`        | Two participants share an alias.                                                              |
 | `E_PROTO_PARTICIPANT_KIND` | A participant `ref` is not a component, product or actor.                                     |
 | `E_ADR_DATE`               | `date` is not a bare `YYYY-MM-DD`.                                                            |
-| `E_ADR_DECIDERS`           | `deciders` empty once the decision is accepted/rejected/superseded.                           |
+| `E_ADR_DECIDERS`           | `deciders` absent or empty on an `accepted` or `rejected` ADR.                                |
 | `E_JRN_ACTOR_KIND`         | The journey's `actor` resolves to something that is not an actor.                             |
 | `E_MET_TARGET`             | `target` is not a literal of the grammar its `metric-type` selects.                           |
 | `E_MET_WINDOW`             | `window` is neither `instant` nor a rolling duration literal.                                 |

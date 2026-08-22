@@ -199,7 +199,7 @@ Numbered `PD*` to avoid collision with the placement rules P1–P4 in
 | PD2 | `lifecycle` present and in the closed enum.                                                              | `E_FM_SCHEMA`                            |
 | PD3 | Every `primary-actors` entry resolves to an entity with `kind: actor`.                                   | `E_PROD_ACTOR_TARGET`                    |
 | PD4 | Every `primary-actors` entry parses, resolves, and stays in the solution.                                | `E_SRN_*`                                |
-| PD5 | No `actor`/`environment`/`product` bucket inside the product.                                            | `E_SRN_PLACEMENT`                        |
+| PD5 | No `actor`/`environment`/`capability`/`journey`/`product` bucket inside the product.                     | `E_SRN_PLACEMENT`                        |
 | PD6 | Frontmatter `kind: product` matches the `product/` bucket holding it.                                    | `E_FM_KIND_LOCATION`                     |
 | PD7 | No `primary-actors` entry carries an artifact suffix.                                                    | `E_SRN_ARTIFACT` / `E_PROD_ACTOR_TARGET` |
 

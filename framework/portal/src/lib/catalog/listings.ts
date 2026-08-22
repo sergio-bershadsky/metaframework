@@ -1,5 +1,7 @@
 import { readdir } from 'node:fs/promises'
+import path from 'node:path'
 import { type DirectoryEntry } from '../journey/artifacts'
+import { type ProtocolDirectoryEntry } from '../protocol/spec-file-checks'
 import { type CatalogDirectory, listCatalogDirectories } from '../structure/structure'
 import type { Catalog } from './types'
 
@@ -24,6 +26,13 @@ import type { Catalog } from './types'
  *   `steps.txt` or a stray subdirectory is absent from `entity.artifacts` by
  *   construction. JRN9 is precisely a rule about the files that never became
  *   artifacts.
+ * - `E_PROTO_SPEC_FILE` / `W_PROTO_ARTIFACT_UNKNOWN` (kinds/protocol.md, "Entity
+ *   directory shape"). The same rule shape as JRN4/JRN9 one kind over, and the
+ *   same reason it cannot be answered from the graph — with one difference that
+ *   the listing has to carry: a protocol's linked `spec.file` may sit inside
+ *   `workflows/` or an asset subdirectory, and `pricing.proto` never becomes an
+ *   artifact at all. So the protocol listing is **recursive** where the journey
+ *   listing is one level, and its rows are paths rather than names.
  *
  * Taken here rather than inside `loadCatalog`, and the reason is the same one
  * `lib/catalog/index.ts` gives three times for its other folds: that function is
@@ -53,29 +62,49 @@ export interface CatalogListings {
    * strictest code here — "no journey.yaml" — about a file that is probably there.
    */
   journeys: Map<string, DirectoryEntry[]>
+  /**
+   * Each protocol entity's own directory, keyed by SRN, listed **recursively**
+   * as entity-relative `/`-separated paths — `transport.yaml`, `workflows`,
+   * `workflows/place-order.yaml`.
+   *
+   * Absent rather than empty when the directory could not be read, for the
+   * journeys field's reason and with a softer consequence:
+   * `protocolArtifactDiagnostics` keeps the three checks that need no
+   * filesystem for a protocol the map does not hold, and drops only the two
+   * that do.
+   */
+  protocols: Map<string, ProtocolDirectoryEntry[]>
 }
 
 /**
- * Take both listings for one catalog root.
+ * Take all three listings for one catalog root.
  *
  * `catalogDir` is the root `loadCatalog` was given and `catalog` is what it
- * returned, so the journey listings are taken for exactly the entities that
+ * returned, so the per-entity listings are taken for exactly the entities that
  * loaded.
  */
 export async function catalogListings(catalogDir: string, catalog: Catalog): Promise<CatalogListings> {
-  const journeyEntities = [...catalog.entities.values()].filter((entity) => entity.kind === 'journey')
+  const of = (kind: string) => [...catalog.entities.values()].filter((entity) => entity.kind === kind)
+  const journeyEntities = of('journey')
+  const protocolEntities = of('protocol')
 
-  const [directories, listed] = await Promise.all([
+  const [directories, listedJourneys, listedProtocols] = await Promise.all([
     listCatalogDirectories(catalogDir),
     Promise.all(journeyEntities.map(async (entity) => [entity.srn, await entries(entity.dir)] as const)),
+    Promise.all(protocolEntities.map(async (entity) => [entity.srn, await tree(entity.dir)] as const)),
   ])
 
   const journeys = new Map<string, DirectoryEntry[]>()
-  for (const [srn, listing] of listed) {
+  for (const [srn, listing] of listedJourneys) {
     if (listing !== null) journeys.set(srn, listing)
   }
 
-  return { directories, journeys }
+  const protocols = new Map<string, ProtocolDirectoryEntry[]>()
+  for (const [srn, listing] of listedProtocols) {
+    if (listing !== null) protocols.set(srn, listing)
+  }
+
+  return { directories, journeys, protocols }
 }
 
 /** One directory as `{ name, directory }` rows, or null when it cannot be read. */
@@ -86,4 +115,35 @@ async function entries(dir: string): Promise<DirectoryEntry[] | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * One directory and everything under it as `{ path, directory }` rows, or null
+ * when the *root* cannot be read.
+ *
+ * A subdirectory that cannot be read is recorded as a row and contributes no
+ * children, which is the honest answer: the entry is there, and what is inside
+ * it is unknown. Only an unreadable root is null, because then nothing is known
+ * and inventing an empty listing would report every fixed artifact as missing.
+ *
+ * Symlinked directories report `isDirectory() === false` under `withFileTypes`
+ * and so are never descended into — the same rule `walk` follows in the loader
+ * and `listCatalogDirectories` follows for `E_COMP_SYMLINK`, and the reason a
+ * symlink loop cannot make this recursion diverge.
+ */
+async function tree(dir: string, prefix = ''): Promise<ProtocolDirectoryEntry[] | null> {
+  let found
+  try {
+    found = await readdir(path.join(dir, prefix), { withFileTypes: true })
+  } catch {
+    return prefix === '' ? null : []
+  }
+  const rows: ProtocolDirectoryEntry[] = []
+  for (const entry of found) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+    const directory = entry.isDirectory()
+    rows.push({ path: rel, directory })
+    if (directory) rows.push(...((await tree(dir, rel)) ?? []))
+  }
+  return rows
 }

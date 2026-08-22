@@ -2,6 +2,7 @@ import path from 'node:path'
 import { parseJourney } from '../journey/journey'
 import { arazzoGroundingDiagnostics } from '../protocol/arazzo-grounding'
 import { parseStates } from '../protocol/states'
+import { transportDiagnostics } from '../protocol/transport-checks'
 import { parseWorkflow } from '../protocol/workflow'
 import type { Catalog, Diagnostic, Entity } from './types'
 
@@ -62,6 +63,7 @@ export function artifactDiagnostics(catalog: Catalog): Diagnostic[] {
 const STATES_FILE = 'states.json'
 const JOURNEY_FILE = 'journey.yaml'
 const ARAZZO_FILE = 'arazzo.yaml'
+const TRANSPORT_FILE = 'transport.yaml'
 const WORKFLOWS_DIR = 'workflows/'
 
 function check(entity: Entity, artifact: Entity['artifacts'][number]): Diagnostic[] {
@@ -107,6 +109,33 @@ function check(entity: Entity, artifact: Entity['artifacts'][number]): Diagnosti
       siblings: entity.artifacts,
       path: file,
       srn: entity.srn,
+    })
+  }
+
+  if (entity.kind === 'protocol' && artifact.file === TRANSPORT_FILE) {
+    // The transport reader, in whichever of the two dialects the file declares
+    // (ADR 0017). The dialect is handed over **verbatim** rather than sniffed
+    // from the document: `dialects.ts` is what rules that a file declaring both
+    // `$schema` and `asyncapi:` is the mini-spec, and a second opinion formed
+    // here would be exactly the disagreement between call sites this module
+    // exists to end.
+    //
+    // Four of its rules need the entity rather than the file — the AsyncAPI
+    // profile pins `info.title` to the entity's own title and its `operations`
+    // ids to the participant refs — so the frontmatter travels with the
+    // document. Every one of those options is *optional* in the reader and an
+    // absent one is unchecked rather than assumed, which is what keeps this the
+    // only place that decides what the entity contributes.
+    //
+    // Already Diagnostics, like `parseStates` and `arazzoGroundingDiagnostics`;
+    // nothing to translate.
+    const frontmatter = entity.frontmatter as { title?: unknown; participants?: unknown }
+    return transportDiagnostics(artifact.data, {
+      ...(artifact.dialect ? { dialect: artifact.dialect } : {}),
+      path: file,
+      srn: entity.srn,
+      ...(typeof frontmatter.title === 'string' ? { title: frontmatter.title } : {}),
+      ...(Array.isArray(frontmatter.participants) ? { participants: frontmatter.participants } : {}),
     })
   }
 

@@ -118,7 +118,7 @@ from that, and the bucket alternation removes all three.
 
    ```bash
    $ ls -d solutions/acme/*/          # buckets only, at every level
-   actor  adr  datamodel  environment  product  protocol  requirement
+   actor  adr  capability  datamodel  environment  journey  product  protocol  requirement
    ```
 
 2. **Product vs. component was inferred from depth.** The first container
@@ -479,12 +479,13 @@ srn://acme/requirement/gdpr-erasure
 srn://acme/protocol/settlement
 ```
 
-The three newest kinds have no fixture entity yet, so their legal shapes are
-stated rather than pointed at:
+The three newest kinds, whose legal shapes are worth setting side by side.
+`acme` owns no solution-level and no component-owned metric, so those two lines
+state a shape rather than pointing at a fixture entity:
 
 ```text
 srn://acme/capability/order-fulfilment                          # P4 satisfied
-srn://acme/journey/place-an-order                               # P4 satisfied
+srn://acme/journey/first-purchase                               # P4 satisfied
 srn://acme/metric/order-conversion                              # owner-scoped: the solution
 srn://acme/product/shop/metric/checkout-conversion              # …or a product
 srn://acme/product/shop/component/checkout/metric/p99-latency   # …or a component
@@ -628,9 +629,10 @@ operation ([evolution.md](evolution.md#artifact-pins)).
 
 An artifact has no kind, and every entity reference surface is typed over
 kinds, so the fence is total: a `relations` edge, `primary-actors`, a protocol
-participant's `ref`, a `payload`/`request`/`response` ref, a topology
-`component` ref, a config `for` ref, a journey's `actor`, step `touches`, and
-step `protocol` all reject the suffix — each under the surface's own error
+participant's `ref`, a `payload`/`request`/`response`/`message` ref, an
+AsyncAPI `x-srn-payload`, a topology `component` ref, a config `for` ref, a
+journey's `actor`, step `touches`, and step `protocol` all reject the suffix —
+each under the surface's own error
 class, with a message that names the suffix as the problem. `E_FM_EDGE_TARGET` and the contract-wide statement live
 in [frontmatter.md](frontmatter.md); each kind document extends the fence to
 its own surfaces. The legal v1 surfaces are **prose links** — a body-markdown

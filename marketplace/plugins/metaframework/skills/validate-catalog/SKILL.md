@@ -388,30 +388,49 @@ available here. The check proves the tree *loads*. It does not prove the tree is
     `https://schemas.metaframework.dev` plus the SRN path, `x-srn` `srn://` plus
     the same path, neither carrying a version, and every non-local `$ref` a
     canonical schema URL naming a real datamodel with a `schema.json` behind it.
-- **Specified but not implemented anywhere.** This list is a fraction of what it
-  was — the kind disciplines above took twenty-four classes out of it — and what
-  is left is almost entirely **one kind and one missing reader**:
+- **Specified but not implemented anywhere.** There is no longer a code in this
+  category. The kind disciplines above took twenty-four classes out of it and the
+  four protocol modules took the last sixteen, so every code with a definition row
+  in `framework/spec` has an emitter and the portal's debt register is empty. What
+  is left are **half-rules**, which a register keyed by code cannot hold:
 
-  - **The protocol kind, sixteen classes.** Nothing validates `transport.yaml`
-    at all (`E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
-    `E_PROTO_TRANSPORT_SPEC_CONFLICT`, and the AsyncAPI profile rules that
-    arrived with ADR 0017), nothing inspects a protocol entity directory
-    (`E_PROTO_SPEC_FILE`, `W_PROTO_ARTIFACT_UNKNOWN`), and nothing judges the
-    `participants` list — duplicate aliases (`E_PROTO_ALIAS_DUP`), participant
-    kinds (`E_PROTO_PARTICIPANT_KIND`), payload kinds (`E_PROTO_PAYLOAD_KIND`),
-    the `exposes`/`uses` cross-check (`W_PROTO_PARTICIPANT_MISSING`,
-    `W_PROTO_PARTICIPANT_UNLINKED`), or `style` against the workflows beneath it
-    (`W_PROTO_STYLE_MISMATCH`). Three modules now *resolve* that list for their
-    own purposes, which is not the same as checking it.
+  - **The protocol kind's sixteen classes all landed**, in four modules:
+    `lib/protocol/transport-checks.ts` reads `transport.yaml` in both dialects
+    (`E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
+    `E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_TRANSPORT_ASYNCAPI`,
+    `W_PROTO_TRANSPORT_HOST`); `participants-checks.ts` judges the list three
+    other modules already resolved (`E_PROTO_PARTICIPANTS`, `E_PROTO_ALIAS_DUP`,
+    `E_PROTO_PARTICIPANT_KIND`, `W_PROTO_PARTICIPANT_MISSING`,
+    `W_PROTO_PARTICIPANT_UNLINKED`); `spec-file-checks.ts` inspects the entity
+    directory and the `style` declaration (`E_PROTO_SPEC_FILE`,
+    `W_PROTO_SPEC_ASYNCAPI`, `W_PROTO_ARTIFACT_UNKNOWN`,
+    `W_PROTO_STYLE_MISMATCH`); and `payload-checks.ts` owns the two joins
+    (`E_PROTO_PAYLOAD_KIND`, `W_PROTO_WF_CHANNEL_UNKNOWN`).
 
-    `W_PROTO_ARAZZO_UNGROUNDED` left this bullet: `lib/protocol/arazzo-grounding.ts`
-    emits it, and an `arazzo.yaml` whose source or step references miss the
-    siblings its entity carries now warns. Nothing else about the file is
-    checked — the framework states no field table for an Arazzo Description, so
-    drawing a picture of your document is still not the portal agreeing with it.
-  - **`E_DM_NOT_ADDITIVE`**, the only rule in the spec that no input the load
-    pipeline has can answer: it diffs `schema.json` at version N−1 out of git
-    against the document on disk, and `metaframework check` never spawns git.
+    Two protocol gaps survive as half-rules. A payload reference that resolves to
+    a legal-but-absent SRN is `E_SRN_DANGLING`'s and nothing raises it on any
+    payload surface; and on the two *transport* surfaces `E_SRN_SYNTAX`,
+    `E_SRN_CROSS_SOLUTION` and `E_SRN_ARTIFACT` have no owner. Separately,
+    `W_PROTO_STATES_EVENT_UNKNOWN` has an emitter whose branch no call site
+    reaches, because neither passes `workflowMessages`.
+
+    `W_PROTO_ARAZZO_UNGROUNDED` left this bullet a release earlier:
+    `lib/protocol/arazzo-grounding.ts` emits it, and an `arazzo.yaml` whose
+    source or step references miss the siblings its entity carries now warns.
+    Nothing else about the file is checked — the framework states no field table
+    for an Arazzo Description, so drawing a picture of your document is still not
+    the portal agreeing with it.
+
+    `E_DM_NOT_ADDITIVE` left this list the same way, and its old entry is worth
+    remembering: it called itself the only rule *no input the load pipeline has
+    can answer*. The pipeline simply took no such input. It now takes one —
+    `withEvolutionChecks` resolves version N−1 through the version→commit index,
+    reads that commit's `schema.json` and diffs it against the tree, so
+    `metaframework check` does spawn git, once per datamodel that has moved past
+    version 1. What is still true is narrower and is stated with the check in
+    `references/diagnostics.md` section 1: the comparison is against N−1, so a
+    tightening that also forgot its version bump is measured against the wrong
+    document, and no git-unavailable environment is ever accused of anything.
   - **The *kind* half of a journey step's own references** —
     `E_JRN_TOUCHES_KIND`, `E_JRN_PROTOCOL_KIND` and `E_JRN_ACTOR_KIND`. Each
     fires on the clause a pure parser can decide (the reference carries an

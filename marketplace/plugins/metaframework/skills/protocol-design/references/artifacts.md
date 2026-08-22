@@ -277,7 +277,7 @@ Four traps, in the order authors hit them.
   channelId, so collapsing N names into one leaves N−1 steps matching nothing.
   AsyncAPI's ws binding note calls the channel the connection; that describes raw
   WebSockets and is not a cardinality rule, and the connection is stated once in
-  `servers.<id>.pathname`. The catalog has exactly one `websocket` transport,
+  `servers.<id>.pathname`. The catalog's worked example is
   `solutions/brass/protocol/game-transport/transport.yaml` — five entries, five
   channels, three distinct `address` values; read its comments.
 

@@ -2,9 +2,18 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { arazzoGraph, readArazzo } from '../protocol/arazzo'
 import { CANONICAL_SCHEMA_HOST, schemaServingUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
+import { actorDiagnostics } from '../actor/actor'
+import { adrDiagnostics } from '../adr/adr'
+import { journeyArtifactDiagnostics } from '../journey/artifacts'
+import { participantDiagnostics } from '../protocol/participants-checks'
+import { payloadDiagnostics } from '../protocol/payload-checks'
+import { protocolArtifactDiagnostics } from '../protocol/spec-file-checks'
+import { requirementDiagnostics } from '../requirement/requirement'
+import { structureDiagnostics } from '../structure/structure'
 import { artifactDiagnostics } from './artifact-checks'
 import { ENTITY_KINDS } from './frontmatter'
-import { withArtifactChecks, withSchemaRegistry } from './index'
+import { withArtifactChecks, withKindChecks, withSchemaRegistry } from './index'
+import { catalogListings } from './listings'
 import { loadCatalog } from './load'
 import type { Artifact, Catalog, Diagnostic, Entity } from './types'
 
@@ -61,6 +70,104 @@ describe('shipped catalog', () => {
 
     expect(errors.map(format)).toEqual([])
     for (const diagnostic of catalog.diagnostics) expect(withArtifacts.diagnostics).toContain(diagnostic)
+  })
+
+  it('runs every kind discipline it is composed of, over the catalog the portal renders', async () => {
+    // **The wiring gate.** Every other suite asks whether a check module is
+    // correct; this one asks whether `load()` actually calls it. Nothing else
+    // does, and the gap was real: deleting a `...someDiagnostics(catalog)` line
+    // from `withKindChecks` left the whole suite green, because
+    // `diagnostic-coverage.test.ts` invokes the modules directly rather than
+    // through the fold. A module can be perfect, tested, and unreachable.
+    //
+    // The check is exact rather than a sample: each discipline is run on its own
+    // and every finding it produces must appear in the composed catalog. That
+    // makes the assertion bite for any module whose output on `solutions/` is
+    // non-empty, and it fails loudly rather than silently for one whose output is
+    // empty — the `expect(...).not.toEqual([])` below is what stops a module
+    // being "verified" by having nothing to say.
+    const listings = await catalogListings(CATALOG, catalog)
+    const composed = withKindChecks(catalog, listings)
+
+    const disciplines: Array<[string, Diagnostic[]]> = [
+      ['adr', adrDiagnostics(catalog)],
+      ['requirement', requirementDiagnostics(catalog)],
+      ['actor', actorDiagnostics(catalog)],
+      ['structure', structureDiagnostics(catalog, listings.directories)],
+      ['journey', journeyArtifactDiagnostics(catalog, listings.journeys)],
+      ['participants', participantDiagnostics(catalog)],
+      ['payload', payloadDiagnostics(catalog)],
+      ['protocol-artifacts', protocolArtifactDiagnostics(catalog, listings.protocols)],
+    ]
+
+    // A discipline silent on the shipped catalog cannot prove it is wired, and
+    // naming those beats a green test that quietly checked nothing. Three are
+    // legitimately silent here, because `solutions/` is a catalog of exemplars:
+    // the ADRs carry their sections and deciders, the journeys carry their
+    // documents, and every payload names a real datamodel. Those three are
+    // exercised through the fold by `diagnostic-coverage.test.ts`'s fixture
+    // instead — which is the right division, since a shipped catalog that could
+    // demonstrate them would be a shipped catalog with defects in it.
+    //
+    // The list is asserted exactly, in both directions. A discipline that goes
+    // quiet because someone weakened it fails here, and a discipline that starts
+    // speaking because the shipped catalog drifted fails here too.
+    const silent = disciplines.filter(([, found]) => found.length === 0).map(([name]) => name)
+    expect(silent).toEqual(['adr', 'journey', 'payload'])
+
+    for (const [name, found] of disciplines) {
+      for (const diagnostic of found) {
+        expect(composed.diagnostics, `${name}: ${diagnostic.code} ${diagnostic.path}`).toContainEqual(diagnostic)
+      }
+    }
+  })
+
+  it('runs the transport reader through the artifact fold, on both dialects', () => {
+    // The same wiring question for the one protocol module that joins through
+    // `withArtifactChecks` instead. It is silent on `solutions/` — every shipped
+    // transport is correct in its own dialect — so "no findings" cannot show that
+    // anything ran. What can: the fold must reach the file at all, and it does
+    // exactly when the dispatch table has a `transport.yaml` branch.
+    //
+    // Asserted by breaking one real document of each dialect in memory and
+    // requiring a complaint. The catalog is not mutated — the artifact's `data`
+    // is swapped on a copy — so this proves reachability without inventing a
+    // broken file in `solutions/`.
+    //
+    // The break has to suit the dialect, and getting that wrong is instructive:
+    // an unknown root key is `E_PROTO_TRANSPORT_SCHEMA` in the mini-spec and
+    // perfectly legal in AsyncAPI, where anything outside the six profile rules
+    // rides along unread. So the mini-spec document gets an unknown key and the
+    // AsyncAPI one gets a broken `info.version`, which rule 3 pins to the fixed
+    // string.
+    const transports = [...catalog.entities.values()].flatMap((entity) =>
+      entity.kind === 'protocol'
+        ? entity.artifacts.filter((a) => a.file === 'transport.yaml').map((a) => [entity, a] as const)
+        : [],
+    )
+    const mini = transports.find(([, a]) => a.dialect?.key !== 'asyncapi')
+    const async = transports.find(([, a]) => a.dialect?.key === 'asyncapi' && a.dialect.known)
+    expect(mini, 'a mini-spec transport.yaml in solutions/').toBeDefined()
+    expect(async, 'an AsyncAPI transport.yaml in solutions/').toBeDefined()
+
+    const breaks: Array<[readonly [Entity, Artifact], Record<string, unknown>]> = [
+      [mini!, { 'not-a-transport-key': 1 }],
+      [async!, { info: { version: '1.0.0' } }],
+    ]
+
+    for (const [[entity, artifact], damage] of breaks) {
+      const broken: Entity = {
+        ...entity,
+        artifacts: entity.artifacts.map((a) =>
+          a === artifact ? { ...a, data: { ...(a.data as object), ...damage } } : a,
+        ),
+      }
+      const found = artifactDiagnostics({ ...catalog, entities: new Map([[entity.srn, broken]]) })
+      expect(
+        found.filter((d) => d.path.endsWith('transport.yaml')),
+        `${entity.srn} (${artifact.dialect?.key})`,
+      ).not.toEqual([])
+    }
   })
 
   it('checks every artifact the entity page draws, and only those', () => {

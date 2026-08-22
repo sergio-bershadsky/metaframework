@@ -236,8 +236,9 @@ Five things worth knowing before you get there:
 
 ## 9. Payload binding
 
-Every payload reference — a step's `payload`, and a surface entry's `request`,
-`response`, or `message` — is an ordinary **SRN**, not a schema URL. It must
+Every payload reference — a step's `payload`, a surface entry's `request`,
+`response`, or `message`, and an AsyncAPI Message Object's `x-srn-payload` — is
+an ordinary **SRN**, not a schema URL. It must
 resolve to a `datamodel` (`E_PROTO_PAYLOAD_KIND`) and **should pin `@version`**:
 an unpinned reference silently follows the target's latest, so a contract
 reviewed against `order@2` starts describing `order@3` with no diff on this file.

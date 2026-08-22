@@ -268,7 +268,8 @@ literal path segment.
   the ordinary version→commit index (`evolution.md`).
 - **Entity surfaces are fenced.** An artifact SRN is illegal in `relations`
   (every edge), `primary-actors`, protocol `participants[].ref` and
-  `payload`/`request`/`response` message refs, `topology.yaml` component refs,
+  `payload`/`request`/`response`/`message` refs and AsyncAPI `x-srn-payload`
+  refs, `topology.yaml` component refs,
   `config.yaml` `for` refs, and `journey.yaml` `actor`/`touches`/step
   `protocol` — those surfaces mean entities, and an artifact has no kind for
   an edge to be typed over. The surface's own code fires (`E_FM_EDGE_TARGET`

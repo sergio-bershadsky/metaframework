@@ -33,12 +33,44 @@ function catalogOf(...entities: Entity[]): Catalog {
   }
 }
 
-const artifact = (file: string, data: unknown): Artifact => ({
+const artifact = (file: string, data: unknown, dialect?: Artifact['dialect']): Artifact => ({
   file,
   extension: file.endsWith('.json') ? '.json' : '.yaml',
   data,
   raw: '',
+  ...(dialect ? { dialect } : {}),
 })
+
+/**
+ * What `adoptDialect` records for an AsyncAPI `transport.yaml`.
+ *
+ * Hand-built entities skip the loader, so a fixture that omits this is not a
+ * smaller version of a real artifact — it is a *different* one. The transport
+ * reader branches on `dialect`, and an AsyncAPI document arriving without one is
+ * read as the mini-spec, which is the documented fallback and the right answer
+ * for a file whose header nobody looked at.
+ */
+const ASYNCAPI: Artifact['dialect'] = { role: 'transport', key: 'asyncapi', declared: '3.1.0', known: true }
+
+/**
+ * A `transport.yaml` that satisfies the AsyncAPI profile, so that the two tests
+ * below say what they mean.
+ *
+ * It is scenery — the subject there is `arazzo.yaml`'s grounding, and this file
+ * is the sibling the grounding rule reads `channels` out of. It has to be
+ * *valid* scenery all the same: since the transport reader joined this fold, an
+ * invalid one would put three `E_PROTO_TRANSPORT_ASYNCAPI` errors beside the
+ * grounding warning and the assertion would be about the wrong artifact. The
+ * host is a server variable rather than a machine, which is also what keeps
+ * `W_PROTO_TRANSPORT_HOST` off it.
+ */
+const asyncapiTransport = {
+  asyncapi: '3.1.0',
+  'x-srn': 'srn://acme/protocol/settlement',
+  info: { version: 'unversioned' },
+  servers: { broker: { protocol: 'kafka', host: '{host}' } },
+  channels: { 'order-paid': {} },
+}
 
 const journeyData = {
   name: 'place-an-order',
@@ -158,7 +190,7 @@ describe('artifactDiagnostics', () => {
             sourceDescriptions: [{ name: 'orders', type: 'openapi', url: 'https://api.example.com/openapi.yaml' }],
             workflows: [{ workflowId: 'settle', steps: [{ stepId: 'a', operationId: 'requestRefund' }] }],
           }),
-          artifact('transport.yaml', { asyncapi: '3.1.0', channels: { 'order-paid': {} } }),
+          artifact('transport.yaml', asyncapiTransport, ASYNCAPI),
         ],
       }),
     )
@@ -180,7 +212,7 @@ describe('artifactDiagnostics', () => {
         kind: 'protocol',
         relDir: 'acme/protocol/settlement',
         frontmatter: { name: 'settlement' } as Entity['frontmatter'],
-        artifacts: [artifact('transport.yaml', { asyncapi: '3.1.0', channels: { 'order-paid': {} } })],
+        artifacts: [artifact('transport.yaml', asyncapiTransport, ASYNCAPI)],
       }),
     )
 

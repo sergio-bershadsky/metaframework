@@ -106,13 +106,25 @@ describe('the discriminator table', () => {
     // string until somebody dereferences it.
     const shipped = await loadCatalog({ catalogDir: path.resolve(process.cwd(), '../../solutions') })
 
+    const checked: string[] = []
     for (const role of ARTIFACT_ROLES) {
       const dialect = canonicalDialect(role.kind, role.file.replace('<name>', 'placeholder'))
       if (!dialect?.owned) continue
       const named = schemaUrlToSrn(dialect.value)
       expect(named, dialect.value).not.toBeNull()
       expect(shipped.entities.get(named as string)?.kind, dialect.value).toBe('datamodel')
+      checked.push(named as string)
     }
+
+    // The floor the loop needs. Every assertion above sits behind `continue`,
+    // so a `canonicalDialect` that stopped marking these roles `owned` — or
+    // returned null for all of them — would load the whole shipped catalog and
+    // check nothing, passing while the exact regression named above went
+    // unreported. Six is the count the paragraph above claims, one per owned
+    // role, each naming a different entity; asserting it is what makes that
+    // sentence a check rather than a note.
+    expect(checked).toHaveLength(6)
+    expect(new Set(checked).size).toBe(6)
   })
 })
 
@@ -446,7 +458,19 @@ beforeAll(async () => {
   await spine(catalogDir)
   await entity(catalogDir, 'acme/actor/customer', base('customer', 'actor', { 'actor-type': 'human', goals: ['Buy.'] }))
 
-  await artifact(catalogDir, PROTOCOL, 'transport.yaml', `$schema: ${META.transport}\nkind: kafka\n`)
+  // A *complete* mini-spec document, not a `kind:` line. It was the one line for
+  // as long as nothing read the file; `lib/protocol/transport-checks.ts` reads it
+  // now, and the binding table requires the block its `kind` names. The header is
+  // the subject of this fixture, so the rest of the document has to be correct
+  // enough not to be what the assertions below are seeing.
+  await artifact(
+    catalogDir,
+    PROTOCOL,
+    'transport.yaml',
+    `$schema: ${META.transport}\n` +
+      'kind: kafka\nsummary: Order facts published by checkout.\nencoding: json\n' +
+      'kafka:\n  topics:\n    - name: acme.shop.order-placed.v1\n',
+  )
   await artifact(
     catalogDir,
     PROTOCOL,
@@ -533,8 +557,13 @@ describe('the header, through the loader', () => {
   it('never lets the discriminator reach a strict validator', () => {
     // The claim ADR 0015 rests on. `journey.ts` still rejects an unknown key
     // with `E_JRN_SCHEMA`, `workflow.ts` and `states.ts` are still
-    // `strictObject`s — and none of them ever sees `$schema`, because the key is
-    // gone by the time they run.
+    // `strictObject`s, and `transport-checks.ts` admits `$schema` by name — and
+    // none of them ever sees the key, because it is gone by the time they run.
+    //
+    // The transport reader is what makes this assertion bite on the role the ADR
+    // was written about. While nothing opened a `transport.yaml`, a header that
+    // *had* leaked into `data` would have been seen by no validator and this test
+    // would have passed on silence.
     expect(artifactDiagnostics(catalog)).toEqual([])
   })
 
@@ -581,27 +610,28 @@ describe('the AsyncAPI dialect, through the loader', () => {
   })
 
   it('reaches every view the mini-spec dialect reaches', () => {
-    // **Nothing in the portal derives a view from `transport.yaml` in either
-    // dialect.** It is not in `artifact-checks.ts`'s dispatch table and not in
-    // `entity-artifacts.tsx`'s, so its own readers are the source pane and the
-    // /artifacts route, and both serve `raw`. The transport card, the message ×
-    // datamodel matrix and workflow rule W9 are stated in kinds/protocol.md and
-    // implemented nowhere — `W_PROTO_WF_CHANNEL_UNKNOWN` sits in the
-    // diagnostic-coverage debt register saying exactly that.
+    // This test used to end "when a transport reader is written, this is where
+    // it stops being true by default". It was written, and this is that edit.
     //
-    // One thing does now read the file, and reads the two dialects differently:
-    // `lib/protocol/arazzo-grounding.ts` resolves a sibling `arazzo.yaml`'s step
-    // references into an AsyncAPI transport's `channels`/`operations` maps, and
+    // `lib/protocol/transport-checks.ts` reads a `transport.yaml` in both
+    // dialects and `artifact-checks.ts` dispatches to it, so the parity claim is
+    // no longer "no consumer looks at either file". It is the stronger one: two
+    // documents, two grammars, one verdict — a **correct** document in either
+    // dialect draws nothing, and the migration between them costs a protocol
+    // nothing.
+    //
+    // The two grammars deliberately share no rule, because the spec shares none
+    // between them: the mini-spec has a field table and a binding block, the
+    // AsyncAPI dialect has six profile rules. Which branch is taken comes from
+    // `dialect`, the loader's own ruling, and never from sniffing the document —
+    // which is what makes a file declaring both keys the mini-spec, as
+    // `dialects.ts` says it is.
+    //
+    // `lib/protocol/arazzo-grounding.ts` still reads the two differently, and
+    // still raises nothing here: it resolves a sibling `arazzo.yaml`'s step
+    // references into an AsyncAPI transport's `channels`/`operations` maps and
     // stays silent against a mini-spec one, whose `channels` is a surface list.
-    // That is a rule about the *Arazzo* file, raised on the *Arazzo* file, and it
-    // validates nothing here — no diagnostic reaches a `transport.yaml`, which is
-    // what the assertions below still hold.
-    //
-    // So "the derived views hold for both dialects" is, today, the claim that
-    // the two files are indistinguishable to every consumer that derives a view:
-    // parsed without error, bytes intact, dialect recorded, no diagnostic. When a
-    // transport reader is written, this test is where it stops being true by
-    // default.
+    // That is a rule about the *Arazzo* file, raised on the *Arazzo* file.
     const mini = transportOf('srn://acme/product/shop/protocol/order-events')
     const async = transportOf(SRN)
 
@@ -611,9 +641,11 @@ describe('the AsyncAPI dialect, through the loader', () => {
       expect(transport?.raw.length).toBeGreaterThan(0)
       expect(transport?.dialect?.known).toBe(true)
     }
-    // The one consumer that dispatches on kind × filename judges neither, and
-    // must judge them alike: a diagnostic on one dialect and not the other would
-    // be the migration costing a protocol its clean bill of health.
+    // The consumer that dispatches on kind × filename now judges both, and must
+    // judge them alike: a diagnostic on one dialect and not the other would be
+    // the migration costing a protocol its clean bill of health. Both fixtures
+    // are correct in their own grammar, so the expected list is empty for the
+    // second reason it can be — not because nothing looked.
     expect(artifactDiagnostics(catalog).filter((d) => d.path.endsWith('transport.yaml'))).toEqual([])
   })
 })
@@ -727,6 +759,12 @@ describe('the arazzo role, through the loader', () => {
 
       const loaded = await loadCatalog({ catalogDir: thin })
       const file = loaded.entities.get(`srn://${PROTOCOL}`)?.artifacts.find((a) => a.file === 'arazzo.yaml')
+      // The subject is that the bytes *reached* the reader and it still drew
+      // nothing. Without this line an artifact the loader never produced would
+      // satisfy both assertions below — `readArazzo(undefined)` is null, and a
+      // file that was never read files no diagnostic against its own path.
+      expect(file, 'the loader must have read arazzo.yaml for the rest to mean anything').toBeDefined()
+      expect(file?.data, 'and parsed it, or `readArazzo` is being handed nothing').toBeDefined()
       expect(readArazzo(file?.data)).toBeNull()
       expect(loaded.diagnostics.filter((d) => d.path.endsWith('arazzo.yaml'))).toEqual([])
     } finally {

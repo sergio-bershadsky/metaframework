@@ -65,19 +65,30 @@ It binds the entity's **contract surface**: everything a referrer can depend on.
 Prose clarifications, tags and relation edges are metadata — they still bump
 `version`, but they are not bound by the superset rule.
 
-| Entity kind         | Legal at N+1                                                                 | ILLEGAL at N+1                                                                         |
-|---------------------|------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| datamodel           | add optional property; add enum value; widen a type; relax a bound           | rename/remove a property; add to `required`; narrow a type; remove an enum value       |
-| protocol            | add an operation; add an optional message field; add a workflow; add a state | remove/rename an operation; remove a state; repoint a message at an incompatible model |
-| requirement / adr   | clarify wording; append consequences; add relations                          | reverse or narrow the decision/requirement — that is a swap                            |
-| actor / environment | extend description; add relations                                            | repurpose the name to mean something else                                              |
-| container           | add child entities; extend prose                                             | remove or rename children (children swap individually)                                 |
+| Entity kind         | Legal at N+1                                                                 | ILLEGAL at N+1                                                                          |
+|---------------------|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| datamodel           | add optional property; add enum value; widen a type; relax a bound           | rename/remove a property; add to `required`; narrow a type; remove an enum value        |
+| protocol            | add an operation; add an optional message field; add a workflow; add a state | remove/rename an operation; remove a state; repoint a message at an incompatible model  |
+| requirement / adr   | clarify wording; append consequences; add relations                          | reverse or narrow the decision/requirement — that is a swap                             |
+| actor / environment | extend description; add relations                                            | repurpose the name to mean something else                                               |
+| capability          | sharpen the description without narrowing it; add relations                  | narrow or re-scope what the business can do — a different ability is a different entity |
+| journey             | append a step at the end within the 12-step cap; extend a step's note        | remove, reorder or re-point existing steps; branch (that is a second journey)           |
+| metric              | move `target`; extend the description; add relations                         | change `metric-type`, `direction`, or what `measures` points at                         |
+| container           | add child entities; extend prose                                             | remove or rename children (children swap individually)                                  |
 
 For a datamodel the test is mechanical: **version N+1 MUST accept every instance
 version N accepted.** Loosening is legal in place; tightening or reshaping is
 not legal *at any version number*. Consumers must therefore tolerate unknown
 properties and unknown enum values from later versions. The per-keyword table is
 in `schemas.md`.
+
+`capability`, `journey` and `metric` were adopted after the ontology reopened
+and bought no special treatment: same integer `version`, same bump on any
+content change, same swap when extension is not enough. A capability rename is a
+swap like every other rename; a journey that grows a branch becomes two
+journeys; a metric that starts counting a different thing is a new number. The
+per-kind surface — what counts as the contract for each of the three — is worked
+through in `evolve-entity/SKILL.md`.
 
 An illegal change MUST NOT be made in place. The escape hatch is the swap.
 

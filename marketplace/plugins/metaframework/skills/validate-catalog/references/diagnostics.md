@@ -55,11 +55,11 @@
 >   exactly. This inventory desynced from the portal six times during 0.2.0, and
 >   every one of the six was one of those four.
 >
-> **Section 2 is that register, in prose.** It is much shorter than it was: the
-> kind disciplines under `lib/{adr,requirement,actor,structure,
-> datamodel}/` and `lib/journey/artifacts.ts` moved twenty-four classes into
-> section 1, and what is left is sixteen protocol classes, one datamodel class,
-> and two-and-a-half journey rules.
+> **Section 2 is that register, in prose.** It holds no classes at all: the kind
+> disciplines under `lib/{adr,requirement,actor,structure,datamodel}/`,
+> `lib/journey/artifacts.ts` and the four modules under `lib/protocol/` moved the
+> last forty-one into section 1. What is left is two-and-a-half journey rules and
+> two payload-reference gaps, none of which is a whole code.
 >
 > **The drift test, if you are re-verifying this file by hand.** Intersect the
 > codes section 2 *names as gaps* with the codes that grep prints: it must be
@@ -419,6 +419,132 @@ of an `onSuccess`/`onFailure` action: those are intra-workflow control flow, and
 the portal reports an unresolved one as a note under the step graph rather than
 as a finding on the catalog.
 
+### `lib/protocol/transport-checks.ts` — `transport.yaml`, in both dialects
+
+Run by the same `withArtifactChecks` composition, on the same two surfaces. The
+role carries two live dialects and this module is the reader for both — the
+branch is taken from the dialect the **loader** recorded, never from sniffing the
+document, which is what makes a file declaring `$schema` *and* `asyncapi:` the
+mini-spec. The two grammars share no rule, because the spec shares none between
+them.
+
+| Code                              | Severity | Artifact                                                                                 |
+|-----------------------------------|----------|------------------------------------------------------------------------------------------|
+| `E_PROTO_TRANSPORT_SCHEMA`        | error    | `transport.yaml` (mini-spec) — unknown non-`x-` key, or a value of the wrong type        |
+| `E_PROTO_TRANSPORT_BINDING`       | error    | `transport.yaml` (mini-spec) — block key ≠ `kind`, block missing, required field absent  |
+| `E_PROTO_TRANSPORT_SPEC_CONFLICT` | error    | `transport.yaml` (mini-spec) — `spec` and a surface list both present                    |
+| `E_PROTO_TRANSPORT_ASYNCAPI`      | error    | `transport.yaml` (AsyncAPI) — one of the six profile rules, or a wire this dialect omits |
+| `W_PROTO_TRANSPORT_HOST`          | warning  | `transport.yaml` (AsyncAPI) — a server declares a literal `host`                         |
+
+Four things worth knowing before writing one:
+
+- **A missing binding block is `E_PROTO_TRANSPORT_BINDING`, not `SCHEMA`.** The
+  definition row puts "block missing, or a required binding field absent" in the
+  BINDING class, so `kind: http` with no `base-path` is BINDING. A required field
+  of an *entry* one level deeper — an operation with no `method` — is SCHEMA,
+  because "binding field" reads as a field of the block.
+- **`kafka.topics` is required unless the document links a `spec`.** It is the
+  one surface list the field tables mark conditionally required; the other five
+  are optional outright, and a transport declaring neither a `spec` nor a surface
+  list is legal.
+- **`W_PROTO_TRANSPORT_HOST` fires on a literal host only.** The prose beside the
+  rule also discourages a `default` on the host variable, but the definition row
+  says "declares a literal `host`", so `{host}` with a default is not warned.
+- **An unrecognised `asyncapi:` value falls back to the mini-spec**, because
+  `structure.md` says an artifact declaring "one unknown for its role" is "read
+  as the legacy dialect" and "still checked against the legacy grammar". That is
+  honest and noisy: an AsyncAPI 2.6 document was never valid under the mini-spec
+  field table either, so it draws several `E_PROTO_TRANSPORT_SCHEMA` errors on
+  top of its `W_ARTIFACT_DIALECT`. Declare `asyncapi: 3.x` or write the mini-spec.
+
+### `lib/protocol/participants-checks.ts` — the participant list, judged
+
+Run by `withKindChecks`, over the resolved catalog. Three modules already
+*resolved* a protocol's `participants` before this one existed — `lib/structure`
+for the nearest-common-ancestor rule, `lib/actor` for the orphan rule,
+`lib/journey/artifacts` for the hop rule — and each treated a participant it
+could not use as somebody else's finding. This module is the somebody else.
+
+| Code                           | Severity | Fires on                                                                         |
+|--------------------------------|----------|----------------------------------------------------------------------------------|
+| `E_PROTO_PARTICIPANTS`         | error    | `participants` absent, or fewer than two entries                                 |
+| `E_PROTO_ALIAS_DUP`            | error    | a later entry repeats an earlier entry's `alias`                                 |
+| `E_PROTO_PARTICIPANT_KIND`     | error    | a `ref` resolving outside {component, product, actor}, or to a legal artifact    |
+| `W_PROTO_PARTICIPANT_UNLINKED` | warning  | a component/product participant whose `index.md` carries no back-edge            |
+| `W_PROTO_PARTICIPANT_MISSING`  | warning  | a component/product with an `exposes`/`uses` edge here that is not a participant |
+
+- **`E_PROTO_PARTICIPANTS` reaches its own class only because the kind schema
+  gave up `.min(2)`** — the manoeuvre `metric` and `adr` took before it. Entry
+  *shape* is still zod's: a `participants` that is not a list, an alias that is
+  not kebab-case, a `ref` that is not a string are `E_FM_SCHEMA` as they were.
+- **Aliases are compared as authored, never case-folded.** `Checkout` beside
+  `checkout` is already `E_FM_SCHEMA`, since the alias pattern is kebab-case.
+- **Actors are exempt from both warnings**, per `kinds/protocol.md`: an actor is
+  a persona or an external system, not a catalogued implementation, and requiring
+  a back-edge from one is bookkeeping with no reader.
+- **Both joins are by identity, not containment.** The rules are stated over "a
+  component or product that `exposes`/`uses` this protocol", with no clause
+  letting a parent stand in for a child — so a product that `exposes` a protocol
+  whose participants are its own components draws
+  `W_PROTO_PARTICIPANT_MISSING`. Five findings on the shipped catalog are that
+  shape. JRN15 spells containment out where it means it; this rule does not.
+
+### `lib/protocol/payload-checks.ts` — payload refs and workflow channels
+
+Run by `withKindChecks`. Both rules are joins the artifact parsers cannot make:
+one needs the entity graph, the other needs two artifacts of one entity at once.
+
+| Code                         | Severity | Fires on                                                                          |
+|------------------------------|----------|-----------------------------------------------------------------------------------|
+| `E_PROTO_PAYLOAD_KIND`       | error    | a `payload`/`request`/`response`/`message`/`x-srn-payload` naming a non-datamodel |
+| `W_PROTO_WF_CHANNEL_UNKNOWN` | warning  | a workflow step `channel` the transport's surface does not offer                  |
+
+- **Payload surfaces are read structurally, not by key scan.** The loose scan
+  `lib/datamodel/datamodel.ts` uses is right for a *join* and wrong for a
+  diagnostic: `message:` is an arrow label in a workflow step and an SRN in a
+  transport surface entry, and a diagnostic may not guess which.
+- **A legal artifact role on a payload is `E_PROTO_PAYLOAD_KIND`; an illegal one
+  is silence**, because V5/`E_SRN_ARTIFACT` is static and precedes every surface
+  class.
+- **W9 is skipped when there is nothing to check against** — no `transport.yaml`,
+  a mini-spec one linking a `spec`, or one declaring no surface list at all. The
+  kind document enumerates the first two; the third is the same condition and is
+  implemented from the governing clause, because warning about the absence of an
+  optional declaration would report a legal document as the catalog's error.
+- **A document declaring a `spec` *and* a surface list** is
+  `E_PROTO_TRANSPORT_SPEC_CONFLICT`, and its channels are matched against the
+  list it did declare.
+
+### `lib/protocol/spec-file-checks.ts` — the protocol entity directory and `style`
+
+Run by `withKindChecks`, with the protocol directory listings
+`lib/catalog/listings.ts` now takes alongside the journey ones — recursive, and
+by path, because a linked spec file may sit in a subdirectory and a
+`pricing.proto` never becomes an artifact at all.
+
+| Code                       | Severity | Fires on                                                                     |
+|----------------------------|----------|------------------------------------------------------------------------------|
+| `E_PROTO_SPEC_FILE`        | error    | `spec.file` absolute, containing `..`, or naming nothing in the directory    |
+| `W_PROTO_SPEC_ASYNCAPI`    | warning  | a mini-spec transport on an AsyncAPI-capable wire linking `format: asyncapi` |
+| `W_PROTO_ARTIFACT_UNKNOWN` | warning  | an unrecognised file or subdirectory in the protocol entity directory        |
+| `W_PROTO_STYLE_MISMATCH`   | warning  | step kinds contradicting the declared `style`                                |
+
+- **The recognised set is closed and short**: `index.md`, the four fixed bare
+  names (`transport.yaml`, `openapi.yaml`, `arazzo.yaml`, `states.json`), any
+  `*.md` prose sibling, `workflows/` holding one `*.yaml` per workflow, and
+  whatever `transport.yaml` links under `spec.file`. `order-placement.transport.yaml`
+  and `arazzo.json` are each a file the portal will never read.
+- **`..` is a literal substring test**, which is what the field table, this
+  bundle and `transport-document/schema.json` all say ("MUST NOT contain `..`").
+- **The directory rule goes silent when `transport.yaml` did not parse.** With
+  the link unreadable, a legitimately linked `pricing.proto` is indistinguishable
+  from litter.
+- **`style` has exactly two cross-checks**, because the kind document states two:
+  `bus` with any `kind: call` step, and `request-response` where no workflow
+  anywhere answers a call. `point-to-point` has none. The `bus` check is literal
+  — a step whose `from` and `to` name the same participant is still a `call`, and
+  the two findings on the shipped catalog are that shape.
+
 ### `lib/journey/journey.ts` — the `journey.yaml` parser
 
 Run by the check via the same artifact composition as the protocol validators:
@@ -661,9 +787,9 @@ identity, keywords, `$ref` graph. These three ask what the rest of the catalog
 - **Payload references are found by key scan, not by parsing the transport
   document** — `payload:` in a workflow step, and `request` / `response` /
   `message` / `x-srn-payload` in a transport surface list. A key scan is
-  dialect-agnostic by construction, which is what lets these two warnings land
-  ahead of the transport reader the `E_PROTO_TRANSPORT_*` classes are still
-  waiting for (section 2). The split is load-bearing: in a workflow step
+  dialect-agnostic by construction, which is what let these two warnings land
+  ahead of the transport reader — `lib/protocol/transport-checks.ts`, which has
+  since been written. The split is load-bearing: in a workflow step
   `message:` is the arrow *label* and the SRN lives in `payload:`, while in a
   transport surface list `message:` **is** the SRN.
 - **A candidate counts only when it resolves to a datamodel that exists**, which
@@ -680,6 +806,64 @@ identity, keywords, `$ref` graph. These three ask what the rest of the catalog
 of the datamodel's review, and the message differs by value for a reason: on
 `usage: config` it is rarely the protocol's fault, and reads as either the wrong
 model named or a process sending its own settings to somebody.
+
+### `lib/datamodel/additive.ts` — the instance-superset rule
+
+| Code                | Severity | Raised when                                                                                                                                                                                                                                       |
+|---------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_DM_NOT_ADDITIVE` | error    | The `schema.json` on disk rejects an instance the same entity's version N−1 accepted, or drops a property it declared. One finding per site, each carrying the JSON pointer of the position and the version span it was decided over.             |
+
+The only check in the portal that reads a **commit**. Folded in by
+`withEvolutionChecks`, the pipeline's one `async` step: it resolves version N−1
+through the version→commit index, reads that commit's `schema.json`, and diffs it
+against the working tree. Version 1 makes no git call at all — it has no
+predecessor by construction — so the walk costs one lookup per datamodel that has
+actually moved.
+
+The rule is `evolution.md`'s: *version `N+1` MUST accept every instance that
+version `N` accepted.* The naive reading of "additive" is wrong in both
+directions and the superset formulation is why — **adding** a name to `required`
+is forbidden, **removing** one is legal. One row is not about instances at all:
+a removed property is a finding even in an open schema, because the principle
+binds the contract surface, "everything a referrer can depend on".
+
+What fires, which is `kinds/datamodel.md`'s mechanical table and nothing beyond
+it: a property present at N and absent now; a name added to `required`; an enum
+member removed; a narrowed `type`; a tightened numeric, length or item bound; a
+`pattern` added; `additionalProperties` set to `false`; a `$ref` retargeted.
+An **absent** keyword is read as the default it denotes, so a schema that gains
+its first `maxLength`, `type` or `enum` has narrowed the set that keyword names —
+which is a tightening in the row's own terms.
+
+Six deliberate silences, each a position rather than an omission:
+
+- **A `pattern` that changed.** Only "added" is decidable; regular-expression
+  containment is not, and firing on every edit would report a loosening as a
+  break.
+- **A schema array whose length moved.** `allOf`, `anyOf`, `oneOf` and
+  `prefixItems` are compared element-wise, and inserting a branch shifts every
+  later position. At unequal lengths nothing inside is compared.
+- **`not` and `if`.** Polarity: every rule would have the wrong sign there.
+  `then` and `else` are walked.
+- **A `$ref` whose target the framework cannot name.** The row says "retargeted
+  to **another entity**", so the comparison is on the entity, resolved by the
+  same URL→SRN mapper the registry records edges with. A ref written in a
+  superseded identity grammar — a relative path, a serving address — names no
+  entity, and a byte comparison would report every such migration as a retarget.
+- **A predecessor git cannot reach**, and a predecessor that will not parse. An
+  accusation the accuser cannot support is worse than no accusation, and
+  `catalog-renders-without-git` makes history an enrichment rather than a
+  precondition: with no git, this check adds nothing and the rest of the list is
+  unchanged.
+- **A break relative to N when the author forgot the bump.** The comparison is
+  against N−1, so a tightening that only tightens against N is invisible. That is
+  `E_VER_UNBUMPED`'s question, and it is unanswerable here for that check's own
+  reason — editing a file before committing it is authoring, not a violation.
+
+The check is conservative by instruction: `kinds/datamodel.md` says it "flags
+only changes that are unambiguously tightening", since full schema subsumption is
+undecidable and a semantic break — same name, same type, new meaning — is
+invisible to any checker. A clean build is evidence, not proof.
 
 ### `lib/catalog/measurements.ts` — measured facts in prose
 
@@ -750,20 +934,21 @@ breaks and repairs the rule passes, deliberately.
 
 ## 2. Specified but not implemented
 
-Nothing emits these — with three deliberate exceptions, marked **Half** where
-they appear. A rule with two clauses whose second needs the resolved catalog
-fires on the first and stays silent about the rest, which is more dangerous than
-plain silence if a green check is read as coverage. Everything here is a real
-rule of the specification, and a catalog can violate all of it with a green
-check. Verify by reading.
+Nothing emits these — and as of this release, "these" is the empty set of
+*codes*. What remains are the rules marked **Half**: a rule with two clauses
+whose second needs the resolved catalog fires on the first and stays silent about
+the rest, which is more dangerous than plain silence if a green check is read as
+coverage. Those halves are real rules of the specification, and a catalog can
+violate them with a green check. Verify by reading.
 
-**Seventeen classes, and it used to be forty-one.** Sixteen belong to the
-protocol kind and one to datamodels; the two-and-a-half journey rules are the
+**No classes at all, and it used to be forty-one.** Every group below is empty,
+and each says where its classes went; the two-and-a-half journey rules are the
 half-implemented remainder and carry no register line, because a register keyed
-by code cannot express half a rule. Four of the seven groups below are now empty,
-and each says where its classes went. The authority for the seventeen is
-`UNIMPLEMENTED` in `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`
-— re-read it rather than this prose if the two disagree.
+by code cannot express half a rule. Every code with a definition row in
+`framework/spec` now has an emitter — for the first time since this section was
+written. The authority is `UNIMPLEMENTED` in
+`framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`, which is
+correspondingly empty — re-read it rather than this prose if the two disagree.
 
 **Entity body and frontmatter**
 
@@ -773,7 +958,7 @@ the solution root — are `lib/adr/adr.ts`, `lib/requirement/requirement.ts` and
 `lib/structure/structure.ts`, and are listed under those headings in section 1.
 
 Two of the ADR classes changed **class** as well as coverage, by the manoeuvre
-`metric` established and `E_PROTO_PARTICIPANTS` below is still waiting for; the
+`metric` established and `E_PROTO_PARTICIPANTS` has since taken; the
 `lib/adr/adr.ts` entry in section 1 says how.
 
 **Structure and components**
@@ -785,49 +970,49 @@ listing) and not the kind. There is no `lib/component/`.
 
 **Protocols**
 
-The whole of what is left, bar one datamodel rule: sixteen classes, and every
-one of them is a rule `framework/spec/kinds/protocol.md` states and nothing runs.
+Nothing, and this was the group that held the whole of the section. Sixteen
+classes left it at once, in four modules, all listed in section 1:
 
-`E_PROTO_PARTICIPANTS` (≥ 2 — *enforced by `KIND_FRONTMATTER.protocol`'s
-`.min(2)` and reported as `E_FM_SCHEMA`; the spec's own class is never raised*),
-`E_PROTO_ALIAS_DUP`, `E_PROTO_PARTICIPANT_KIND`, `E_PROTO_PAYLOAD_KIND`,
-`E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
-`E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_SPEC_FILE`,
-`W_PROTO_ARTIFACT_UNKNOWN`, `W_PROTO_PARTICIPANT_MISSING`,
-`W_PROTO_PARTICIPANT_UNLINKED`, `W_PROTO_STYLE_MISMATCH`,
-`W_PROTO_WF_CHANNEL_UNKNOWN`.
+- `lib/protocol/transport-checks.ts` — the five `transport.yaml` classes, in both
+  dialects.
+- `lib/protocol/participants-checks.ts` — the five participant classes.
+- `lib/protocol/spec-file-checks.ts` — `E_PROTO_SPEC_FILE`,
+  `W_PROTO_SPEC_ASYNCAPI`, `W_PROTO_ARTIFACT_UNKNOWN`, `W_PROTO_STYLE_MISMATCH`.
+- `lib/protocol/payload-checks.ts` — `E_PROTO_PAYLOAD_KIND` and
+  `W_PROTO_WF_CHANNEL_UNKNOWN`.
 
-Three more arrived with the AsyncAPI dialect of the transport role (ADR 0017)
-and are unimplemented for exactly the reason the three `E_PROTO_TRANSPORT_*`
-classes above are: `E_PROTO_TRANSPORT_ASYNCAPI`, `W_PROTO_TRANSPORT_HOST` and
-`W_PROTO_SPEC_ASYNCAPI`. `lib/catalog/dialects.ts` carries the `asyncapi:` row,
-so an AsyncAPI `transport.yaml` is **detected** — it loads, records its dialect
-and keeps its native key — but nothing *reads* the document. The profile rules
-have a dialect to fire on and no reader to fire them.
+**Three of those rows were wrong about themselves, and in the same direction the
+`arazzo` grounding row was.** `W_PROTO_SPEC_ASYNCAPI` and
+`W_PROTO_WF_CHANNEL_UNKNOWN` both read "needs `transport.yaml` validated first,
+which nothing does". Neither needed it validated: one needs `spec.format` and
+`kind` read off a mapping, the other needs the surface list's names collected,
+and both documents were already parsed onto `artifact.data`. The third is
+`E_PROTO_PARTICIPANTS`, which needed a schema relaxed rather than a reader
+written.
 
-The `arazzo` role's grounding rule (ADR 0020) is **no longer on this list** —
-`lib/protocol/arazzo-grounding.ts` emits it, and its row is in section 1. It is
-worth one paragraph anyway, because of how it left: the release before this one
-listed it here and called half of it "blocked, behind a missing reader", which
-was wrong. The sibling `openapi.yaml` and `transport.yaml` were already *parsed*
-into `artifact.data` — the same fact the three `E_PROTO_TRANSPORT_*` rows above
-state — and every resolution the rule asks for is a key lookup or a JSON-pointer
-walk over an object already in hand. A gap described as unimplementable is a gap
-nobody tries, which is exactly what this section exists not to be.
+So the lesson this section kept re-learning is now a rule for writing an entry:
+**a gap phrased as a dependency on another unbuilt thing is the phrasing to
+distrust.** It is a claim about cost rather than about capability, it cannot be
+falsified while both halves are missing, and it is how two independent rules get
+filed as one blocked project. "Parsed and never validated" was a real obstacle
+for a rule that must judge a document's *shape*; it was never an obstacle for a
+rule that only has to look a name up in one. That distinction — the one this
+section drew a release ago about `arazzo.yaml` — applied to three of its own rows
+and went unnoticed for a release.
 
-That distinction still holds for the rows that remain. "Parsed and never
-validated" is a real obstacle for a rule that must judge a document's *shape*;
-it is no obstacle at all for a rule that only has to look a name up in one.
+What is **not** enforced about protocols is real, and cannot be a row here
+because this register is keyed by code and each of these is half a rule whose
+other half fires:
 
-The `participants` gap sharpened this release rather than closing, and the new
-shape is worth knowing because it looks like coverage and is not. **Three modules
-now resolve that list** — `lib/structure` to compute a protocol's nearest common
-ancestor, `lib/actor` to answer "does any conversation name this actor",
-`lib/journey/artifacts` to judge whether a step's protocol documents that hop —
-and each treats a participant it cannot resolve as somebody else's finding and
-moves on, correctly, because none of them owns the surface. The list is read
-three ways and judged by nobody: an alias declared twice, a participant that is a
-datamodel, and a participant no `exposes`/`uses` edge backs are all still silent.
+- W8 is `E_SRN_DANGLING` **or** `E_PROTO_PAYLOAD_KIND`, and only the second half
+  has an emitter. A payload reference resolving to a legal-but-absent SRN is
+  reported by nothing, on the workflow, mini-spec and AsyncAPI surfaces alike.
+- On the two *transport* payload surfaces, `E_SRN_SYNTAX`,
+  `E_SRN_CROSS_SOLUTION` and `E_SRN_ARTIFACT` have no owner either. The workflow
+  parser files them for a workflow `payload` only.
+
+Both live as `it.todo`s beside the clause that does fire, which is the same
+treatment the two-and-a-half journey rules below get and for the same reason.
 
 **Environments**
 
@@ -840,17 +1025,23 @@ anywhere requires one.
 
 **Data models**
 
-`E_DM_NOT_ADDITIVE` alone — the change tightens the schema and needs a swap
-rather than a version bump. It is not deferred for want of a branch: it is the
+Nothing. `E_DM_NOT_ADDITIVE` was the last row here and it is now
+`lib/datamodel/additive.ts`, listed in section 1. How it left is worth a
+paragraph, because the entry that stood here was not "unwritten" — it was
+"unanswerable", and that was the stronger claim and the wrong one. It read: the
 only rule in the spec that cannot be answered from any input the load pipeline
-has, because it diffs `schema.json` at version N−1 read out of **git** against the
-document on disk. `lib/history/git.ts` can fetch both halves (`resolveVersion`
-plus `readFileAtRevision`), and nothing in the load pipeline spawns git —
-`loadCatalog` is the pure filesystem→graph step and `metaframework check` never
-shells out. The working tree cannot substitute either: diffing it against the
-commit carrying the *current* version is `E_VER_UNBUMPED`'s question, not this
-one. The decidable part — the additive-change table in
-`kinds/datamodel.md` — is pure once the two documents are in hand.
+has. What was true is that the pipeline took no input that could answer it.
+Nothing stopped it taking another: `withEvolutionChecks` is an `async` fold, and
+`resolveVersion` plus `readFileAtRevision` were already sitting in
+`lib/history/git.ts` waiting to be called. A gap described as unanswerable is a
+gap nobody attempts — the same lesson the `arazzo` grounding rule left one
+release earlier, in the same section.
+
+The half of the old entry that survives is a *scope* limit rather than a
+blocker: diffing the working tree against the commit carrying the **current**
+version is `E_VER_UNBUMPED`'s question and still is, so a breaking edit that
+forgot its bump is compared against N−1 and can slip through. Section 1 says so
+under the check's own heading.
 
 The other three rows that lived here — the example-validity rule and the two
 warnings about how a model is used from outside — are `lib/datamodel/datamodel.ts`
@@ -893,10 +1084,10 @@ stand on the shipped exemplar catalogs, and that is the point of the severity
 rather than a defect in it: they describe a system still being built, not an
 error in its description.
 
-What is left in this section is almost entirely the protocol kind, and it stays
-author discipline until something reads `transport.yaml`. The `catalog-reviewer`
-agent covers it by reading rather than by running — invoke it when the check is
-green but confidence is not.
+What is left in this section is the half-rules above — the journey kind's three
+kind clauses, and the two payload-reference gaps under **Protocols**. Those stay
+author discipline. The `catalog-reviewer` agent covers them by reading rather
+than by running — invoke it when the check is green but confidence is not.
 
 
 ## 3. Retired codes

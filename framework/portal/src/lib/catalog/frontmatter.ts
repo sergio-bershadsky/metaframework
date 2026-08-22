@@ -215,6 +215,17 @@ export const KIND_FRONTMATTER = {
     abstract: z.boolean().optional(),
   }),
 
+  // `participants` is deliberately loose HERE for the reason adr's `date` and
+  // metric's `target` are, and it is the same half-step `deciders` takes. The
+  // spec gives "absent, or fewer than two entries" its own class,
+  // `E_PROTO_PARTICIPANTS` (kinds/protocol.md), and everything a kind schema
+  // rejects is reported as `E_FM_SCHEMA` — so while the cardinality lived here as
+  // `.min(2)` the class the spec names could never appear at all.
+  // `lib/protocol/participants-checks.ts` owns cardinality now, and reports it
+  // once. The ENTRY SHAPE stays: a `participants` that is not a list, an alias
+  // that is not kebab-case, a `ref` that is not a string are shape errors and
+  // remain E_FM_SCHEMA's, because that class means "there is no conversation
+  // here", not "that field is mistyped".
   protocol: z.object({
     participants: z
       .array(
@@ -224,7 +235,7 @@ export const KIND_FRONTMATTER = {
           role: kebab.max(32).optional(),
         }),
       )
-      .min(2, 'a protocol needs at least two participants'),
+      .optional(),
     style: z.enum(['point-to-point', 'bus', 'request-response']),
     'conforms-to': z
       .array(z.object({ standard: z.string().min(1), version: z.string().optional(), url: z.string().optional() }))

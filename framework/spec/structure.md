@@ -49,13 +49,13 @@ The consequence is that a directory listing anywhere in the catalog answers
 
 ```bash
 $ ls -d solutions/acme/*/                       # a solution holds buckets only
-actor  adr  datamodel  environment  product  protocol  requirement
+actor  adr  capability  datamodel  environment  journey  product  protocol  requirement
 
 $ ls -d solutions/acme/product/*/               # a bucket holds entities only
-billing  shop
+billing  fulfilment  growth  identity  shop
 
 $ ls -d solutions/acme/product/shop/*/          # a product holds buckets only
-adr  component  datamodel  protocol  requirement
+adr  component  datamodel  metric  protocol  requirement
 ```
 
 Nesting rules, all of them enforced by the SRN grammar (`E_SRN_PLACEMENT`, see
@@ -274,10 +274,8 @@ whether or not a warning names it.
 
 Every row below is a grammar rule, not a convention. A path that violates it has
 no SRN at all, so the loader reports `E_SRN_PLACEMENT` while reading the
-directory rather than after building the graph. Example paths are real entities
-in the fixture under `solutions/`, except the three marked **†** — `capability`,
-`journey` and `metric` are the newest kinds and no fixture entity of them exists
-yet, so those rows are illustrative.
+directory rather than after building the graph. Every example path is a real
+entity in the fixture under `solutions/`.
 
 | Kind          | Bucket may sit in                               | Example path                                                           |
 |---------------|-------------------------------------------------|------------------------------------------------------------------------|
@@ -285,12 +283,12 @@ yet, so those rows are illustrative.
 | `component`   | a product or a component                        | `solutions/acme/product/shop/component/checkout/component/payment/`    |
 | `actor`       | the solution, and nowhere else                  | `solutions/acme/actor/customer/`                                       |
 | `environment` | the solution, and nowhere else                  | `solutions/acme/environment/production/`                               |
-| `capability`  | the solution, and nowhere else                  | `solutions/acme/capability/order-fulfilment/` †                        |
-| `journey`     | the solution, and nowhere else                  | `solutions/acme/journey/place-an-order/` †                             |
+| `capability`  | the solution, and nowhere else                  | `solutions/acme/capability/order-fulfilment/`                          |
+| `journey`     | the solution, and nowhere else                  | `solutions/acme/journey/first-purchase/`                               |
 | `datamodel`   | the solution, a product, or a component         | `solutions/acme/product/shop/component/checkout/datamodel/cart/`       |
 | `adr`         | the solution, a product, or a component         | `solutions/acme/product/shop/adr/0001-event-sourcing/`                 |
 | `requirement` | the solution, a product, or a component         | `solutions/acme/product/shop/component/checkout/requirement/idem-cap/` |
-| `metric`      | the solution, a product, or a component         | `solutions/acme/product/shop/metric/checkout-conversion/` †            |
+| `metric`      | the solution, a product, or a component         | `solutions/acme/product/shop/metric/checkout-conversion/`              |
 | `protocol`    | the nearest common ancestor of its participants | `solutions/acme/product/shop/protocol/order-placement/`                |
 
 Rules:
@@ -366,7 +364,8 @@ Rules:
   protocol but do not affect placement — actors are solution-level, so counting
   them would degenerate every placement to the solution root.
 
-  All four fixture protocols, and the ancestor each one lands on:
+  Four fixture protocols, one per placement outcome (the catalog ships more),
+  and the ancestor each one lands on:
 
   ```text
   # participants: /product/shop/component/checkout, /product/shop/component/inventory,
@@ -982,10 +981,10 @@ srn://acme/product/shop/component/checkout/requirement/idem-cap
 
 ### The newest three, on disk
 
-`capability`, `journey` and `metric` have no fixture entities yet, so they are
-shown separately — the tree above is real, this one is illustrative. Nothing
-here is a new layout rule; the point is that three more buckets slot into the
-same alternation:
+`capability`, `journey` and `metric` are shown separately so that all three
+buckets fit one picture — the tree above is real, this one is illustrative and
+invents some of its names. Nothing here is a new layout rule; the point is that
+three more buckets slot into the same alternation:
 
 ```text
 solutions/

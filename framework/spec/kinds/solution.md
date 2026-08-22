@@ -130,14 +130,14 @@ These bind **solution, product, and component** alike.
 
 - **C2 — Only containers may hold child entities.** A container's children are
   **kind buckets and nothing else**; each bucket holds entity directories of
-  that kind. The six non-container kinds (datamodel, protocol, actor,
-  environment, adr, requirement) hold no entities at all: they may carry sibling
-  artifacts and asset subdirectories, but an `index.md` anywhere below one is
-  `E_STRUCT_NESTED_ENTITY` ([structure.md](../structure.md)). The grammar states
-  the same rule from the other side — only a `product` or `component` pair may
-  be followed by another pair, so
-  `srn://acme/datamodel/money/datamodel/currency` is `E_SRN_PLACEMENT`
-  ([srn.md](../srn.md)).
+  that kind. The nine non-container kinds (datamodel, protocol, actor,
+  environment, adr, requirement, capability, journey, metric) hold no entities
+  at all: they may carry sibling artifacts and asset subdirectories, but an
+  `index.md` anywhere below one is `E_STRUCT_NESTED_ENTITY`
+  ([structure.md](../structure.md)). The grammar states the same rule from the
+  other side — only a `product` or `component` pair may be followed by another
+  pair, so `srn://acme/datamodel/money/datamodel/currency` is
+  `E_SRN_PLACEMENT` ([srn.md](../srn.md)).
 
 - **C3 — A child's version is not the container's version.** `version` covers a
   container's own `index.md` and its own sibling artifacts only. Adding,
@@ -226,13 +226,13 @@ On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 
 ## Validation rules
 
-| #   | Rule                                                                                                | Error class                                 |
-|-----|-----------------------------------------------------------------------------------------------------|---------------------------------------------|
-| S1  | Every directory directly under `solutions/` contains an `index.md`.                                 | `E_SOL_NO_ROOT`                             |
-| S2  | That `index.md` declares `kind: solution` and `name` = directory name.                              | `E_FM_KIND_LOCATION` / `E_FM_NAME_MISMATCH` |
-| S3  | `vision` present; `scope`/`contacts` well-shaped if present.                                        | `E_FM_SCHEMA`                               |
-| S4  | No reference on any surface names a foreign solution.                                               | `E_SRN_CROSS_SOLUTION`                      |
-| S5  | No `actor`/`environment`/`component` bucket below solution level, and no `product` bucket above it. | `E_SRN_PLACEMENT`                           |
+| #  | Rule                                                                                                                       | Error class                                 |
+|----|----------------------------------------------------------------------------------------------------------------------------|---------------------------------------------|
+| S1 | Every directory directly under `solutions/` contains an `index.md`.                                                        | `E_SOL_NO_ROOT`                             |
+| S2 | That `index.md` declares `kind: solution` and `name` = directory name.                                                     | `E_FM_KIND_LOCATION` / `E_FM_NAME_MISMATCH` |
+| S3 | `vision` present; `scope`/`contacts` well-shaped if present.                                                               | `E_FM_SCHEMA`                               |
+| S4 | No reference on any surface names a foreign solution.                                                                      | `E_SRN_CROSS_SOLUTION`                      |
+| S5 | No `actor`/`environment`/`capability`/`journey`/`component` bucket below solution level, and no `product` bucket above it. | `E_SRN_PLACEMENT`                           |
 
 ```text
 S1  solutions/legacy-import/product/shop/index.md   # "legacy-import" has no

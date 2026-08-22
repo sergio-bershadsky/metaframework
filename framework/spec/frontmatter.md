@@ -323,7 +323,8 @@ Rules:
   The fence is contract-wide, not an edge rule only: `primary-actors` is fenced
   identically under its own class ([kinds/product.md](kinds/product.md)), and
   each kind document extends the fence to its own reference surfaces — a
-  participant's `ref` and the `payload`/`request`/`response` refs
+  participant's `ref`, the `payload`/`request`/`response`/`message` refs and an
+  AsyncAPI `x-srn-payload`
   ([kinds/protocol.md](kinds/protocol.md)), a topology's `component` refs and a
   config's `for` refs ([kinds/environment.md](kinds/environment.md)), a
   journey's `actor`, step `touches`, and step `protocol`

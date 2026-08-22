@@ -223,7 +223,7 @@ name), `kind` (MUST equal the bucket), `version` (integer), `title`, `summary`
 | `actor`       | `actor-type`, `goals` (≥ 1)                                             | —                   | goals verb-first, from the actor's side        |
 | `environment` | `environment-type`                                                      | —                   | —                                              |
 | `requirement` | `requirement-type`, `priority`                                          | —                   | `priority` is one of must/should/could/wont    |
-| `adr`         | `decision-status`, `date`; `deciders` once accepted/rejected/superseded | —                   | `decision-status: proposed` while arguing      |
+| `adr`         | `decision-status`, `date`; `deciders` once accepted/rejected            | —                   | `decision-status: proposed` while arguing      |
 | `capability`  | **none at all**                                                         | —                   | the common contract is the whole frontmatter   |
 | `journey`     | `actor`                                                                 | —                   | one SRN, not a list; the protagonist           |
 | `metric`      | `metric-type`, `target`, `window`, `direction`                          | —                   | quote `target` and `window`, always            |
@@ -518,10 +518,10 @@ table, the cascade rules, and what this check does not cover.
 ## Reference files
 
 - **`references/worked-examples.md`** — one complete `index.md` per kind, each
-  annotated with the decision it demonstrates. The seven older kinds are verbatim
-  from `solutions/acme/`; `capability`, `journey` and `metric` are verbatim from
-  their kind specifications, because no fixture entity of them exists yet. Read
-  it when writing a kind for the first time.
+  annotated with the decision it demonstrates. Every one is verbatim from
+  `solutions/acme/`, `capability`, `journey` and `metric` included, and
+  repo-hygiene byte-compares each against the catalog. Read it when writing a
+  kind for the first time.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/`** — the distilled
   specification: `srn.md`, `structure.md`, `frontmatter.md`, `environments.md`,
   `journeys.md`, `evolution.md`, `schemas.md`, `protocols.md`.

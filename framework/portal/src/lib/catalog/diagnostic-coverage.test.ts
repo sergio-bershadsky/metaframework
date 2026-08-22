@@ -2,19 +2,18 @@ import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { actorDiagnostics } from '../actor/actor'
-import { adrDiagnostics } from '../adr/adr'
-import { datamodelDiagnostics } from '../datamodel/datamodel'
-import { environmentDiagnostics } from '../environment/environment'
-import { journeyArtifactDiagnostics } from '../journey/artifacts'
 import { parseJourney } from '../journey/journey'
-import { requirementDiagnostics } from '../requirement/requirement'
-import { structureDiagnostics } from '../structure/structure'
-import { configContractDiagnostics, readConfigContracts } from '../schema/config-contract'
-import { buildSchemaBundle, buildSchemaRegistry, effectiveModel } from '../schema/registry'
+import { buildSchemaBundle, effectiveModel } from '../schema/registry'
+import {
+  withArtifactChecks,
+  withDatamodelChecks,
+  withEnvironmentChecks,
+  withKindChecks,
+  withProseChecks,
+  withSchemaRegistry,
+} from './index'
 import { catalogListings } from './listings'
 import { loadCatalog } from './load'
-import { measurementDiagnostics } from './measurements'
 import type { Catalog } from './types'
 
 /**
@@ -107,6 +106,21 @@ async function codesIn(file: string): Promise<string[]> {
  * it. The list is a debt register, not an exemption: the inventory suite fails
  * the moment an entry gains an emitter, so implementing a rule forces its line
  * out of this map.
+ *
+ * **Empty**, and for the first time since the register was written: every code
+ * with a definition row in `framework/spec` has an emitter. The comments below
+ * are kept deliberately — each one records what a whole family's gap turned out
+ * to be, and the three recurring shapes ("a missing input, not a missing
+ * branch", "the rule is enforced under the wrong class", "blocked on another
+ * unbuilt thing" — which was false all three times it was written) are the ones
+ * to check a new entry against.
+ *
+ * An empty register is not an idle one. It is the only gate that answers "does
+ * the portal enforce what the spec publishes", it is total over the spec by
+ * construction rather than by a list kept here, and it goes red the moment a
+ * kind document defines a class nothing raises — which is what writing a rule
+ * ahead of its reader looks like, and is a legitimate thing to do so long as the
+ * row lands here with it.
  */
 const UNIMPLEMENTED: Record<string, string> = {
   // --- journey ---------------------------------------------------------------
@@ -125,68 +139,52 @@ const UNIMPLEMENTED: Record<string, string> = {
   // in the two `it.todo`s that name it, next to the tests for the clause that
   // does fire.
 
-  // --- protocol: the rules protocol.md states and nothing runs ---------------
+  // --- protocol ---------------------------------------------------------------
+  // Empty, and it held sixteen rows — over half this register — until the four
+  // modules under `lib/protocol/` that now own them landed together:
+  // `participants-checks.ts`, `payload-checks.ts`, `spec-file-checks.ts` and
+  // `transport-checks.ts`. All thirty-one classes in kinds/protocol.md's table
+  // have an emitter.
   //
-  // The `participants` rows below no longer say "nothing reads `participants`",
-  // because three modules now do: `lib/structure` resolves the list to compute a
-  // protocol's nearest common ancestor, `lib/actor` reads it to answer "does any
-  // conversation name this actor", and `lib/journey/artifacts` reads it to judge
-  // whether a step's protocol documents that hop. Each of them treats a
-  // participant it cannot resolve as somebody else's finding and moves on —
-  // correctly, because none of them owns this surface. The gap is now precisely
-  // that: the list is read three ways and judged by none of them.
+  // Three of the retired rows were wrong about themselves in the same direction
+  // `W_PROTO_ARAZZO_UNGROUNDED`'s was, and the pattern is now three for three,
+  // so it is worth stating as a rule rather than as another apology.
+  // `W_PROTO_SPEC_ASYNCAPI` and `W_PROTO_WF_CHANNEL_UNKNOWN` both said "needs
+  // transport.yaml validated first, which nothing does". Neither needs it
+  // validated. `W_PROTO_SPEC_ASYNCAPI` needs `spec.format` and `kind` read off a
+  // mapping, and `W_PROTO_WF_CHANNEL_UNKNOWN` needs the surface list's names
+  // collected — both are `Object.keys()` on a document the loader had already
+  // parsed onto `artifact.data`. **A gap phrased as a dependency on another
+  // unbuilt thing is the phrasing to distrust**: it is a claim about cost, it is
+  // unfalsifiable while both halves are missing, and it is how two independent
+  // rules get filed as one blocked project. The register's own standard — "an
+  // implementable gap listed as an unimplementable one is how a gap stops being
+  // worked on" — is now the thing to check an entry against before writing it,
+  // not after.
   //
-  // `E_PROTO_PARTICIPANTS` is a different shape of gap again, and the same one
-  // `E_ADR_DATE` and `E_ADR_DECIDERS` were in until this run: the rule IS
-  // enforced — `KIND_FRONTMATTER.protocol` carries `.min(2)` — but everything a
-  // kind schema rejects is reported as `E_FM_SCHEMA`, so the class the spec names
-  // for it never appears. Fixing it is the `metric` manoeuvre: relax the schema,
-  // raise the class from a kind check.
-  E_PROTO_PARTICIPANTS: 'the rule is enforced by KIND_FRONTMATTER.protocol’s .min(2) and reported as E_FM_SCHEMA; the spec’s own class is never raised',
-  E_PROTO_ALIAS_DUP: 'the aliases are read (as a workflow’s address space) and never compared with each other',
-  E_PROTO_PARTICIPANT_KIND: 'three modules resolve participant refs and each skips what it cannot use; nothing owns the surface and kind-checks it',
-  E_PROTO_PAYLOAD_KIND: '`payloadReferences` (lib/datamodel) already collects exactly this set of refs; nothing kind-checks them',
-  E_PROTO_SPEC_FILE: 'nothing inspects a protocol entity directory for the files protocol.md pins — the listing that JRN4/JRN9 use (lib/catalog/listings.ts) is taken for journeys only',
-  E_PROTO_TRANSPORT_SCHEMA: 'transport.yaml is parsed into artifact.data and never validated',
-  E_PROTO_TRANSPORT_BINDING: 'transport.yaml is parsed into artifact.data and never validated',
-  E_PROTO_TRANSPORT_SPEC_CONFLICT: 'transport.yaml is parsed into artifact.data and never validated',
-  // The AsyncAPI dialect of the transport role (ADR 0017). `dialects.ts` now
-  // carries the `asyncapi:` row, so the dialect is *detected* — an AsyncAPI
-  // transport.yaml loads, records `dialect.key: 'asyncapi'` and keeps its native
-  // key. What is still missing is the same thing missing from the three rows
-  // above: nothing reads the document. The six profile rules and the host rule
-  // therefore have a dialect to fire on and no reader to fire them.
-  E_PROTO_TRANSPORT_ASYNCAPI: 'the AsyncAPI dialect is detected and never read; nothing validates transport.yaml',
-  W_PROTO_TRANSPORT_HOST: 'nothing reads `servers` out of an AsyncAPI transport.yaml',
-  W_PROTO_SPEC_ASYNCAPI: 'needs transport.yaml validated first, which nothing does',
-  W_PROTO_ARTIFACT_UNKNOWN: 'nothing inspects a protocol entity directory for unrecognised files; JRN9 is the same rule on the journey kind and now has a reader to copy',
-  // `W_PROTO_ARAZZO_UNGROUNDED` was here, and its retirement is worth a note
-  // because the entry was wrong about itself in the direction that matters.
+  // `E_PROTO_PARTICIPANTS` retired by the manoeuvre its old row named:
+  // `KIND_FRONTMATTER.protocol` gave up `.min(2)` for `.optional()` and
+  // `participants-checks.ts` raises the class the spec names. The entry *shape*
+  // stays in zod, so a non-list `participants` or a non-kebab alias is still
+  // `E_FM_SCHEMA` — only cardinality moved, which is the same half-step
+  // `deciders` and `date` took for the ADR kind.
   //
-  // It called clause 1 (the source url names a sibling) "not blocked —
-  // unwritten" and clause 2 (every operation, channel or workflow a step names
-  // resolves) "genuinely blocked: it needs the sibling openapi.yaml /
-  // transport.yaml *interpreted*". Clause 2 was not blocked. The two grounding
-  // documents were already parsed objects on `entity.artifacts[].data`, and
-  // every resolution the rule asks for is a key lookup or a JSON-pointer walk —
-  // no AsyncAPI or OpenAPI validator, no schema, no dependency. What clause 2
-  // needed was a reader, and the reader was `Object.keys()`.
+  // What is still not enforced is real but is not expressible here, because this
+  // register is keyed by code and each of these is half of a rule whose other
+  // half fires:
   //
-  // By this register's own standard — "an implementable gap listed as an
-  // unimplementable one is how a gap stops being worked on" — that entry was the
-  // failure it warns about, and it sat here for a release. The lesson is in the
-  // wording, not the code: "needs X interpreted" is a claim about cost, and a
-  // claim about cost belongs beside a look at what the pipeline already holds.
+  // - W8 (`kinds/protocol.md`) is `E_SRN_DANGLING` **or**
+  //   `E_PROTO_PAYLOAD_KIND`. Only the second half has an emitter: a payload ref
+  //   that resolves to a legal-but-absent SRN is reported by nothing, on the
+  //   workflow, mini-spec and AsyncAPI surfaces alike. `E_SRN_DANGLING` is
+  //   emitted elsewhere, so it cannot be listed above.
+  // - On the two *transport* payload surfaces, `E_SRN_SYNTAX`,
+  //   `E_SRN_CROSS_SOLUTION` and `E_SRN_ARTIFACT` have no owner either;
+  //   `parseWorkflow` files them for a workflow `payload` only.
   //
-  // `lib/protocol/arazzo-grounding.ts` is the emitter; the rule stays exactly as
-  // narrow as the spec states it, which is why the three `E_PROTO_TRANSPORT_*`
-  // rows above are untouched. Grounding reads a `channels` or `operations` key
-  // out of a transport document; it validates nothing in one, and a transport in
-  // a dialect it cannot read is left to whoever eventually writes that reader.
-  W_PROTO_PARTICIPANT_MISSING: 'the `exposes`/`uses` back-edges and the participant list both resolve; nothing joins one against the other',
-  W_PROTO_PARTICIPANT_UNLINKED: 'the same join, read from its other end',
-  W_PROTO_STYLE_MISMATCH: '`style` frontmatter is never compared with the workflows beneath it',
-  W_PROTO_WF_CHANNEL_UNKNOWN: 'needs transport.yaml validated first, which nothing does',
+  // Both live as `it.todo`s in `lib/protocol/payload-checks.test.ts`, next to the
+  // clause that does fire — the JRN11/JRN12 precedent this register already
+  // cites twenty lines up.
 
   // --- environment ----------------------------------------------------------
   // Empty, and it used to hold seven rows all saying the same thing:
@@ -205,23 +203,19 @@ const UNIMPLEMENTED: Record<string, string> = {
   // `lib/catalog/index.ts`'s `withKindChecks` is where they join the pipeline.
 
   // --- datamodel ------------------------------------------------------------
-  // One row left of four. `E_DM_EXAMPLE_INVALID`, `W_DM_ABSTRACT_USE` and
-  // `W_DM_USAGE_MISMATCH` are `lib/datamodel/datamodel.ts`.
+  // Empty, and the last row out was the one this register described as
+  // unanswerable rather than merely unwritten. `E_DM_NOT_ADDITIVE` is
+  // `lib/datamodel/additive.ts`: the diff is pure and the two documents come from
+  // `resolveVersion` + `readFileAtRevision`, folded in by `withEvolutionChecks`
+  // — the pipeline's one async step, and the one place it spawns git. The claim
+  // that stood here, "cannot be answered from any input the load pipeline has",
+  // was true only of the inputs the pipeline then took; nothing stopped it
+  // taking another. It is listed in UNREACHABLE_FROM_DISK below, which is a
+  // different statement: the code fires, and a fixture with no history is not
+  // where it can be seen doing it.
   //
-  // This one is not deferred for want of a branch — it is the only rule in the
-  // spec that cannot be answered from any input the load pipeline has. It
-  // compares version N read from **git** against N+1 on disk (kinds/datamodel.md,
-  // "What the portal checks mechanically"), and `loadCatalog` is the pure
-  // filesystem→graph step: `metaframework check` never spawns git. The working
-  // tree cannot substitute either — diffing the tree against the commit carrying
-  // the *current* version is `E_VER_UNBUMPED`'s question, not this one. What it
-  // needs is `resolveVersion` + `readFileAtRevision` (both already in
-  // lib/history/git.ts, both async, both spawning git), a new async fold after
-  // `withSchemaRegistry`, and `HistoryUnavailable` meaning silence. The
-  // decidable diff itself — the eight rows of datamodel.md's additive table — is
-  // pure once the two documents are in hand.
-  E_DM_NOT_ADDITIVE:
-    'the only rule needing git: it diffs schema.json at version N-1 against the working tree. lib/history can fetch both (resolveVersion + readFileAtRevision) but nothing in the load pipeline spawns git, and a hermetic temp fixture has no history to read',
+  // `E_DM_EXAMPLE_INVALID`, `W_DM_ABSTRACT_USE` and `W_DM_USAGE_MISMATCH` are
+  // `lib/datamodel/datamodel.ts`.
 }
 
 /**
@@ -262,6 +256,28 @@ const PIPELINE_MODULES = [
   'src/lib/structure/structure.ts',
   'src/lib/journey/artifacts.ts',
   'src/lib/datamodel/datamodel.ts',
+  'src/lib/protocol/participants-checks.ts',
+  'src/lib/protocol/payload-checks.ts',
+  'src/lib/protocol/spec-file-checks.ts',
+  // The transport reader. Unlike the three rows above it is not a kind
+  // discipline — it judges one parsed file against a grammar — so it joins
+  // through `withArtifactChecks` rather than `withKindChecks`, and the fixture
+  // below runs `artifactDiagnostics` for it.
+  //
+  // It is the ONLY module reached that way that is listed here, and that is a
+  // known narrowness rather than a ruling: `arazzo-grounding.ts`, `workflow.ts`,
+  // `states.ts` and `journey.ts` also reach `catalog.diagnostics` through
+  // `withArtifactChecks` and are absent from this list, so their codes are
+  // outside the "accounts for every code" guard below. They are covered by the
+  // inventory suite's weaker "some test names this code" assertion and by their
+  // own parser suites. Adding them here is right and is a piece of work of its
+  // own — roughly twenty codes, each owing a named violation in the fixture.
+  'src/lib/protocol/transport-checks.ts',
+  // The additive-only rule, folded in by `withEvolutionChecks`. The only module
+  // in this list that reads a commit rather than the working tree, and it is
+  // here for the same reason the rest are: without the row, a code added to it
+  // would never reach PIPELINE_CODES and the guard below would pass on silence.
+  'src/lib/datamodel/additive.ts',
   // The prose discipline (ADR 0018), folded in by `withProseChecks`. Not a kind
   // discipline — it reads sentences rather than the graph, and it applies to
   // every kind — but it reaches catalog.diagnostics by the same route and so
@@ -801,6 +817,315 @@ beforeAll(async () => {
     }),
   )
 
+  // --- protocol: the four disciplines under lib/protocol --------------------
+  //
+  // One protocol entity per class, named for the defect, because a protocol is
+  // the kind with the most classes in the spec (thirty-one) and a fixture that
+  // piled them onto one entity would stop being readable as a demonstration.
+  //
+  // Two of these codes also fire *incidentally* elsewhere in this fixture, and
+  // that is not what proves them: `W_PROTO_PARTICIPANT_UNLINKED` arises wherever
+  // a fixture protocol names participants without authoring the back-edges (it
+  // does, on `order-events` and `cross-talk`), and the assertions below are
+  // pinned to the entity that carries the deliberate violation.
+
+  // E_PROTO_PARTICIPANTS — a conversation with one side. The class exists
+  // separately from E_FM_SCHEMA precisely so this reads as "a protocol needs two
+  // participants" rather than as a schema complaint about a list length.
+  await entity(
+    'acme/product/shop/protocol/monologue',
+    base('monologue', 'protocol', {
+      participants: [{ alias: 'checkout', ref: '/product/shop/component/checkout' }],
+    }),
+  )
+
+  // E_PROTO_ALIAS_DUP — one alias, two participants. Compared as authored: an
+  // alias differing only in case is E_FM_SCHEMA's (the kebab pattern), so this
+  // class is only ever the exact collision.
+  await entity(
+    'acme/product/shop/protocol/two-checkouts',
+    base('two-checkouts', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'checkout', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+
+  // E_PROTO_PARTICIPANT_KIND — a datamodel cannot hold a conversation. The
+  // legal-but-wrong kinds are the whole class; an illegal artifact suffix on the
+  // same field is E_SRN_ARTIFACT, which V5 raises before any surface sees it.
+  await entity(
+    'acme/product/shop/protocol/talks-to-a-schema',
+    base('talks-to-a-schema', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'money', ref: '/product/shop/datamodel/money' },
+      ],
+    }),
+  )
+
+  // W_PROTO_PARTICIPANT_UNLINKED — the join read from the protocol's end.
+  // `checkout` carries the back-edge and `inventory` does not, so exactly one of
+  // the two sides warns and the fixture shows both halves of the rule at once.
+  await entity(
+    'acme/product/shop/protocol/one-sided',
+    base('one-sided', 'protocol', {
+      participants: [
+        { alias: 'listener', ref: '/product/shop/component/listener' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await entity(
+    'acme/product/shop/component/listener',
+    base('listener', 'component', { relations: { uses: ['/product/shop/protocol/one-sided'] } }),
+  )
+
+  // W_PROTO_PARTICIPANT_MISSING — the same join read from the other end: a
+  // component that says it uses the protocol, and a protocol that has not heard
+  // of it. Identity, not containment — the rule is stated over "a component or
+  // product that exposes/uses this protocol", with no clause about a parent
+  // standing in for a child.
+  await entity(
+    'acme/product/shop/protocol/closed-list',
+    base('closed-list', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await entity(
+    'acme/product/shop/component/eavesdropper',
+    base('eavesdropper', 'component', { relations: { uses: ['/product/shop/protocol/closed-list'] } }),
+  )
+
+  // E_PROTO_PAYLOAD_KIND — a step whose payload names a component. The workflow
+  // itself is well-formed, so nothing here is E_PROTO_WF_SCHEMA's: the document
+  // parses, and what it says is wrong.
+  await entity(
+    'acme/product/shop/protocol/wrong-payload',
+    base('wrong-payload', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/wrong-payload',
+    'workflows/reserve.yaml',
+    [
+      'name: reserve',
+      'title: Reserve stock',
+      'steps:',
+      '  - message: reserve-stock',
+      '    from: checkout',
+      '    to: inventory',
+      '    kind: event',
+      '    payload: /product/shop/component/checkout',
+      '',
+    ].join('\n'),
+  )
+
+  // W_PROTO_WF_CHANNEL_UNKNOWN — a step naming a channel the transport does not
+  // offer. The transport declares a surface list, which is what makes the rule
+  // answerable: with nothing to check against the rule is skipped rather than
+  // warned, and that skip is asserted in payload-checks.test.ts.
+  await entity(
+    'acme/product/shop/protocol/wrong-channel',
+    base('wrong-channel', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/wrong-channel',
+    'transport.yaml',
+    ['kind: kafka', 'kafka:', '  topics:', '    - name: acme.shop.reserved.v1', ''].join('\n'),
+  )
+  await artifact(
+    'acme/product/shop/protocol/wrong-channel',
+    'workflows/reserve.yaml',
+    [
+      'name: reserve',
+      'title: Reserve stock',
+      'steps:',
+      '  - message: reserve-stock',
+      '    from: checkout',
+      '    to: inventory',
+      '    kind: event',
+      '    channel: acme.shop.no-such-topic.v1',
+      '',
+    ].join('\n'),
+  )
+
+  // E_PROTO_SPEC_FILE — a link out of the entity directory. Absolute, escaping
+  // and absent are one class; escaping is the one a listing cannot rescue.
+  await entity(
+    'acme/product/shop/protocol/escaping-link',
+    base('escaping-link', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/escaping-link',
+    'transport.yaml',
+    ['kind: http', 'http:', '  base-path: /v1', 'spec:', '  format: openapi', '  file: ../order-events/openapi.yaml', ''].join('\n'),
+  )
+
+  // W_PROTO_SPEC_ASYNCAPI — a kafka transport linking an AsyncAPI document
+  // instead of adopting the dialect that role admits. The linked file is really
+  // there, so this is the warning alone and not E_PROTO_SPEC_FILE beside it —
+  // and being linked is also what stops it drawing W_PROTO_ARTIFACT_UNKNOWN.
+  await entity(
+    'acme/product/shop/protocol/linked-asyncapi',
+    base('linked-asyncapi', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/linked-asyncapi',
+    'transport.yaml',
+    ['kind: kafka', 'kafka:', '  cluster: main', 'spec:', '  format: asyncapi', '  file: side-copy.yaml', ''].join('\n'),
+  )
+  await artifact('acme/product/shop/protocol/linked-asyncapi', 'side-copy.yaml', 'asyncapi: 3.1.0\n')
+
+  // W_PROTO_ARTIFACT_UNKNOWN — the protocol kind's JRN9. The sibling names are
+  // bare and fixed, so a plausible-looking file the portal will never read is
+  // exactly what this catches.
+  await entity(
+    'acme/product/shop/protocol/littered',
+    base('littered', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact('acme/product/shop/protocol/littered', 'order-placement.transport.yaml', 'kind: kafka\n')
+
+  // W_PROTO_STYLE_MISMATCH — `style: bus` over a workflow that names a callee.
+  await entity(
+    'acme/product/shop/protocol/calling-bus',
+    base('calling-bus', 'protocol', {
+      style: 'bus',
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/calling-bus',
+    'workflows/ask.yaml',
+    ['name: ask', 'title: Ask for stock', 'steps:', '  - message: check-stock', '    from: checkout', '    to: inventory', '    kind: call', ''].join('\n'),
+  )
+
+  // E_PROTO_TRANSPORT_SCHEMA — a key the top-level field table does not admit.
+  // The six binding blocks are known keys and belong to the BINDING class, which
+  // is why the unknown one here is not one of them.
+  await entity(
+    'acme/product/shop/protocol/odd-key',
+    base('odd-key', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/odd-key',
+    'transport.yaml',
+    ['kind: http', 'http:', '  base-path: /v1', 'retries: 3', ''].join('\n'),
+  )
+
+  // E_PROTO_TRANSPORT_BINDING — `kind` names a wire and no block describes it.
+  await entity(
+    'acme/product/shop/protocol/no-binding',
+    base('no-binding', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact('acme/product/shop/protocol/no-binding', 'transport.yaml', 'kind: http\n')
+
+  // E_PROTO_TRANSPORT_SPEC_CONFLICT — the linked spec and the surface list are
+  // two answers to "where does operation truth live", and the document must pick.
+  await entity(
+    'acme/product/shop/protocol/two-truths',
+    base('two-truths', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/two-truths',
+    'transport.yaml',
+    [
+      'kind: http',
+      'http:',
+      '  base-path: /v1',
+      '  operations:',
+      '    - name: place-order',
+      '      method: POST',
+      '      path: /orders',
+      'spec:',
+      '  format: openapi',
+      '  file: openapi.yaml',
+      '',
+    ].join('\n'),
+  )
+  await artifact('acme/product/shop/protocol/two-truths', 'openapi.yaml', 'openapi: 3.1.0\n')
+
+  // E_PROTO_TRANSPORT_ASYNCAPI and W_PROTO_TRANSPORT_HOST — the other dialect of
+  // the same role (ADR 0017), so this document is read by the profile rules
+  // rather than by the field table above. `info.version` breaks rule 3, and the
+  // server names a machine: the second is a warning because a literal host is a
+  // true statement in the wrong file, while a missing `x-srn` or a wrong title
+  // makes the artifact unreadable away from its directory.
+  await entity(
+    'acme/product/shop/protocol/loud-host',
+    base('loud-host', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'inventory', ref: '/product/shop/component/inventory' },
+      ],
+    }),
+  )
+  await artifact(
+    'acme/product/shop/protocol/loud-host',
+    'transport.yaml',
+    [
+      'asyncapi: 3.1.0',
+      'x-srn: srn://acme/product/shop/protocol/loud-host',
+      'info:',
+      '  title: loud-host',
+      '  version: 1.0.0',
+      'servers:',
+      '  broker:',
+      '    protocol: kafka',
+      '    host: kafka-01.prod.acme.internal:9092',
+      'channels:',
+      '  orderPlaced:',
+      '    address: acme.shop.order-placed.v1',
+      '',
+    ].join('\n'),
+  )
+
   // --- adr ------------------------------------------------------------------
   // Every ADR here also carries E_ADR_SECTIONS: the default body is one
   // paragraph, so all four canonical headings are missing and each is its own
@@ -899,12 +1224,25 @@ beforeAll(async () => {
     'schema.json',
     schema('acme/product/shop/datamodel/ledger-entry'),
   )
+  // A *correct* mini-spec kafka document, and it has to be: since
+  // `transport-checks.ts` landed this file is read against the field table, and
+  // a header-less document that also breaks the grammar would stop being a
+  // demonstration of `W_ARTIFACT_DIALECT` ("still checked against the legacy
+  // grammar: nothing in this rule can make a catalog that loads today stop
+  // loading" — structure.md) and become a pile of transport errors on the entity
+  // this suite uses as its well-formed protocol. The surface list lives inside
+  // the `kafka:` block, which is where the binding table puts it.
   await artifact(
     'acme/product/shop/protocol/order-events',
     'transport.yaml',
-    ['kind: kafka', 'channels:', '  - name: order-placed', '    message: /product/shop/datamodel/ledger-entry', ''].join(
-      '\n',
-    ),
+    [
+      'kind: kafka',
+      'kafka:',
+      '  topics:',
+      '    - name: order-placed',
+      '      message: /product/shop/datamodel/ledger-entry',
+      '',
+    ].join('\n'),
   )
 
   // --- journey: the rules about the directory, not the document -------------
@@ -937,38 +1275,25 @@ beforeAll(async () => {
   await artifact('acme/journey/side-quest', 'steps.txt', 'Not a file this kind defines.\n')
 
   catalog = await loadCatalog({ catalogDir })
-  const registry = buildSchemaRegistry(catalog)
+
+  // **Composed through the real folds, not by calling the modules.** This block
+  // used to invoke `adrDiagnostics(catalog)`, `structureDiagnostics(...)` and the
+  // rest one by one, and that answered the wrong question: it proved each module
+  // emits its codes, and proved nothing about whether `load()` ever calls it. A
+  // module deleted from `withKindChecks` left this suite green — the register
+  // would then say a rule was implemented while the pipeline ran none of it,
+  // which is the exact failure the register exists to prevent, one layer down.
+  //
+  // So the fixture now goes through `./index.ts`'s own folds, in `load()`'s
+  // order. Every code below is therefore evidence of two things at once: the
+  // rule fires on a violation, and the pipeline reaches the rule.
+  const listings = await catalogListings(catalogDir, catalog)
+  const composed = withKindChecks(withProseChecks(withArtifactChecks(catalog)), listings)
+  const { catalog: withModels, registry } = withDatamodelChecks(withSchemaRegistry(composed))
+  const { catalog: full } = withEnvironmentChecks({ catalog: withModels, registry })
 
   fired = new Set<string>()
-  for (const diagnostic of [...catalog.diagnostics, ...registry.diagnostics]) fired.add(diagnostic.code)
-  // The kind disciplines, collected the way `lib/catalog/index.ts` collects them
-  // — `withKindChecks` over the resolved catalog plus the two directory
-  // listings, then `withDatamodelChecks` once the registry exists. The listings
-  // are the input three of these rules cannot be answered without: a symlinked
-  // directory, a solution root with no document, and a file the loader chose not
-  // to read are all absences from the entity graph.
-  const listings = await catalogListings(catalogDir, catalog)
-  for (const diagnostic of [
-    ...adrDiagnostics(catalog),
-    ...requirementDiagnostics(catalog),
-    ...actorDiagnostics(catalog),
-    ...structureDiagnostics(catalog, listings.directories),
-    ...journeyArtifactDiagnostics(catalog, listings.journeys),
-    ...datamodelDiagnostics(catalog, registry),
-    // Not a kind discipline, and folded in by its own step (`withProseChecks`):
-    // it reads the sentences of every kind and needs neither a second entity nor
-    // a listing.
-    ...measurementDiagnostics(catalog),
-  ]) {
-    fired.add(diagnostic.code)
-  }
-  // The config contract and the environment artifacts are folded in after the
-  // registry exists, because four of the environment rules read a datamodel's
-  // flattened schema (lib/catalog/index.ts, `withEnvironmentChecks`). Collected
-  // here exactly as the portal collects them.
-  const contracts = readConfigContracts(catalog, registry)
-  for (const diagnostic of configContractDiagnostics(catalog, registry)) fired.add(diagnostic.code)
-  for (const diagnostic of environmentDiagnostics(catalog, contracts)) fired.add(diagnostic.code)
+  for (const diagnostic of [...full.diagnostics, ...registry.diagnostics]) fired.add(diagnostic.code)
   // The two datamodel warnings are computed per schema *view* rather than during
   // registry construction, so they are collected the way the portal collects
   // them: by asking for the view.
@@ -1067,6 +1392,22 @@ const PIPELINE_CODES = [
   'E_JRN_ARTIFACT_MISSING',
   'W_JRN_ARTIFACT_UNKNOWN',
   'W_JRN_PROTOCOL_UNRELATED',
+  'E_PROTO_PARTICIPANTS',
+  'E_PROTO_ALIAS_DUP',
+  'E_PROTO_PARTICIPANT_KIND',
+  'W_PROTO_PARTICIPANT_UNLINKED',
+  'W_PROTO_PARTICIPANT_MISSING',
+  'E_PROTO_PAYLOAD_KIND',
+  'W_PROTO_WF_CHANNEL_UNKNOWN',
+  'E_PROTO_SPEC_FILE',
+  'W_PROTO_SPEC_ASYNCAPI',
+  'W_PROTO_ARTIFACT_UNKNOWN',
+  'W_PROTO_STYLE_MISMATCH',
+  'E_PROTO_TRANSPORT_SCHEMA',
+  'E_PROTO_TRANSPORT_BINDING',
+  'E_PROTO_TRANSPORT_SPEC_CONFLICT',
+  'E_PROTO_TRANSPORT_ASYNCAPI',
+  'W_PROTO_TRANSPORT_HOST',
   'W_PROSE_MEASUREMENT',
   'W_ADR_MEASUREMENT',
 ] as const
@@ -1087,6 +1428,8 @@ const UNREACHABLE_FROM_DISK: Record<string, string> = {
     'the same reason, one step further: this compares two COMMITS of an entity directory, so it is not merely unreachable from a fixture with no history — it is undecidable from disk at all. Content that changed without a version bump looks exactly like content that never changed. Its own tests build real repositories in git.test.ts',
   'E_SRN_VERSION':
     'V8 is "the pin resolves to no commit", which only lib/history can answer — a temp fixture has no history. A pin that resolves but has fallen behind is W_REF_STALE_PIN, and the fixture does fire that',
+  'E_DM_NOT_ADDITIVE':
+    'it compares the working tree against the COMMIT carrying version N−1, so a fixture with no history has no previous version to be a superset of. Unlike E_VER_UNBUMPED the rule is decidable from two documents — the diff is a pure function — and additive.test.ts drives it both ways: with object literals for each row of the mechanical table, and against real repositories for the git half',
 }
 
 describe('diagnostic emission — every pipeline code fires on the fixture', () => {
