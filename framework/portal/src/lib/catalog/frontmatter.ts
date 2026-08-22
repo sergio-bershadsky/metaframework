@@ -240,19 +240,27 @@ export const KIND_FRONTMATTER = {
     'environment-type': z.enum(['dev', 'staging', 'production', 'edge', 'local']),
   }),
 
-  adr: z
-    .object({
-      'decision-status': z.enum(['proposed', 'accepted', 'rejected', 'superseded']),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be an ISO-8601 date, YYYY-MM-DD'),
-      deciders: z.array(z.string().min(1)).optional(),
-    })
-    // Who decided is only meaningful once a decision has actually been taken.
-    .refine(
-      (value) =>
-        !['accepted', 'rejected', 'superseded'].includes(value['decision-status']) ||
-        (value.deciders?.length ?? 0) > 0,
-      { error: 'deciders is required and non-empty once a decision is accepted, rejected or superseded' },
-    ),
+  // adr's `date` and `deciders` are deliberately loose HERE for the same reason
+  // metric's `target` and `window` are, and the comment on that kind states the
+  // rule this follows: everything a kind schema rejects is `E_FM_SCHEMA`, and the
+  // spec gives both of these violations their own codes — `E_ADR_DATE` and
+  // `E_ADR_DECIDERS` (kinds/adr.md). `lib/adr/adr.ts` owns them.
+  //
+  // `date: z.unknown()` rather than a string pattern because the kind document
+  // admits BOTH spellings and YAML 1.2 decides which one an author gets: its own
+  // worked example writes `date: 2026-03-11` unquoted, which is a timestamp and
+  // reaches the loader as a `Date`. A string pattern rejected the spec's own
+  // example as `E_FM_SCHEMA`, and reported a malformed date twice under two codes.
+  //
+  // `deciders` keeps its TYPE — a wrongly-typed field is a shape error and stays
+  // E_FM_SCHEMA's — and loses the `.refine()`, which demanded deciders of
+  // `superseded` as well. No spec rule authorizes that: ADR3 and the error-class
+  // table both name exactly `accepted` and `rejected`.
+  adr: z.object({
+    'decision-status': z.enum(['proposed', 'accepted', 'rejected', 'superseded']),
+    date: z.unknown(),
+    deciders: z.array(z.string().min(1)).optional(),
+  }),
 
   requirement: z.object({
     'requirement-type': z.enum(['functional', 'non-functional']),

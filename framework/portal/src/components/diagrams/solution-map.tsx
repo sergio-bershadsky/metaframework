@@ -30,6 +30,8 @@ import {
   fittedLayout,
   type MapExtent,
   MAP_NODE,
+  childrenOf,
+  hiddenCounts,
   MAX_DEPTH,
   MIN_ZOOM,
   NODE_SEPARATION,
@@ -218,48 +220,6 @@ function branchOf(
   return branch
 }
 
-/** Containment children per node, in the order the catalog listed them. */
-function childrenOf(nodes: readonly SolutionMapNode[]): Map<string, string[]> {
-  const children = new Map<string, string[]>()
-  for (const node of nodes) {
-    if (node.parent === null) continue
-    children.set(node.parent, [...(children.get(node.parent) ?? []), node.srn])
-  }
-  return children
-}
-
-/**
- * How many entities each box contains that this view does not draw.
- *
- * Counted over the whole subtree, not just the immediate children, because the
- * number answers "what am I not being shown", and a product whose one component
- * holds four of its own is hiding five things, not one. A box with nothing
- * missing gets zero and says nothing — the marker only ever appears where the
- * map is genuinely incomplete, which is what makes it worth reading.
- */
-function hiddenCounts(
-  nodes: readonly SolutionMapNode[],
-  children: ReadonlyMap<string, string[]>,
-  placed: ReadonlySet<string>,
-): Map<string, number> {
-  const counts = new Map<string, number>()
-
-  for (const node of nodes) {
-    let hidden = 0
-    const seen = new Set<string>([node.srn])
-    const pending = [...(children.get(node.srn) ?? [])]
-    while (pending.length > 0) {
-      const id = pending.pop() as string
-      if (seen.has(id)) continue
-      seen.add(id)
-      if (!placed.has(id)) hidden += 1
-      pending.push(...(children.get(id) ?? []))
-    }
-    counts.set(node.srn, hidden)
-  }
-
-  return counts
-}
 
 /**
  * Both handles sit at the node's centre, so every line is a true spoke from one
@@ -313,13 +273,21 @@ function MapBox({ data }: NodeProps<MapFlowNode>) {
             ? `Centre the map on ${data.name}, ${style.label.toLowerCase()}, containing ${data.hidden} more not drawn here`
             : `Centre the map on ${data.name}, ${style.label.toLowerCase()}`
         }
-        title={data.hidden > 0 ? `${data.name} — ${data.title} · ${data.hidden} inside` : `${data.name} — ${data.title}`}
+        // "· 3 inside" read as "acme contains 3 things", which is what the
+        // badge does NOT mean — acme contains 24 and the map is missing 3 of
+        // them. The aria-label had it right all along ("3 more not drawn
+        // here"), so the sighted reader was the one being misled.
+        title={
+          data.hidden > 0
+            ? `${data.name} — ${data.title} · ${data.hidden} more not drawn here`
+            : `${data.name} — ${data.title}`
+        }
       >
         <Icon className="size-3.5 shrink-0" style={{ color: hue }} aria-hidden />
         <span className="min-w-0 flex-1 truncate font-mono text-[12px] leading-none tracking-tight text-foreground">
           {data.name}
         </span>
-        {/* The count of what this box contains and the map is not drawing. It
+        {/* How many boxes are missing directly beneath this one. It
             is `aria-hidden` because the button's own label already says it in
             words; a screen reader hearing "+5" would be told a number with no
             noun. Kept inside the button so it moves, fades and recedes with the
@@ -516,8 +484,8 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
   // that would re-render every box for the whole transition.
   const children = useMemo(() => childrenOf(nodes), [nodes])
   const hidden = useMemo(
-    () => hiddenCounts(nodes, children, new Set(layout.depth.keys())),
-    [nodes, children, layout],
+    () => hiddenCounts(nodes, new Set(layout.depth.keys())),
+    [nodes, layout],
   )
 
   const nodeData = useMemo(() => {
@@ -957,9 +925,11 @@ function EdgeLegend() {
         >
           +n
         </span>
-        <dt className="font-mono text-[10.5px] text-muted-foreground">inside, not drawn</dt>
+        <dt className="font-mono text-[10.5px] text-muted-foreground">missing below</dt>
         <dd className="sr-only">
-          How many entities that box contains which this view does not show. Centre the map on it to open them.
+          How many entities are missing from this view directly beneath that box. Each absent entity is
+          counted once, on the nearest box that is drawn, so these numbers sum to what the map is not
+          showing. Centre the map on the box to open them.
         </dd>
       </div>
     </dl>

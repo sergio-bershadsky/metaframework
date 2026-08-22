@@ -7,19 +7,19 @@ import { Suspense } from 'react'
 import { EntityLink } from '@/components/entity-link'
 import { VersionCheck, VersionCheckPending } from '@/components/entity/version-check'
 import { CapabilityRealizedBy, CAPABILITY_DERIVED_EDGES } from '@/components/entity/capability-realized-by'
-import { ContentsJump } from '@/components/entity/contents-jump'
 import { EntityArtifacts } from '@/components/entity/entity-artifacts'
 import { EntityChildren } from '@/components/entity/entity-children'
 import { EntityDetails } from '@/components/entity/entity-details'
 import { EntityGraph } from '@/components/entity/entity-graph'
 import { EntityRelations } from '@/components/entity/entity-relations'
+import { EntityScale } from '@/components/entity/entity-scale'
 import { EntityVersionNotice, EntityVersionProblem } from '@/components/entity/entity-version-notice'
 import { METRIC_STAT_FIELDS, MetricStats } from '@/components/entity/metric-stats'
 import { SectionHeading } from '@/components/entity/section-heading'
 import { SolutionVision } from '@/components/entity/solution-vision'
 import { HistoryPanel } from '@/components/history/history-panel'
+import { EntityGlyph } from '@/components/entity-glyph'
 import { KindBadge, StatusBadge } from '@/components/kind-badge'
-import { ComponentTypeChip } from '@/components/component-type-chip'
 import { LifecycleChip } from '@/components/lifecycle-chip'
 import { Markdown } from '@/components/markdown'
 import { SrnAddress } from '@/components/srn-address'
@@ -122,11 +122,10 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
   const inbound = catalog.inbound.get(srn) ?? []
   const diagnostics = catalog.diagnostics.filter((d) => d.srn === srn)
   const style = kindStyle(entity.kind)
-  const Icon = style.icon
   // Read from `view`, not from `entity`: a revision written before the field
   // existed has no lifecycle, and inheriting today's would date-mix.
   const lifecycle = lifecycleOf(entity.kind, view.frontmatter as Record<string, unknown>)
-  // Only components carry it; the chip renders nothing for anything else.
+  // Only components carry it; the badge folds it in and everything else ignores it.
   const componentType = (view.frontmatter as Record<string, unknown>)['component-type']
 
   return (
@@ -206,11 +205,15 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
             ))}
           </div>
         )}
-        <div className="flex items-start gap-3.5">
+        <div className="glyph-host flex items-start gap-3.5">
           <span
             className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${style.border} ${style.bg}`}
           >
-            <Icon className={`size-4.5 ${style.text}`} aria-hidden />
+            <EntityGlyph
+              kind={entity.kind}
+              componentType={typeof componentType === 'string' ? componentType : null}
+              className="size-4.5"
+            />
           </span>
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">{view.frontmatter.title}</h1>
@@ -223,18 +226,21 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-1.5">
-          <KindBadge kind={entity.kind} />
+          {/* The component-type rides inside this badge rather than trailing
+              three chips later: `COMPONENT` and `job` are two halves of one
+              answer, and splitting them across the row made the reader
+              reassemble it. Hover or focus cross-fades the badge to the type;
+              both are in its accessible name at rest. */}
+          <KindBadge
+            kind={entity.kind}
+            componentType={typeof componentType === 'string' ? componentType : null}
+          />
           <StatusBadge status={view.frontmatter.status} />
           {/* Immediately beside status, because the pair is the point: this
               says the review state of the description, that says the delivery
               state of the thing. Two chips that looked alike would undo the
               distinction the spec works hardest to draw — see LifecycleChip. */}
           {lifecycle && <LifecycleChip stage={lifecycle} />}
-          {/* After lifecycle, not before: the status/lifecycle pair is a
-              deliberate adjacency (review state of the description, delivery
-              state of the thing) and must not be split by a third chip. This
-              says what the thing IS, which is a different question again. */}
-          {typeof componentType === 'string' && <ComponentTypeChip value={componentType} />}
           <VersionPicker
             href={href}
             selected={view.frontmatter.version}
@@ -245,7 +251,7 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
           {view.frontmatter.owner && (
             <span
               title="Owner"
-              className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
             >
               <UserRound className="size-3 shrink-0 opacity-70" aria-hidden />
               <span className="sr-only">Owner: </span>
@@ -280,11 +286,19 @@ export default async function EntityPage(props: PageProps<'/catalog/[...srn]'>) 
           than after it, and omitted from Details below. */}
       <SolutionVision entity={view} className="mt-7" />
 
-      {/* A way into the Contents section, not a summary of it: on a container
-          with a long body the section itself starts several screens down, and
-          "reachable" has to mean reachable from where the reader is. Hidden on
-          a historical view, where Contents is hidden too. */}
-      {!historical && <ContentsJump entities={children} descendants={descendants} className="mt-7" />}
+      {/* The derived half of ADR 0018: a container's size is a catalog fact, so
+          it is computed and rendered here instead of being typed into a
+          paragraph that starts rotting the same afternoon. Current view only,
+          hidden on a historical view — the counts come from today's graph. */}
+      {!historical && (
+        <EntityScale
+          entity={view}
+          catalog={catalog}
+          entities={children}
+          descendants={descendants}
+          className="mt-4"
+        />
+      )}
 
       <div className="rule-fade my-7" />
 

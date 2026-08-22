@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { arazzoGraph, readArazzo } from '../protocol/arazzo'
 import { metaSchemaUrl, schemaUrlToSrn } from '../schema/url'
 import { ARTIFACT_ROLES } from '../srn/artifacts'
 import { artifactDiagnostics } from './artifact-checks'
@@ -65,10 +66,11 @@ describe('the discriminator table', () => {
   })
 
   it('leaves a native discriminator to its own format', () => {
-    // `openapi:` and `schema.json`'s `$schema` are the format's, not ours. They
-    // are recognised and never stripped — deleting `$schema` from a JSON Schema
-    // document would take `E_DM_DIALECT`'s subject away from it.
+    // `openapi:`, `arazzo:` and `schema.json`'s `$schema` are the format's, not
+    // ours. They are recognised and never stripped — deleting `$schema` from a
+    // JSON Schema document would take `E_DM_DIALECT`'s subject away from it.
     expect(canonicalDialect('protocol', 'openapi.yaml')).toMatchObject({ key: 'openapi', owned: false })
+    expect(canonicalDialect('protocol', 'arazzo.yaml')).toMatchObject({ key: 'arazzo', owned: false })
     expect(canonicalDialect('datamodel', 'schema.json')).toMatchObject({ key: '$schema', owned: false })
   })
 
@@ -156,6 +158,34 @@ describe('adoptDialect — the legacy dialect is warned, never broken', () => {
     expect(adoptDialect('protocol', artifactOf('openapi.yaml', { openapi: '3.1.0' }))).toBeNull()
     expect(adoptDialect('protocol', artifactOf('openapi.yaml', { openapi: '3.1.1' }))).toBeNull()
     expect(adoptDialect('protocol', artifactOf('openapi.yaml', { openapi: '3.0.3' }))).toContain('3.0.3')
+  })
+
+  it('reads `arazzo:` over one minor line, and tells a 1.0 file what to write', () => {
+    // 0020's band, and the two halves of it that could each have gone the other
+    // way. `1.1.x` accepts errata releases, because Arazzo's Versions section is
+    // OpenAPI's verbatim — the patch position SHOULD NOT be considered by
+    // tooling. It stops at the minor, because 1.0's `sourceDescriptions[].type`
+    // cannot name an AsyncAPI document, which is where most of this catalog's
+    // groundable protocols live.
+    expect(adoptDialect('protocol', artifactOf('arazzo.yaml', { arazzo: '1.1.0' }))).toBeNull()
+    expect(adoptDialect('protocol', artifactOf('arazzo.yaml', { arazzo: '1.1.4' }))).toBeNull()
+    // Warned, not broken: a 1.0 document is shipped, legal Arazzo, and it keeps
+    // loading with the advice attached.
+    expect(adoptDialect('protocol', artifactOf('arazzo.yaml', { arazzo: '1.0.1' }))).toContain('1.0.1')
+    expect(adoptDialect('protocol', artifactOf('arazzo.yaml', { info: {} }))).toBe(
+      'arazzo.yaml declares no dialect — read as the legacy dialect; add `arazzo: 1.1.0`',
+    )
+  })
+
+  it('keeps `arazzo:` in the document, because it is REQUIRED there by Arazzo', () => {
+    // The mirror of the `asyncapi:` case below, on the role that has only one
+    // dialect. Stripping the key would hand every Arazzo tool downstream a
+    // document that is no longer an Arazzo Description at all.
+    const document = { arazzo: '1.1.0', sourceDescriptions: [{ name: 'orders', type: 'openapi', url: './openapi.yaml' }] }
+    const artifact = artifactOf('arazzo.yaml', { ...document })
+    adoptDialect('protocol', artifact)
+    expect(artifact.data).toEqual(document)
+    expect(artifact.dialect).toEqual({ role: 'arazzo', key: 'arazzo', declared: '1.1.0', known: true })
   })
 
   it('never raises on examples/*.json — an instance has its schema’s dialect and none of its own', () => {
@@ -370,6 +400,46 @@ channels:
         bindingVersion: "0.5.0"
 `
 
+/**
+ * An `arazzo.yaml` beside that AsyncAPI transport — the census's dominant shape
+ * ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)): eleven of the
+ * thirteen groundable protocols are AsyncAPI-grounded, so the sibling an Arazzo
+ * step reaches for is `transport.yaml`, not an `openapi.yaml`.
+ *
+ * Every field spelled here is grounded twice over, and that bar is the reason
+ * the fixture is shaped the way it is. This framework still does not validate an
+ * Arazzo Description and no published JSON Schema for 1.1 was located to
+ * validate one against, so a spelling invented here would be a guess at a
+ * foreign standard presented as a worked example.
+ *
+ * It first stopped at `arazzo:` and `sourceDescriptions[].name/type/url` — the
+ * specification's own example, in its own shape, with `type: asyncapi` as 1.1's
+ * addition over 1.0 — because a step block could not be grounded at the time it
+ * was written. The step block below is here now because both of its unobvious
+ * fields since have been: `action` with values `send`/`receive` and `dependsOn`
+ * as an array of `stepId`s are rows of the Step Object fixed-field table in
+ * `versions/1.1.0.md`, and the `{$sourceDescriptions.<name>.url}#/channels/…`
+ * form of `channelPath` is attested thirty-one times across the shipped catalog.
+ * Nothing beyond those is written.
+ */
+const ARAZZO_DESCRIPTION = `arazzo: 1.1.0
+sourceDescriptions:
+  - name: order-shipping
+    type: asyncapi
+    url: ./transport.yaml
+workflows:
+  - workflowId: watch-shipping
+    steps:
+      - stepId: order-shipped
+        channelPath: "{$sourceDescriptions.order-shipping.url}#/channels/order-shipped"
+        action: receive
+      - stepId: acknowledge
+        channelPath: "{$sourceDescriptions.order-shipping.url}#/channels/order-shipped"
+        action: send
+        dependsOn:
+          - order-shipped
+`
+
 beforeAll(async () => {
   catalogDir = await mkdtemp(path.join(tmpdir(), 'metaframework-dialects-'))
 
@@ -413,6 +483,7 @@ beforeAll(async () => {
     }),
   )
   await artifact(catalogDir, ASYNCAPI_PROTOCOL, 'transport.yaml', ASYNCAPI_TRANSPORT)
+  await artifact(catalogDir, ASYNCAPI_PROTOCOL, 'arazzo.yaml', ARAZZO_DESCRIPTION)
 
   await entity(
     catalogDir,
@@ -536,6 +607,113 @@ describe('the AsyncAPI dialect, through the loader', () => {
     // must judge them alike: a diagnostic on one dialect and not the other would
     // be the migration costing a protocol its clean bill of health.
     expect(artifactDiagnostics(catalog).filter((d) => d.path.endsWith('transport.yaml'))).toEqual([])
+  })
+})
+
+describe('the arazzo role, through the loader', () => {
+  const SRN = `srn://${ASYNCAPI_PROTOCOL}`
+  const arazzoOf = () => artifactsOf(SRN).find((a) => a.file === 'arazzo.yaml')
+
+  it('recognises the role from the file alone — no framework header anywhere in it', () => {
+    // `arazzo:` *is* the discriminator, so this file carries nothing of ours.
+    // The unit assertions above would pass while `readArtifacts` skipped the
+    // file, or while something upstream demanded a `$schema` on it; this is the
+    // one that says the role reaches the loader.
+    expect(arazzoOf()?.dialect).toEqual({ role: 'arazzo', key: 'arazzo', declared: '1.1.0', known: true })
+    expect(arazzoOf()?.raw).not.toContain('$schema')
+    expect(catalog.diagnostics.filter((d) => d.srn === SRN)).toEqual([])
+  })
+
+  it('keeps the native key in the parse product as well as in the bytes', () => {
+    expect(arazzoOf()?.data).toMatchObject({ arazzo: '1.1.0' })
+    expect(arazzoOf()?.raw).toContain('arazzo: 1.1.0')
+  })
+
+  it('is unvalidated: read for a drawing, judged by nothing', () => {
+    // The contract in one assertion, and this is the rewrite the previous
+    // version of this test asked for in as many words — it said that when a
+    // reader was written, this is what would have to change to admit it. A
+    // reader now exists (`lib/protocol/arazzo.ts`, drawn by `arazzo-graph.tsx`),
+    // and the half of the contract that moved is exactly the half that was about
+    // reading. The half that did not move is this one: `kinds/protocol.md`
+    // states no rule about the contents of an `arazzo.yaml`, so no rule can be
+    // broken, and the artifact must still reach exactly the state `openapi.yaml`
+    // reaches — no error, bytes intact, dialect recorded, and NO branch in
+    // `artifact-checks.ts`, the one consumer that turns kind × filename into
+    // diagnostics.
+    //
+    // The grounding rule the spec states against this file
+    // (`W_PROTO_ARAZZO_UNGROUNDED`) still has no emitter and still sits in the
+    // diagnostic-coverage debt register saying so. Drawing a document is not
+    // checking it: the graph reports a dangling `dependsOn` in its own panel,
+    // where it is a note on a picture, and not as a finding on the catalog.
+    const arazzo = arazzoOf()
+    expect(arazzo?.error).toBeUndefined()
+    expect(arazzo?.extension).toBe('.yaml')
+    expect(artifactDiagnostics(catalog).filter((d) => d.path.endsWith('arazzo.yaml'))).toEqual([])
+  })
+
+  it('reaches the reader as a drawable graph, through the loader’s parse product', () => {
+    // The join the drawing depends on, end to end: the loader parses the file
+    // for its dialect, leaves the native key in place, and `readArazzo` builds
+    // the step graph out of that same `data`. Nothing re-reads the bytes, and
+    // nothing needs to.
+    const description = readArazzo(arazzoOf()?.data)
+    expect(description?.version).toBe('1.1.0')
+    expect(description?.sources).toEqual([
+      { name: 'order-shipping', type: 'asyncapi', url: './transport.yaml' },
+    ])
+
+    const workflow = description?.workflows[0]
+    expect(workflow?.workflowId).toBe('watch-shipping')
+    // `channelPath` names its source, so the drawing can link the step to the
+    // sibling `transport.yaml` this entity actually carries.
+    expect(workflow?.steps[0].reference).toMatchObject({ kind: 'channelPath', source: 'order-shipping' })
+    // `dependsOn` is declared, so the second step is joined by a stated edge and
+    // not by the inferred sequence one.
+    expect(arazzoGraph(workflow as NonNullable<typeof workflow>).edges).toEqual([
+      { id: 'depends:order-shipped->acknowledge', source: 'order-shipped', target: 'acknowledge', kind: 'depends' },
+    ])
+  })
+
+  it('declines to draw a description with no workflows, and still says nothing', async () => {
+    // The failure mode, and the whole posture in one case: a document this
+    // reader cannot make a picture of produces no picture and no complaint. The
+    // bytes are still served, and the source pane beside the block is the answer.
+    const thin = await mkdtemp(path.join(tmpdir(), 'metaframework-arazzo-thin-'))
+    try {
+      await spine(thin)
+      await artifact(thin, PROTOCOL, 'arazzo.yaml', 'arazzo: 1.1.0\ninfo:\n  title: Nothing yet\n')
+
+      const loaded = await loadCatalog({ catalogDir: thin })
+      const file = loaded.entities.get(`srn://${PROTOCOL}`)?.artifacts.find((a) => a.file === 'arazzo.yaml')
+      expect(readArazzo(file?.data)).toBeNull()
+      expect(loaded.diagnostics.filter((d) => d.path.endsWith('arazzo.yaml'))).toEqual([])
+    } finally {
+      await rm(thin, { recursive: true, force: true })
+    }
+  })
+
+  it('warns a headerless file toward `arazzo: 1.1.0`, and still loads clean', async () => {
+    const bare = await mkdtemp(path.join(tmpdir(), 'metaframework-arazzo-'))
+    try {
+      await spine(bare)
+      await artifact(bare, PROTOCOL, 'arazzo.yaml', 'workflows: []\n')
+
+      const legacy = await loadCatalog({ catalogDir: bare })
+      expect(legacy.diagnostics.filter((d) => d.code === 'W_ARTIFACT_DIALECT')).toEqual([
+        {
+          code: 'W_ARTIFACT_DIALECT',
+          severity: 'warning',
+          message: 'arazzo.yaml declares no dialect — read as the legacy dialect; add `arazzo: 1.1.0`',
+          path: path.join(PROTOCOL, 'arazzo.yaml'),
+          srn: 'srn://acme/product/shop/protocol/order-events',
+        },
+      ])
+      expect(legacy.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+    } finally {
+      await rm(bare, { recursive: true, force: true })
+    }
   })
 })
 

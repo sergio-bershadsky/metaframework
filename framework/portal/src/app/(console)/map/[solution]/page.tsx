@@ -65,8 +65,8 @@ export default async function SolutionMapPage(props: PageProps<'/map/[solution]'
               where the legibility went: at 1920x1080 one extra wrapped line
               takes 22px off the map and roughly 3% off its zoom. */}
           Products and components only. A view reaches as far as it can be read;{' '}
-          <span className="font-mono text-[12.5px]">+n</span> counts what a box contains and this view is not
-          drawing. Click any box to re-centre on it.{' '}
+          <span className="font-mono text-[12.5px]">+n</span> marks a box with something missing directly
+          beneath it. Click any box to re-centre on it.{' '}
           <span className="font-mono text-[12.5px] text-foreground/70">
             {products} product{products === 1 ? '' : 's'} · {components} component
             {components === 1 ? '' : 's'} · {crossing} dependenc{crossing === 1 ? 'y' : 'ies'}

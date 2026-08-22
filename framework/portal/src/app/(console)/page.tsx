@@ -1,5 +1,7 @@
 import { ArrowRight, FolderOpen } from 'lucide-react'
 import Link from 'next/link'
+import { AuthoringGuide } from '@/components/entity/authoring-guide'
+import { TypeLegend } from '@/components/entity/type-legend'
 import { StatusBadge, VersionBadge } from '@/components/kind-badge'
 import { SrnAddress } from '@/components/srn-address'
 import { type Entity, entitiesOfSolution, entityHref, getCatalog } from '@/lib/catalog'
@@ -37,6 +39,21 @@ export default async function HomePage() {
           ))}
         </ul>
       )}
+
+      {/* The vocabulary every card above is already drawing, explained once for
+          the whole console. It lives here rather than on each solution page
+          because the twelve kinds, the ten component-types and the address
+          grammar are the framework's and not any one catalog's — and because
+          this is the page a reader meets first. Rendered even when the catalog
+          is empty: someone staring at the empty state is exactly who needs to
+          know what a kind is before they author one. */}
+      <TypeLegend catalog={catalog} className="mt-10" />
+
+      {/* Second, and in this order deliberately: the legend answers "what am I
+          looking at", this answers "how do I add to it". A reader who has just
+          learned what a protocol is immediately wants to know what to type to
+          get one. */}
+      <AuthoringGuide catalog={catalog} className="mt-6" />
     </div>
   )
 }

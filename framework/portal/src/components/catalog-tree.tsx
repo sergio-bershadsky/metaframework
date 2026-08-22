@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { EntityGlyph } from '@/components/entity-glyph'
 import { type EntityKind, STATUSES, type Status } from '@/lib/catalog/frontmatter'
 import { entityHref } from '@/lib/catalog/href'
 import {
@@ -674,7 +675,7 @@ function TreeItem({
 
         <Link
           href={entityHref(node.srn)}
-          className="focusable flex min-w-0 flex-1 items-center gap-2 rounded py-1.5"
+          className="focusable glyph-host flex min-w-0 flex-1 items-center gap-2 rounded py-1.5"
           title={node.title}
         >
           <NodeIcon node={node} dim={isContextOnly} />
@@ -696,13 +697,17 @@ function TreeItem({
    itself on hover rather than relying on colour memory. */
 function NodeIcon({ node, dim }: { node: TreeNode; dim: boolean }) {
   const style = kindStyle(node.kind)
-  const Icon = style.icon
+  // Named in the tooltip and the accessible name, not left to the animation:
+  // the cross-fade is an affordance for a reader who is already looking, and
+  // neither a screen reader nor a paused pointer should have to watch a 2s
+  // cycle to learn a word.
+  const label = node.componentType ? `${style.label} · ${node.componentType}` : style.label
   return (
     // `relative` for the same reason as on the label: the sr-only kind name is
     // absolute, and it must be contained here rather than escaping to the row.
-    <span title={style.label} className="relative flex shrink-0 items-center">
-      <Icon className={cn('size-3.5', style.text, dim && 'opacity-40')} aria-hidden />
-      <span className="sr-only">{style.label}</span>
+    <span title={label} className="relative flex shrink-0 items-center">
+      <EntityGlyph kind={node.kind} componentType={node.componentType} className="size-3.5" dim={dim} />
+      <span className="sr-only">{label}</span>
     </span>
   )
 }

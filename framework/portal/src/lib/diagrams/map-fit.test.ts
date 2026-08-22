@@ -8,6 +8,7 @@ import {
   drawnExtent,
   fittedLayout,
   fitZoom,
+  hiddenCounts,
   LABEL_PX,
   LEGIBLE_ZOOM,
   MAP_NODE,
@@ -189,5 +190,74 @@ describe.each(['srn://brass', 'srn://acme', 'srn://metaframework'])('the map of 
     const shallower = small.filter((view, index) => view.rings < large[index].rings)
 
     expect(shallower.length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * The `+N` marker: each missing box counted once, on the nearest drawn ancestor.
+ *
+ * Reported as a bug against the shipped map — `acme` drawn with all five of its
+ * products around it and badged `+3`. The count was right and the attribution
+ * was not: three components were missing, and every ancestor above them
+ * repeated the same absence, so the canvas carried six markers summing to ten.
+ *
+ * These assertions are the ones a reader is most likely to challenge: that the
+ * badges SUM to the number of boxes actually missing, and that a box whose own
+ * children are all drawn says nothing at all.
+ */
+describe('the hidden-count marker', () => {
+  const FOCUS = 'srn://acme'
+
+  function view(maxDepth: number) {
+    const { nodes, links } = shape(FOCUS)
+    const layout = candidates(nodes, links, FOCUS)[maxDepth - 1]
+    const placed = new Set(layout.depth.keys())
+    const counts = hiddenCounts(nodes, placed)
+    const of = (suffix: string) =>
+      counts.get([...counts.keys()].find((srn) => srn.endsWith(suffix)) as string)
+    return {
+      placed: placed.size,
+      missing: nodes.filter((node) => !placed.has(node.srn)).length,
+      total: [...counts.values()].reduce((sum, n) => sum + n, 0),
+      acme: counts.get(FOCUS),
+      of,
+    }
+  }
+
+  it('charges every absence to exactly one drawn box', () => {
+    for (const depth of [1, 2, 3]) {
+      const { missing, total } = view(depth)
+      // The invariant the old aggregate broke: markers cannot outnumber gaps.
+      expect(total).toBe(missing)
+    }
+  })
+
+  it('says nothing on a box whose own children are all drawn', () => {
+    const { placed, missing, acme, of } = view(2)
+    expect(placed).toBe(22)
+    expect(missing).toBe(3)
+    // The reported case. Five products drawn, so the solution carries nothing.
+    expect(acme).toBe(0)
+    // The markers land where the gaps actually are, two and three levels down.
+    expect(of('/component/carrier-gateway')).toBe(1)
+    expect(of('/component/checkout')).toBe(1)
+    expect(of('/component/payment')).toBe(1)
+  })
+
+  it('still counts a missing box and its own descendants together', () => {
+    // The original intent, unchanged: with only the products drawn, every
+    // component charges to its product because nothing nearer is on screen.
+    const { placed, acme, of } = view(1)
+    expect(placed).toBe(6)
+    expect(acme).toBe(0)
+    expect(of('/product/shop')).toBe(5)
+    expect(of('/product/fulfilment')).toBe(4)
+  })
+
+  it('says nothing at all when the map is complete', () => {
+    const { placed, missing, total } = view(3)
+    expect(placed).toBe(25)
+    expect(missing).toBe(0)
+    expect(total).toBe(0)
   })
 })

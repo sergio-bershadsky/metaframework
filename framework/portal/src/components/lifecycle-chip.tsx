@@ -32,7 +32,7 @@ export function LifecycleChip({ stage, className }: { stage: LifecycleStage; cla
       title={`Lifecycle: ${stage.label}${position}${phase} — the delivery state of the thing described, not of this description`}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-2 py-0.5',
-        'text-[11px] font-medium text-foreground/80',
+        'font-mono text-[11px] font-medium uppercase tracking-wider text-foreground/80',
         className,
       )}
     >

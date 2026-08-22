@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'
 import { useAnchorLink } from '@/components/code/anchor-link'
+import type { ArazzoGraphProps } from '@/components/diagrams/arazzo-graph'
 import type { RelationGraphProps } from '@/components/diagrams/relation-graph'
 import { SequenceDiagram, type SequenceDiagramProps } from '@/components/diagrams/sequence-diagram'
 import type { StateChartDiagramProps } from '@/components/diagrams/state-chart'
@@ -84,6 +85,19 @@ const StateChartDiagram = dynamic(
   { ssr: false, loading: () => <CanvasPlaceholder label="Loading the state chart…" /> },
 )
 
+/**
+ * The third React Flow canvas, split for exactly the reasons above.
+ *
+ * It joins this file rather than getting a split of its own because the cost it
+ * defers is the same 180 KiB chunk: a protocol page carrying an `arazzo.yaml`
+ * and one carrying none must not differ in the React Flow they ship, and only
+ * twelve of the catalog's protocols carry one.
+ */
+const ArazzoGraph = dynamic(
+  () => import('@/components/diagrams/arazzo-graph').then((module) => module.ArazzoGraph),
+  { ssr: false, loading: () => <CanvasPlaceholder label="Loading the step graph…" /> },
+)
+
 function useEntityNavigation() {
   const router = useRouter()
   return useCallback((srn: string) => router.push(entityHref(srn)), [router])
@@ -115,6 +129,18 @@ export function NavigableSequenceDiagram(
 export function NavigableRelationGraph(props: Omit<RelationGraphProps, 'onNavigate'>) {
   const navigate = useEntityNavigation()
   return <RelationGraph {...props} onNavigate={navigate} />
+}
+
+/**
+ * The Arazzo step graph. It takes no callbacks at all — a step is not an entity,
+ * and the only two things it navigates are internal to the file (another
+ * workflow of the same description) or a plain anchor on the page it is already
+ * on (the sibling artifact a source description names). So this wrapper is
+ * purely the `ssr: false` boundary, and it exists because the call site is a
+ * server component that cannot declare one.
+ */
+export function DeferredArazzoGraph(props: ArazzoGraphProps) {
+  return <ArazzoGraph {...props} />
 }
 
 /**

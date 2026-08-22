@@ -1,11 +1,19 @@
 import path from 'node:path'
 import { cache } from 'react'
+import { actorDiagnostics } from '../actor/actor'
+import { adrDiagnostics } from '../adr/adr'
+import { datamodelDiagnostics } from '../datamodel/datamodel'
 import { environmentDiagnostics } from '../environment/environment'
+import { journeyArtifactDiagnostics } from '../journey/artifacts'
+import { requirementDiagnostics } from '../requirement/requirement'
+import { structureDiagnostics } from '../structure/structure'
 import { configContractDiagnostics, readConfigContracts } from '../schema/config-contract'
 import { type SchemaRegistry, buildSchemaRegistry } from '../schema/registry'
 import { artifactDiagnostics } from './artifact-checks'
 import { catalogFingerprint } from './fingerprint'
+import { type CatalogListings, catalogListings } from './listings'
 import { loadCatalog } from './load'
+import { measurementDiagnostics } from './measurements'
 import { servingWorkingTree } from './mode'
 import { KIND_ORDER } from './tree'
 import type { Catalog, Entity } from './types'
@@ -82,6 +90,76 @@ export function withArtifactChecks(catalog: Catalog): Catalog {
 }
 
 /**
+ * Fold in the prose discipline — ADR 0018, "Measured facts are derived, or they
+ * are dated".
+ *
+ * Its own fold rather than a passenger on {@link withKindChecks}, because it
+ * shares nothing with those: it needs no second entity, no directory listing and
+ * no schema registry, it applies to every kind there is, and its subject is the
+ * *sentences* of a document rather than the shape of the graph around it. See
+ * ./measurements for what a measured quantity is taken to be and, more
+ * importantly, for the two shapes it deliberately does not chase.
+ */
+export function withProseChecks(catalog: Catalog): Catalog {
+  const diagnostics = measurementDiagnostics(catalog)
+  if (diagnostics.length === 0) return catalog
+  return { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }
+}
+
+/**
+ * Fold in the kind disciplines — the rules each `kinds/*.md` states about the
+ * *shape of the graph around* an entity, as opposed to the shape of its own
+ * document.
+ *
+ * These are one step because they share one input and one position in the
+ * pipeline, not because they share a subject. Every one of them is answerable
+ * from the resolved catalog plus the two directory listings {@link catalogListings}
+ * takes, and none of them needs the schema registry — so they compose exactly
+ * where {@link withArtifactChecks} does and their order among themselves is
+ * irrelevant.
+ *
+ * Why they were not in `loadCatalog`: each asks about a *second* entity — the
+ * kind an edge points at, the ordinals of an ADR's siblings, whether anything
+ * anywhere implements this requirement, which actors a protocol names — and the
+ * loader's per-entity pass has one document in hand. `checkGraphShape` is the
+ * exception that proves it: the three graph rules that predate this run live
+ * there precisely because they run after the graph is linked.
+ *
+ * Twenty-one error and warning classes reach /diagnostics through this call that
+ * reached nothing before it. The register they came out of is
+ * ./diagnostic-coverage.test.ts.
+ */
+export function withKindChecks(catalog: Catalog, listings: CatalogListings): Catalog {
+  const diagnostics = [
+    ...adrDiagnostics(catalog),
+    ...requirementDiagnostics(catalog),
+    ...actorDiagnostics(catalog),
+    ...structureDiagnostics(catalog, listings.directories),
+    ...journeyArtifactDiagnostics(catalog, listings.journeys),
+  ]
+  if (diagnostics.length === 0) return catalog
+  return { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }
+}
+
+/**
+ * Fold in the three datamodel rules that read a model from the *outside*.
+ *
+ * Separate from {@link withKindChecks} for one reason, and it is the same reason
+ * {@link withEnvironmentChecks} is separate: `E_DM_EXAMPLE_INVALID` runs an
+ * `examples/*.json` through the entity's own compiled validator, which lives in
+ * the registry — so this fold cannot run before {@link withSchemaRegistry}, and
+ * the other four folds can.
+ *
+ * Nothing is re-implemented here. The registry already holds one ajv instance in
+ * which every `$ref` resolves; validating an example is a lookup and a call.
+ */
+export function withDatamodelChecks({ catalog, registry }: LoadedCatalog): LoadedCatalog {
+  const diagnostics = datamodelDiagnostics(catalog, registry)
+  if (diagnostics.length === 0) return { catalog, registry }
+  return { catalog: { ...catalog, diagnostics: [...catalog.diagnostics, ...diagnostics] }, registry }
+}
+
+/**
  * Fold in the config contract and the environment artifacts, which are one
  * subject and so are one step.
  *
@@ -117,8 +195,16 @@ export function withEnvironmentChecks({ catalog, registry }: LoadedCatalog): Loa
  * Serving a deployed build, the tree is read once per process, because there the
  * catalog really is static input to a build.
  */
-const load = async (): Promise<LoadedCatalog> =>
-  withEnvironmentChecks(withSchemaRegistry(withArtifactChecks(await loadCatalog({ catalogDir: catalogDir() }))))
+const load = async (): Promise<LoadedCatalog> => {
+  const dir = catalogDir()
+  const catalog = await loadCatalog({ catalogDir: dir })
+  // The listings are taken from the graph the loader just returned, so they
+  // cover exactly the entities that loaded — and taken once, for both the
+  // structure rules and the journey rules that read them.
+  const listings = await catalogListings(dir, catalog)
+  const checked = withKindChecks(withProseChecks(withArtifactChecks(catalog)), listings)
+  return withEnvironmentChecks(withDatamodelChecks(withSchemaRegistry(checked)))
+}
 
 /**
  * Working-tree catalog cache, keyed on {@link catalogFingerprint}.

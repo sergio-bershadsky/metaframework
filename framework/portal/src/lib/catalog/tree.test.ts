@@ -36,6 +36,7 @@ function n(
     status: 'approved',
     version: 1,
     owner: null,
+    componentType: null,
     hasError: false,
     children,
     ...extra,

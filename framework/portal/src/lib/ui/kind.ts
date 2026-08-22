@@ -41,6 +41,8 @@ export interface KindStyle {
   icon: LucideIcon
   /** One line explaining what the kind is, for tooltips and empty states. */
   blurb: string
+  /** The long-form gloss, written for the legend's mini-doc rather than a tooltip. */
+  detail: string
 }
 
 export const KIND_STYLES: Record<EntityKind, KindStyle> = {
@@ -52,6 +54,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-solution/30',
     icon: Boxes,
     blurb: 'A sealed universe — the root catalog of one described system.',
+    detail: 'The root of a catalog and the boundary of every reference — nothing inside one solution may point into another. It is the only kind the spec requires a `vision` from.',
   },
   product: {
     label: 'Product',
@@ -61,6 +64,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-product/30',
     icon: Package,
     blurb: 'A deliverable unit that owns components.',
+    detail: 'Sits directly under the solution and nowhere else. It owns components and is the unit a team ships.',
   },
   component: {
     label: 'Component',
@@ -70,6 +74,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-component/30',
     icon: Layers,
     blurb: 'A product-owned building block; nests arbitrarily deep.',
+    detail: 'Sits under a product or another component, so it nests arbitrarily deep. The only kind carrying a second axis — the component-type below.',
   },
   protocol: {
     label: 'Protocol',
@@ -79,6 +84,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-protocol/30',
     icon: GitBranch,
     blurb: 'How components talk — transport, workflows, state machines.',
+    detail: 'Filed at the nearest common ancestor of its participants, so an exchange between two products lands on the solution. Carries transport.yaml, workflows/*.yaml, states.json, and optional openapi.yaml and arazzo.yaml documents.',
   },
   datamodel: {
     label: 'Data model',
@@ -88,6 +94,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-datamodel/30',
     icon: FileText,
     blurb: 'A JSON Schema persisted in storage or exchanged over a protocol.',
+    detail: 'Sits on a solution, a product or a component. Carries schema.json — JSON Schema 2020-12 under a canonical $id — plus optional examples/.',
   },
   environment: {
     label: 'Environment',
@@ -97,6 +104,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-environment/30',
     icon: Server,
     blurb: 'A deployment target that hosts components.',
+    detail: 'Sits directly under the solution. Carries topology.yaml for where things run and config.yaml for what they are configured with.',
   },
   actor: {
     label: 'Actor',
@@ -106,6 +114,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-actor/30',
     icon: CircleUser,
     blurb: 'A human or system participant in the solution.',
+    detail: 'Sits directly under the solution. Actors are who journeys are written about, and the outside edge of a protocol.',
   },
   requirement: {
     label: 'Requirement',
@@ -115,6 +124,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-requirement/30',
     icon: Target,
     blurb: 'Something the solution must do, satisfied by components.',
+    detail: 'Sits on a solution, a product or a component, and is claimed by the components that implement it. One that nothing implements is reported rather than quietly dropped.',
   },
   adr: {
     label: 'ADR',
@@ -124,6 +134,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-adr/30',
     icon: ScrollText,
     blurb: 'A decision record — why the solution is shaped the way it is.',
+    detail: 'Sits on a solution, a product or a component. The only kind allowed to write a measured number, and only with the date and the command that produced it.',
   },
   capability: {
     label: 'Capability',
@@ -133,6 +144,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-capability/30',
     icon: Zap,
     blurb: 'Something the business can do, stated for the whole solution.',
+    detail: 'Sits directly under the solution. What the business can do — realized by products and components rather than owned by them.',
   },
   journey: {
     label: 'Journey',
@@ -142,6 +154,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-journey/30',
     icon: Route,
     blurb: 'The ordered path one actor takes across the solution.',
+    detail: 'Sits directly under the solution. Carries journey.yaml: an ordered path of steps for exactly one actor, each naming what it touches.',
   },
   metric: {
     label: 'Metric',
@@ -151,6 +164,7 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     border: 'border-kind-metric/30',
     icon: Gauge,
     blurb: 'How the entity that owns it is measured — a number with a target.',
+    detail: 'Sits on a solution, a product or a component. How the thing that owns it is known to be working.',
   },
 }
 

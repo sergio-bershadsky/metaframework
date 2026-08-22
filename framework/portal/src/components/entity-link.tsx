@@ -1,6 +1,7 @@
 import { ArrowUpRight, Unlink } from 'lucide-react'
 import Link from 'next/link'
 import type { EntityKind } from '@/lib/catalog'
+import { EntityGlyph } from '@/components/entity-glyph'
 import { entityHref } from '@/lib/catalog/href'
 import { kindStyle } from '@/lib/ui/kind'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,16 @@ export interface LinkTarget {
   name: string
   title: string
   kind: EntityKind
+  /**
+   * The `component-type`, when the producer of this target knew it.
+   *
+   * Optional rather than required, and that is the whole design: a mention is
+   * built in several places from whatever the caller had to hand, and a badge
+   * that refused to render without a second typing axis would turn a cosmetic
+   * reveal into a hard dependency. Absent means `EntityGlyph` draws the kind
+   * glyph alone, exactly as it did before the hover reveal existed.
+   */
+  componentType?: string | null
 }
 
 /**
@@ -59,7 +70,6 @@ export function EntityLink({
   }
 
   const style = kindStyle(target.kind)
-  const Icon = style.icon
 
   return (
     <Link
@@ -69,7 +79,7 @@ export function EntityLink({
         // leading-none plus minimal vertical padding: a badge must stay inside
         // the line box it appears in, or a paragraph full of references ends up
         // double-spaced compared with one without them.
-        'focusable group/link inline-flex items-center gap-1 rounded border px-[6px] py-[2px] align-baseline',
+        'focusable group/link glyph-host inline-flex items-center gap-1 rounded border px-[6px] py-[2px] align-baseline',
         'font-mono text-[0.78em] leading-none no-underline transition',
         style.bg,
         style.border,
@@ -77,7 +87,7 @@ export function EntityLink({
         className,
       )}
     >
-      <Icon className={cn("size-3 shrink-0", style.text)} aria-hidden />
+      <EntityGlyph kind={target.kind} componentType={target.componentType} className="size-3 shrink-0" />
       <span className="text-foreground/90">{target.name}</span>
       {version != null && <span className="text-primary">@{version}</span>}
       {showTitle && <span className="text-muted-foreground">{target.title}</span>}

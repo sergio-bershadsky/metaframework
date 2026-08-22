@@ -1,11 +1,12 @@
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { arazzoGraph, readArazzo } from '../protocol/arazzo'
 import { CANONICAL_SCHEMA_HOST, schemaServingUrl, schemaUrlToSrn, srnToSchemaUrl } from '../schema/url'
 import { artifactDiagnostics } from './artifact-checks'
 import { ENTITY_KINDS } from './frontmatter'
 import { withArtifactChecks, withSchemaRegistry } from './index'
 import { loadCatalog } from './load'
-import type { Catalog, Diagnostic } from './types'
+import type { Artifact, Catalog, Diagnostic, Entity } from './types'
 
 /**
  * Regression guard on the *shipped* catalog under `solutions/`.
@@ -143,11 +144,74 @@ describe('shipped catalog', () => {
       'workflows/cancel-order.yaml',
       'workflows/place-order.yaml',
     ])
+    // `arazzo.yaml` is here because the shipped catalog now carries one, and it
+    // is listed for the same reason every other row is: this assertion is the
+    // guard that a role the loader recognises actually reaches an entity. It
+    // feeds a step graph of its own and no sequence diagram — those derive from
+    // `workflows/` alone, and the mini-spec stays the choreography source
+    // ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
     expect(files('srn://acme/protocol/settlement')).toEqual([
+      'arazzo.yaml',
       'states.json',
       'transport.yaml',
       'workflows/settle-order.yaml',
     ])
+  })
+
+  it('draws a step graph from every Arazzo description the catalog ships', () => {
+    // The renderer's oracle is the shipped corpus, because there is no other
+    // one: no published JSON Schema for Arazzo 1.1 was located, so nothing can
+    // tell this portal that a document is well formed. What CAN be asserted is
+    // that the reader reaches every file, that each yields a drawable workflow,
+    // and that every reference inside a workflow resolves to a step of it — a
+    // `dependsOn` or a `goto` naming a step that is not there is the one defect
+    // the drawing itself cannot show, so it is pinned here instead.
+    //
+    // This asserts nothing about Arazzo's grammar and raises no diagnostic. The
+    // artifact stays unvalidated; it is only now also read.
+    const described = [...catalog.entities.values()]
+      .map((entity) => ({ entity, artifact: entity.artifacts.find((a) => a.file === 'arazzo.yaml') }))
+      .filter((pair): pair is { entity: Entity; artifact: Artifact } => pair.artifact !== undefined)
+
+    // A floor, never a snapshot. The catalog grows, and the roadmap already
+    // names a thirteenth groundable protocol deliberately left unwritten — an
+    // exact total would go red the day somebody authors it, with no defect
+    // present, and a suite that cries wolf on growth gets its numbers edited
+    // rather than read. What must never happen is the reader reaching FEWER
+    // files than it does today, and that is what this catches. Same form as the
+    // datamodel floor below.
+    expect(described.length).toBeGreaterThanOrEqual(12)
+
+    const findings: string[] = []
+    let workflows = 0
+    let steps = 0
+    for (const { entity, artifact } of described) {
+      const description = readArazzo(artifact.data)
+      if (description === null) {
+        findings.push(`${entity.relDir} — nothing drawable`)
+        continue
+      }
+      if (description.workflows.length === 0) findings.push(`${entity.relDir} — no workflows`)
+      for (const workflow of description.workflows) {
+        workflows += 1
+        steps += workflow.steps.length
+        if (workflow.steps.length === 0) findings.push(`${entity.relDir} ${workflow.workflowId} — no steps`)
+        for (const miss of arazzoGraph(workflow).dangling) {
+          findings.push(`${entity.relDir} ${workflow.workflowId} — ${miss.from} → ${miss.ref} (${miss.kind})`)
+        }
+      }
+    }
+
+    // `findings` is the assertion that carries the signal: it is empty only if
+    // every description yielded a workflow, every workflow yielded a step, and
+    // every reference inside one resolved. It says all of that per file, by
+    // name, and it stays true at any catalog size.
+    expect(findings).toEqual([])
+    // The totals are therefore already implied, and are asserted as relations
+    // rather than as digits — enough to prove the loop ran and not so much that
+    // a thirteenth file is a failure.
+    expect(workflows).toBeGreaterThanOrEqual(described.length)
+    expect(steps).toBeGreaterThanOrEqual(workflows)
   })
 
   it('identifies every datamodel schema by its canonical URL and its SRN', () => {

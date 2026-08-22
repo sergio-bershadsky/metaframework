@@ -129,9 +129,24 @@ describe('/artifacts route', () => {
     expect(((await response.json()) as { error: string }).error).toContain('current snapshot')
   })
 
+  it('serves .arazzo as YAML from the entity that ships one', async () => {
+    // The role landed in 0020 with no instance anywhere, and this assertion is
+    // what changed when the catalog grew one: `settlement.arazzo` used to be a
+    // dangling case below. Both states are correct for the same reason — a role
+    // is legal because the table says so, and 404 or 200 turns on the file.
+    const response = await get(['acme', 'protocol', 'settlement.arazzo'])
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('application/yaml')
+    expect(await response.text()).toBe(
+      await readFile(path.join(CATALOG, 'acme/protocol/settlement/arazzo.yaml'), 'utf8'),
+    )
+  })
+
   it('names a legal role whose file is absent as dangling', async () => {
-    // `openapi` is in the vocabulary and settlement ships no openapi.yaml;
-    // `examples.nope` is a well-formed family member nobody wrote.
+    // `openapi` is in the vocabulary and settlement does not ship one;
+    // `examples.nope` is a well-formed family member nobody wrote. A role is
+    // legal because the table says so, not because a file exists.
     for (const segments of [
       ['acme', 'protocol', 'settlement.openapi'],
       ['acme', 'datamodel', 'money.examples.nope'],

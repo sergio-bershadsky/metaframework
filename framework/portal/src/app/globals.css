@@ -587,6 +587,97 @@
       animation: none;
     }
   }
+
+  /*
+   * The component glyph cross-fade.
+   *
+   * A component is the one kind carrying two typing axes, and the console draws
+   * only the first: every sidebar row, every inline reference and the page
+   * header show the `kind` glyph, while `component-type` — the single most
+   * useful fact about a component after its name — was reachable only by
+   * opening the page. Hovering a component now alternates the two in place, so
+   * the second axis is legible without costing the first its permanent spot.
+   *
+   * Two icons share one grid cell and their opacities are driven by mirrored
+   * keyframes, which is what makes it a cross-fade rather than a swap: neither
+   * timeline is ever the complement of the other at the midpoint, so the box
+   * never flashes empty. The 35%/50% split holds each glyph legible for ~0.7s
+   * of the 2s cycle and spends 0.3s in transit.
+   *
+   * Driven entirely by CSS from an ancestor's `:hover`, deliberately: the tree
+   * renders hundreds of rows, and per-row React hover state would re-render a
+   * list on every pointer move across it. `:focus-within` carries the same
+   * reveal to the keyboard, where there is no pointer to hover with.
+   */
+  @keyframes glyph-primary {
+    0%,
+    35% {
+      opacity: 1;
+    }
+    50%,
+    85% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes glyph-secondary {
+    0%,
+    35% {
+      opacity: 0;
+    }
+    50%,
+    85% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* Both glyphs occupy one cell, so the row's layout never shifts mid-cycle. */
+  .glyph-swap {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .glyph-swap > * {
+    grid-area: 1 / 1;
+  }
+
+  /* The resting state is the kind glyph — the one every other row is showing. */
+  .glyph-swap > .glyph-secondary {
+    opacity: 0;
+  }
+
+  :is(.glyph-host:hover, .glyph-host:focus-within) .glyph-swap > .glyph-primary {
+    animation: glyph-primary 2s ease-in-out infinite;
+  }
+
+  :is(.glyph-host:hover, .glyph-host:focus-within) .glyph-swap > .glyph-secondary {
+    animation: glyph-secondary 2s ease-in-out infinite;
+  }
+
+  /*
+   * Reduced motion keeps the information and drops the movement: hovering still
+   * reveals the component-type, it simply arrives at once instead of fading.
+   * Turning the animation off without this would leave the reveal unreachable
+   * for the readers who asked for less motion, which is a worse answer than no
+   * feature at all.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    :is(.glyph-host:hover, .glyph-host:focus-within) .glyph-swap > .glyph-primary {
+      animation: none;
+      opacity: 0;
+    }
+
+    :is(.glyph-host:hover, .glyph-host:focus-within) .glyph-swap > .glyph-secondary {
+      animation: none;
+      opacity: 1;
+    }
+  }
 }
 
 /*

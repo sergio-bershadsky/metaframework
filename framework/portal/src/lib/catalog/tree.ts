@@ -15,6 +15,16 @@ export interface TreeNode {
   version: number
   /** Frontmatter owner, or null when the entity declares none. */
   owner: string | null
+  /**
+   * The `component-type`, and only on components — null everywhere else.
+   *
+   * The sidebar draws one glyph per row and it answers `kind`; a component's
+   * second axis was reachable only by opening the page. Carrying it here lets
+   * the row reveal it on hover (`EntityGlyph`) without a second request. It is
+   * one short string on roughly a third of the nodes rather than a field on all
+   * of them, which is the payload budget this projection exists to protect.
+   */
+  componentType: string | null
   children: TreeNode[]
   /** True when the entity itself has diagnostics of severity `error`. */
   hasError: boolean
@@ -86,6 +96,13 @@ export function buildTree(catalog: Catalog): TreeNode[] {
       status: entity.frontmatter.status,
       version: entity.frontmatter.version,
       owner: entity.frontmatter.owner ?? null,
+      // Read through Record rather than the typed frontmatter: `component-type`
+      // is a component-only field, so it is not on CommonFrontmatter, and the
+      // loader has already validated it against the closed enum.
+      componentType:
+        entity.kind === 'component'
+          ? ((entity.frontmatter as Record<string, unknown>)['component-type'] as string) ?? null
+          : null,
       hasError: errored.has(entity.srn),
       children: entity.children
         .map(node)

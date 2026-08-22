@@ -163,3 +163,59 @@ export function fittedLayout<T extends PolarLayout>(candidates: readonly T[], si
   }
   return candidates[0]
 }
+
+/** Containment children per node, in the order the catalog listed them. */
+export function childrenOf(
+  nodes: readonly { srn: string; parent: string | null }[],
+): Map<string, string[]> {
+  const children = new Map<string, string[]>()
+  for (const node of nodes) {
+    if (node.parent === null) continue
+    children.set(node.parent, [...(children.get(node.parent) ?? []), node.srn])
+  }
+  return children
+}
+
+/**
+ * How many boxes are missing from this view, charged to the nearest box that
+ * IS drawn.
+ *
+ * Each absent entity is counted exactly once, by walking up from it until a
+ * drawn ancestor is found. So the badges across the canvas sum to the number of
+ * boxes actually missing, and a box only carries a marker when the gap is
+ * directly beneath it.
+ *
+ * It used to count each box's whole subtree, which double-reported: with three
+ * components missing under `acme`, the canvas drew six markers summing to ten —
+ * `+3` on the solution, and the same absences again on every product and
+ * component above them. The solution reading `+3` while all five of its
+ * products were plainly drawn is what made it look like a miscount. It was not
+ * a miscount; it was the same three boxes reported four times.
+ *
+ * The original intent survives intact, because it was never about ancestors.
+ * A product whose one missing component holds four of its own still reads `+5`:
+ * none of those five has a drawn ancestor nearer than the product, so all five
+ * charge to it. What changed is only that boxes ABOVE a drawn child stop
+ * repeating what that child already says.
+ *
+ * Lives here rather than beside the node component so it can be tested without
+ * a DOM: it is arithmetic over the projection, like everything else here.
+ */
+export function hiddenCounts(
+  nodes: readonly { srn: string; parent: string | null }[],
+  placed: ReadonlySet<string>,
+): Map<string, number> {
+  const parent = new Map(nodes.map((node) => [node.srn, node.parent]))
+  const counts = new Map<string, number>(nodes.map((node) => [node.srn, 0]))
+
+  for (const node of nodes) {
+    if (placed.has(node.srn)) continue
+    let ancestor = parent.get(node.srn) ?? null
+    while (ancestor !== null && !placed.has(ancestor)) ancestor = parent.get(ancestor) ?? null
+    // No drawn ancestor at all: the box is outside this view entirely, and
+    // there is nothing on screen it could sensibly be charged to.
+    if (ancestor !== null) counts.set(ancestor, (counts.get(ancestor) ?? 0) + 1)
+  }
+
+  return counts
+}
