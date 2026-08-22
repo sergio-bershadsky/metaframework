@@ -6,7 +6,7 @@ import { ExpandButton } from '@/components/diagrams/expand-button'
 import { CopyMachineButton, StateSimulator } from '@/components/diagrams/state-simulator'
 import { useExpandable } from '@/lib/diagrams/use-expandable'
 import { compileStates } from '@/lib/protocol/mermaid'
-import { stateChartSummary, type StateChart } from '@/lib/protocol/states'
+import { stateChartSummary, type StateChart } from '@/lib/protocol/state-chart-model'
 import { renderMermaid } from '@/lib/ui/mermaid'
 import { cn } from '@/lib/utils'
 
@@ -186,6 +186,13 @@ export function StateChartDiagram({
         expanded && 'fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background',
         className,
       )}
+      // Without this the whole `sr-only` figcaption below — measured at 814
+      // characters — becomes the figure's accessible NAME, and is then read a
+      // second time as its content. `aria-label` outranks `figcaption` in name
+      // computation, so a short name here is what turns the caption back into
+      // what it is. The other diagram figures already do this; these words are
+      // the summary's own first three, so name and caption agree.
+      aria-label={`State machine ${chart.id}`}
     >
       {chart.description && (
         <p className="border-b border-border px-4 py-2.5 text-[12.5px] text-muted-foreground">{chart.description}</p>
@@ -496,12 +503,24 @@ function separateEdgeLabels(svg: SVGSVGElement, labels: Element[]): void {
   }
 }
 
-/** Rendering can only fail catastrophically; say so and still show the machine. */
+/**
+ * Rendering can only fail catastrophically; say so and still show the machine.
+ *
+ * Both halves of the summary, because this is exactly the moment the drawing is
+ * not there to carry the other one: `summary.states` is where a state's entry
+ * and exit actions, its tags, its finality and its nested count are said. The
+ * transitions alone name the edges of a machine whose nodes went unmentioned.
+ */
 function TextFallback({ summary }: { summary: ReturnType<typeof stateChartSummary> }) {
   return (
     <div className="max-h-[480px] overflow-auto px-4 py-3">
       <p className="text-[12.5px] text-warning">Diagram unavailable — the machine is listed instead.</p>
       <p className="mt-2 text-[12.5px] text-muted-foreground">{summary.headline}</p>
+      <ul className="mt-2 space-y-1 font-mono text-[11.5px] text-foreground/80">
+        {summary.states.map((state) => (
+          <li key={state}>{state}</li>
+        ))}
+      </ul>
       <ul className="mt-2 space-y-1 font-mono text-[11.5px] text-foreground/80">
         {summary.transitions.map((transition) => (
           <li key={transition}>{transition}</li>

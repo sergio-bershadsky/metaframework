@@ -1,52 +1,43 @@
 import { z } from 'zod'
-import { RESERVED_KINDS } from '../srn/srn'
+import {
+  COMPONENT_TYPES,
+  EDGE_TYPES,
+  ENTITY_KINDS,
+  STATUSES,
+  type EdgeType,
+  type EntityKind,
+} from './vocabulary'
 
 /**
  * The common frontmatter contract — framework/spec/frontmatter.md.
  * Kind-specific fields are layered on top by kind schemas; this module owns
  * only what every entity shares.
- */
-
-// RESERVED_KINDS already carries product and component — they became bucket
-// keywords when paths were bucketed. Listing them here as well duplicated both
-// the kind filter and the per-kind counts on solution cards.
-//
-// THE RULE, because there are two orderings of these twelve words and getting
-// them the wrong way round is invisible: this list is ADOPTION order and grows
-// by appending, which is what makes it a faithful record of what the ontology
-// reserved and when. `KIND_ORDER` (./tree) is READING order — containers, then
-// behaviour, participants, intent, paperwork. Anything a reader sees iterates
-// KIND_ORDER; this list is for membership tests, the zod enum, and the reserved
-// vocabulary itself, and is never rendered as a sequence. The two were being
-// shown side by side — the Kind filter menu from here, the Kind lens's buckets
-// from there — which is how one viewport came to hold two different orders of
-// the same twelve kinds.
-export const ENTITY_KINDS = ['solution', ...RESERVED_KINDS] as const
-export type EntityKind = (typeof ENTITY_KINDS)[number]
-
-export const CONTAINER_KINDS = ['solution', 'product', 'component'] as const satisfies readonly EntityKind[]
-
-export const STATUSES = ['draft', 'review', 'approved', 'deprecated'] as const
-export type Status = (typeof STATUSES)[number]
-
-/**
- * Forward edge types. Inverse edges are derived by the graph, never authored.
  *
- * Like RESERVED_KINDS this list grows by APPENDING: `realizes` and `measures`
- * arrived with the capability/journey/metric kinds, and putting them at the end
- * rather than beside the edges they read like keeps the order a record of
- * adoption. Nothing existing moved.
+ * ## Where the word lists went
+ *
+ * `ENTITY_KINDS`, `CONTAINER_KINDS`, `STATUSES`, `EDGE_TYPES` and
+ * `COMPONENT_TYPES` live in `./vocabulary` and are re-exported below, so every
+ * existing importer of this module still resolves. The split is not cosmetic:
+ * every schema here is constructed **at module scope**, so importing one const
+ * array from this file used to evaluate the whole tree and put 272.7 KB of zod
+ * — 30.2% of the shared first-load JS — into the browser bundle of all five
+ * page routes. `./vocabulary` states the measurement and the rule.
+ *
+ * **Client components must import the word lists from `./vocabulary`, never
+ * through this re-export.** `lib/client-bundle.test.ts` enforces it.
  */
-export const EDGE_TYPES = [
-  'uses',
-  'exposes',
-  'depends-on',
-  'implements',
-  'supersedes',
-  'realizes',
-  'measures',
-] as const
-export type EdgeType = (typeof EDGE_TYPES)[number]
+
+export {
+  CONTAINER_KINDS,
+  COMPONENT_TYPES,
+  EDGE_TYPES,
+  ENTITY_KINDS,
+  STATUSES,
+  type ComponentType,
+  type EdgeType,
+  type EntityKind,
+  type Status,
+} from './vocabulary'
 
 /** Which target kinds each edge type may point at (frontmatter.md). */
 export const EDGE_TARGET_KINDS: Record<EdgeType, readonly EntityKind[] | 'same-as-source'> = {
@@ -152,24 +143,11 @@ export const KIND_FRONTMATTER = {
   }),
 
   component: z.object({
-    // ADOPTION order, grown by appending like every closed enum here: the
-    // original seven, then `content`/`application`/`specification`
-    // (kinds/component.md v5, decision-record amendment 2026-08-20-g). The
-    // three arrivals are the recorded strains, not Compass's completeness —
-    // each names a thing an entity in a shipped catalog already is and the
-    // old seven could only approximate with the mismatch parked in prose.
-    'component-type': z.enum([
-      'service',
-      'library',
-      'ui',
-      'job',
-      'datastore',
-      'gateway',
-      'external',
-      'content',
-      'application',
-      'specification',
-    ]),
+    // The ten values and the adoption-order rule that governs them live in
+    // `./vocabulary`; the enum is built over that array rather than restating
+    // it, so the validator and the chip in `lib/ui/component-type.ts` read the
+    // same list.
+    'component-type': z.enum(COMPONENT_TYPES),
     // OPTIONAL and deliberately defaultless: absent means "not assessed",
     // never tier 4. The value is blast radius and review priority — how badly
     // the solution degrades if this component fails or regresses — and carries

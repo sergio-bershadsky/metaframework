@@ -611,6 +611,11 @@ function WorkflowCanvas({
                   edges={litEdges}
                   {...highlight.handlers}
                   nodeTypes={nodeTypes}
+                  // `role="application"` is hard-coded by React Flow and cannot
+                  // be overridden by a prop (12.11.3 writes it after the prop
+                  // spread). Naming the region is what the app can do from
+                  // outside: `aria-label` is inside the spread and does land.
+                  aria-label={`${label} — drawing`}
                   colorMode="dark"
                   fitView
                   fitViewOptions={{ padding: FIT_PADDING, maxZoom: 1 }}

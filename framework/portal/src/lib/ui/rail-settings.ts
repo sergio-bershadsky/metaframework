@@ -1,7 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
-import { ENTITY_KINDS, type EntityKind, STATUSES, type Status } from '@/lib/catalog/frontmatter'
+import { ENTITY_KINDS, type EntityKind, STATUSES, type Status } from '@/lib/catalog/vocabulary'
 import { isTreeLens, type TreeLens } from '@/lib/catalog/tree'
 
 /**

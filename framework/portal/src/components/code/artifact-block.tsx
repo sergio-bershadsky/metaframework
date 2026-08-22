@@ -4,7 +4,8 @@ import { Check, ChevronRight, Copy, FileCode2, FileWarning, Link2 } from 'lucide
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AnchorLinkProvider, type AnchorLink } from './anchor-link'
-import { type AnchorPaths, anchorsAt, buildSourceIndex } from '@/lib/artifacts/source-map'
+import { type AnchorPaths, anchorsAt, lineCount } from '@/lib/artifacts/source-map'
+import type { SourceIndex } from '@/lib/artifacts/source-index'
 import { cn } from '@/lib/utils'
 
 /**
@@ -28,6 +29,25 @@ const SourceView = dynamic(() => import('./source-view').then((module) => module
     </div>
   ),
 })
+
+/**
+ * The source index, on the same terms as the editor — and for the same reason,
+ * which the paragraph above stated and this file then did not act on.
+ *
+ * `buildSourceIndex` needs a YAML parser, and `import`ing it at module scope put
+ * 99.8 KB of `yaml` into the first-load JS of *every* entity page: 166.5 KB of
+ * the 176.1 KB that `/catalog/[...srn]` carried over the shared baseline, on
+ * actor and ADR pages that hold no YAML artifact at all. The index is genuinely
+ * needed in the browser — it is what joins the caret to the drawing — but not
+ * before a block is open, which is precisely when Monaco is loading anyway.
+ *
+ * Everything the block needs *before* it opens stayed static: `anchorsAt` and
+ * `lineCount` are pure string work in `@/lib/artifacts/source-map` and cost
+ * nothing.
+ */
+function loadSourceIndex(): Promise<(source: string) => SourceIndex> {
+  return import('@/lib/artifacts/source-index').then((module) => module.buildSourceIndex)
+}
 
 /**
  * One artifact, one block — carrying both its drawing and its source.
@@ -109,7 +129,20 @@ export function ArtifactBlock({
   const [toggled, setToggled] = useState<boolean | null>(null)
   const open = toggled ?? (defaultOpen || fragment === `#${id}`)
 
-  const index = useMemo(() => buildSourceIndex(source), [source])
+  // Null until the block has been opened once and the indexer has arrived. The
+  // panes it feeds do not exist before that, and Monaco is loading over the same
+  // moment, so nothing waits on it that a reader can see.
+  const [index, setIndex] = useState<SourceIndex | null>(null)
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    void loadSourceIndex().then((buildSourceIndex) => {
+      if (live) setIndex(buildSourceIndex(source))
+    })
+    return () => {
+      live = false
+    }
+  }, [open, source])
 
   // Three ways in, in priority order: the pointer over the drawing, a click that
   // outlasts it, and the caret in the source.
@@ -119,7 +152,7 @@ export function ArtifactBlock({
 
   const onLine = useCallback(
     (line: number) => {
-      const next = anchorsAt(anchors, index.pathAt(line))
+      const next = index ? anchorsAt(anchors, index.pathAt(line)) : []
       // A new array on every caret move would re-render the drawing on every
       // arrow key; the anchors under the caret rarely actually change.
       setAtCaret((previous) => (sameAnchors(previous, next) ? previous : next))
@@ -137,10 +170,10 @@ export function ArtifactBlock({
   )
 
   const focused = hovered ?? selected ?? atCaret[0] ?? null
-  const highlight = focused ? index.spanOf(anchors[focused] ?? []) : null
+  const highlight = focused && index ? index.spanOf(anchors[focused] ?? []) : null
 
   const sideBySide = Boolean(visual) && (width === null || width >= SIDE_BY_SIDE_AT)
-  const sourceHeight = Math.min(460, Math.max(160, index.lines * 20 + 26))
+  const sourceHeight = Math.min(460, Math.max(160, lineCount(source) * 20 + 26))
 
   // Height is set on the pane, not on the editor: Monaco fills whatever it is
   // given, and a percentage height inside a container sized by its own content
@@ -295,7 +328,13 @@ function PaneTabs({
             role="tab"
             id={`${base}-${tab.value}-tab`}
             aria-selected={pane === tab.value}
-            aria-controls={`${base}-${tab.value}-panel`}
+            // One panel id, not one per tab. Only the selected pane is
+            // rendered, so `${base}-${tab.value}-panel` on the UNSELECTED tab
+            // named an element that does not exist — a dangling relationship in
+            // the accessibility tree (measured: `r0-source-panel` resolved to
+            // nothing while `r0-visual-panel` resolved). The panel below is one
+            // element whose contents swap, and this now says so.
+            aria-controls={`${base}-panel`}
             tabIndex={pane === tab.value ? 0 : -1}
             onClick={() => onPane(tab.value)}
             className={cn(
@@ -311,7 +350,7 @@ function PaneTabs({
       </div>
       <div
         role="tabpanel"
-        id={`${base}-${pane}-panel`}
+        id={`${base}-panel`}
         aria-labelledby={`${base}-${pane}-tab`}
         tabIndex={0}
         className="focusable min-w-0"

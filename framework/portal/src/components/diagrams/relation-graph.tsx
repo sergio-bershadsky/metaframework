@@ -30,6 +30,7 @@ import {
   type LayoutDirection,
   type PlacedNode,
 } from '@/lib/diagrams/layout'
+import { RELATION_VERB, entityPhrase, nodeButtonLabel, relationSentence } from '@/lib/diagrams/names'
 import { kindColorVar, kindStyle } from '@/lib/ui/kind'
 import { cn } from '@/lib/utils'
 
@@ -102,22 +103,40 @@ export interface RelationGraphProps {
  *   in it at all — which is the difference that survives being made small.
  */
 const EDGE_STYLES = {
-  uses: { label: 'uses', width: 1.25, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
-  exposes: { label: 'exposes', width: 2, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
-  'depends-on': { label: 'depends on', width: 1.25, dash: '7 4', cap: undefined, marker: MarkerType.ArrowClosed },
-  implements: { label: 'implements', width: 1.25, dash: '1.5 3.5', cap: undefined, marker: MarkerType.ArrowClosed },
+  uses: { label: RELATION_VERB.uses, width: 1.25, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
+  exposes: { label: RELATION_VERB.exposes, width: 2, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
+  'depends-on': {
+    label: RELATION_VERB['depends-on'],
+    width: 1.25,
+    dash: '7 4',
+    cap: undefined,
+    marker: MarkerType.ArrowClosed,
+  },
+  implements: {
+    label: RELATION_VERB.implements,
+    width: 1.25,
+    dash: '1.5 3.5',
+    cap: undefined,
+    marker: MarkerType.ArrowClosed,
+  },
   // A delivery claim, like `implements` one level up — hence a dash-dot that
   // reads as a relative of it, and a place in the legend beside it. This map's
   // key order is the legend order, and it follows frontmatter.md's table
   // rather than EDGE_TYPES: that list is adoption order and grows by
   // appending, which is the wrong thing for a reader to see first.
-  realizes: { label: 'realizes', width: 1.9, dash: '6 3 1.5 3', cap: undefined, marker: MarkerType.ArrowClosed },
+  realizes: {
+    label: RELATION_VERB.realizes,
+    width: 1.9,
+    dash: '6 3 1.5 3',
+    cap: undefined,
+    marker: MarkerType.ArrowClosed,
+  },
   // An observation, not a dependency: the open arrowhead says nothing flows
   // along this edge, the same distinction `supersedes` draws. The round cap is
   // what turns the dash into a dot — a zero-length segment draws nothing under
   // a butt cap and a full circle under a round one.
-  measures: { label: 'measures', width: 1, dash: '0.01 4.5', cap: 'round', marker: MarkerType.Arrow },
-  supersedes: { label: 'supersedes', width: 1.25, dash: '11 4', cap: undefined, marker: MarkerType.Arrow },
+  measures: { label: RELATION_VERB.measures, width: 1, dash: '0.01 4.5', cap: 'round', marker: MarkerType.Arrow },
+  supersedes: { label: RELATION_VERB.supersedes, width: 1.25, dash: '11 4', cap: undefined, marker: MarkerType.Arrow },
 } satisfies Record<
   EdgeType,
   { label: string; width: number; dash: string | undefined; cap: 'round' | undefined; marker: MarkerType }
@@ -215,6 +234,15 @@ function EntityBox({ data }: NodeProps<EntityFlowNode>) {
           style={tint}
           onClick={() => navigate(data.srn)}
           title={data.srn}
+          // Both of these are facts the box states in a channel that does not
+          // survive being read out. The KIND is the icon and the hue, so a
+          // button named by its own text content announces "ledgerDouble-entry
+          // books" and drops it; and `data.focused` — the entity this page is
+          // about, the subject of the whole drawing — is a 1px outline in
+          // `tint` above and nothing else at all. The solution map's node gets
+          // both right; this one is the same control.
+          aria-label={nodeButtonLabel(data.name, style.label, data.title)}
+          aria-current={data.focused ? 'true' : undefined}
         >
           {body}
         </button>
@@ -455,6 +483,14 @@ export function RelationGraph({
     })
   }, [nodes, layout, focus, direction, anchored, onNavigate, measured, layoutKey])
 
+  // The caption's name for a box, reachable from the edge builder below so the
+  // two describe the same drawing. Memoised on `nodes` alone: it must not be a
+  // fresh closure per render, or every edge object is rebuilt on every render.
+  const byId = useMemo(() => {
+    const index = new Map(nodes.map((node) => [node.srn, node]))
+    return (srn: string) => phraseFor(index, srn)
+  }, [nodes])
+
   // Visibility is a filter on drawn edges only: toggling a type must never
   // reshuffle the graph, or the reader loses the map they had just learned.
   const flowEdges = useMemo<RelationFlowEdge[]>(
@@ -482,10 +518,15 @@ export function RelationGraph({
             vectorEffect: 'non-scaling-stroke',
           },
           markerEnd: { type: style.marker, width: 14, height: 14, color: stroke },
-          ariaLabel: `${edge.from} ${style.label} ${edge.to}`,
+          // The caption's sentence, verbatim — not the SRN pair the model holds.
+          // React Flow exposes every edge as a `role="img"` carrying this
+          // string, so it is a second, independent reading of the same picture:
+          // it has to be a reading of the picture that is actually drawn, whose
+          // boxes say `ledger`, not `srn://acme/product/billing/component/ledger`.
+          ariaLabel: relationSentence(byId(edge.from), style.label, byId(edge.to)),
         }
       }),
-    [drawable, focus, hiddenTypes],
+    [drawable, focus, hiddenTypes, byId],
   )
 
   const counts = useMemo(() => {
@@ -548,6 +589,15 @@ export function RelationGraph({
                   edges={litEdges}
                   {...highlight.handlers}
                   nodeTypes={nodeTypes}
+                  // React Flow puts `role="application"` on its own container
+                  // and does not let a prop override it (verified in the
+                  // installed 12.11.3: `role` is written after the prop spread).
+                  // An application region takes a screen reader out of browse
+                  // mode, so the least it can do is say what it is; unnamed, the
+                  // reader is dropped into an anonymous box. `aria-label` DOES
+                  // pass through — it is inside the spread — so this is the half
+                  // of the problem the app can fix from outside.
+                  aria-label={`${label} — drawing`}
                   colorMode="dark"
                   fitView
                   fitViewOptions={{ padding: FIT_PADDING, maxZoom: 1 }}
@@ -737,18 +787,25 @@ function GraphToolbar({
 /** The graph in words — same content the canvas draws, for readers and scrapers. */
 function describe(nodes: RelationGraphNode[], edges: RelationGraphEdge[]): string[] {
   const byId = new Map(nodes.map((node) => [node.srn, node]))
-  const name = (srn: string) => {
-    const node = byId.get(srn)
-    return node ? `${node.name} (${node.kind})` : srn
-  }
+  const name = (srn: string) => phraseFor(byId, srn)
 
-  const lines = edges.map((edge) => `${name(edge.from)} ${EDGE_STYLES[edge.edge].label} ${name(edge.to)}.`)
+  const lines = edges.map((edge) => relationSentence(name(edge.from), EDGE_STYLES[edge.edge].label, name(edge.to)))
   const connected = new Set(edges.flatMap((edge) => [edge.from, edge.to]))
   const isolated = nodes.filter((node) => !connected.has(node.srn))
   if (isolated.length > 0) {
     lines.push(`No relations: ${isolated.map((node) => name(node.srn)).join(', ')}.`)
   }
   return lines
+}
+
+/**
+ * One endpoint of an edge, in the caption's words — falling back to the SRN
+ * only where the graph holds no node for it, which is the one case where the
+ * SRN really is all that is known.
+ */
+function phraseFor(byId: ReadonlyMap<string, RelationGraphNode>, srn: string): string {
+  const node = byId.get(srn)
+  return node ? entityPhrase(node.name, node.kind) : srn
 }
 
 function LayoutPending() {

@@ -11,8 +11,8 @@ import type {
   MessageLayout,
   SequenceLayout,
   Workflow,
-} from '@/lib/protocol/workflow'
-import { layoutWorkflow, narrateWorkflow } from '@/lib/protocol/workflow'
+} from '@/lib/protocol/sequence'
+import { layoutWorkflow, narrateWorkflow } from '@/lib/protocol/sequence'
 import { kindColorVar } from '@/lib/ui/kind'
 import { cn } from '@/lib/utils'
 
@@ -145,6 +145,12 @@ export function SequenceDiagram({
         expanded && 'fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background',
         className,
       )}
+      // A figure is named by `aria-label` and by nothing else — a `figcaption`,
+      // visible or not, does not name it (verified in Chrome against a
+      // three-figure control page). Without this the figure is anonymous in the
+      // accessibility tree, and a page carrying two sequence diagrams offers two
+      // unnamed figures. The visible caption below still reads as content.
+      aria-label={`Sequence diagram: ${workflow.title}`}
     >
       <figcaption className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border px-4 py-3">
         <h3 className="text-[13px] font-medium text-foreground">{workflow.title}</h3>

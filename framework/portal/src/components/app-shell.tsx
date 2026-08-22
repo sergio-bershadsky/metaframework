@@ -49,6 +49,28 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-clip">
+      {/* The rail is in the layout, so every route puts the whole catalog
+          between the top of the document and the page — measured at 233 tab
+          stops before `main` with one solution in focus, 810 with all five. A
+          skip link is the only thing that shortens that, and it has to be here
+          rather than per-page because the rail is here.
+
+          Parked off-screen by TRANSFORM rather than by `sr-only`, deliberately:
+          `sr-only` sets `position: absolute` and `focus:not-sr-only` sets it
+          back to `static`, and which of those two wins is decided by Tailwind's
+          own utility ordering rather than by the order they are written in. A
+          translate has no such conflict — the box is laid out once, in flow,
+          and only moves. The shell is `overflow-clip`, so the parked position
+          is genuinely invisible; it is `fixed`, so `absolute` resolves against
+          it. */}
+      <a
+        href="#main"
+        className="focusable absolute top-2 left-2 z-50 -translate-y-16 rounded-md border border-border
+                   bg-surface px-3 py-1.5 text-[12.5px] text-foreground transition-transform
+                   focus:translate-y-0 motion-reduce:transition-none"
+      >
+        Skip to content
+      </a>
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
         <Link href="/" className="focusable flex items-center gap-2 rounded">
           <Hexagon className="size-4 text-primary" strokeWidth={2.5} aria-hidden />
@@ -77,7 +99,15 @@ export async function AppShell({ children }: { children: ReactNode }) {
         <aside className="w-72 shrink-0 overflow-clip border-r border-border bg-surface/40">
           <CatalogTree roots={tree} />
         </aside>
-        <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+        {/* `tabIndex={-1}` is what makes the skip link above actually land:
+            a fragment target that cannot hold focus scrolls the page and leaves
+            focus where it was, which puts the reader back at the top of the
+            rail. -1 rather than 0 — this must be a focus TARGET, not a tab
+            stop. It paints nothing: the only focus ring in this console is
+            `.focusable`, which this is not. */}
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
   )

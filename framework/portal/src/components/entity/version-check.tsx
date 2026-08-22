@@ -89,7 +89,21 @@ export function VersionCheck({ findings }: { findings: Diagnostic[] }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+        {/* Focusable because it scrolls. Nothing inside this list is
+            interactive, and it is a DESCENDANT of the dialog that holds focus
+            rather than an ancestor of it — so with no tab stop of its own, a
+            keyboard-only reader has nothing to put the caret in and no way to
+            reach a finding past the 52vh cut. `role="group"` is what lets it
+            carry a name: `aria-label` on a bare div names nothing. `focusable`
+            comes with it and is not optional — this console's only focus
+            indicator is that class, so a new tab stop without it would be a new
+            dead stop. It changes nothing until the caret is actually here. */}
+        <div
+          role="group"
+          aria-label="Version issues"
+          tabIndex={0}
+          className="focusable max-h-[52vh] space-y-2 overflow-y-auto rounded pr-1"
+        >
           {findings.map((finding, index) => (
             <div
               key={`${finding.path}-${index}`}

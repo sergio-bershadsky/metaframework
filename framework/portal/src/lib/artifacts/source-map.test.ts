@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { stateChartAnchors, workflowAnchors } from './anchors'
-import { anchorsAt, buildSourceIndex, formatPositionalPath, parsePositionalPath } from './source-map'
+import { anchorsAt, formatPositionalPath, lineCount, parsePositionalPath } from './source-map'
+import { buildSourceIndex } from './source-index'
 import { parseStates } from '../protocol/states'
 import { parseWorkflow } from '../protocol/workflow'
 
@@ -106,6 +107,28 @@ describe('buildSourceIndex', () => {
     const index = buildSourceIndex('steps:\n  - [unclosed\n')
     expect(index.pathAt(1)).toBeDefined()
     expect(index.lines).toBe(3)
+  })
+})
+
+/**
+ * `lineCount` exists so the artifact block can size its source pane without
+ * loading a YAML parser — the pane's height is read on every render, open or
+ * closed, and `SourceIndex.lines` costs 99.8 KB of `yaml` to obtain. The whole
+ * substitution rests on the two numbers being the same number, so that is what
+ * is asserted, on the real fixtures and on the edge cases a hand-rolled scan
+ * gets wrong: no newline at all, a trailing newline, an empty string.
+ */
+describe('lineCount', () => {
+  it('agrees with the index it stands in for', () => {
+    for (const source of [WORKFLOW, STATES]) {
+      expect(lineCount(source)).toBe(buildSourceIndex(source).lines)
+    }
+  })
+
+  it('agrees at the boundaries', () => {
+    for (const source of ['', 'one line', 'trailing\n', 'a\nb\nc', '\n\n']) {
+      expect(lineCount(source)).toBe(buildSourceIndex(source).lines)
+    }
   })
 })
 

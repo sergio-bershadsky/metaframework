@@ -3,14 +3,8 @@
 import { Check, Copy, RotateCcw, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { Actor, AnyStateMachine, InspectionEvent } from 'xstate'
-import type {
-  MachineConfig,
-  StateChart,
-  StateChartEdge,
-  StateChartNode,
-  StateNodeConfig,
-  TransitionConfig,
-} from '@/lib/protocol/states'
+import type { MachineConfig, StateNodeConfig, TransitionConfig } from '@/lib/protocol/states'
+import type { StateChart, StateChartEdge, StateChartNode } from '@/lib/protocol/state-chart-model'
 import { cn } from '@/lib/utils'
 
 /**

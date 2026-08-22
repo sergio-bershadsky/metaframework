@@ -1,4 +1,4 @@
-import { type EntityKind, STATUSES, type Status } from './frontmatter'
+import { type EntityKind, STATUSES, type Status } from './vocabulary'
 import type { Catalog } from './types'
 
 /**

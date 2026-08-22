@@ -11,16 +11,24 @@ import {
   Timer,
   Waypoints,
 } from 'lucide-react'
-import { KIND_FRONTMATTER } from '../catalog/frontmatter'
+import type { ComponentType } from '../catalog/vocabulary'
 
 /**
  * `component-type`, for the chip that draws it.
  *
- * The field is defined once in `KIND_FRONTMATTER`
- * (framework/spec/kinds/component.md) and the ten values are read out of that
- * zod enum rather than restated here — a second copy of a closed enum is a
- * second place for it to fall behind, and the failure would be silent: a new
- * value would simply render without an icon.
+ * The ten values are defined once, in `lib/catalog/vocabulary`
+ * (framework/spec/kinds/component.md), and read from there rather than restated
+ * here — a second copy of a closed enum is a second place for it to fall
+ * behind, and the failure would be silent: a new value would simply render
+ * without an icon.
+ *
+ * That single definition used to be the zod enum inside `KIND_FRONTMATTER`, and
+ * this module read the values back off it via `.shape[...].options`. Same one
+ * source, but reaching it from a `'use client'` graph evaluated every schema in
+ * `lib/catalog/frontmatter` at import time and put the whole of zod — 272.7 KB,
+ * 30.2% of the shared first-load JS — into every page's bundle. The array moved
+ * one module down and `KIND_FRONTMATTER.component` now builds `z.enum()` over
+ * it, so the validator and this table still cannot disagree.
  *
  * ## Why these get a hue when lifecycle deliberately does not
  *
@@ -66,9 +74,7 @@ import { KIND_FRONTMATTER } from '../catalog/frontmatter'
  */
 
 /** The ten values, in the spec's adoption order. Read, never restated. */
-export const COMPONENT_TYPES = KIND_FRONTMATTER.component.shape['component-type'].options
-
-export type ComponentType = (typeof COMPONENT_TYPES)[number]
+export { COMPONENT_TYPES, type ComponentType } from '../catalog/vocabulary'
 
 export interface ComponentTypeStyle {
   /** The icon, chosen so the ten are separable at 12px without their labels. */

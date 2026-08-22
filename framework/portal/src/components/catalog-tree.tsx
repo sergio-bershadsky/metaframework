@@ -19,6 +19,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -26,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EntityGlyph } from '@/components/entity-glyph'
-import { type EntityKind, STATUSES, type Status } from '@/lib/catalog/frontmatter'
+import { type EntityKind, STATUSES, type Status } from '@/lib/catalog/vocabulary'
 import { entityHref } from '@/lib/catalog/href'
 import {
   applyLens,
@@ -383,13 +384,22 @@ function KindFilter({ kinds, onChange }: { kinds: EntityKind[]; onChange: (kinds
         {kinds.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <button
-              type="button"
-              onClick={() => onChange([])}
-              className="focusable w-full rounded px-2 py-1.5 text-left text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            {/* A menu item, not a bare <button>. Radix's roving focus only ever
+                visits `role="menuitem*"` children and its focus scope swallows
+                Tab, so a plain button placed in here is reachable by pointer and
+                by NOTHING else — measured: End went to the last checkbox item,
+                Tab and Shift+Tab both left focus on it, and the button was never
+                entered. Same classes, so it looks the way it did; the menu now
+                closes on select, which is both Radix's default and the only
+                behaviour that leaves focus somewhere real — this item unmounts
+                the moment it is used, and a menu kept open around it would drop
+                focus to the body. */}
+            <DropdownMenuItem
+              onSelect={() => onChange([])}
+              className="w-full rounded px-2 py-1.5 text-left text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               Clear kind filter
-            </button>
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
@@ -445,13 +455,14 @@ function StatusFilter({
         {statuses.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <button
-              type="button"
-              onClick={() => onChange([])}
-              className="focusable w-full rounded px-2 py-1.5 text-left text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            {/* A menu item for the same reason as the Kind menu's: a bare
+                <button> inside a Radix menu is outside every focus path. */}
+            <DropdownMenuItem
+              onSelect={() => onChange([])}
+              className="w-full rounded px-2 py-1.5 text-left text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               Clear status filter
-            </button>
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
@@ -677,6 +688,12 @@ function TreeItem({
           href={entityHref(node.srn)}
           className="focusable glyph-host flex min-w-0 flex-1 items-center gap-2 rounded py-1.5"
           title={node.title}
+          // Which of the 378 rows is the page you are on. It was said in two
+          // channels a screen reader cannot see — the primary bar drawn above
+          // (`aria-hidden`) and a `text-foreground` swap on the label — and in
+          // no channel it can. history-panel.tsx already marks its selected
+          // revision this way, so this is an omission rather than a house style.
+          aria-current={isActive ? 'page' : undefined}
         >
           <NodeIcon node={node} dim={isContextOnly} />
           <NodeLabel node={node} query={filters.query} active={isActive} dim={isContextOnly} />
@@ -707,7 +724,13 @@ function NodeIcon({ node, dim }: { node: TreeNode; dim: boolean }) {
     // absolute, and it must be contained here rather than escaping to the row.
     <span title={label} className="relative flex shrink-0 items-center">
       <EntityGlyph kind={node.kind} componentType={node.componentType} className="size-3.5" dim={dim} />
-      <span className="sr-only">{label}</span>
+      {/* The separator is why the comma and the hard space are here: the row's
+          accessible name is this span run straight into the label beside it, and
+          it read "Component · serviceledger". A plain space would be collapsed
+          away at the end of this box's only line before it ever reached the
+          name; a non-breaking one is not. Neither is painted — the span is
+          clipped. */}
+      <span className="sr-only">{label},&nbsp;</span>
     </span>
   )
 }

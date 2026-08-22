@@ -1,4 +1,4 @@
-import { stateChartSummary, type StateChart, type StateChartEdge, type StateChartNode } from './states'
+import { stateChartSummary, type StateChart, type StateChartEdge, type StateChartNode } from './state-chart-model'
 
 /**
  * `StateChart` → mermaid `stateDiagram-v2` text.

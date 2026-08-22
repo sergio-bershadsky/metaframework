@@ -37,8 +37,18 @@ export function MetricStats({ entity }: { entity: Entity }) {
   if (!type && !target && !window && !direction) return null
 
   return (
-    <section className="mt-6">
-      <div className="panel divide-y divide-border sm:flex sm:divide-x sm:divide-y-0">
+    // Named, and therefore a `region` landmark, for the same reason
+    // `EntityScale` names its identical strip "Scale": these numbers appear
+    // above the prose under no heading at all, so without a name here they are
+    // in the page's outline nowhere. Two components doing one job, and only one
+    // of them was reachable.
+    <section className="mt-6" aria-label="Thresholds">
+      {/* `<dl>` for the same reason as `EntityScale`'s identical strip: without
+          it "Target" and "99.5% of parcels" are two adjacent runs of text and
+          nothing says one is the label of the other. Pixel-neutral — the flex
+          item is still the wrapping `<div>`, and preflight zeroes the margins
+          `<dd>` would bring. */}
+      <dl className="panel divide-y divide-border sm:flex sm:divide-x sm:divide-y-0">
         <Stat label="Target" value={target} emphasis />
         <Stat label="Window" value={window} />
         <Stat
@@ -47,7 +57,7 @@ export function MetricStats({ entity }: { entity: Entity }) {
           render={(value) => <Direction value={value} />}
         />
         <Stat label="Type" value={type} />
-      </div>
+      </dl>
     </section>
   )
 }
@@ -65,8 +75,8 @@ function Stat({
 }) {
   return (
     <div className="min-w-0 flex-1 px-4 py-3">
-      <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
-      <div
+      <dt className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{label}</dt>
+      <dd
         className={cn(
           'mt-1 font-mono break-words',
           // The target is the number the metric exists for; everything else on
@@ -81,7 +91,7 @@ function Stat({
         ) : (
           value
         )}
-      </div>
+      </dd>
     </div>
   )
 }

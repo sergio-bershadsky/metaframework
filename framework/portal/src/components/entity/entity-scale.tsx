@@ -77,11 +77,19 @@ export function EntityScale({
 
   return (
     <section className={className} aria-label="Scale">
-      <div className="panel divide-y divide-border sm:flex sm:divide-x sm:divide-y-0">
+      {/* A description list, not three sibling paragraphs. The label-to-value
+          binding was positional only — "Entities", "111", "beneath this one"
+          read as three unrelated runs of text, and which number belonged to
+          which word was a fact about where they sat. `entity-details.tsx` and
+          the home page's solution cards already use `<dl>` for exactly this
+          shape. A `<div>` grouping a `<dt>` with its `<dd>`s is valid inside a
+          `<dl>`, so the flex item keeps its own box and nothing moves: preflight
+          zeroes the margins `<dd>` would otherwise bring. */}
+      <dl className="panel divide-y divide-border sm:flex sm:divide-x sm:divide-y-0">
         <Stat label="Entities" value={entities.length + descendants.length} caption="beneath this one" />
         <Stat label="Artifacts" value={artifacts} caption="files beside those documents" />
         <Stat label="References in" value={referencesIn} caption="edges from outside" />
-      </div>
+      </dl>
     </section>
   )
 }
@@ -89,9 +97,9 @@ export function EntityScale({
 function Stat({ label, value, caption }: { label: string; value: number; caption: string }) {
   return (
     <div className="min-w-0 flex-1 px-4 py-3">
-      <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
-      <p className="mt-1 font-mono text-[17px] tabular-nums text-foreground">{value.toLocaleString('en-US')}</p>
-      <p className="mt-0.5 text-[11.5px] text-muted-foreground">{caption}</p>
+      <dt className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{label}</dt>
+      <dd className="mt-1 font-mono text-[17px] tabular-nums text-foreground">{value.toLocaleString('en-US')}</dd>
+      <dd className="mt-0.5 text-[11.5px] text-muted-foreground">{caption}</dd>
     </div>
   )
 }

@@ -107,6 +107,11 @@ export function JourneyDiagram({ steps, summary, className }: JourneyDiagramProp
         expanded && 'fixed inset-0 z-50 flex flex-col rounded-none border-0 bg-background',
         className,
       )}
+      // Same reason as the state chart: with no `aria-label`, the 1064-character
+      // `sr-only` figcaption below becomes this figure's accessible name and is
+      // then read again as its content. A short name puts the walk back into
+      // the caption where it belongs.
+      aria-label="Journey walk"
     >
       <div className={cn('relative', expanded && 'min-h-0 flex-1')}>
         {failure ? (

@@ -60,9 +60,17 @@ export function Markdown({
               )
             }
             return (
+              // `focusable` is the console's only focus indicator — a
+              // third-party stylesheet in the bundle sets `:focus { outline:
+              // none }` on everything, so a control without this class has no
+              // ring at all, not even the browser's. `hover:underline` does not
+              // fire on focus, so an author's link was the one tab stop on an
+              // entity page that showed nothing when reached by keyboard. The
+              // class defines a `:focus-visible` outline and nothing else, so
+              // the resting and hover appearance are unchanged.
               <a
                 href={href}
-                className="text-primary underline-offset-4 hover:underline"
+                className="focusable rounded text-primary underline-offset-4 hover:underline"
                 {...(href?.startsWith('http') ? { target: '_blank', rel: 'noreferrer' } : {})}
               >
                 {label}
@@ -77,8 +85,22 @@ export function Markdown({
           li({ children: content }) {
             return <li>{linkifyChildren(content, mentions)}</li>
           },
-          td({ children: content }) {
-            return <td>{linkifyChildren(content, mentions)}</td>
+          td({ children: content, style }) {
+            return <td style={style}>{linkifyChildren(content, mentions)}</td>
+          },
+          // remark-gfm emits a real `<thead>` with real `<th>`s, but no `scope`.
+          // A pipe table can only ever have column headers, so the answer is
+          // always `col` — which is the fix and also why it is safe to state
+          // unconditionally here rather than per table. `style` carries the
+          // column alignment mdast-util-to-hast derives from `|:---:|`; it is
+          // passed through because overriding the element would otherwise drop
+          // it. Nothing else about the cell changes.
+          th({ children: content, style }) {
+            return (
+              <th scope="col" style={style}>
+                {content}
+              </th>
+            )
           },
           code({ className, children: content }) {
             if (className) return <code className="font-code text-[13px]">{content}</code>

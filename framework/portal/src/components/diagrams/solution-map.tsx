@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { entityHref } from '@/lib/catalog/href'
 import { DIAGRAM_BACKGROUND, DIAGRAM_CANVAS_VARS } from '@/lib/diagrams/layout'
+import { RELATION_VERB, relationSentence } from '@/lib/diagrams/names'
 import {
   type CanvasSize,
   drawnExtent,
@@ -586,12 +587,32 @@ export function SolutionMap({ nodes, links, root, label = 'Solution map', classN
             nodeData={nodeData}
             recession={recession}
             focus={focus}
+            label={label}
             onAnimatingChange={setAnimating}
           />
         ) : (
           <MapPending />
         )}
       </div>
+
+      {/*
+        Re-centring is this map's primary interaction, and it rewrites the
+        figcaption below end to end — different focus, different rings,
+        different `+n` list. The caption is not a live region and it sits after
+        every node button in document order, and focus stays on the button that
+        was pressed, so nothing re-reads it: a reader who is not looking at the
+        canvas was given no signal that the map had moved at all.
+
+        The headline, not the whole caption: it is the one line that states what
+        the map is now showing ("Structure around billing: 10 entities within 2
+        steps"), and a polite region that recited twenty ring members on every
+        press would be worse than silence. The full listing is a caption away.
+        `aria-busy` on the figure defers this until the polar transition ends,
+        which is also when the sentence becomes true.
+      */}
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {summary.headline}
+      </p>
 
       <figcaption className="sr-only">
         <p>{summary.headline}</p>
@@ -652,6 +673,7 @@ function MapCanvas({
   nodeData,
   recession,
   focus,
+  label,
   onAnimatingChange,
 }: {
   layout: PolarLayout
@@ -659,6 +681,8 @@ function MapCanvas({
   nodeData: ReadonlyMap<string, MapNodeData>
   recession: ReadonlyMap<string, Recession>
   focus: string
+  /** The figure's name, so the canvas inside it can say what it is. */
+  label: string
   onAnimatingChange: (animating: boolean) => void
 }) {
   const reduced = usePrefersReducedMotion()
@@ -703,6 +727,7 @@ function MapCanvas({
 
   const flowEdges = useMemo<MapFlowEdge[]>(() => {
     const drawn: MapFlowEdge[] = []
+    const name = (srn: string) => nodeData.get(srn)?.name ?? srn
     for (const link of links) {
       if (!frame.visible.has(link.from) || !frame.visible.has(link.to)) continue
       const spine = link.relation === 'contains'
@@ -716,11 +741,17 @@ function MapCanvas({
         ...(spine
           ? {}
           : { markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: 'var(--border-strong)' } }),
-        ariaLabel: `${link.from} ${spine ? 'contains' : link.relation} ${link.to}`,
+        // The caption's words, because React Flow exposes this string as a
+        // `role="img"` name and it is therefore a second reading of the drawing.
+        // It used to be built from the model — two SRNs and the raw frontmatter
+        // token, `srn://acme/product/billing depends-on srn://…/payment` — which
+        // is not what the picture says: the boxes carry short names and the
+        // legend says "depends on".
+        ariaLabel: relationSentence(name(link.from), RELATION_VERB[link.relation], name(link.to)),
       })
     }
     return drawn
-  }, [links, frame.visible])
+  }, [links, frame.visible, nodeData])
 
   // Two recessions compose here, and the order matters: the branch decides what
   // is drawn back, then hover overrides it for whatever the pointer is asking
@@ -751,6 +782,12 @@ function MapCanvas({
       {...highlight.handlers}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
+      // React Flow hard-codes `role="application"` on this container and no prop
+      // overrides it (checked in the installed 12.11.3 — `role` is written after
+      // the prop spread). An application region silences a screen reader's
+      // browse mode, so it must at least be named; `aria-label` is inside the
+      // spread and does land.
+      aria-label={`${label} — drawing`}
       // Positions ARE the centres: the layout is polar and its origin is the
       // focus, so letting React Flow keep its top-left convention would put
       // every ring half a box off its own radius.
@@ -959,7 +996,7 @@ function describe(
     (link) => link.relation !== 'contains' && layout.depth.has(link.from) && layout.depth.has(link.to),
   )
   for (const link of crossing) {
-    lines.push(`${name(link.from)} ${link.relation === 'uses' ? 'uses' : 'depends on'} ${name(link.to)}.`)
+    lines.push(relationSentence(name(link.from), RELATION_VERB[link.relation], name(link.to)))
   }
 
   // Visual recession has to be said out loud, or a reader who is not looking at

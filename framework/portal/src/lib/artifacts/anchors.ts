@@ -1,5 +1,5 @@
-import type { StateChart } from '../protocol/states'
-import type { Workflow, WorkflowStep } from '../protocol/workflow'
+import type { StateChart } from '../protocol/state-chart-model'
+import type { Workflow, WorkflowStep } from '../protocol/sequence'
 import { type AnchorPaths, parsePositionalPath } from './source-map'
 
 /**

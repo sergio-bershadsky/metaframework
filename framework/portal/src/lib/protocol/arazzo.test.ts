@@ -297,7 +297,7 @@ describe('arazzoSummary — the drawing in words', () => {
   it('names every step and every edge the canvas draws', () => {
     const lines = arazzoSummary(workflowOf(CARRIER_BOOKING))
     expect(lines).toEqual([
-      'Step 1, book-shipment: operationId bookShipment.',
+      'Step 1, book-shipment: operationId bookShipment, succeeds when $statusCode == 201. POST /.',
       'book-shipment on failure (idempotency-key-reused) continues to the end of the workflow when $statusCode == 409.',
       'book-shipment on failure (no-carrier-available) continues to the end of the workflow when $statusCode == 502.',
     ])
@@ -305,5 +305,67 @@ describe('arazzoSummary — the drawing in words', () => {
 
   it('says which way an AsyncAPI step points', () => {
     expect(arazzoSummary(workflowOf(GAME_TRANSPORT))[0]).toBe('Step 1, sync: operationId sync-request, send.')
+  })
+
+  /**
+   * The invariant, not three examples of it: a step-level field this reader
+   * KEEPS is excluded from `omitted`, so the "not drawn, and in the file beside
+   * this" note will never mention it. Whatever a caption does not say about
+   * such a field, nothing says.
+   */
+  it('says every step-level field it does not report as omitted', () => {
+    const workflow = workflowOf(CARRIER_BOOKING)
+    const [line] = arazzoSummary(workflow)
+    expect(workflow.omitted).toEqual(['parameters'])
+    for (const stated of ['book-shipment', 'bookShipment', '$statusCode == 201', 'POST /.']) {
+      expect(line).toContain(stated)
+    }
+  })
+
+  it('joins several success criteria the way the box does', () => {
+    const line = arazzoSummary(
+      workflowOf({
+        arazzo: '1.1.0',
+        workflows: [
+          {
+            workflowId: 'w',
+            steps: [
+              {
+                stepId: 'one',
+                operationId: 'op',
+                successCriteria: [{ condition: '$statusCode == 200' }, { condition: '$response.body#/ok == true' }],
+              },
+            ],
+          },
+        ],
+      }),
+    )[0]
+    expect(line).toBe('Step 1, one: operationId op, succeeds when $statusCode == 200 AND $response.body#/ok == true.')
+  })
+
+  it('flattens a multi-line description — a caption is one flow of text', () => {
+    const line = arazzoSummary(
+      workflowOf({
+        arazzo: '1.1.0',
+        workflows: [
+          {
+            workflowId: 'w',
+            steps: [{ stepId: 'one', operationId: 'op', description: 'First line.\n  Second line.' }],
+          },
+        ],
+      }),
+    )[0]
+    expect(line).toBe('Step 1, one: operationId op. First line. Second line.')
+  })
+
+  it('adds nothing when a step states neither criteria nor a description', () => {
+    expect(
+      arazzoSummary(
+        workflowOf({
+          arazzo: '1.1.0',
+          workflows: [{ workflowId: 'w', steps: [{ stepId: 'one', operationId: 'op' }] }],
+        }),
+      )[0],
+    ).toBe('Step 1, one: operationId op.')
   })
 })

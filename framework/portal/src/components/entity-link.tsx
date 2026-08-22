@@ -79,7 +79,13 @@ export function EntityLink({
         // leading-none plus minimal vertical padding: a badge must stay inside
         // the line box it appears in, or a paragraph full of references ends up
         // double-spaced compared with one without them.
-        'focusable group/link glyph-host inline-flex items-center gap-1 rounded border px-[6px] py-[2px] align-baseline',
+        //
+        // `relative` contains the `sr-only` separator below: sr-only is
+        // `position: absolute`, and without a positioned ancestor it is placed
+        // against the initial containing block and can extend the document's
+        // scroll box. Same lesson as section-heading.tsx. It paints nothing —
+        // no offsets, and `z-index: auto` opens no stacking context.
+        'focusable group/link glyph-host relative inline-flex items-center gap-1 rounded border px-[6px] py-[2px] align-baseline',
         'font-mono text-[0.78em] leading-none no-underline transition',
         style.bg,
         style.border,
@@ -90,6 +96,13 @@ export function EntityLink({
       <EntityGlyph kind={target.kind} componentType={target.componentType} className="size-3 shrink-0" />
       <span className="text-foreground/90">{target.name}</span>
       {version != null && <span className="text-primary">@{version}</span>}
+      {/* The separator is load-bearing and never painted. Without it the two
+          spans run together in the accessible name — "customerCustomer" on a
+          journey page, where the badge shows a name beside its title. A bare
+          space would not do: whitespace at the start of a flex item's text is
+          collapsed away before it ever reaches the name. The comma survives,
+          and `sr-only` keeps it off the screen. */}
+      {showTitle && <span className="sr-only">,&nbsp;</span>}
       {showTitle && <span className="text-muted-foreground">{target.title}</span>}
       {/* Always visible: the arrow is what marks the badge as navigable, so
           hiding it until hover hides the affordance from anyone scanning. */}

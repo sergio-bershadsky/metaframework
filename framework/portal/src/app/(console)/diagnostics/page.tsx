@@ -69,6 +69,12 @@ function Group({
       <h2 className={`flex items-center gap-2 text-sm font-semibold ${tone}`}>
         <Icon className="size-4" aria-hidden />
         {title}
+        {/* An explicit space, because JSX drops the whitespace between an
+            expression and the element after it and the heading's accessible
+            name came out as "Warnings88". Whitespace-only text between flex
+            items is not rendered, so the count still sits where `gap-2` puts
+            it — the pixels are unchanged. */}
+        {' '}
         <span className="font-mono text-xs font-normal text-muted-foreground">{diagnostics.length}</span>
       </h2>
 
@@ -76,14 +82,30 @@ function Group({
         {diagnostics.map((diagnostic, index) => (
           <li key={index} className="panel px-4 py-3">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <code className={`font-mono text-[11.5px] font-medium ${tone}`}>{diagnostic.code}</code>
+              <code className={`relative font-mono text-[11.5px] font-medium ${tone}`}>
+                {/* Severity is carried by `tone` — a colour class — and by the
+                    group heading above. A reader who arrives at one row out of
+                    context, from a links list or a deep link, has neither. */}
+                <span className="sr-only">{icon === 'error' ? 'Error: ' : 'Warning: '}</span>
+                {diagnostic.code}
+              </code>{' '}
               <span className="font-mono text-[12px] text-muted-foreground">{diagnostic.path}</span>
               {diagnostic.srn && (
+                // `relative` is not cosmetic: `sr-only` is `position: absolute`,
+                // and without a positioned ancestor the hidden span is placed
+                // against the initial containing block and can extend the
+                // document's scroll box. Same lesson as section-heading.tsx.
                 <Link
                   href={entityHref(diagnostic.srn)}
-                  className="focusable ml-auto rounded font-mono text-[11.5px] text-primary hover:underline"
+                  className="focusable relative ml-auto rounded font-mono text-[11.5px] text-primary hover:underline"
                 >
                   open entity
+                  {/* 88 links on this page said exactly "open entity", pointing
+                      at 49 different places. A links list — the standard way of
+                      skimming a page of this shape — read as 88 copies of one
+                      link. Real text rather than an `aria-label` so a plain
+                      `textContent` reading gets it too. */}
+                  <span className="sr-only"> {diagnostic.srn}</span>
                 </Link>
               )}
             </div>

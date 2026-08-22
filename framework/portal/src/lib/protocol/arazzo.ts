@@ -462,6 +462,14 @@ export function arazzoGraph(workflow: ArazzoWorkflow): ArazzoGraph {
  * and a figcaption is what a screen reader, and a text-only reader, gets
  * instead. It is generated from the same model the picture is, so the two
  * cannot describe different workflows.
+ *
+ * A step line carries every step-level field this reader keeps, and that is a
+ * contract with {@link DRAWN_STEP_FIELDS} rather than a matter of taste. A field
+ * listed there is excluded from `omitted`, so the "not drawn, and in the file
+ * beside this" note stays silent about it — which is only honest if something
+ * else says it. `successCriteria` is painted on the box and `description` is
+ * painted nowhere, so for a reader who is not looking at the box, this line is
+ * the only place either of them exists.
  */
 export function arazzoSummary(workflow: ArazzoWorkflow): string[] {
   const lines: string[] = []
@@ -475,7 +483,12 @@ export function arazzoSummary(workflow: ArazzoWorkflow): string[] {
         ? 'references nothing'
         : `${step.reference.kind} ${step.reference.value}`
     const act = step.action ? `, ${step.action}` : ''
-    lines.push(`Step ${node.ordinal}, ${node.id}: ${reference}${act}.`)
+    const succeeds = conditions(step.successCriteria)
+    const when = succeeds ? `, succeeds when ${succeeds}` : ''
+    // Folded YAML (`>-`) arrives as one line already, but an author may have
+    // written a literal block; a caption is one flow of text, so the newlines go.
+    const note = step.description ? ` ${step.description.replace(/\s+/g, ' ').trim()}` : ''
+    lines.push(`Step ${node.ordinal}, ${node.id}: ${reference}${act}${when}.${note}`)
   }
 
   for (const edge of graph.edges) {

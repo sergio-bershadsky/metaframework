@@ -102,6 +102,11 @@ export function EntityRelations({
           <h3 className="mb-2.5 flex items-center gap-1.5 text-[13px] font-medium text-foreground/80">
             <ArrowDownLeft className="size-3.5 text-muted-foreground" aria-hidden />
             Incoming
+            {/* JSX drops the whitespace between an expression or text child and
+                the element after it, so this heading's accessible name read
+                "Incoming— derived, never authored". Whitespace-only text
+                between flex items is not rendered, so nothing moves. */}
+            {' '}
             <span className="font-normal text-muted-foreground">— derived, never authored</span>
           </h3>
           {shown.length === 0 ? (
