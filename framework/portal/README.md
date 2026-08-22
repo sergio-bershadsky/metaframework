@@ -14,7 +14,7 @@ metaframework
 ```
 
 ```text
-  metaframework 0.1.0
+  metaframework 0.2.0
 
   catalog    /Users/you/code/my-solution/solutions
   solutions  3
@@ -31,9 +31,8 @@ a data model with a real `schema.json`, and a protocol whose sequence diagram th
 portal compiles from a workflow file. Every command in it has been run.
 
 Installing pulls in **no dependencies**: the tarball carries a compiled server,
-so `npm install -g` adds exactly one package. Needs **Node 20.11 or newer**
-(tested on 20.11.0 and 25.2.1; 20.10 and below are refused, and 20.9 is Next
-16's own floor).
+so `npm install -g` adds exactly one package. Needs **Node 20.9 or newer** —
+the floor `engines` declares, and Next 16's own. Verified on 20.11.0 and 25.2.1.
 
 ## What it looks like
 

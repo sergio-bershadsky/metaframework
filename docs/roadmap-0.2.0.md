@@ -181,9 +181,11 @@ and in-process protocols can never be grounded.
   `srn://…/{protocol}.arazzo`, OPTIONAL, bytes-only in 0.2.0 (portal renders
   an attachment card; `E_SRN_DANGLING` when absent). Sensible only where
   grounding documents exist (`openapi.yaml`, or a linked AsyncAPI spec).
-  **Superseded on the "bytes-only" half — see *Visualization* below.** What
-  shipped is *unvalidated*, not unread: the portal draws a step graph. The
-  validation half of this bullet stands exactly as written.
+  **Superseded on both halves.** On *reading*: what shipped is grammar-free,
+  not unread — the portal draws a step graph (see *Visualization* below). On
+  *validation*: the tether below shipped too, so the file is no longer judged by
+  nothing. What stands as written is the narrower claim — no field table, so no
+  shape rule; grounding is the one rule that reaches it.
 - The mini-spec **stays the authoritative choreography source** — sequence
   diagrams keep rendering from it, unwarned. Arazzo is a *different artifact*
   (orchestration/test surface), not a new dialect of the same role, so no
@@ -209,7 +211,9 @@ catalog on 2026-08-22 found only 2 of the 13 groundable protocols OpenAPI-ground
 and 10 of the other 11 declaring channels rather than operations, so the rule as
 worded would have checked almost nothing; the adopted `W_PROTO_ARAZZO_UNGROUNDED`
 covers operation, channel and nested-workflow references against whatever the
-entity carries, plus a relative-URL rule on `sourceDescriptions[].url`. And
+entity carries, plus a relative-URL rule on `sourceDescriptions[].url` — and it
+is emitted, which the census above is exactly why: a narrower rule would have
+shipped a check with almost nothing to check. And
 `arazzo.json` is explicitly refused, one document per file, `x-srn` as the
 extension prefix.
 
@@ -233,10 +237,35 @@ React Flow step-graph, and that is what shipped — see
 what a reader gets. Landing it forced one correction to the record: ADR 0020's
 decision 3 said the artifact "derives no diagram in this revision", and its
 "bytes-only" wording fused a claim about *validation* with a claim about
-*reading*. Only the first was ever the decision, and it is unchanged — nothing
-validates an Arazzo Description, no rule of `kinds/protocol.md` reaches its
-contents, and `W_PROTO_ARAZZO_UNGROUNDED` still has no emitter. The second
-moved, and the word is now **unvalidated** in all three trees.
+*reading*. Only the first was ever the decision — nothing states a field table
+for an Arazzo Description, so nothing can call one the wrong shape — and the
+second moved.
+
+**Checked 2026-08-22.** `W_PROTO_ARAZZO_UNGROUNDED` gained its emitter
+(`framework/portal/src/lib/protocol/arazzo-grounding.ts`), and landing it forced
+the decision-3 wording once more: "judged by nothing" was flatly contradicted by
+decision 5 in the same document, and by the same sentence restated in
+`kinds/protocol.md`, `structure.md` and `srn.md`. The word is now
+**grammar-free** in all three trees, and the boundary is stated rather than
+implied — shape is not checked, siblings are. Every one of the twelve shipped
+files passes the new rule, so the check moved no count; the fixtures that prove
+it fires are synthetic, in `arazzo-grounding.test.ts`.
+
+The sentence turned out to have twenty-seven more homes than the four that were
+edited first: twelve protocol `index.md`, the same twelve `arazzo.yaml` header
+comments, the bundle's verbatim worked example, and the portal's own
+`lib/protocol/arazzo.ts` and `lib/catalog/dialects.ts`. All are now
+grammar-free too, and the twelve protocol entities took a version bump for it.
+That is the shape of the failure worth remembering: a rule statement is a
+*concept*, and grepping the spec for it finds the smallest of its copies.
+
+Clause 2 also had to be tightened before it was true. The first cut asked only
+whether a `channelPath` or `operationPath` pointer resolved to *some* node, so
+`#/info/title` and `#/channels/<id>/messages` grounded a step while the message
+printed "resolves to no channel" — a check that had never once looked for one.
+A pointer must now land on a member of the collection the source's grammar keys
+its channels or operations by, and the spec table says so instead of saying "a
+JSON pointer into the document".
 
 Effort: S for the role + spec; M with lint shell-out and the tether check.
 Open: a later `metaframework derive arazzo` generating initiator-perspective
@@ -379,7 +408,9 @@ Lane-independent, and 0.2.0 is shippable on this alone:
   said, and in this catalog 22 of 45 steps declare their order. And the spec
   wording had to move with the code: "bytes-only / parsed by nothing" was one
   phrase fusing two claims, and only the *validation* half was ever the
-  decision. It is now stated as **unvalidated**, everywhere it appears.
+  decision. That half then moved as well when the grounding tether landed; the
+  word settled on is **grammar-free** — no field table, and therefore no shape
+  rule — everywhere the artifact appears.
 - Open, later: mermaid-flowchart fallback, Arazzo try-it (Respect
   territory), simulation-driven walkthrough of Arazzo graphs. AsyncAPI
   send/receive styling landed inside the Arazzo graph only — the step box
