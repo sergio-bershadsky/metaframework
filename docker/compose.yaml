@@ -1,0 +1,228 @@
+# The compose topology of srn://metaframework/product/devops, as far as it can
+# honestly be built today — which is one service.
+#
+# 0005-one-image-two-topologies calls this file "the readable definition of what
+# the system *is* — which processes exist, what they talk to, what they mount",
+# so the reasoning lives here in comments rather than in a runbook nobody reads.
+#
+# Run it from the repository root:
+#
+#     docker compose -f docker/compose.yaml up --build
+#
+# or `cd docker && docker compose up --build`. NOT a bare `docker compose up`
+# from the root: deployment-files-live-under-docker AC-2 keeps every deployment
+# file under docker/, and compose does not look in subdirectories. The sentence
+# in environment/compose/index.md that says otherwise is loose prose; the
+# requirement is the one to believe.
+#
+# ---------------------------------------------------------------------------
+# WHERE THIS FILE AND environment/compose/topology.yaml DISAGREE
+#
+# topology.yaml names three hosts — catalog-router, repo-sync and signoz — and
+# deliberately does not name the portal. This file has exactly one service and
+# it is the portal. That is not an oversight, and the disagreement is not
+# resolved by editing either side quietly:
+#
+#   * catalog-router and repo-sync are `lifecycle: planned` with no code and no
+#     image. A service for either would be a build that cannot build.
+#   * signoz is `component-type: external` third-party software, and deploying
+#     it is 0004's decision, not 0005's. Out of scope for this file; only the
+#     OTEL_* surface below is exposed, unset, which is what "OpenTelemetry at
+#     the boundary" costs when there is no collector.
+#   * the portal is absent from topology.yaml because membership is authored on
+#     the component side and srn://metaframework/product/portal declares only
+#     /environment/local. topology.yaml is right about the rule and says so at
+#     length; the portal product page already records the consequence — "'the
+#     only environment is local' is true of what is *declared* and will stop
+#     being true of what *runs*". This file is where it stops being true.
+#
+# So: one service, three hosts, and the honest reading is that topology.yaml
+# describes the graph this product intends and this file describes the graph it
+# can currently start. Neither was edited to agree with the other.
+# ---------------------------------------------------------------------------
+
+# Without this the project is named after the directory the file sits in, and
+# every container, network and built image would be called `docker-*`.
+name: metaframework
+
+services:
+  # The renderer. In the intended topology this is the container catalog-router
+  # fronts; with no router built, it is published directly on localhost.
+  portal:
+    # Points OUT at the entity that describes this container, the same join the
+    # _score prototype makes with its `srn` annotation. Nothing points AT this
+    # file, so it adds no address and no row to any role table.
+    labels:
+      srn: srn://metaframework/product/portal
+
+    # A Dockerfile under docker/ needs a build context above itself, because it
+    # copies from framework/portal — deployment-files-live-under-docker names
+    # this as the single most likely thing to get wrong. Context is the
+    # repository root; `dockerfile` is relative to that context, not to this
+    # file.
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+
+    # OPEN CHOICE, reported rather than decided: the catalog names no image, no
+    # registry and no tag scheme, in writing — both _score workload files carry
+    # `image: "."` with the comment "The catalog names no image." This default
+    # is a local tag that is never pushed, and the variable is the seam where a
+    # registry-qualified name goes once someone picks a registry.
+    #
+    # The repository half agrees with docker/chart/values.yaml
+    # (`repository: metaframework-portal`). THE TAG DOES NOT: the chart defaults
+    # to Chart.yaml's appVersion, this file to `dev`. So AC-5 of
+    # deployment-files-live-under-docker — "the chart deploys the same images
+    # the compose file runs" — does not hold at both defaults, and nothing
+    # checks that it does. Either a laptop build gets tagged with the release
+    # version, or the chart is installed with `--set image.tag=dev`; both are
+    # one line and neither is this file's decision to make.
+    image: ${METAFRAMEWORK_IMAGE:-metaframework-portal:dev}
+
+    # Three of the keys below — CATALOG_DIR, PORT and METAFRAMEWORK_MODE — carry
+    # the same values docker/Dockerfile already sets, so they are restatements.
+    # They are restated because each is half of a pair whose other half is in
+    # THIS file: a compose file that publishes `:3000` while the listen port is
+    # named somewhere else, or that mounts `/catalog` without saying what reads
+    # it, cannot be read on its own — and being readable on its own is the job
+    # 0005 gives this file.
+    #
+    # HOSTNAME is deliberately NOT restated here. It is the sharpest container
+    # trap in this product — the compiled server takes its BIND ADDRESS from
+    # $HOSTNAME, which docker sets to the container id — but it is a property of
+    # running in a container at all rather than a placement decision, and
+    # nothing in this file depends on its value. The image answers it, and the
+    # answer survives: measured 2026-08-22, an image declaring
+    # `ENV HOSTNAME=0.0.0.0` reports `HOSTNAME=0.0.0.0` under both `docker run`
+    # and `docker compose run`, so the daemon's injected value does not win.
+    environment:
+      # The catalog, and the other half of the bind mount below — these two
+      # paths must agree or the portal reads an empty directory. Load-bearing
+      # and not optional: the walk-up discovery that finds `solutions/` from a
+      # working directory lives only in the CLI (bin/discover.mjs); the compiled
+      # server falls back to `path.resolve(cwd, '../../solutions')` and would
+      # find nothing here.
+      CATALOG_DIR: /catalog
+
+      # The catalog under /catalog is a bind mount of somebody's live working
+      # tree, not a directory frozen when the image was made. The compiled
+      # server sets NODE_ENV=production itself, from which src/lib/catalog/
+      # mode.ts would infer `deployment` — read the catalog once per process,
+      # no re-read, ever. An edit would then never appear without a restart.
+      #
+      # docker/Dockerfile reaches the same default and hands the choice back:
+      # "Set METAFRAMEWORK_MODE=deployment when the mount is genuinely read-only
+      # and frozen; that is a placement's decision." This is the placement, and
+      # it decides working-tree, because the mount below is a developer's live
+      # tree. Flip it in docker/.env to exercise what a hosted portal does.
+      #
+      # Note for macOS: the fs.watch push may not cross a Docker Desktop bind
+      # mount, in which case the SSE reload is silent. The per-request
+      # fingerprint still runs, so an edit is on screen on the next page load.
+      # Set METAFRAMEWORK_LIVE_RELOAD=0 in docker/.env to stop paying for a
+      # watcher that is not firing.
+      METAFRAMEWORK_MODE: ${METAFRAMEWORK_MODE:-working-tree}
+      METAFRAMEWORK_LIVE_RELOAD: ${METAFRAMEWORK_LIVE_RELOAD:-1}
+
+      # The listen port inside the container, and the other half of the port
+      # mapping below. 3000 is the compiled server's own default and the only
+      # port number anywhere in this catalog (environment/local/config.yaml);
+      # docker/chart/values.yaml lands on the same one for the same reason.
+      # Nothing here invents a number.
+      PORT: "3000"
+
+      # Where this stack serves schema BYTES, which is what
+      # environment/compose/config.yaml means by "Defaults to the published
+      # localhost port". Derived from the published port rather than restated,
+      # so it stays true when the port is changed. Never identity: `$id` is
+      # built from the canonical host constant regardless
+      # (framework/portal/src/lib/schema/url.ts).
+      SCHEMA_BASE_URL: http://localhost:${METAFRAMEWORK_HTTP_PORT:-3000}
+
+      # Declared by environment/compose/config.yaml and passed through EMPTY by
+      # default, which under the OpenTelemetry specification means unset ("the
+      # SDK MUST interpret an empty value of an environment variable the same
+      # way as when the variable is unset"): the exporter has nothing to talk
+      # to, which is every-request-is-traced AC-5's behaviour. Nothing in this
+      # image reads it today — telemetry is `component-type: library`,
+      # `lifecycle: planned`. The surface is here so that turning it on is a
+      # line in docker/.env rather than an edit to this file. No collector is
+      # deployed by this stack; 0004-signoz is out of scope.
+      #
+      # `${VAR-}` and not a bare `OTEL_EXPORTER_OTLP_ENDPOINT:`, measured rather
+      # than assumed. The bare form does not pass the image's value through — it
+      # DELETES the declaration: `docker inspect` on the container then shows
+      # `OTEL_EXPORTER_OTLP_ENDPOINT` with no `=` beside `OTEL_SERVICE_NAME=`,
+      # which compose never touched. Same OTel semantics, but the two halves of
+      # one surface stop agreeing, and the question the Dockerfile declares them
+      # to answer — "what telemetry can this be pointed at" — stops having an
+      # answer for exactly one of them. `-` expands to empty only when the
+      # variable is unset, and passes any value straight through.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT-}
+
+    volumes:
+      # The catalog, read-only. The portal writes nothing to it
+      # (srn://metaframework/product/portal), so read-only costs nothing and
+      # makes that claim enforced rather than trusted.
+      #
+      # This is a host directory mounted in with no GitHub App and no network,
+      # which is what any-git-repository-is-a-catalog-source AC-1 asks for — but
+      # one layer lower than the requirement means it. AC-1's path runs through
+      # repo-sync's HUB_LOCAL_REPO and a mirror on the volume; repo-sync does
+      # not exist, so this mounts the catalog directly. That is not AC-1 being
+      # met — the two components that author `implements` against it are still
+      # `lifecycle: planned` — and this mount must not be read as a claim that
+      # it is.
+      #
+      # `.git/` is deliberately NOT mounted. /api/history therefore degrades and
+      # names its reason ('not-a-repository'), which
+      # catalog-renders-without-git AC-3 requires every other route to survive.
+      - ${METAFRAMEWORK_CATALOG:-../solutions}:/catalog:ro
+
+    ports:
+      # Bound to 127.0.0.1 rather than every interface, because
+      # environment/compose says "Ports published on localhost" and "No TLS and
+      # no ingress" — a laptop stack on 0.0.0.0 is on the coffee-shop wifi.
+      #
+      # topology.yaml calls catalog-router "the only published port" and names
+      # no number. With no router, this is that port, and 3000 is the number the
+      # catalog already uses for this process.
+      - "127.0.0.1:${METAFRAMEWORK_HTTP_PORT:-3000}:3000"
+
+    # NO `healthcheck:` HERE, ON PURPOSE. docker/Dockerfile declares one — a
+    # `node -e` fetch of /api/status with a start period, which is the right
+    # probe for the reason the CLI documents: the compiled server accepts
+    # connections and answers 404 for a window after it prints "Ready", so a
+    # naive check kills a server that is 300ms from working. Restating it here
+    # would give one question two answers that nothing keeps in step, which is
+    # precisely the cost 0005 already accepts once between this file and the
+    # chart and should not pay a second time inside one topology.
+    #
+    # Measured 2026-08-22 against the packaged server rather than assumed: the
+    # probe command exits 1 with nothing listening and 0 once /api/status
+    # answers 200.
+# NOT DECLARED, and left out rather than invented:
+#
+#   the named volume at /var/lib/metaframework — topology.yaml gives it to
+#     repo-sync, which does not exist. A named volume with nothing mounting it
+#     is state nothing writes, and `docker compose down -v` would then be
+#     destroying an empty claim rather than the mirror
+#     git-state-survives-a-restart AC-3 is about.
+#
+#   a signoz service — 0004 is out of scope for this run. topology.yaml leaves
+#     "default profile or opt-in profile" unresolved and leans opt-in; when it
+#     lands it belongs behind `profiles: [signoz]`, so that a developer
+#     rendering a catalog is not made to run ClickHouse.
+#
+#   HUB_*, GITHUB_APP_* and HUB_SESSION_SECRET — environment/compose/config.yaml
+#     declares them and sources the secrets from `env-file:docker/.env`. They
+#     belong to catalog-router and repo-sync, and this image reads none of them.
+#     Setting them on the portal container would assert a contract it denies.
+#     They are named in docker/.env.example so the surface stays reviewable, and
+#     the `env_file:` block that consumes them arrives with the services that do.
+#
+#   `restart:`, `user:`, resource limits — none of them decided anywhere, and a
+#     laptop stack that silently restarts a crashing container hides the crash.
+#     The runtime uid belongs to the Dockerfile, and setting it here would fight
+#     it.

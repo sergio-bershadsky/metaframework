@@ -1,0 +1,41 @@
+{{- if .Values.ingress.enabled }}
+{{- /*
+  Rendered only when someone asks for it, and only with a host they supplied —
+  the guard in _helpers.tpl fails the render otherwise.
+
+  Nothing here is defaulted: no ingressClassName, no cert-manager issuer
+  annotation, no TLS block. environment/production/index.md lists both as open:
+  "No TLS decision. Whether termination is at the instance or in front of it is
+  unresolved, and it is the first thing a real deployment must answer." A chart
+  default is exactly how that question gets answered without anyone deciding it.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "metaframework.portal.fullname" . }}
+  labels:
+    {{- include "metaframework.portal.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ include "metaframework.portal.fullname" . }}
+                port:
+                  name: http
+{{- end }}

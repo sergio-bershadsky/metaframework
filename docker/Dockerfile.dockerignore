@@ -1,0 +1,37 @@
+# What may reach the build, stated as an allow-list.
+#
+# Named `Dockerfile.dockerignore` and not `.dockerignore`, which is the obvious
+# thing to look for and would not work. BuildKit resolves the ignore file
+# beside the Dockerfile it was given — `<dockerfile>.dockerignore` — and
+# otherwise falls back to `.dockerignore` at the CONTEXT root. The context here
+# is the repository root, so a `.dockerignore` inside `docker/` is read by
+# nobody. Measured on 2026-08-22 rather than assumed: with this exact content at
+# `docker/.dockerignore` the daemon transferred 3.78GB and the resulting image
+# contained `solutions/`, `node_modules/` and the repository's stray
+# screenshots; under this name the same build transferred 3.7MB and contained
+# `LICENSE` and `framework/portal` and nothing else. The other place it could
+# live is the repository root, where `repo-hygiene.mjs` refuses it —
+# ALLOWED_ROOT_FILES is exhaustive — and where ADR 0005 does not want it either.
+#
+# Everything is excluded first and the image's two inputs are named back in, so
+# that a directory added to this repository tomorrow is outside the build
+# context by default rather than inside it. `docker/Dockerfile` already reaches
+# for exactly these two paths; this file makes the same statement one level
+# earlier, where it also decides what crosses the wire.
+*
+!framework/portal
+!LICENSE
+
+# The catalog is not build input. Redundant against `*` above and kept anyway:
+# an image with somebody's `solutions/` inside it is not one image, it is one
+# image per catalog, and this is the line a reader greps for to check.
+solutions
+
+# Re-excluded from `framework/portal` above: the host's install and the host's
+# build output. Both are built for whatever the developer's machine is — this
+# one is darwin/arm64 — and between them they are the overwhelming majority of
+# the working tree's bytes. The build stage produces its own of each, on Linux,
+# from the lockfile and the source.
+framework/portal/node_modules
+framework/portal/.next
+framework/portal/tsconfig.tsbuildinfo

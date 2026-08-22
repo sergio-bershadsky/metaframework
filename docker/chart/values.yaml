@@ -1,0 +1,399 @@
+# =============================================================================
+# What this chart deploys, and the three things it does not
+# =============================================================================
+#
+# solutions/metaframework/environment/production/topology.yaml names three hosts
+# for this environment: catalog-router, repo-sync and signoz. This chart
+# templates none of them, and that is a deliberate, reported divergence rather
+# than an omission:
+#
+#   catalog-router  lifecycle: planned. No code, no Dockerfile, no image. A
+#                   Deployment referring to it would name an image that cannot
+#                   be built.
+#   repo-sync       lifecycle: planned. Same. It also owns the volume
+#                   (HUB_DATA_DIR=/var/lib/metaframework) whose cap
+#                   production/config.yaml marks "UNSET AND REQUIRED"; a PVC
+#                   here would have to invent the size that file refuses to.
+#   signoz          component-type: external — third-party software, deployed
+#                   from its own chart. 0004-signoz-runs-beside-the-workload is
+#                   out of scope for this work; only the OTEL_* client surface
+#                   below is exposed, unset.
+#
+# What this chart *does* deploy is the portal, which topology.yaml deliberately
+# does not list as a host — it says so in a comment at the bottom of that file,
+# and gives the reason: membership is authored on the component side, and
+# srn://metaframework/product/portal declares only /environment/local. That file
+# still records, in prose, that "the renderer runs on this instance".
+#
+# So: the topology is right about *authorship* and incomplete as a description
+# of what can be deployed. The portal is the only member of ADR 0005's "artifact
+# set" that exists today. This chart deploys it and says so, rather than
+# templating three workloads that would never render into anything runnable.
+# Correcting the portal's `environments` declaration is the real fix and is out
+# of scope here.
+
+# -----------------------------------------------------------------------------
+# Naming
+# -----------------------------------------------------------------------------
+# Every object is named `<release>-<chart>-portal`, and the `-portal` suffix is
+# not decoration: it leaves the names of the three workloads above unclaimed, so
+# their absence is legible in `kubectl get all` rather than hidden behind a
+# `metaframework` Deployment that appears to be all of them.
+nameOverride: ""
+fullnameOverride: ""
+
+# -----------------------------------------------------------------------------
+# Image — the "one artifact set" half of 0005-one-image-two-topologies
+# -----------------------------------------------------------------------------
+image:
+  # UNSET ON PURPOSE. No registry, org or hostname is decided anywhere in this
+  # repository — the catalog says so twice, in _score/catalog-router/score.yaml
+  # and _score/repo-sync/score.yaml ("The catalog names no image."). A default
+  # here would be the chart inventing an owner's decision and looking
+  # authoritative doing it. Set it to your registry host, with no trailing
+  # slash, e.g. "ghcr.io/sergio-bershadsky".
+  registry: ""
+
+  # Unqualified on purpose: this is the local build tag, and it is the same
+  # string docker/compose.yaml carries. That is the whole of AC-5 in
+  # requirement/deployment-files-live-under-docker — "the chart deploys the same
+  # images the compose file runs" — and nothing enforces it.
+  #
+  #   docker build -f docker/Dockerfile -t metaframework-portal:dev .
+  #
+  # (run from the repository ROOT; the Dockerfile lives under docker/ but its
+  # build context is above it — the requirement calls this "the part that is
+  # easy to get wrong").
+  repository: metaframework-portal
+
+  # `dev`, not Chart.yaml's appVersion, and the reason is the pairing rather
+  # than the value: docker/compose.yaml resolves its image to
+  # `${METAFRAMEWORK_IMAGE:-metaframework-portal:dev}`, so this default and that
+  # default must produce the same string or "one artifact set" is untrue on its
+  # first line. `registry` + `repository` + `tag` here is the same seam
+  # METAFRAMEWORK_IMAGE is there.
+  #
+  # `dev` is a local tag that is never pushed. A cluster cannot pull it: a real
+  # deployment needs a registry, an immutable tag or a digest, and a pull
+  # policy to match. None of those is decided anywhere in this repository, so
+  # none of them is defaulted here.
+  tag: dev
+
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# -----------------------------------------------------------------------------
+# Replicas
+# -----------------------------------------------------------------------------
+# topology.yaml states `replicas: { min: 1, max: 1 }` for every host it names,
+# and the region note explains why: "every `replicas` below says max 1 for
+# reasons that are design constraints rather than capacity choices".
+#
+# A Deployment cannot express a *range* — it has one integer. Only an HPA has
+# min/max, and every host in that file says `scaling: none — no autoscaler`, so
+# an HPA would contradict the very claim it encoded. min == max == 1 therefore
+# collapses to the integer below, and the range is satisfied rather than
+# expressed. This chart ships no HorizontalPodAutoscaler template for that
+# reason; note that its absence is not enforcement — nothing stops an HPA being
+# applied beside it.
+#
+# For the portal specifically the constraint is capacity, not correctness: it is
+# a read-only renderer and two replicas would serve correctly, but
+# environment/production/index.md records how much heap each catalog rebuild
+# costs, and that three things already compete for one machine. The figure lives
+# there; repeating it here would be a second copy to keep in step.
+#
+# BOTH bounds are enforced by the guards in _helpers.tpl — `--set replicaCount=2`
+# fails the render, it does not quietly produce two. A guard that quotes `max: 1`
+# in its message and tests only the minimum reads as enforcement without being
+# it, which is the same defect as a chart default silently deciding something.
+# Raising the count is therefore a change to the topology claim first.
+replicaCount: 1
+
+# Recreate, not RollingUpdate, and for the same one-machine reason: a rolling
+# surge briefly runs two renderers and doubles that cost. It also means a
+# restart is a gap in service, which is honest for an environment whose own page
+# says "No availability objective".
+updateStrategy:
+  type: Recreate
+
+# -----------------------------------------------------------------------------
+# The catalog the portal serves
+# -----------------------------------------------------------------------------
+# The image does not contain a catalog and cannot be made to: docker/Dockerfile
+# keeps solutions/ out of the build context entirely, on the argument that "an
+# image with somebody's solutions/ baked inside it is not one image, it is one
+# image per catalog". The catalog is therefore always a mount, in both
+# topologies — compose bind-mounts a host directory, and here it is a claim.
+catalog:
+  # CATALOG_DIR. Verified against the built image, which sets
+  # CATALOG_DIR=/catalog and creates that directory owned by uid 1000. Restated
+  # here rather than inherited so the placement's choice is visible in
+  # `kubectl describe pod` instead of only in `docker inspect`.
+  #
+  # Not optional in a container: the walk-up search that finds a solutions/
+  # directory from a working directory lives only in bin/discover.mjs, which is
+  # the CLI and is not in this image. server.js alone falls back to
+  # `<cwd>/../../solutions` and finds nothing.
+  dir: /catalog
+
+  # METAFRAMEWORK_MODE: "deployment" or "working-tree" — the only two values
+  # src/lib/catalog/mode.ts recognises.
+  #
+  # working-tree  the filesystem is the source of truth on every request. The
+  #               image's own default, and the right one while the mount can
+  #               change under the process — which is the premise `deployment`
+  #               explicitly denies ("a catalog that was fixed when the image
+  #               was made"). It costs a stat-walk of the catalog per request.
+  # deployment    read once per process. Correct only when the mounted catalog
+  #               is genuinely frozen; otherwise every change stays invisible
+  #               until the pod restarts. The Dockerfile says the same thing and
+  #               leaves the choice to the placement, which is this file.
+  #
+  # Left at the image's value so the two topologies differ in placement and not
+  # in behaviour. Note that server.js sets NODE_ENV=production itself, so the
+  # inferred value would be `deployment` — this key is what stops that.
+  mode: working-tree
+
+  # METAFRAMEWORK_LIVE_RELOAD. Empty leaves it unset and the SSE push stays on.
+  # "0", "off", "false" or "no" disable it (mode.ts's DISABLED set). The push is
+  # an fs.watch subscription; disabling it does not freeze the catalog, because
+  # the per-request fingerprint still runs.
+  liveReload: ""
+
+  # The catalog claim.
+  #
+  # Off by default, and the resulting behaviour is deliberate rather than
+  # broken: the image creates an empty /catalog, and the loader answers a
+  # missing catalog with an empty one, so a release with no claim serves a
+  # portal reporting zero solutions — visible on the page and in /api/status —
+  # instead of a crash loop that hides the mistake.
+  #
+  # This chart creates no PersistentVolumeClaim, by design: a PVC needs a size
+  # and a storageClass, and environment/production/topology.yaml states volume
+  # sizing as "a DECISION NOT YET MADE" whose defaults "are exactly what must
+  # not be inherited silently". Bring your own claim.
+  #
+  # In the intended topology this claim is repo-sync's volume
+  # (HUB_DATA_DIR=/var/lib/metaframework) with CATALOG_DIR pointing into a
+  # worktree on it. repo-sync does not exist, so today this is whatever the
+  # operator put the catalog on.
+  volume:
+    enabled: false
+    existingClaim: ""
+    subPath: ""
+    # The portal writes nothing to the catalog, so read-only costs nothing and
+    # makes that claim enforced rather than trusted. compose mounts it :ro for
+    # the same reason.
+    readOnly: true
+
+# SCHEMA_BASE_URL. Retrieval origin for /schemas only — never identity; $id is
+# always the constant at framework/portal/src/lib/schema/url.ts.
+# environment/production/config.yaml: "No DNS name yet." Empty leaves it unset
+# and the server falls back, which is the correct behaviour until a hostname
+# exists.
+schemaBaseUrl: ""
+
+# -----------------------------------------------------------------------------
+# Networking
+# -----------------------------------------------------------------------------
+# 3000 is not an invented number. It is the packaged server's own default
+# (.next/standalone/server.js: `parseInt(process.env.PORT, 10) || 3000`) and the
+# only port anywhere in this catalog — environment/local/config.yaml names it.
+# The devops topologies call catalog-router "the only published port" and name
+# no number at all.
+containerPort: 3000
+
+service:
+  type: ClusterIP
+  # Deliberately the same 3000 rather than the conventional 80, so exactly one
+  # port number is in play across the image, the compose file and this chart.
+  port: 3000
+  annotations: {}
+
+# UNSET ON PURPOSE, all of it. environment/production/index.md, under "What is
+# absent":
+#
+#   "No TLS decision. Whether termination is at the instance or in front of it
+#    is unresolved, and it is the first thing a real deployment must answer."
+#   "No DNS name. There is no hostname for this product anywhere in the
+#    repository."
+#
+# Enabling this without a `host` fails the render rather than producing an
+# Ingress with an empty host. No issuer annotation, no ingressClassName and no
+# TLS block is defaulted — those are the owner's decisions, and a chart default
+# is how they get made by accident.
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  path: /
+  pathType: Prefix
+  annotations: {}
+  # e.g. [{ secretName: metaframework-tls, hosts: [example.invalid] }]
+  tls: []
+
+# -----------------------------------------------------------------------------
+# Resources
+# -----------------------------------------------------------------------------
+# EMPTY, AND THAT IS THE UNCOMFORTABLE ANSWER. topology.yaml opens with "Every
+# limit below is a DECISION NOT YET MADE, recorded with its reasoning rather
+# than left to a chart default", and warns that on one shared box "the defaults
+# are exactly what must not be inherited silently".
+#
+# Both available moves are wrong in different ways: a number here would be this
+# chart inventing the sizing that file refuses to state, and an empty block is
+# the unbounded default that file warns about. The compromise is that it is not
+# *silent* — NOTES.txt prints a warning on every install and upgrade while this
+# is empty. Setting it is an operator decision and it is still open.
+resources: {}
+# resources:
+#   requests: { cpu: 100m, memory: 512Mi }
+#   limits:   { memory: 1Gi }
+
+# -----------------------------------------------------------------------------
+# OpenTelemetry — the configuration surface only
+# -----------------------------------------------------------------------------
+# Standard OTEL_* variables, every one unset. That is what "OpenTelemetry at the
+# boundary" buys: with no endpoint the exporter drops rather than blocking, and
+# environment/compose/config.yaml states the behaviour in exactly those terms —
+# "Unset, the exporter drops."
+#
+# Nothing here deploys or configures a collector. Any key put in this map is
+# passed through verbatim, so this is not limited to the five below.
+#
+# The image already declares OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME
+# as empty strings (verified with `docker inspect`), because a Dockerfile cannot
+# declare a variable without a value. Leaving them out of this map leaves them
+# empty, which the OpenTelemetry environment-variable specification defines as
+# identical to unset — so "unset by default" survives the container boundary.
+otel:
+  env: {}
+  # OTEL_EXPORTER_OTLP_ENDPOINT: ""   # the collector on the private network
+  # OTEL_SERVICE_NAME: ""             # per-process, so a trace can tell them apart
+  # OTEL_EXPORTER_OTLP_PROTOCOL: ""
+  # OTEL_TRACES_EXPORTER: ""
+  # OTEL_RESOURCE_ATTRIBUTES: ""
+
+# -----------------------------------------------------------------------------
+# Probes — /api/status
+# -----------------------------------------------------------------------------
+# /api/status is the endpoint that reports catalog health and the one CI curls
+# through `metaframework check`. It is force-dynamic and no-store, so it is a
+# real check and not a cached 200.
+#
+# The startupProbe is the load-bearing one. bin/metaframework.mjs records the
+# measured quirk it exists for: "the standalone server accepts connections and
+# answers 404 for a window after it prints its own 'Ready' — it is listening
+# before the route table is loaded." An httpGet probe counts 404 as a failure,
+# so a liveness probe without a startup guard in front of it can kill a server
+# that is a few hundred milliseconds from working. While the startupProbe runs,
+# liveness and readiness are held off entirely.
+#
+# Measured on this machine, 2026-08-22, in a container (node:22-slim, non-root,
+# read-only rootfs, this catalog of 5 solutions / 480 entities): connection
+# refused at t=0.02s, first 200 from /api/status at t=2.06s. The 30 x 2s budget
+# below is ~30x that, sized for a slower box and a larger catalog rather than
+# for this measurement.
+probes:
+  startup:
+    enabled: true
+    periodSeconds: 2
+    failureThreshold: 30
+    timeoutSeconds: 3
+  readiness:
+    enabled: true
+    periodSeconds: 5
+    failureThreshold: 3
+    timeoutSeconds: 3
+  liveness:
+    enabled: true
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 5
+
+# -----------------------------------------------------------------------------
+# Extra environment
+# -----------------------------------------------------------------------------
+# Passed through verbatim. The packaged server reads only PORT, HOSTNAME,
+# KEEP_ALIVE_TIMEOUT, NODE_ENV (which it sets itself), CATALOG_DIR,
+# METAFRAMEWORK_MODE, METAFRAMEWORK_LIVE_RELOAD and SCHEMA_BASE_URL. It opens no
+# database, holds no credential and makes no outbound call.
+env: {}
+
+# envFrom passthrough — the escape hatch for the Secret the catalog names.
+#
+# environment/production/config.yaml declares three secret keys sourced from
+# k8s:secret/metaframework — #github-app-private-key, #github-app-client-secret
+# and #hub-session-secret. They are NOT wired into the portal container above,
+# because the portal does not read them: they belong to catalog-router and
+# repo-sync, which do not exist. Injecting them would be this chart asserting a
+# configuration contract the code denies.
+#
+# Creating that Secret is the operator's step; no chart template creates it, and
+# no secrets backend (sealed-secrets, external-secrets, SOPS) is decided
+# anywhere in the catalog. To attach it anyway:
+#
+#   extraEnvFrom:
+#     - secretRef: { name: metaframework }
+extraEnvFrom: []
+
+# -----------------------------------------------------------------------------
+# Pod placement and hardening
+# -----------------------------------------------------------------------------
+# regions: [hel1] in topology.yaml is not expressible here. The nearest
+# Kubernetes equivalent is a nodeSelector on topology.kubernetes.io/region, and
+# that label would have to be invented — the cluster is one machine, so the
+# constraint is vacuous anyway ("A Kubernetes cluster on a single machine").
+# Left empty rather than encoded as a label nobody set.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+terminationGracePeriodSeconds: 30
+
+podAnnotations: {}
+podLabels: {}
+
+# runAsUser is NOT redundant with the image's own USER, and removing it breaks
+# the pod. docker/Dockerfile ends with `USER node` — a user *name*. Kubelet
+# cannot resolve a name to a uid without running the image, so a container with
+# `runAsNonRoot: true` and a non-numeric image user is refused at start with
+# "container has runAsNonRoot and image has non-numeric user (node), cannot
+# verify user is non-root". Restating the uid is what makes runAsNonRoot
+# enforceable here. compose declines to set a user for the opposite and equally
+# correct reason: on a laptop nothing is checking, so the Dockerfile's USER
+# stands alone.
+#
+# 1000 is not assumed. `docker inspect` on the built image reports User=node,
+# and `docker run --entrypoint id metaframework-portal:dev` printed
+# uid=1000(node) gid=1000(node). These three numbers must move together with
+# the Dockerfile's user.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# The portal makes no Kubernetes API call, so the token is not mounted.
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Mounted at /tmp because readOnlyRootFilesystem is true above. sizeLimit is
+# left unset deliberately: an emptyDir with no limit draws on node ephemeral
+# storage, and picking a number here is the same invention the resources block
+# refuses.
+tmpDir:
+  sizeLimit: ""

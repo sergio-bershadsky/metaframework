@@ -1,18 +1,20 @@
 ---
 name: devops
 kind: product
-version: 2
+version: 3
 title: DevOps
 summary: The operational apparatus that runs the portal as a service — GitHub-backed catalogs, a worktree per branch, containers, telemetry and a chart.
 status: review
 owner: sergio
-lifecycle: concept
+lifecycle: incubating
 primary-actors:
   - /actor/reviewer
   - /actor/operator
 relations:
   depends-on:
     - /product/portal
+  implements:
+    - requirement/deployment-files-live-under-docker
   realizes:
     - /capability/shared-catalog-access
 tags:
@@ -21,14 +23,34 @@ tags:
   - deployment
 ---
 
-**Nothing described on this page exists.** There is no `docker/` directory, no
-Helm chart, no OAuth registration and no server in Helsinki; `lifecycle:
-concept` is the accurate value and every component below is `planned`. This is a
-design written before the code, which is the case the framework was built for —
+**One decision on this page has been implemented, and it is the packaging
+one.** `docker/` is in the tree: a Dockerfile, the compose file, the Helm chart
+under `docker/chart/` and the environment templates beside them, which is
+[0005-one-image-two-topologies](srn://metaframework/product/devops/adr/0005-one-image-two-topologies)
+built rather than proposed. On 2026-08-22 the image was built and run, the
+compose stack came up and served a mounted catalog on localhost, and the chart
+linted and rendered. That is what moved this product off `lifecycle: concept`,
+whose definition is "nothing runs yet", onto `incubating` — "being built,
+contracts still moving".
+
+**Everything else on this page is still unbuilt, and the gap is wide enough to
+state plainly.** There is no GitHub App and no OAuth registration, no server in
+Helsinki, no cluster, no DNS name and no registry; nothing has been deployed
+anywhere and no image has been pushed. The three components this product owns —
+[repo-sync](srn://metaframework/product/devops/component/repo-sync),
+[catalog-router](srn://metaframework/product/devops/component/catalog-router)
+and [telemetry](srn://metaframework/product/devops/component/telemetry) — are
+all still `lifecycle: planned`, with no code and no image between them. So the
+only thing `docker/` can start today is the portal that devops was going to
+front: what runs is one container of *another product's* renderer, under this
+product's files. Both deployment artifacts say so in their own comments rather
+than templating workloads that could not be built.
+
+Read the rest of this page as a proposal to be argued with, not as a description
+of a system —
 [component.md](srn://metaframework/product/specification/component/kind-contracts)
 calls an approved description of an unbuilt thing "the design-first normal
-case". Read it as a proposal to be argued with, not as a description of a
-system.
+case", and every decision here except 0005 is still in it.
 
 The shape: a browser reaches one address, signs in with GitHub, picks a
 repository and a branch, and reads that branch's catalog. Behind it, mirrored
@@ -66,10 +88,18 @@ and somebody is answerable when it is down, which is true of no other entity in
 this catalog.
 
 The decisive test is what nesting would do to the page above it.
-[portal](srn://metaframework/product/portal) currently says it "reads
-`solutions/` and `.git/` and writes nothing" and that its only environment is
-[local](srn://metaframework/environment/local). Both statements are load-bearing
-and both would become false if this subtree hung underneath it. The spec's own
+[portal](srn://metaframework/product/portal) says it "reads `solutions/` and
+`.git/` and writes nothing", and it used to say that its only environment is
+[local](srn://metaframework/environment/local). Both statements were
+load-bearing and both would become false if this subtree hung underneath it.
+
+The second one has since become false without any nesting at all: `docker/`
+packages the portal, so the renderer now also runs in a container under
+[compose](srn://metaframework/environment/compose), and that product's page has
+been corrected to say so. That is worth reading as a caution rather than as a
+refutation — the argument below survives, because the *reason* the two products
+are separate is state and credentials, not packaging, and packaging is the one
+thing that did cross the line. The spec's own
 instruction for that situation is explicit — "A product needing something
 another product owns states `depends-on` and gets it by reference; it never
 absorbs it" — so `devops` `depends-on` `portal`, and the portal's page stays true.
@@ -158,6 +188,19 @@ are placement and configuration, and the ontology already has a home for both:
 component would have needed a `component-type` the enum does not have — there is
 no value for "a packaging artifact" — and the correct response to that gap is to
 use the kind that fits rather than to force one that does not.
+
+Now that both artifacts exist, that home has an occupant and the occupant
+disagrees with it. Each `topology.yaml` names three hosts and deliberately omits
+the portal; `docker/compose.yaml` declares one service and it is the portal, and
+`docker/chart/` templates the same one. Neither side was edited to agree with
+the other, because both are right about different things: the topologies
+describe the graph this product intends and are correct that membership is
+authored on the component side, and the artifacts describe the graph that can
+currently be started. The disagreement is recorded on both environment pages and
+in the header comment of both artifacts, and it closes when
+[repo-sync](srn://metaframework/product/devops/component/repo-sync) and
+[catalog-router](srn://metaframework/product/devops/component/catalog-router)
+have code, not before.
 
 The one experiment run against that boundary lives in `_score/`, which the
 loader and the fingerprint both skip by name, so it is not an entity, not

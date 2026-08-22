@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "metaframework.portal.fullname" . }}
+  labels:
+    {{- include "metaframework.portal.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  # ClusterIP by default: environment/production/topology.yaml calls
+  # catalog-router "the only component reachable from outside" and adds "TLS
+  # termination is unresolved". Until that is answered, nothing this chart
+  # renders is reachable from outside the cluster, which is the honest state.
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "metaframework.portal.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

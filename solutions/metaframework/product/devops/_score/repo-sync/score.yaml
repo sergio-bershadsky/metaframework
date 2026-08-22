@@ -25,10 +25,12 @@ metadata:
 containers:
   repo-sync:
     # `.` is Score's spelling for "the image is supplied at generate time"
-    # (`--image` or `--build`). The catalog names no image: 0005-one-image-two-
-    # topologies says `docker/` holds the Dockerfiles, and the product page says
-    # there is no `docker/` directory. So the honest value is the placeholder,
-    # and the cost is that the decision leaves the file for the command line.
+    # (`--image` or `--build`). The catalog names no image for this component:
+    # 0005-one-image-two-topologies says `docker/` holds the Dockerfiles, and as
+    # of 2026-08-22 it does — one, for the portal. This component is still
+    # lifecycle: planned with no code, so nothing builds an image for it and no
+    # registry has been chosen. The honest value is still the placeholder, and
+    # the cost is still that the decision leaves the file for the command line.
     image: "."
 
     variables:

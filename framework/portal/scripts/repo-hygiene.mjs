@@ -73,6 +73,7 @@ export const ALLOWED_TREES = [
   'scripts', // release and migration tooling
   '.github', // CI
   '.claude-plugin', // marketplace manifest
+  'docker', // the compose file, the Dockerfiles, the chart and the env templates
 ]
 
 /** Tracked files allowed at the repository root, exhaustively. */

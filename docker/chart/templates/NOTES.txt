@@ -1,0 +1,68 @@
+{{ .Chart.Name }} {{ .Chart.Version }} (app {{ .Chart.AppVersion }}) released as {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+DEPLOYED
+  Deployment/{{ include "metaframework.portal.fullname" . }}  x{{ .Values.replicaCount }}  ({{ .Values.updateStrategy.type }})
+  Service/{{ include "metaframework.portal.fullname" . }}     {{ .Values.service.type }} :{{ .Values.service.port }} -> :{{ .Values.containerPort }}
+  image  {{ include "metaframework.portal.image" . }}
+  catalog  CATALOG_DIR={{ .Values.catalog.dir }}  METAFRAMEWORK_MODE={{ .Values.catalog.mode }}{{ if .Values.catalog.volume.enabled }}  (PVC {{ .Values.catalog.volume.existingClaim }}){{ else }}  (NO VOLUME){{ end }}
+{{- if not .Values.catalog.volume.enabled }}
+
+WARNING: no catalog is mounted, so this release serves an empty catalog.
+  The image contains no catalog and cannot: docker/Dockerfile keeps solutions/
+  out of the build context on purpose. With nothing mounted at {{ .Values.catalog.dir }} the
+  loader reports zero solutions rather than crashing, which is the intended
+  visible failure — check /api/status and you will see `"solutions": 0`.
+  Set catalog.volume.enabled and catalog.volume.existingClaim to fix it.
+{{- end }}
+
+NOT DEPLOYED, and deliberately
+  environment/production/topology.yaml names three hosts for this environment
+  and none of them is here: catalog-router and repo-sync are lifecycle:planned
+  with no image to build, and signoz is external software with its own chart.
+  The portal, which this chart does deploy, is the workload that file records in
+  prose and declines to list as a host. See the top of values.yaml.
+
+{{- if not .Values.resources }}
+
+WARNING: resources are unset.
+  environment/production/topology.yaml: "Every limit below is a DECISION NOT YET
+  MADE" and, on one shared machine, "the defaults are exactly what must not be
+  inherited silently". This message is the not-silent part. Set `resources` when
+  somebody decides them.
+{{- end }}
+
+{{- if not .Values.ingress.enabled }}
+
+NOTE: no Ingress. Nothing is reachable from outside the cluster.
+  There is no DNS name and no TLS decision in this repository, so the chart
+  publishes nothing by default. To look at it now:
+
+    kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "metaframework.portal.fullname" . }} 3000:{{ .Values.service.port }}
+    open http://127.0.0.1:3000
+{{- else }}
+
+Ingress: http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+{{- if not .Values.ingress.tls }}
+  No TLS block was supplied, so this is plain HTTP.
+{{- end }}
+{{- end }}
+
+{{- if not .Values.otel.env }}
+
+NOTE: no OTEL_* variables are set, so telemetry is exported nowhere.
+  That is the intended default: with no endpoint the exporter drops rather than
+  blocking, and nothing in this product may fail because a collector is absent.
+{{- end }}
+
+{{- if and .Values.catalog.volume.enabled (eq .Values.catalog.mode "deployment") }}
+
+WARNING: a catalog is mounted from a PVC while METAFRAMEWORK_MODE=deployment.
+  In deployment mode the catalog is read once per process. Edits on that volume
+  will not appear until the pod restarts. Set catalog.mode=working-tree if
+  something else writes to that claim while the server runs.
+{{- end }}
+
+Health:
+  kubectl --namespace {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  The probes read /api/status, which reports mode, solution and entity counts,
+  and the catalog's own error and warning totals.

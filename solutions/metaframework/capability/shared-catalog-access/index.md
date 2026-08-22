@@ -1,7 +1,7 @@
 ---
 name: shared-catalog-access
 kind: capability
-version: 1
+version: 2
 title: Read a described system at a URL, on the branch it was proposed on
 summary: Move the catalog off the one machine that can render it, so that reviewing a description becomes something a team does at a link rather than something each person sets up.
 status: review
@@ -32,9 +32,11 @@ The founding position is that the description lives in the repository and the
 portal is a read-only rendering of it. That is right, and it quietly makes
 reading a described system conditional on having the repository, a Node
 toolchain, and a running process. The catalog's own honesty about this is
-already on the page: the only environment is
-[local](srn://metaframework/environment/local), the only address that has ever
-served a byte is `localhost:3000`.
+already on the page: every address that has ever served a byte of this
+description is a port on `localhost` on one machine. That is still true with
+`docker/` in the tree — a container reads the same checkout from a bind mount
+and publishes on the same loopback, so it changes which toolchain the reader
+needs and not whether they need one.
 
 For the actor this framework is aimed at, that is the binding constraint.
 [reviewer](srn://metaframework/actor/reviewer) is defined as somebody reading a
@@ -63,10 +65,14 @@ diff — which is precisely the reading this whole framework exists to replace.
 - **Not a public gallery.** Nothing here is about publishing a catalog to
   readers who have no repository access. That is a coherent product and it is
   not this one.
-- **One realizer, and it is unbuilt.** [devops](srn://metaframework/product/devops) is
-  `lifecycle: concept`. This capability is currently realized by nothing, which
-  makes it the only capability in this solution that describes an ability the
-  system does not have.
+- **One realizer, and it is barely started.**
+  [devops](srn://metaframework/product/devops) moved to `lifecycle: incubating`
+  on 2026-08-22, when its packaging landed and built. None of that is this
+  capability: an image of the portal, a compose file and a chart move a checkout
+  between machines, and what this capability asks for is a link that needs no
+  checkout. Every component that would deliver it is still `lifecycle: planned`.
+  So this remains the only capability in this solution that describes an ability
+  the system does not have.
 
 ## The strain: a capability with no delivery
 

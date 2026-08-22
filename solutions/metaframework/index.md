@@ -1,7 +1,7 @@
 ---
 name: metaframework
 kind: solution
-version: 6
+version: 7
 title: Metaframework
 summary: The repository that describes itself — the catalog specification, the portal that renders a catalog, and the plugin that teaches an author to write one.
 status: review
@@ -25,7 +25,7 @@ scope:
     - This repository's own decisions, filed as ADRs against the container each one binds.
     - The hosted deployment that serves a catalog from a GitHub repository at a chosen branch, described ahead of being built.
   out:
-    - Running the hosted deployment. devops is described here and built nowhere; no image, no chart and no cluster exist.
+    - Running the hosted deployment. The image and the chart exist and build; no registry, no cluster and no server do, and nothing has been deployed to anything.
     - A validator binary separate from the portal. Integrity is enforced at portal load, by decision — see adr/0011-no-cli-in-v1, whose "no CLI" half that record no longer holds.
     - Full-text search, a cross-catalog ADR timeline, cross-solution sharing, and an extensible ontology; all four are deferred in the founding decision record.
     - The fixture catalogs solutions/acme and solutions/brass. They are the portal's test data and its contact-with-reality check, not deliverables.
@@ -46,12 +46,13 @@ tags:
 ---
 
 This catalog describes the repository it lives in. Four deliverables, three of
-which exist: [specification](srn://metaframework/product/specification) says what
+them whole: [specification](srn://metaframework/product/specification) says what
 a catalog must be, [portal](srn://metaframework/product/portal) renders one,
 [authoring-kit](srn://metaframework/product/authoring-kit) teaches a model or a
-person to write one, and [devops](srn://metaframework/product/devops) — `lifecycle:
-concept`, not one line of it built — would serve one at a URL from any branch of
-a GitHub repository. The portal `implements` the spec; the kit distils it. Those
+person to write one, and [devops](srn://metaframework/product/devops) — now
+`lifecycle: incubating`, because its packaging landed and builds while none of
+its own components are written — would serve one at a URL from any branch of a
+GitHub repository. The portal `implements` the spec; the kit distils it. Those
 two arrows are the reason the spec is modelled as a product rather than as a
 paragraph on this page — a paragraph cannot be the target of a relation edge.
 
@@ -126,14 +127,19 @@ organised lives in the kit's.
 
 ## What is absent, stated once
 
-- **No deployment, and now three environment entities describing one.** There is
-  still no Dockerfile, no `docker/` directory, no chart, no `vercel.json` and no
-  deploy script — `find` returns nothing for any of them.
-  [compose](srn://metaframework/environment/compose) and
-  [production](srn://metaframework/environment/production) describe targets that
-  do not exist, which the environment kind permits and which every page in that
-  subtree says out loud. [local](srn://metaframework/environment/local) remains
-  the only environment anything has ever run in.
+- **Deployment files now exist; no deployment does.** `docker/` landed on
+  2026-08-22 — a Dockerfile, a compose file, a Helm chart under `docker/chart/`
+  and the environment templates beside them — and this bullet used to say that
+  none of them existed. What they do is build an image of the portal and start
+  it on a laptop, which is
+  [compose](srn://metaframework/environment/compose) no longer describing a
+  target that does not exist. Nothing has been deployed to anything:
+  [production](srn://metaframework/environment/production) still has no server,
+  no cluster, no registry and no DNS name, and the chart has never been applied.
+  There is still no `vercel.json` and no deploy script. The two components that
+  would make the compose stack the *whole* of
+  [devops](srn://metaframework/product/devops) are still unwritten, so what
+  starts there is one container of the portal.
 - **CI exists now, and most of this catalog still says it does not.**
   `.github/workflows/ci.yml` gates every push and pull request: install,
   typegen, typecheck, lint, the test suite, the packaged build, `metaframework

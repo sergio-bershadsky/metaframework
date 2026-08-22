@@ -1,7 +1,7 @@
 ---
 name: read-a-branch
 kind: journey
-version: 2
+version: 3
 title: Read a branch
 summary: A reviewer opens a link, signs in with GitHub, picks the branch a change was proposed on, and reads the description as it would be — five steps, none of which exist yet.
 status: review
@@ -16,7 +16,10 @@ tags:
 ---
 
 **Nothing in this walk is implemented.** Every step crosses a component that is
-`lifecycle: planned` inside a product that is `lifecycle: concept`.
+`lifecycle: planned`. The product owning them moved to `lifecycle: incubating`
+on 2026-08-22, and none of what moved it is on this path: `docker/` packages the
+portal, and every step below needs the sign-in, the branch picker and the git
+mirror, which are not written.
 
 Somebody is asked to review a proposed change to a described system. Today that
 means cloning a repository, installing a Node toolchain and running a server —

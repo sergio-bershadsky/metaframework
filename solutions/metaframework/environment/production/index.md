@@ -1,7 +1,7 @@
 ---
 name: production
 kind: environment
-version: 3
+version: 4
 title: Production
 summary: A Kubernetes cluster on Hetzner in Helsinki running the public demo from a Helm chart — the first environment this solution has ever had that is not somebody's laptop, and it still guarantees nothing.
 status: review
@@ -12,9 +12,14 @@ tags:
   - hetzner
 ---
 
-**Nothing runs here.** There is no server, no cluster, no chart and no DNS
-record; this entity describes an intended target, which is what an environment
-entity is for — "a description of a target, not of a release".
+**Nothing runs here. The chart now exists and has never been applied to
+anything.** `docker/chart/` is in the tree and, on 2026-08-22, lints and renders
+manifests, and the container spec it renders was run under Docker to check it
+against the real image. That is the extent of it: no server, no cluster, no
+kubeconfig, no registry, no pushed image and no DNS record, and no `helm
+install` has been run against any cluster at any point. This entity still
+describes an intended target, which is what an environment entity is for — "a
+description of a target, not of a release".
 
 **Kubernetes** on Hetzner in **Helsinki** (`hel1`, Hetzner's Finnish location),
 running [devops](srn://metaframework/product/devops) from the Helm chart under
@@ -75,6 +80,14 @@ is the failure mode
 [signoz](srn://metaframework/product/devops/component/signoz) is graded
 `criticality: 4` on the assumption of avoiding.
 
+The chart that now exists does not resolve this and does not pretend to: it
+renders **no `resources` block at all**, which is the unbounded default the
+paragraph above warns about. That was the least dishonest of the two options —
+a number there would be sizing invented by whoever wrote the template — and the
+chart makes the omission loud rather than silent, printing a warning on install
+that resources are unset. **The decision is still open, and it is the one this
+environment most needs made.**
+
 ## Data residency, since the location was chosen
 
 Helsinki is in the EU, and everything this environment holds — repository names,
@@ -86,10 +99,52 @@ decision rather than a compliance claim, and it should not be read as one: there
 is no DPA, no processing agreement and no stated retention obligation, because
 there is no user but the author.
 
+## What the chart deploys, which is not what `topology.yaml` names
+
+The two disagree, and neither was edited to make them agree.
+
+`topology.yaml` beside this file names three hosts —
+[catalog-router](srn://metaframework/product/devops/component/catalog-router),
+[repo-sync](srn://metaframework/product/devops/component/repo-sync) and
+[signoz](srn://metaframework/product/devops/component/signoz) — and deliberately
+omits the portal, for the reason its own trailing comment argues at length:
+membership is authored on the component side and
+[portal](srn://metaframework/product/portal) declares no environment. The chart
+templates none of those three and templates the portal.
+
+That is not the chart being wrong. catalog-router and repo-sync are
+`lifecycle: planned` with no code and no image, so a Deployment for either would
+name an image that cannot be built; repo-sync also owns the volume whose cap the
+sibling `config.yaml` marks unset and required, and a PVC would have to invent
+the size that file refuses to state. signoz is `component-type: external`,
+deployed from its own chart, and belongs to
+[0004](srn://metaframework/product/devops/adr/0004-signoz-runs-beside-the-workload).
+The portal is the only member of 0005's "artifact set" that exists. So the
+topology is right about authorship and incomplete as a description of what can
+be deployed, and the correct fix is the portal declaring this environment — a
+change to that product, which has not been made.
+
+Two claims in `topology.yaml` have no chart expression at all, and their absence
+should not be read as enforcement:
+
+- **`replicas: { min: 1, max: 1 }`.** A Deployment carries one integer; only an
+  HPA has a range, and every host here says `scaling: none`, so shipping one
+  would contradict the claim it encoded. The chart renders a single replica and
+  refuses to render zero. It does not refuse more than one.
+- **`regions: [hel1]`.** There is no Kubernetes equivalent on a single-machine
+  cluster. A `topology.kubernetes.io/region` selector would match a label
+  nobody set, so no node selector is rendered.
+
 ## What is absent, stated once
 
+- **No registry, and no image anywhere but a laptop.** The chart names an image
+  repository and a tag and no registry host, because the catalog has never named
+  one. Choosing a registry, a tag scheme and a pull policy is one decision and it
+  is unmade; until it is, the chart references a tag that no cluster could pull.
 - **No TLS decision.** Whether termination is at the instance or in front of it
-  is unresolved, and it is the first thing a real deployment must answer.
+  is unresolved, and it is the first thing a real deployment must answer. The
+  chart leaves ingress off and refuses to render one without a host rather than
+  inventing a class, an issuer annotation or a TLS block.
 - **No DNS name.** There is no hostname for this product anywhere in the
   repository. `https://schemas.metaframework.dev` remains what it has always
   been — an identity constant at

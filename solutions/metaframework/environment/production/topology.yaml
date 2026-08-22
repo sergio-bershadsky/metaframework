@@ -59,15 +59,29 @@ hosts:
 #
 # Membership is authored on the component side — a component declares the
 # environments it is deployed to, and this file may only annotate members, never
-# create them (kinds/environment.md). srn://metaframework/product/portal
-# declares only /environment/local, and its own page states in writing that
-# local is "the complete list". Adding a host entry here would be this file
-# asserting a membership the member does not claim, which is the exact double
-# bookkeeping the inverse-edge rule exists to prevent.
+# create them (kinds/environment.md). srn://metaframework/product/portal declares
+# no environment at all. Adding a host entry here would be this file asserting a
+# membership the member does not claim, which is the exact double bookkeeping the
+# inverse-edge rule exists to prevent.
 #
-# Changing portal's declaration is the correct fix and is out of scope for this
-# work. Until it is made, the fact lives here as a comment: the renderer runs on
-# this instance, its heap grows ~250MB per catalog rebuild, and under
+# Changing portal's declaration is the correct fix and has not been made. Until
+# it is, the fact lives here as a comment: the renderer runs on this instance,
+# every catalog rebuild grows its heap by an amount large enough to be the
+# sizing constraint — the figure is authored once, in
+# 0011-lazy-client-modules-and-dev-cache, and is not repeated here — and under
 # 0002-the-catalog-root-becomes-a-request-value one process holds several
-# catalogs at once — so the cache bound chosen there is the number that decides
+# catalogs at once, so the cache bound chosen there is the number that decides
 # this instance's memory. It has not been chosen.
+#
+# As of 2026-08-22 that is also the whole difference between this file and the
+# chart. docker/chart/ templates the portal and none of the three hosts above:
+# catalog-router and repo-sync are lifecycle: planned with no image, and signoz
+# is external and deployed from its own chart under 0004. Neither this file nor
+# the chart was edited to agree with the other; index.md beside this file
+# records the disagreement, and so does the header of docker/chart/values.yaml.
+#
+# Two claims above have no chart expression and are therefore satisfied rather
+# than enforced: replicas {min,max} — a Deployment has one integer and an HPA
+# would contradict `scaling: none`, so nothing stops a second replica being
+# asked for; and regions, which has no Kubernetes equivalent on a one-machine
+# cluster.

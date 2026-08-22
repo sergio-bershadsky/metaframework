@@ -1,0 +1,187 @@
+{{- include "metaframework.guards" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "metaframework.portal.fullname" . }}
+  labels:
+    {{- include "metaframework.portal.labels" . | nindent 4 }}
+  annotations:
+    # The divergence this chart is required to report, recorded where an
+    # operator reading the cluster will find it rather than only in values.yaml.
+    metaframework.dev/topology-note: >-
+      environment/production/topology.yaml names catalog-router, repo-sync and
+      signoz as the hosts of this environment and does not name the portal. Two
+      of those three are lifecycle:planned with no image to build and the third
+      is external software; the portal is the only deployable member of ADR
+      0005's artifact set today. That file records the portal running here in a
+      comment, and declines to list it because membership is authored on the
+      component side.
+spec:
+  replicas: {{ .Values.replicaCount }}
+  # No HorizontalPodAutoscaler is templated by this chart: every host in
+  # environment/production/topology.yaml declares `scaling: none`, and an HPA is
+  # the only Kubernetes object with the min/max shape that file uses.
+  strategy:
+    type: {{ .Values.updateStrategy.type }}
+    {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
+    rollingUpdate:
+      {{- toYaml (default (dict "maxSurge" 0 "maxUnavailable" 1) .Values.updateStrategy.rollingUpdate) | nindent 6 }}
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "metaframework.portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "metaframework.portal.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "metaframework.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: portal
+          image: {{ include "metaframework.portal.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          env:
+            # MANDATORY, and the single most likely way this breaks in a
+            # cluster. .next/standalone/server.js takes its BIND ADDRESS from
+            # $HOSTNAME (`const hostname = process.env.HOSTNAME || '0.0.0.0'`),
+            # and Kubernetes sets HOSTNAME to the pod name. Verified 2026-08-22
+            # by running the assembled server with HOSTNAME set to a pod-shaped
+            # name: it refused to start with
+            # `Error: getaddrinfo ENOTFOUND metaframework-portal-7d9c4b6f8-x2k9p`.
+            # bin/metaframework.mjs overwrites it for the same reason and says
+            # so. Pinning it to 0.0.0.0 removes the dependency on the pod name
+            # resolving at all.
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: PORT
+              value: {{ .Values.containerPort | quote }}
+            - name: CATALOG_DIR
+              value: {{ .Values.catalog.dir | quote }}
+            - name: METAFRAMEWORK_MODE
+              value: {{ .Values.catalog.mode | quote }}
+            {{- with .Values.catalog.liveReload }}
+            - name: METAFRAMEWORK_LIVE_RELOAD
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.schemaBaseUrl }}
+            - name: SCHEMA_BASE_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.otel.env }}
+            {{- if $value }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.probes.startup.enabled }}
+          # Guards the two probes below. See the probes block in values.yaml:
+          # the standalone server answers 404 for a window after it prints
+          # "Ready", and an httpGet probe treats 404 as a failure.
+          startupProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+            timeoutSeconds: {{ .Values.probes.startup.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            # securityContext.readOnlyRootFilesystem is true, so the one
+            # writable path is declared rather than assumed.
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.catalog.volume.enabled }}
+            - name: catalog
+              mountPath: {{ .Values.catalog.dir | quote }}
+              readOnly: {{ .Values.catalog.volume.readOnly }}
+              {{- with .Values.catalog.volume.subPath }}
+              subPath: {{ . | quote }}
+              {{- end }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          {{- if .Values.tmpDir.sizeLimit }}
+          emptyDir:
+            sizeLimit: {{ .Values.tmpDir.sizeLimit | quote }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.catalog.volume.enabled }}
+        - name: catalog
+          persistentVolumeClaim:
+            claimName: {{ .Values.catalog.volume.existingClaim | quote }}
+        {{- end }}

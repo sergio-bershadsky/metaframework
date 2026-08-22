@@ -1,9 +1,9 @@
 ---
 name: local
 kind: environment
-version: 2
+version: 3
 title: Local
-summary: One developer's machine running next dev — the only environment this solution has, and the complete list rather than the first entry in it.
+summary: One developer's machine running next dev — the environment this whole solution was authored in, and no longer the only one that has run.
 status: review
 owner: sergio-bershadsky
 environment-type: local
@@ -12,24 +12,38 @@ tags:
 ---
 
 `npm run dev` at the repository root proxies to `next dev` in
-`framework/portal`. That is the entire deployment story. Nothing is shared, no
-data is of record, and anyone may break it at any moment — which is the standard
-definition of `local`, and here it is also the definition of *every* environment
-the solution has.
+`framework/portal`. Nothing is shared, no data is of record, and anyone may
+break it at any moment — which is the standard definition of `local`, and here
+it is also the definition of every other environment the solution declares.
 
-## Why there is exactly one
+## Why there was exactly one, and what changed
 
-Not an omission. There is no `.github/`, no Dockerfile, no `vercel.json`, no
-`fly.toml`, no Kubernetes manifest and no deploy script anywhere in the tree.
+This page used to argue that `local` was the complete list, on the evidence that
+there was no `.github/`, no Dockerfile, no `vercel.json`, no `fly.toml`, no
+Kubernetes manifest and no deploy script anywhere in the tree. Two of those have
+since stopped being true, in steps worth separating.
+
+`.github/` arrived first and is a CI workflow, not a deployment, so it did not
+move the argument. `docker/` arrived on 2026-08-22 and does move it: a
+Dockerfile that packages the portal, a compose file that starts it and a Helm
+chart that renders manifests for it, belonging to
+[compose](srn://metaframework/environment/compose) and
+[production](srn://metaframework/environment/production). The first of those has
+actually started on a laptop. So this is no longer the only environment the
+solution has, nor the only one anything has ever run in; it remains the only one
+that runs `next dev`, which is what the rest of this page describes.
+
+What has not changed is the reason `schemas.metaframework.dev` is still not
+modelled as an environment: doing so would invert the decision that separates
+identity from serving address, which is the whole point of decision-record
+amendment `2026-08-19-d`. The canonical host is a constant at
+`framework/portal/src/lib/schema/url.ts:46`; it is not a place anything runs.
 The `process.env.NODE_ENV === 'production'` branch in
 `framework/portal/src/app/schemas/[...path]/route.ts` — which selects a
-`max-age` instead of `no-store` — is a code path, not a deployment.
-
-Modelling a `production` environment would be modelling an intention. Modelling
-`schemas.metaframework.dev` as an environment would be worse: it would invert the
-decision that separates identity from serving address, which is the whole point
-of decision-record amendment `2026-08-19-d`. The canonical host is a constant at
-`framework/portal/src/lib/schema/url.ts:46`; it is not a place anything runs.
+`max-age` instead of `no-store` — is likewise a code path and not a deployment.
+It is a code path that is now reachable: the packaged `server.js` under
+`docker/` sets `NODE_ENV = 'production'` in process, so the container takes that
+branch while `next dev` here does not.
 
 ## What runs here
 
@@ -41,8 +55,13 @@ are typed `service` under protest: the `component-type` enum has no value for an
 HTTP endpoint inside a monolith.
 
 The catalog is read live from disk on every request. In development the loader
-stats the tree and re-parses only when a fingerprint moved (`~18ms` to
-fingerprint 197 entities across 597 entries, against `~2.2s` to rebuild); in
+stats the tree and re-parses only when a fingerprint moved, which is two orders
+of magnitude cheaper than rebuilding — the measurement, and the catalog size it
+was taken against, live in
+[catalog-loader](srn://metaframework/product/portal/component/catalog-loader)
+rather than being copied here, because a per-entity cost restated beside a
+stale entity count is a claim that goes wrong twice
+([0018](srn://metaframework/adr/0018-measured-facts-are-derived-or-dated)); in
 production it is read once per process. `docs/decision-record.md` calls this
 "live fs reads in dev" and it is the reason an author sees a diagnostic appear
 the moment they save.

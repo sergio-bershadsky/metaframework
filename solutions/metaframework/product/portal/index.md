@@ -1,7 +1,7 @@
 ---
 name: portal
 kind: product
-version: 4
+version: 5
 title: Portal
 summary: The Next.js console that renders a catalog — the surface where a product's current state and the decisions around it are read.
 status: review
@@ -28,23 +28,36 @@ place where a reader finds out what a system currently is, and what was decided
 to make it that.
 
 `lifecycle: incubating` rather than `active`, and the distinction is the whole
-honesty of this page. There is no deployment of any kind — no Dockerfile, no
-`vercel.json`, no host configuration anywhere in the repository. The only
-environment is [local](srn://metaframework/environment/local), and the only
-address that has ever served a byte of this portal is `localhost:3000`. A
-product page claiming `active` would be claiming production, and there is none.
+honesty of this page. There is still no deployment: nothing serves this portal
+to anybody, no host configuration exists anywhere, there is no `vercel.json`,
+and every address that has ever served a byte of it is a port on `localhost` on
+one machine. A product page claiming `active` would be claiming production, and
+there is none.
 
-Two corrections to that paragraph, both dated 2026-08-20. **`.github/` now
-exists** — it used to be named above as evidence of no deployment, and it is a
-CI workflow rather than a deployment, so the conclusion stands and the evidence
-had to go. And **this product is about to acquire a second environment it does
-not declare**: [devops](srn://metaframework/product/devops) runs the portal on a
-Hetzner instance, and both of that product's `topology.yaml` files carry a
-comment saying why they may not list it here — membership is authored on the
-component side, and correcting this page's declaration is a change to this
-product that the work describing devops deliberately did not make. Until it
-does, "the only environment is local" is true of what is *declared* and will
-stop being true of what *runs*.
+Three corrections to that paragraph, each dated, and the first two are the same
+correction twice. **`.github/` exists** (2026-08-20) — it used to be named above
+as evidence of no deployment, and it is a CI workflow rather than a deployment,
+so the conclusion stood and the evidence had to go. **A Dockerfile exists**
+(2026-08-22), and so do a compose file and a Helm chart: `docker/` packages this
+portal, starts it, and renders manifests for it, all of it belonging to
+[devops](srn://metaframework/product/devops). None of it is deployed anywhere
+and nothing has been pushed to a registry, so again the conclusion stands and
+the evidence had to go.
+
+The third correction is to the conclusion. **This product now runs in an
+environment it does not declare.** This paragraph used to say "the only
+environment is local", with the caveat that it was true of what is *declared*
+and would stop being true of what *runs*. It has stopped being true: the portal
+has run in a container started from `docker/compose.yaml`, which is
+[compose](srn://metaframework/environment/compose). The declaration has not been
+changed to match, and that is a deliberate stop rather than an oversight —
+whether this membership belongs on the product or on each of the components that
+would actually be in the image is a modelling question nobody has answered,
+and guessing at it would put an edge in the graph the next reader has to argue
+with. Until it is answered, both `topology.yaml` files under devops carry a
+comment saying why they may not list this product, this paragraph says why it
+does not list them, and the gap is legible from either end rather than papered
+over at one.
 
 ## How this decomposes, and why not by directory
 

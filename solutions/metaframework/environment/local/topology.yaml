@@ -9,7 +9,10 @@ hosts:
     scaling: none — one `next dev` process, started by hand
     notes: |
       `npm run dev` at the repository root proxies to `next dev` in
-      framework/portal (Next 16.3.1, Turbopack). It reads solutions/ and .git/
+      framework/portal, on Turbopack. The Next version is not written here: it
+      lives in framework/portal/package.json, which is the only place it cannot
+      drift from itself (0018-measured-facts-are-derived-or-dated). It reads
+      solutions/ and .git/
       and nothing else. `next start` serves the same tree from a build; there is
       no third mode and no process manager.
 

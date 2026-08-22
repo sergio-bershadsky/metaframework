@@ -1,0 +1,39 @@
+apiVersion: v2
+name: metaframework
+type: application
+
+# What this chart is, in one place, because the name is broader than the
+# contents: it deploys the *portal* — the Next.js standalone server that renders
+# a catalog — to the environment described by
+# srn://metaframework/environment/production. It deploys nothing else. See the
+# block at the top of values.yaml for the three workloads
+# `environment/production/topology.yaml` names and why none of them is here.
+description: >-
+  The metaframework portal, placed on a cluster. One half of
+  0005-one-image-two-topologies: the same image docker/ builds and the compose
+  file runs, expressed for Kubernetes.
+
+# The chart's own version. Independent of appVersion on purpose — a values
+# default changing is not the application changing.
+version: 0.1.0
+
+# The portal's package version (framework/portal/package.json), and the default
+# image tag. If the image the Dockerfile produces is tagged anything else, this
+# line and `image.tag` in values.yaml are the two places that must move
+# together; nothing checks it (0005: "kept in step by hand").
+appVersion: "0.2.0"
+
+# Driven by API graduations this chart uses, not by testing: `startupProbe`
+# graduated in 1.20 and `networking.k8s.io/v1` Ingress in 1.19. Derived, not
+# measured — no cluster has run this chart.
+kubeVersion: ">=1.20.0-0"
+
+home: https://github.com/sergio-bershadsky/metaframework#readme
+sources:
+  - https://github.com/sergio-bershadsky/metaframework
+maintainers:
+  - name: Sergey Bershadsky
+keywords:
+  - metaframework
+  - catalog
+  - portal

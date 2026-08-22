@@ -32,6 +32,15 @@ hosts:
 
 # The portal is not a host entry here, for the same reason it is not one in
 # production: membership is authored on the component side, and
-# srn://metaframework/product/portal declares only /environment/local. It runs
-# in this stack as the container the router fronts. Correcting the declaration
-# means changing that product, which is out of scope for this work.
+# srn://metaframework/product/portal declares no environment of its own.
+# Correcting that declaration means changing that product, and it has not been
+# changed.
+#
+# As of 2026-08-22 that omission is the whole difference between this file and
+# what starts. docker/compose.yaml declares one service and it is the portal,
+# published directly on localhost rather than fronted by a router, because
+# catalog-router and repo-sync are lifecycle: planned with no image and signoz
+# is external and out of 0005's scope. So the three hosts above are the graph
+# this environment intends, and the compose file is the graph it can start.
+# Neither was edited to agree with the other; the index.md beside this file
+# records the disagreement in full.

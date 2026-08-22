@@ -349,11 +349,17 @@ describe('what the mapping cannot carry', () => {
     expect(dropped.map((environment) => environment.srn)).toEqual(commented.map((environment) => environment.srn))
     expect(commented.length).toBeGreaterThan(0)
 
-    // This solution's production topology is the extreme case 0016 names.
+    // This solution's production topology is the extreme case 0016 names: most
+    // of that file is reasoning no export can carry. The share is asserted as a
+    // threshold rather than pinned to a digit band, because the pinned version
+    // broke the first time a comment was added to the file it measures — which
+    // is 0018-measured-facts-are-derived-or-dated happening to a test fixture.
     const production = exports_
       .get('srn://metaframework/environment/production')
       ?.notes.find((note) => note.code === 'COMMENTS_DROPPED')
-    expect(production?.message).toMatch(/^1\d{3} of \d+ bytes \(4\d\.\d%\)/)
+    expect(production?.message).toMatch(/^\d+ of \d+ bytes \(\d+\.\d%\) are YAML comments/)
+    const share = Number(production?.message.match(/\((\d+\.\d)%\)/)?.[1])
+    expect(share).toBeGreaterThan(40)
   })
 
   it('reports the invented node wherever the source declares no region', () => {
