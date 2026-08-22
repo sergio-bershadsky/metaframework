@@ -38,7 +38,7 @@ keys, because the key declares the grammar of *that file* and nothing else.
 ---
 name: settlement
 kind: protocol
-version: 5
+version: 6
 title: Settlement
 summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
 status: approved
@@ -256,11 +256,18 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
 
 ## `arazzo.yaml`
 
-The one artifact of this protocol that this framework does not **validate**: it
-is snapshotted with the entity, served as authored, and no rule here reaches its
-contents. The portal still draws it — a step graph of each workflow, beside the
-source — because reading a document to show it is not the same as checking it,
-and there is no published Arazzo 1.1 schema to check one against.
+The one artifact of this protocol that is **grammar-free**: it is snapshotted
+with the entity, served as authored, and judged by no field table, so no shape of
+it can be wrong here — there is no published Arazzo 1.1 schema to check one
+against. The portal still draws it — a step graph of each workflow, beside the
+source — because reading a document to show it is not the same as checking it.
+
+Exactly one rule does reach the file, and it is not a rule about Arazzo.
+Grounding asks where the document's references *land*: `./transport.yaml` below
+is a sibling this entity carries, and each `channelPath` names a channel that
+transport declares. Break either and `metaframework check` reports
+`W_PROTO_ARAZZO_UNGROUNDED` — see **Write it only where it can be grounded** in
+[artifacts.md](artifacts.md).
 
 It deprecates nothing. The sequence diagram still derives from
 `workflows/settle-order.yaml`, the step graph is a second picture rather than a
@@ -272,10 +279,13 @@ whose path it describes and say where that fact came from.
 
 <!-- verbatim: solutions/acme/protocol/settlement/arazzo.yaml -->
 ```yaml
-# Arazzo Description — one participant's path across this bus. Unvalidated
-# here: this framework snapshots and serves the file and states no rule about
-# its contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface");
-# the portal reads it only to draw the step graph beside this source.
+# Arazzo Description — one participant's path across this bus. Grammar-free
+# here: this framework snapshots and serves the file and judges it by no field
+# table (kinds/protocol.md, "arazzo.yaml — the orchestration surface"). One
+# rule does reach it — grounding: every source description must name a sibling
+# artifact, and every operation or channel a step names must resolve inside
+# one, or `metaframework check` raises W_PROTO_ARAZZO_UNGROUNDED. The portal
+# reads the file to draw the step graph beside this source.
 # workflows/settle-order.yaml stays the authoritative choreography, and the
 # sequence diagram on this page derives from it alone.
 #

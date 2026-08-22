@@ -16,6 +16,7 @@ import type { Artifact, Catalog, Entity } from '@/lib/catalog'
 import { resolveMention } from '@/lib/catalog/mentions'
 import { journeySummary, parseJourney, type JourneyStep } from '@/lib/journey/journey'
 import { readArazzo, type ArazzoDescription } from '@/lib/protocol/arazzo'
+import { arazzoGroundingDiagnostics } from '@/lib/protocol/arazzo-grounding'
 import { parseStates } from '@/lib/protocol/states'
 import { parseWorkflow } from '@/lib/protocol/workflow'
 import { bundleSchema } from '@/lib/schema/dereference'
@@ -250,6 +251,10 @@ async function describe(
 
   if (entity.kind === 'protocol' && artifact.file === ARAZZO_FILE) {
     const description = readArazzo(artifact.data)
+    const grounding = arazzoGroundingDiagnostics(artifact.data, {
+      siblings: entity.artifacts,
+      srn: entity.srn,
+    })
 
     return {
       ...base,
@@ -272,10 +277,28 @@ async function describe(
           what="drawn"
         />
       ),
-      // No `footer` findings, and there is no branch above that could produce
-      // any. This artifact carries no rule of this framework: nothing here
-      // validates an Arazzo Description, and a reader that cannot draw one says
-      // so in the panel instead of reporting it as a defect.
+      // One rule reaches this artifact, and only one: `W_PROTO_ARAZZO_UNGROUNDED`
+      // asks whether the sources and step references land inside artifacts this
+      // entity carries. Nothing here validates an Arazzo Description — the
+      // framework has no Arazzo grammar to assert — so a document this reader
+      // cannot draw still says so in the panel rather than as a defect, and the
+      // findings below are about references between files.
+      //
+      // Same call, same arguments as `lib/catalog/artifact-checks.ts`: the two
+      // surfaces must derive the same findings from the same file. `path` is
+      // dropped for the same reason it is on `states.json` — the block is
+      // already titled with the file, and the in-document position the message
+      // carries is the part worth showing.
+      footer:
+        grounding.length > 0 ? (
+          <ArtifactFindings
+            issues={grounding.map((issue) => ({
+              code: issue.code,
+              severity: issue.severity,
+              message: issue.message,
+            }))}
+          />
+        ) : undefined,
     }
   }
 

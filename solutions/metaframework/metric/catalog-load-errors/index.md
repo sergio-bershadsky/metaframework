@@ -1,7 +1,7 @@
 ---
 name: catalog-load-errors
 kind: metric
-version: 1
+version: 2
 title: Catalog load errors
 summary: The number of error-severity diagnostics the loader produces over the shipped solutions/ tree, read at one commit.
 status: review
@@ -44,7 +44,7 @@ fixture — composed with `withSchemaRegistry()` and `withArtifactChecks()`, the
 filtered to `severity === 'error'`. The count is the length of that list.
 
 Included, because the composition puts them in one list with one severity split:
-the nineteen codes `load.ts` raises, every `E_DM_*` from the schema registry, and
+every code `load.ts` raises, every `E_DM_*` from the schema registry, and
 every artifact mini-spec error from a `journey.yaml`, a `workflows/*.yaml` or a
 `states.json`.
 
@@ -67,14 +67,21 @@ what makes it actionable rather than a weather report.
 
 ## Known distortions
 
-- **The number is silence about everything the loader does not check.** Roughly
-  fifty specified diagnostic codes are implemented nowhere, concentrated in
-  protocol, environment, ADR and requirement validation — `E_ADR_SECTIONS` and
-  `E_REQ_CRITERIA` among them. A reading of zero says the catalog is legal
-  against the rules that were built, not against the rules that were written.
-- **`E_PROTO_*` never appears in it.** The workflow and state validators meet
-  real content only when a protocol page renders, so a broken `states.json`
-  reaches a reader and not this number.
+- **The number is silence about everything the loader does not check.**
+  Specified diagnostic codes with no emitter anywhere are listed, each with its
+  gap named, in the `UNIMPLEMENTED` register in
+  `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`; read the count
+  there rather than from a figure written here. A reading of zero says the
+  catalog is legal against the rules that were built, not against the rules that
+  were written. The register has shrunk by most of its length since this metric
+  was written — `E_ADR_SECTIONS` and `E_REQ_CRITERIA`, named here as examples,
+  are both emitted — and what is left is concentrated in protocol validation.
+- **`E_PROTO_*` does appear in it now.** The workflow, state and Arazzo-grounding
+  checks are folded into the load by `lib/catalog/artifact-checks.ts`, so a
+  broken `states.json` reaches this number as well as the page. This bullet used
+  to say the opposite and was true when those parsers ran only while a protocol
+  page rendered — a reading taken before that fold is not comparable with one
+  taken after it.
 - **Nothing samples it.** There is no CI and no pre-commit hook, so the value is
   whatever it was when a person or a model last typed the command. The gap
   between two readings is not an interval, it is a habit.

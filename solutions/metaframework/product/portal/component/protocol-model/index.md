@@ -1,9 +1,9 @@
 ---
 name: protocol-model
 kind: component
-version: 6
+version: 7
 title: Protocol model
-summary: Workflow parser, XState-subset validator, mermaid compiler, generated meta-schema, XState normalizer and Arazzo reader — six modules, one question, and none of their diagnostics reaches /diagnostics.
+summary: Workflow parser, XState-subset validator, mermaid compiler, generated meta-schema, XState normalizer, Arazzo reader and Arazzo grounding — seven modules; the one that judges is not the one that draws.
 status: review
 owner: sergio
 component-type: library
@@ -12,7 +12,7 @@ relations:
   depends-on:
     - ../srn
   uses:
-    - /product/specification/datamodel/workflow-document@3
+    - /product/specification/datamodel/workflow-document@4
     - /product/specification/datamodel/state-machine-document@3
   realizes:
     - /capability/derived-visualization
@@ -21,13 +21,17 @@ tags:
   - diagrams
 ---
 
-`src/lib/protocol/` — six source modules: `workflow.ts`, `states.ts`,
-`mermaid.ts`, `state-machine-document.ts`, `xstate.ts` and `arazzo.ts`, with
-`workflow.ts` by far the largest, against a test suite for each of them. A
-`vendor/` directory beside them holds one third-party schema, pinned and
-licensed. One component, because all six answer the
+`src/lib/protocol/` — seven source modules: `workflow.ts`, `states.ts`,
+`mermaid.ts`, `state-machine-document.ts`, `xstate.ts`, `arazzo.ts` and
+`arazzo-grounding.ts`, with `workflow.ts` by far the largest, against a test
+suite for each of them. A `vendor/` directory beside them holds one third-party
+schema, pinned and licensed. One component, because six of the seven answer the
 same question: turn a protocol's sibling artifact into something that can be
 drawn, stated in prose, and handed to somebody else's parser unchanged.
+`arazzo-grounding.ts` is the seventh and answers the opposite one — it draws
+nothing and asks only whether an `arazzo.yaml`'s references land inside its own
+entity — and it lives here because that question is only answerable from the
+same parsed artifacts the other six read.
 
 `state-machine-document.ts`, `xstate.ts` and `vendor/` all arrived with
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) and are
@@ -159,9 +163,9 @@ which is the only one of the two that a `states.json` can name.
 The newest module, and the only one whose contract is defined by what it
 refuses to do. `arazzo.yaml` joined the role table under
 [0020-arazzo-as-a-sibling-role](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)
-as an **unvalidated** artifact: `framework/spec/kinds/protocol.md` states no
-field table for it, and `metaframework check` raises nothing from its contents.
-Unvalidated is not unread, and this module is the difference. `readArazzo()`
+as an artifact with **no grammar**: `framework/spec/kinds/protocol.md` states no
+field table for it, so nothing raises a shape complaint against one.
+Grammar-free is not unread, and this module is the difference. `readArazzo()`
 turns the already-parsed YAML into a typed tree; `arazzoGraph()` turns one
 workflow of that tree into nodes and edges, numbers and ids only, the same
 no-DOM discipline `layoutWorkflow()` keeps; `arazzoSummary()` states the same
@@ -179,13 +183,51 @@ This is the only module here that reads an artifact the framework does not own
 the meta-schema for, and the only one for which "no parser" was never the
 alternative on offer — the alternative was no drawing.
 
+## `arazzo-grounding.ts` — the one module that judges without drawing
+
+Its mirror, and a separate file for exactly that reason. `arazzo.ts` promises in
+its own docblock to be reachable from no diagnostic path, and
+[0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role) calls that promise
+the executable form of its third decision — so a `W_PROTO_ARAZZO_UNGROUNDED`
+literal inside it, or an import of it from here, would falsify one half of the
+sentence or the other. The two share no function; this module walks the raw
+document itself, which it has to anyway, because `readArazzo()` returns null for
+a document with no `workflows` array and such a document can still name a source
+that is not there.
+
+What it checks is the one rule the kind document states about the file, and it
+is a rule about *references between artifacts* rather than about Arazzo: a
+source description must name a sibling this entity carries, and every operation,
+channel or workflow a step names must resolve inside it. Resolution is per
+grammar — an `operationId` is a key of `paths` in OpenAPI and a key of
+`operations` in AsyncAPI, a pointer walks a document's keys — and each of the
+three cases where it stays silent is a position rather than a gap: a grounding
+document in a grammar this module cannot read, a sibling that did not parse, and
+a source that already failed the first clause and takes one finding rather than
+one per step.
+
+It is the first module in this component whose findings reach the catalog, and
+`lib/catalog/artifact-checks.ts` is the branch that carries them there.
+
 ## Where these diagnostics go
 
-Nowhere. **No `E_PROTO_*` code ever reaches
-[diagnostics-report](srn://metaframework/product/portal/component/console/component/diagnostics-report).**
-This module is invoked when a protocol page *renders*, not when the catalog
-loads, so its findings live on that page and never enter `catalog.diagnostics`.
-Its suites run against hermetic fixtures and are never pointed at `solutions/`.
+To
+[diagnostics-report](srn://metaframework/product/portal/component/console/component/diagnostics-report),
+and to `metaframework check`, by one route: `lib/catalog/artifact-checks.ts`.
+That module dispatches on entity kind × filename — the same table the entity
+page uses — and folds `states.ts`, `workflow.ts` and `arazzo-grounding.ts` into
+`catalog.diagnostics` as the catalog composes. The two surfaces must derive the
+same findings from the same file: a diagnostic that appears on the page and not
+on /diagnostics is worse than one that appears on neither.
+
+The modules here are still pure and still know nothing about the catalog. They
+are handed a parsed artifact and return findings; the fold is what makes those
+findings a gate. Their own suites run against hermetic fixtures, and the shipped
+catalog is asserted separately, in `lib/catalog/fixture-check.test.ts`.
+
+One deliberate gap survives the fold: `W_PROTO_STATES_EVENT_UNKNOWN` needs the
+workflow message list, which neither call site passes, so nothing emits it and
+neither surface is stricter than the other.
 
 ## What is specified and absent
 

@@ -388,10 +388,12 @@ enclosing fragment (`W_PROTO_WF_ORPHAN_RETURN`).
 
 An **Arazzo Description** — the OpenAPI Initiative's format for a deterministic
 sequence of API calls — under that fixed bare name, OPTIONAL, addressable as
-`.arazzo`, **unvalidated**: served as authored and judged by nothing — no rule
-of this framework reaches its contents. First key `arazzo: 1.1.0`. The portal
-draws a step graph of each workflow from it, which checks nothing: an unknown
-field is drawn less, never reported.
+`.arazzo`, **grammar-free**: served as authored and judged by no field table, so
+nothing here can call the document the wrong shape. First key `arazzo: 1.1.0`.
+The portal draws a step graph of each workflow from it, which checks nothing: an
+unknown field is drawn less, never reported. One rule does reach the file, and it
+is about where its references land rather than about Arazzo — see **Write it only
+where it can be grounded** below.
 
 **Do not reach for it as a replacement for `workflows/`.** It is a sibling role,
 not a second dialect, and the mini-spec above stays the authoritative
@@ -406,8 +408,42 @@ neither is warned for the other's presence.
 relative reference to a sibling artifact of the same entity — `./openapi.yaml`
 or `./transport.yaml` — and every operation, channel or workflow a step names
 MUST resolve into one of those documents or into a workflow of the same file.
-Both are `W_PROTO_ARAZZO_UNGROUNDED`. An absolute URL is legal Arazzo and refused
-here: it bakes a host into a catalog file and nothing offline can check it.
+Both are `W_PROTO_ARAZZO_UNGROUNDED`, and it fires: `metaframework check` reports
+it. An absolute URL is legal Arazzo and refused here: it bakes a host into a
+catalog file and nothing offline can check it. A bare `openapi.yaml` without the
+`./` is fine — the prefix is the convention, not the rule.
+
+Two spellings decide whether a step reference resolves, and both are easy to get
+wrong the first time:
+
+- **An `operationId` against an AsyncAPI source is a key of the top-level
+  `operations` map**, not a channelId and not a field inside an operation.
+  AsyncAPI 3 names operations by map key. Against an OpenAPI source it is an
+  `operationId` under `paths`, as expected.
+- **A `channelPath` pointer is keyed by channelId**, so
+  `{$sourceDescriptions.transport.url}#/channels/order-paid` resolves and
+  `#/channels/acme.order-paid.v1` — the channel's `address` — does not. The
+  pointer walks keys; the address lives inside the value.
+
+A pointer must **land on** a channel or an operation, not merely walk. A member
+of the source's `channels` map is a channel; a member of its `operations` map, or
+a `paths.<route>.<method>` in an OpenAPI source, is an operation. Anything else
+the pointer can reach is a node of the document and nothing more —
+`#/info/title`, `#/`, and `#/channels/order-paid/messages`, which is one segment
+too deep and is the near-miss to expect. A `channelPath` naming an OpenAPI source
+never resolves at all: OpenAPI declares no channels. And the
+`{$sourceDescriptions.<name>.url}` prefix is what names a source — a bare
+`#/channels/order-paid` names none and is searched across all of them, the same
+way a bare `operationId` is.
+
+Where the check stays quiet: a source pointing at a document in a grammar the
+framework does not read — a **mini-spec** `transport.yaml` (whose `channels` is a
+surface list, not AsyncAPI's map), or a sibling that failed to parse — grounds
+and has no step reference judged. A `sourceDescriptions` entry with no `url`
+names no document and is not judged. A source that is already ungrounded takes
+one finding rather than one per step. And `dependsOn`, along with an
+`onSuccess`/`onFailure` action's `stepId` or `workflowId`, is never checked here
+— the step graph reports an unresolved one under the picture instead.
 
 ```yaml
 # arazzo.yaml — the two lines the framework reads, and the rule it adds

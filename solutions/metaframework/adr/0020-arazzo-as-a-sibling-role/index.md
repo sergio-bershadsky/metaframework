@@ -1,9 +1,9 @@
 ---
 name: 0020-arazzo-as-a-sibling-role
 kind: adr
-version: 1
+version: 2
 title: Arazzo is a sibling of the workflow mini-spec, not a dialect of it
-summary: arazzo.yaml joins the role table as an additive protocol artifact — unvalidated, read only to draw a step graph, grounded in the entity's own openapi.yaml or transport.yaml; the mini-spec still leads.
+summary: arazzo.yaml joins the role table as an additive protocol artifact — no field table, read to draw a step graph, grounded in the entity's own openapi.yaml or transport.yaml; the mini-spec leads.
 status: review
 owner: sergio-bershadsky
 decision-status: proposed
@@ -102,8 +102,10 @@ fixed-field table. Beyond that:
   `schemas/` directory is archived at v1.0, and the versioned schema URL under
   `spec.openapis.org` returns 404. Machine validation of a 1.1 document is
   therefore not available to this framework today, which is the reason the
-  artifact is unvalidated rather than checked. It is not a reason against
-  reading one — a renderer needs no schema to draw what it recognises.
+  artifact is **grammar-free** rather than schema-checked. It is not a reason
+  against reading one — a renderer needs no schema to draw what it recognises —
+  and it is not a reason against the one rule that does reach the file, which
+  asks where its references land and needs no grammar at all.
 - **"Exactly one step reference is REQUIRED" is a 1.0 claim, not a 1.1 one.**
   The official 1.0 schema states it (`required: [stepId]` plus a `oneOf` over
   the three reference fields). The 1.1 prose marks only `stepId` REQUIRED and
@@ -141,11 +143,18 @@ a dialect of `workflows/<name>.yaml`.**
    would leave the majority of the eligible set ungroundable. A correct 1.0
    document is read, warned `W_ARTIFACT_DIALECT`, and never broken.
 
-3. **The artifact is unvalidated — which is not the same as unread.**
-   Snapshotted with the entity, served as authored, and judged by nothing:
-   `kinds/protocol.md` states no field table for an Arazzo Description, so no
-   rule of this framework reaches its contents and no diagnostic is raised from
-   them. That is the contract, and it is the whole of it.
+3. **The artifact has no grammar here — which is not the same as unread.**
+   Snapshotted with the entity, served as authored, and judged by no field
+   table: `kinds/protocol.md` states none for an Arazzo Description, so no rule
+   of this framework reaches its *shape* and no diagnostic is raised from an
+   unrecognised key, a missing REQUIRED field or a value of the wrong type.
+
+   Read decisions 3 and 5 together, because the first sentence of this one used
+   to say "judged by nothing" flatly and the two then contradicted each other in
+   one document. What decision 5 adds is not a grammar: grounding asks where the
+   file's references *land*, which is a question about two files in one
+   directory and is answerable without knowing Arazzo at all. Shape is not
+   checked; siblings are.
 
    What a *reader* does with those bytes is a separate question, and the portal
    answers it by drawing: an `arazzo.yaml` renders as a step graph of each
@@ -172,6 +181,58 @@ a dialect of `workflows/<name>.yaml`.**
    artifact names a host: a catalog is described offline and privately, and a
    URL pointing outside the entity is a claim nothing in the repository can
    check.
+
+   The `./` is the convention and not the rule. A bare `openapi.yaml` is a
+   relative URI-reference naming the same sibling and is equally grounded; what
+   is refused is anything naming a document the entity does not carry. Stating
+   it matters because the first draft of this rule was restated elsewhere as
+   "`./`-relative", which is a different and narrower rule, and would have
+   warned on a file the portal links correctly.
+
+   **What "resolve" means, per grounding grammar.** The rule is silent on this
+   as first written, and a checker cannot be:
+
+   | A step's field  | Against an OpenAPI source                | Against an AsyncAPI source               |
+   | --------------- | ---------------------------------------- | ---------------------------------------- |
+   | `operationId`   | an `operationId` declared under `paths`  | a key of the top-level `operations` map  |
+   | `operationPath` | a pointer at `paths.<route>.<method>`    | a pointer at a member of `operations`    |
+   | `channelPath`   | nothing — OpenAPI declares no channels   | a pointer at a member of `channels`      |
+   | `workflowId`    | a `workflowId` of **this** `arazzo.yaml` | a `workflowId` of **this** `arazzo.yaml` |
+
+   Only the AsyncAPI cell of the first row had to be minted. Arazzo says an
+   `operationId` names an operation of the source description; AsyncAPI 3 names
+   its operations by the **keys** of a top-level `operations` map, with no id
+   field inside them, so that map is where the name is looked for. A checker
+   resolving `operationId` only against OpenAPI's `paths` would have warned on
+   every step of the one catalog file that spells its references that way, and
+   the file is correct.
+
+   The two pointer rows say *a member of a named collection* and not "a node of
+   the document", which is a distinction the first cut of this rule got wrong.
+   A pointer that merely walks proves only that something is there:
+   `#/info/title` walks, and so does `#/channels/<id>/messages`, one segment
+   inside a real channel. Neither is a channel, and a check that accepted them
+   would print "resolves to no channel" having never looked for one. The
+   `{$sourceDescriptions.<name>.url}` prefix is what names a source; a bare
+   `#/…` names none and is searched across all of them, the same symmetry a bare
+   `operationId` has.
+
+   Four silences belong to the rule rather than to any implementation of it. A
+   source whose document is in a grammar this framework does not read grounds
+   and puts no step reference in question — a mini-spec `transport.yaml`, whose
+   `channels` is a surface list and not AsyncAPI's map, and a sibling that
+   failed to parse; the absence of a check is not a warning, and a finding
+   raised on `arazzo.yaml` for a defect in the transport names the wrong file. A
+   `sourceDescriptions` entry with no `url` names no document and is not judged.
+   A source that already failed clause 1 takes one finding rather than one per
+   step naming it, and a document that grounds nothing at all is reported once
+   against `sourceDescriptions` — once, not instead: every later reference is
+   still judged, including a `workflowId`, which resolves inside the same file.
+   And `dependsOn`, along with the `stepId` or `workflowId` of an
+   `onSuccess`/`onFailure` action, is intra-workflow control flow rather than a
+   reference between artifacts: the step graph reports an unresolved one under
+   the picture, and that is a note on a drawing rather than a finding on the
+   catalog.
 
 6. **Scope: the initiator-facing surface only.** One `arazzo.yaml` describes the
    sequence as the caller drives it. It is not a second description of the wire
@@ -225,12 +286,36 @@ a dialect of `workflows/<name>.yaml`.**
   reporting the document. It is reachable from no diagnostic path, which is the
   executable form of decision 3.
 
-- **`W_PROTO_ARAZZO_UNGROUNDED` ships with no emitter** and enters the portal's
-  debt register (`framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`)
-  beside the other protocol rules specified ahead of their reader. The register
-  is a debt list, not an exemption list: its ratchet forces the entry out the
-  moment something emits the code. The bundled diagnostic inventory names it as
-  a gap in the same breath, which `repo-hygiene` checks.
+- **`W_PROTO_ARAZZO_UNGROUNDED` shipped with no emitter, and gained one.** It
+  entered the portal's debt register
+  (`framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`) beside the
+  other protocol rules specified ahead of their reader, and the register's
+  ratchet forced the entry out the moment `lib/protocol/arazzo-grounding.ts`
+  emitted the code — which is the register working as designed and the reason it
+  is a debt list rather than an exemption list.
+
+  Two things about that entry are worth recording, because both were wrong in a
+  way that cost time. It called the step-reference clause "genuinely blocked:
+  it needs the sibling `openapi.yaml` / `transport.yaml` *interpreted*". Nothing
+  was blocked: both documents were already parsed objects on
+  `entity.artifacts[].data`, and every resolution the rule asks for is a key
+  lookup or a JSON-pointer walk over an object already in hand — no AsyncAPI or
+  OpenAPI validator, no schema, no new dependency. And the corpus turned out to
+  be no help in proving the check works: every `arazzo.yaml` under `solutions/`
+  grounds, so landing the emitter moved no count and every fixture that shows
+  the code firing had to be written from scratch. Measured 2026-08-22 at
+  `07633c5`, over the twelve files the catalog carried then.
+
+- **The emitter is a module of its own, and that placement is load-bearing.**
+  `lib/protocol/arazzo.ts` states in its own docblock that it "emits no
+  diagnostic, ever, and is reachable from no diagnostic path", which the
+  consequence above calls the executable form of decision 3. A code literal
+  inside it would falsify the first half of that sentence and an import of it
+  from a checking module would falsify the second, so
+  `lib/protocol/arazzo-grounding.ts` shares no function with the reader and
+  walks the raw document itself. It needs to anyway: `readArazzo()` returns null
+  for a document carrying no `workflows` array, and such a document can still
+  name a source that is not there.
 
 - **The framework shipped this role before any file used it, and the catalog
   caught up the same day.** Nothing under `solutions/` carried an `arazzo.yaml`
@@ -245,7 +330,11 @@ a dialect of `workflows/<name>.yaml`.**
 
 - **Spec versions move**: `structure.md` to 9, `srn.md` to 9,
   `kinds/protocol.md` to 8, `evolution.md` to 10 — and the distilled-from markers
-  in the plugin bundle move with them, or `repo-hygiene` fails.
+  in the plugin bundle move with them, or `repo-hygiene` fails. Landing the
+  emitter moved three of them again — `kinds/protocol.md` to 9, and
+  `structure.md` and `srn.md` to 10 — because all three carried a sentence saying
+  no rule of this framework reaches an `arazzo.yaml`'s contents, which decision 5
+  had already made false on the day it was written.
 
 - **The `derive` idea stays open.** A `metaframework derive arazzo` generating an
   initiator-perspective skeleton from a workflow's `call` / `return` pairs is
@@ -279,9 +368,11 @@ a dialect of `workflows/<name>.yaml`.**
 - **Making grounding an error class.** Rejected. Every artifact rule this
   framework has added arrives as a warning first (`W_ARTIFACT_DIALECT` is the
   precedent, and `E_DM_DIALECT` is what a terminal state looks like once every
-  file complies). An error class would also over-promise: nothing reads the
-  document today, so the only honest thing an unimplemented error could do is
-  stay silent while claiming to be fatal.
+  file complies). An error class would also over-promise: nothing read the
+  document when this was written, so the only honest thing an unimplemented
+  error could have done is stay silent while claiming to be fatal. The second
+  half of that reason expired when the emitter landed; the first did not, and it
+  is the one the decision rests on.
 
 - **Recognising the whole `1.x` line.** Rejected. It reads as "1.0 or 1.1, either
   is fine", and for this catalog 1.0 is not fine — it cannot name an AsyncAPI

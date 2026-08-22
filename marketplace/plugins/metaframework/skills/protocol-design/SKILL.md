@@ -19,7 +19,7 @@ solutions/acme/protocol/settlement/
 ├── transport.yaml        OPTIONAL   the wire binding — one transport, in either of its two dialects
 ├── states.json           OPTIONAL   XState-subset conversation machine
 ├── openapi.yaml          OPTIONAL   OpenAPI document — fixed bare name, bytes-only
-├── arazzo.yaml           OPTIONAL   Arazzo description — fixed bare name, unvalidated
+├── arazzo.yaml           OPTIONAL   Arazzo description — fixed bare name, grounded
 └── workflows/            OPTIONAL   asset dir, never an entity, no index.md at any depth
     └── settle-order.yaml            one workflow; name = filename stem
 ```
@@ -152,8 +152,9 @@ Two lints, both warnings: `style: bus` with any `kind: call` step, and
 `transport.yaml` (one transport, `spec` XOR a surface list), `workflows/*.yaml`
 (one file per named exchange, fragments capped at depth 3), `states.json`
 (an XState v5 subset describing the conversation, not a participant), and
-`arazzo.yaml` (one initiator's path across the exchange, unvalidated by this
-framework and only worth writing where its steps can be grounded). The forms,
+`arazzo.yaml` (one initiator's path across the exchange, whose grammar this
+framework does not check and whose *grounding* it does — write it only where its
+steps resolve into a sibling this entity carries). The forms,
 the required fields per transport kind, the two `message` traps, the XState
 subset boundary and the Arazzo rules are all in
 **`references/artifacts.md`** — read it before writing any of them.

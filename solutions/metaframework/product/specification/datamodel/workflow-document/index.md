@@ -1,7 +1,7 @@
 ---
 name: workflow-document
 kind: datamodel
-version: 3
+version: 4
 title: Workflow document
 summary: The workflows/*.yaml mini-spec — ordered message steps plus three fragment forms, designed to be as legible raw as rendered.
 status: review
@@ -73,15 +73,21 @@ The rule behind that arrangement is stated in the renderer's own header comment:
 "a picture the catalog cannot state in prose is a picture the catalog cannot
 review". Accessibility and AI-readability turn out to be the same requirement.
 
-## What the loader checks, and where it never runs
+## What the loader checks, and the two rules it cannot
 
 `workflow.ts` implements the mini-spec's own error classes fail-soft — a
-violation becomes a diagnostic, not an exception. But those diagnostics are
-produced when the portal **renders a protocol page**, not when it loads the
-catalog: they never reach `/diagnostics`, and the module's own test suite runs
-against hermetic fixtures rather than against `solutions/`. So a malformed
-workflow in this repository is discovered by opening its page, and by nothing
-else.
+violation becomes a diagnostic, not an exception. Those diagnostics used to be
+produced only when the portal **rendered a protocol page**, so a malformed
+workflow in this repository was discovered by opening its page and by nothing
+else. `lib/catalog/artifact-checks.ts` closed that: `withArtifactChecks` calls
+this parser during the load, on the same kind × filename dispatch the entity page
+uses, so a workflow finding now reaches `/diagnostics`, the header count and
+`metaframework check` as well as the page. Two `W_PROTO_WF_ORPHAN_RETURN` in the
+shipped catalog are the proof — they are in the check's own warning list.
+
+The module's own unit suite still runs against hermetic fixtures; the corpus
+assertions live in `lib/catalog/fixture-check.test.ts`, which is where the
+shipped `workflows/*.yaml` are exercised against the real loader.
 
 Two rules in the spec are not implemented at all: `W_PROTO_WF_CHANNEL_UNKNOWN`,
 which would cross-check a step's `channel` against the transport's surface list,

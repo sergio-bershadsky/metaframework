@@ -1,7 +1,7 @@
 ---
 name: diagnostics-report
 kind: component
-version: 3
+version: 4
 title: Diagnostics report
 summary: The /diagnostics page — with no CLI in v1, this is the integrity gate, and it can only show what the loader and the schema registry found.
 status: review
@@ -63,24 +63,36 @@ reached this page.
 This page is the framework's only integrity gate and it sees roughly half of the
 framework's own error taxonomy.
 
-- **What can reach it**: the thirteen classes `load.ts` raises by name, every
-  `E_SRN_*` the parser throws and the loader re-emits under the thrown code
-  (`load.ts:118` and `:312`), and fifteen from the schema registry.
+- **What can reach it**: every class `load.ts` raises by name — the list is on
+  [catalog-loader](srn://metaframework/product/portal/component/catalog-loader) —
+  plus every `E_SRN_*` the parser throws and the loader re-emits under the thrown
+  code (`load.ts:118` and `:312`), and every `E_DM_*` the schema registry raises.
+  Counts are deliberately not restated here: three pages used to carry three
+  different ones for `load.ts` alone.
 - **`W_DM_CONTRADICTION` cannot.** It is pushed into a local array that the
   entity page renders. **`W_DM_UNION_TAG` cannot** — it is emitted only inside
   `buildSchemaBundle()`, which has no production caller at all.
-- **No `E_PROTO_*` code can.** Protocol artifacts are parsed when a protocol
-  page renders, never at load, so a malformed workflow or a states file outside
-  the XState subset is visible only to whoever opens that entity.
+- **`E_PROTO_*` codes reach it now, by one route.**
+  `lib/catalog/artifact-checks.ts` folds the protocol and journey artifact
+  parsers into the catalog as it composes, using the same kind × filename
+  dispatch the entity page uses — so a malformed workflow, a states file outside
+  the XState subset, and an `arazzo.yaml` whose references miss the siblings its
+  entity carries (`W_PROTO_ARAZZO_UNGROUNDED`) all land here as well as on that
+  page. The bullet above used to say the opposite, and was true when the parsers
+  ran only while a protocol page rendered. What is still out of reach is every
+  `E_PROTO_*` rule with no emitter at all — chiefly `transport.yaml`, which
+  nothing validates in either dialect.
 - **No `E_VER_REGRESSION`.** It exists in
   [git-history](srn://metaframework/product/portal/component/git-history) with
   its own tests and is never run over `solutions/`.
-- **Roughly fifty specified codes are implemented nowhere**, concentrated in
-  protocol, environment, ADR and requirement validation. Two of them matter to
-  this catalog directly: `E_ADR_SECTIONS` (an ADR's four required headings) and
-  `E_REQ_CRITERIA` (a requirement's `## Acceptance criteria` section). Every ADR
-  and every requirement in this solution is therefore checked by author
-  discipline alone.
+- **Specified codes with no emitter anywhere.** The live list is the
+  `UNIMPLEMENTED` register in
+  `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read it there
+  rather than from a count written here, because its ratchet keeps it honest and
+  a number in this sentence would not be. It has shrunk by most of its length
+  since this page was written: `E_ADR_SECTIONS` and `E_REQ_CRITERIA`, both named
+  here as gaps that mattered to this catalog directly, are emitted, and what
+  remains is concentrated in protocol validation.
 
 ## And nothing runs it unattended
 

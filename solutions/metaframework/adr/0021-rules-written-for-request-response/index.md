@@ -1,7 +1,7 @@
 ---
 name: 0021-rules-written-for-request-response
 kind: adr
-version: 1
+version: 2
 title: The fourth survey — the rules that broke were written for request-response
 summary: The fourth survey reaches `amqp`, the last transport value with no instance. The value and `bus` hold; the mini-spec block goes unused, and most rules that broke assume a request and a reply.
 status: review
@@ -482,8 +482,11 @@ inherits them is worth less than one that says so:
   is lane ordering — the components were authored while two of the thirteen
   protocols existed, and speculating on the rest would have produced dangling
   references. `W_PROTO_PARTICIPANT_UNLINKED` sits in the portal's debt register
-  with no emitter, so the portal reports **0 errors and 42 warnings, none of them
-  on this solution**, and the gap is invisible. It is a fact about parallel
+  with no emitter, so the portal reports **0 errors and 35 warnings at `07633c5`,
+  none of them on this solution**, and the gap is invisible. (This bullet first
+  said 42, a reading taken partway through the warning triage that landed in the
+  same commit and already stale when the commit was written. A date is not an
+  anchor on a day when three readings are taken — ADR 0018.) It is a fact about parallel
   authoring and about an unimplemented check, and it is recorded here so that
   nobody later reads the clean build as evidence the join holds.
 

@@ -1,7 +1,7 @@
 ---
 name: 0011-no-cli-in-v1
 kind: adr
-version: 1
+version: 2
 title: No CLI in v1 — integrity is enforced at portal load
 summary: There is no validator binary; the loader's diagnostics, surfaced on the portal's diagnostics page, are the only integrity gate.
 status: review
@@ -60,11 +60,16 @@ gate — it must name the file, the rule, and the fix, not merely report a count
   what is *not* covered. That cross-product dependency is the honest shape of
   this decision, not an accident of packaging.
 - **Coverage stopped where the renderer stopped.** Because the gate is a page,
-  only what the *loader* computes reaches it. `E_PROTO_*` fires when a protocol
-  page renders and never reaches `/diagnostics`; `W_DM_UNION_TAG` is emitted
-  inside a function with no production caller; roughly fifty specified codes are
-  implemented nowhere. A binary with a checklist would have made those holes
-  visible as unimplemented commands rather than as silence.
+  only what the *loader* computes reached it. As recorded at the time: `E_PROTO_*`
+  fired when a protocol page rendered and never reached `/diagnostics`;
+  `W_DM_UNION_TAG` was emitted inside a function with no production caller; and
+  the register of specified-but-unemitted codes ran to roughly fifty. A binary
+  with a checklist would have made those holes visible as unimplemented commands
+  rather than as silence. Two of the three have since closed —
+  `lib/catalog/artifact-checks.ts` folds the protocol and journey artifact
+  parsers into the load, and the register is a fraction of its old length; read
+  it in `lib/catalog/diagnostic-coverage.test.ts` rather than from the figure
+  above, which is a record of 2026-08-19 and is not maintained.
 - **The only executable outside the portal is `scripts/migrate_schema_ids.py`**,
   a one-off migration, plus the kit's read-only `catalog_facts.py`. Neither is a
   validator.

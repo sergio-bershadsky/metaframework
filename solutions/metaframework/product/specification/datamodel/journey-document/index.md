@@ -1,7 +1,7 @@
 ---
 name: journey-document
 kind: datamodel
-version: 3
+version: 4
 title: Journey document
 summary: journey.yaml — one actor's path across the solution as 2 to 12 flat steps, no branches, and the product-crossing check the journey kind exists for.
 status: review
@@ -123,17 +123,25 @@ empty".
 during `loadCatalog` with all three of its options — the entity name, the
 entity's SRN, and the frontmatter protagonist — so JRN5–JRN8, JRN13, JRN14 and
 JRN16's artifact-suffix clause run over `solutions/` and reach `/diagnostics`
-and `metaframework check`. Nine of the kind's twelve codes have a live emitter —
-two of them only half: the register's own comment records that JRN11 and JRN12
-fire on the artifact-suffix clause, which the SRN grammar decides, and not on
-"the target resolves to the wrong kind", which needs the catalog.
+and `metaframework check`.
 
-Three do not, and `diagnostic-coverage.test.ts` carries them in its debt
-register with the gap named: `E_JRN_ARTIFACT_MISSING` ("nothing checks a journey
-entity directory for `journey.yaml`"), `W_JRN_PROTOCOL_UNRELATED` (needs the
-named protocol's participants, which a pure parser is not given) and
-`W_JRN_ARTIFACT_UNKNOWN`. The register is a gate, not an exemption — the
-inventory suite goes red the moment one of them gains an emitter.
+All twelve of the kind's codes have a live emitter, and
+`diagnostic-coverage.test.ts`'s debt register carries no journey line at all —
+two of the twelve only half, which is why the gap is recorded in two `it.todo`s
+rather than in the register: JRN11 and JRN12 fire on the artifact-suffix clause,
+which the SRN grammar decides, and not on "the target resolves to the wrong
+kind", which needs the catalog. A register keyed by code cannot express half a
+rule.
+
+The other three arrived with `lib/journey/artifacts.ts`, and the register's own
+comment records why they had been listed as gaps: `E_JRN_ARTIFACT_MISSING`,
+`W_JRN_ARTIFACT_UNKNOWN` and `W_JRN_PROTOCOL_UNRELATED` each name a missing
+*input* rather than a missing branch — an absent document, a file beside it, a
+protocol's participant list — and `parseJourney` is handed a parsed document and
+nothing else. Given the entity directory listing and the resolved catalog, all
+three are decidable. The register is a gate, not an exemption: the inventory
+suite goes red the moment a listed code gains an emitter, which is what forced
+those entries out of it.
 
 That coverage is what separates this format from its two siblings landing beside
 it,

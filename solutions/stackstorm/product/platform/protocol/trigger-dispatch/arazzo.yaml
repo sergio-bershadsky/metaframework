@@ -1,7 +1,10 @@
-# Arazzo Description — the initiator's path across this bus. Unvalidated here:
-# this framework snapshots and serves the file and states no rule about its
-# contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface"); the
-# portal reads it only to draw the step graph beside this source.
+# Arazzo Description — the initiator's path across this bus. Grammar-free here:
+# this framework snapshots and serves the file and judges it by no field table
+# (kinds/protocol.md, "arazzo.yaml — the orchestration surface"). One rule does
+# reach it — grounding: every source description must name a sibling artifact,
+# and every operation or channel a step names must resolve inside one, or
+# `metaframework check` raises W_PROTO_ARAZZO_UNGROUNDED. The portal reads the
+# file to draw the step graph beside this source.
 # workflows/dispatch-an-event.yaml stays the authoritative choreography, and
 # the sequence diagram on this page derives from it alone.
 #

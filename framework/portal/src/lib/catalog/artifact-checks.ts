@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { parseJourney } from '../journey/journey'
+import { arazzoGroundingDiagnostics } from '../protocol/arazzo-grounding'
 import { parseStates } from '../protocol/states'
 import { parseWorkflow } from '../protocol/workflow'
 import type { Catalog, Diagnostic, Entity } from './types'
@@ -25,11 +26,19 @@ import type { Catalog, Diagnostic, Entity } from './types'
  * the same findings from the same file: a diagnostic that appears on one and not
  * the other is worse than one that appears on neither.
  *
- * `parseStates` already speaks {@link Diagnostic}; the workflow and journey
- * parsers speak their own issue shape whose `path` is *positional* inside the
- * document (`steps[3].actor`). A Diagnostic's `path` is the catalog-relative
- * file, so the positional part moves into the message, where it is what a reader
- * needs in order to find the line.
+ * `parseStates` and `arazzoGroundingDiagnostics` already speak
+ * {@link Diagnostic}; the workflow and journey parsers speak their own issue
+ * shape whose `path` is *positional* inside the document (`steps[3].actor`). A
+ * Diagnostic's `path` is the catalog-relative file, so the positional part moves
+ * into the message, where it is what a reader needs in order to find the line.
+ *
+ * `arazzo.yaml` is the one entry in this table that is not a mini-spec parser,
+ * and the difference is worth keeping straight. Nothing validates an Arazzo
+ * Description — the framework has no Arazzo grammar to assert — so the branch
+ * below asks the single question `kinds/protocol.md` does state about the file:
+ * do its source descriptions and step references land inside artifacts this
+ * entity carries. Reading is still not validating; grounding is a rule about
+ * references between files rather than about Arazzo's own shape.
  *
  * What this deliberately does NOT do: pass `workflowMessages` to `parseStates`.
  * That would enable `W_PROTO_STATES_EVENT_UNKNOWN`, which the entity page does
@@ -52,6 +61,7 @@ export function artifactDiagnostics(catalog: Catalog): Diagnostic[] {
 
 const STATES_FILE = 'states.json'
 const JOURNEY_FILE = 'journey.yaml'
+const ARAZZO_FILE = 'arazzo.yaml'
 const WORKFLOWS_DIR = 'workflows/'
 
 function check(entity: Entity, artifact: Entity['artifacts'][number]): Diagnostic[] {
@@ -83,6 +93,21 @@ function check(entity: Entity, artifact: Entity['artifacts'][number]): Diagnosti
       path: file,
       srn: entity.srn,
     }).diagnostics
+  }
+
+  if (entity.kind === 'protocol' && artifact.file === ARAZZO_FILE) {
+    // The one rule this framework states about an Arazzo Description, and the
+    // only thing that reads one for anything but a picture. It is handed the
+    // whole artifact list because the rule is about *references between
+    // artifacts*: the sibling filenames answer clause 1, and the sibling
+    // documents — already parsed, so nothing here opens a file — answer clause
+    // 2. Already Diagnostics, like `parseStates`; the in-document position is in
+    // the message, because a Diagnostic's `path` is the file.
+    return arazzoGroundingDiagnostics(artifact.data, {
+      siblings: entity.artifacts,
+      path: file,
+      srn: entity.srn,
+    })
   }
 
   // A datamodel's `schema.json` is deliberately absent from this table: it needs

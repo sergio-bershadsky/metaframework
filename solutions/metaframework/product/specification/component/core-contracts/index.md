@@ -1,7 +1,7 @@
 ---
 name: core-contracts
 kind: component
-version: 6
+version: 7
 title: Core contracts
 summary: The five spec documents binding on every kind — index, structure, srn, frontmatter, evolution — carrying the rules no kind document may relax.
 status: review
@@ -24,8 +24,8 @@ Versions are read from their own frontmatter:
 | Document         | Version | What it fixes                                                                                                        |
 |------------------|---------|----------------------------------------------------------------------------------------------------------------------|
 | `index.md`       | 9       | Purpose, five core principles, document map, reading order, precedence.                                              |
-| `structure.md`   | 9       | Monorepo layout, kind buckets, entity directories, what a body may state, naming, the artifact role table, dialects. |
-| `srn.md`         | 9       | SRN grammar, parsing, disk mapping, artifact addresses, relative refs, placement.                                    |
+| `structure.md`   | 10      | Monorepo layout, kind buckets, entity directories, what a body may state, naming, the artifact role table, dialects. |
+| `srn.md`         | 10      | SRN grammar, parsing, disk mapping, artifact addresses, relative refs, placement.                                    |
 | `frontmatter.md` | 8       | The common frontmatter contract and the closed edge vocabulary.                                                      |
 | `evolution.md`   | 10      | Versioning, the additive-only rule, the swap procedure, git history, dialect migration.                              |
 

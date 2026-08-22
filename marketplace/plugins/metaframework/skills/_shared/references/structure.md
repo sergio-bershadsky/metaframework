@@ -1,6 +1,6 @@
 # Directory structure — layout, artifacts, placement
 
-> Distilled from `framework/spec/structure.md` (version 9), the container rules
+> Distilled from `framework/spec/structure.md` (version 10), the container rules
 > in `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
 > "Sibling artifacts" / "Body template" sections of the other
 > `framework/spec/kinds/*.md`. **When `framework/spec/` is present in the
@@ -233,11 +233,11 @@ Rules that catch authors out:
   samples the system, and a `query.sql` would bind the description to one
   collection tool and rot silently.
 - Protocol sibling names are **fixed and bare**: `transport.yaml`,
-  `states.json`, `openapi.yaml` and `arazzo.yaml` (both recognised but neither
-  validated — the fixed name is what makes them addressable as `.openapi` and
-  `.arazzo`;
-  `arazzo.json` is **not** recognised). An external spec in any *other*
-  format is still bound via `transport.yaml` `spec.file`; a free-named file is
+  `states.json`, `openapi.yaml` and `arazzo.yaml` (both recognised, and neither
+  has a field table anywhere in the framework — the fixed name is what makes
+  them addressable as `.openapi` and `.arazzo`; `arazzo.json` is **not**
+  recognised). An external spec in any *other* format is still bound via
+  `transport.yaml` `spec.file`; a free-named file is
   never addressable. Anything else unrecognised is `W_PROTO_ARTIFACT_UNKNOWN`.
   `workflows/` is the only recognised asset subdirectory: one `*.yaml` per
   workflow, kebab-case, no nesting.
@@ -474,8 +474,11 @@ Rules an author has to get right:
   cannot name an AsyncAPI document, which is where most groundable protocols in a
   catalog like this one live. A 1.0 file is read, warned, and never broken. Paste
   `arazzo: 1.1.0`. Unlike `openapi.yaml`, the portal does read further than that
-  key — it draws a step graph of each workflow — but nothing *validates* the
-  document, and no diagnostic is raised from its contents.
+  key — it draws a step graph of each workflow — but nothing checks the
+  document's *shape*: there is no field table for an Arazzo Description, so an
+  unknown key is drawn less rather than reported. The one diagnostic the file can
+  raise is `W_PROTO_ARAZZO_UNGROUNDED`, and it is about where the document's
+  references land, not about Arazzo (`protocols.md`).
 
 **No header, or one unknown for the role, is the legacy dialect** — the format
 this bundle describes today. Recognition is against **every** row the role has,
@@ -553,7 +556,9 @@ role from dialect exists to prevent.
   `openapi.yaml` was once its leading example: both are now fixed bare names
   with their own rows in the role table, both are addressable, and both are
   parsed as YAML into `artifact.data` like every other artifact. What the
-  framework declines to do with them is *judge* them.
+  framework declines to do with them is state a *grammar* for them — the only
+  rule either can break is the `arazzo.yaml` grounding rule, which asks where
+  its references land.
 - Frontmatter `name` MUST equal the directory name; frontmatter `kind` MUST
   equal the bucket.
 

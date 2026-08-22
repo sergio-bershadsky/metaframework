@@ -1,7 +1,7 @@
 ---
 name: kind-contracts
 kind: component
-version: 7
+version: 8
 title: Kind contracts
 summary: One document per ontology kind — each adding fields, artifacts and rules on top of the core contracts, and never overriding them.
 status: review
@@ -35,7 +35,7 @@ their own frontmatter:
 | `product.md`     | 5       | `lifecycle`, `primary-actors`.                                                |
 | `component.md`   | 5       | `component-type`, `lifecycle`, environment declaration.                       |
 | `datamodel.md`   | 9       | `schema.json`, canonical `$id`/`$ref`, `x-srn`, registry.                     |
-| `protocol.md`    | 8       | `participants`/`style`, `transport.yaml`, workflows, states, `arazzo.yaml`.   |
+| `protocol.md`    | 9       | `participants`/`style`, `transport.yaml`, workflows, states, `arazzo.yaml`.   |
 | `actor.md`       | 5       | `actor-type`, `goals`, protocol and journey participation.                    |
 | `environment.md` | 6       | `environment-type`, `topology.yaml`, `config.yaml`.                           |
 | `adr.md`         | 4       | `decision-status`, `date`, `deciders`, the body template, dated measurements. |

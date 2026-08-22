@@ -1,7 +1,7 @@
 ---
 name: 0018-measured-facts-are-derived-or-dated
 kind: adr
-version: 1
+version: 2
 title: Measured facts are derived, or they are dated
 summary: A measured number in a current-state entity is derived and rendered by the portal or carries no digit at all; only the ADR bucket, whose records are dated snapshots, authors one.
 status: review
@@ -332,20 +332,28 @@ warning names a given sentence.
   release.** The earlier draft declined to spend a code here while dozens of
   documented rules still had no emitter — a correct call at `8e7a16c`, where the
   register held 41 entries. The kind disciplines landed in the same batch as this
-  record and took it apart: measured in the working tree that carries both — the
-  only honest anchor for a number this batch has not committed yet — 122 codes are
-  documented, 105 are emitted, and 17 sit in the register. Every one of the 17 is
-  a protocol, datamodel or journey rule waiting on a *reader* the portal does not
-  have, not a rule anyone declined to write. Spending the next two codes on the
+  record and took it apart: at commit `07633c5`, which is where that batch came
+  to rest, **123** codes are documented, **105** are emitted, and **18** sit in
+  the register. Every one of the 18 is a protocol or datamodel rule waiting on a
+  *reader* the portal does not have, not a rule anyone declined to write. (This
+  bullet first read 122/105/17, measured "in the working tree that carries both"
+  because the batch was not committed yet. All three were off by the edits that
+  followed the reading. An unanchored number is wrong on a schedule of its own,
+  which is this record's whole argument — and it caught its own author first.) Spending the next two codes on the
   population that this record measured at 71% false is now the right order, not
   the wrong one.
 - **This record is bound by its own rule, and it is an ADR.** Every number above
-  names commit `8e7a16c` rather than "now", which is the strongest form the
-  decision permits an ADR to carry and the form that keeps
+  names a commit rather than "now" — `8e7a16c` for the census, `07633c5` for the
+  enforcement-budget bullet, which measures a later batch — which is the
+  strongest form the decision permits an ADR to carry and the form that keeps
   [0013](srn://metaframework/adr/0013-a-second-solution-surveyed-from-real-code)
   exact after two years. A reader in 2028 does not need to trust this record's
   arithmetic: `git ls-tree -r 8e7a16c` still answers, and if it disagrees with a
-  sentence above, the sentence is wrong and the commit is right.
+  sentence above, the sentence is wrong and the commit is right. One bullet was
+  briefly the exception, anchored to an uncommitted working tree, and all three
+  of its numbers were wrong within the hour. It is repaired above and the failure
+  is left on the record, because it is the cheapest demonstration this document
+  has of the thing it is arguing.
 
 ## Alternatives considered
 

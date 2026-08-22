@@ -1,9 +1,9 @@
 ---
 name: arazzo-graph
 kind: component
-version: 1
+version: 2
 title: Arazzo step graph
-summary: One workflow of an arazzo.yaml drawn as a step graph, read from a document this framework deliberately does not validate, with declared order and inferred order drawn as different edges.
+summary: One workflow of an arazzo.yaml drawn as a step graph, read from a document whose grammar this framework deliberately does not check, with declared order and inferred order drawn as different edges.
 status: review
 owner: sergio
 component-type: ui
@@ -35,13 +35,20 @@ the one artifact on a protocol page that stayed a wall of YAML while
 
 ## Drawing is not validating
 
-This is the only renderer here whose source the framework does not own and does
-not check. `kinds/protocol.md` states no field table for an Arazzo Description,
-so no rule reaches its contents and no diagnostic is raised from them
+This is the only renderer here whose source the framework does not own and whose
+grammar it does not check. `kinds/protocol.md` states no field table for an
+Arazzo Description, so no rule reaches its *shape* and no diagnostic is raised
+from an unrecognised key
 ([0020-arazzo-as-a-sibling-role](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
 That is not an accident of sequencing — there is no published JSON Schema for
 Arazzo 1.1 to validate a document against, which is precisely why the record
 rejected *specifying* a parse and admitted a read.
+
+One rule does reach the file, and it is deliberately not this component's:
+grounding (`W_PROTO_ARAZZO_UNGROUNDED`) asks whether the document's references
+land inside artifacts of its own entity, and it lives in
+`src/lib/protocol/arazzo-grounding.ts` rather than in the reader below —
+precisely so the reader's promise stays literally true.
 
 The reader (`src/lib/protocol/arazzo.ts`) is built to that shape. It returns
 null rather than throwing for any input at all, treats every field as optional
@@ -104,6 +111,9 @@ lives beside the model rather than inside the component.
 No execution, no try-it, no simulation walkthrough — Respect territory, and
 explicitly deferred. Nothing joins a step's `operationId` back to the operation
 it names inside the sibling document: the step links to that artifact's block on
-the page, and no further, because nothing in this portal parses `transport.yaml`
-or `openapi.yaml` to link into. That is the same missing reader
-`W_PROTO_ARAZZO_UNGROUNDED` waits on.
+the page, and no further. That is a *drawing* gap and no longer a reading one —
+`arazzo-grounding.ts` resolves exactly those references now, to decide whether
+they exist. Turning a resolution into a deep link is a further step nothing has
+taken: the grounding check answers yes or no and keeps no anchor, and inventing
+one here would mean this component minting a second, unchecked opinion about
+where a name lives.

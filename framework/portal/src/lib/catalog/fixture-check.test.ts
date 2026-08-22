@@ -75,7 +75,8 @@ describe('shipped catalog', () => {
           (artifact) =>
             (entity.kind === 'journey' && artifact.file === 'journey.yaml') ||
             (entity.kind === 'protocol' && artifact.file.startsWith('workflows/')) ||
-            (entity.kind === 'protocol' && artifact.file === 'states.json'),
+            (entity.kind === 'protocol' && artifact.file === 'states.json') ||
+            (entity.kind === 'protocol' && artifact.file === 'arazzo.yaml'),
         )
         .map((artifact) => `${entity.relDir}/${artifact.file}`),
     )
@@ -168,7 +169,8 @@ describe('shipped catalog', () => {
     // the drawing itself cannot show, so it is pinned here instead.
     //
     // This asserts nothing about Arazzo's grammar and raises no diagnostic. The
-    // artifact stays unvalidated; it is only now also read.
+    // artifact stays grammar-free; the one rule that does reach it is grounding,
+    // and it is asserted over the same corpus two tests down.
     const described = [...catalog.entities.values()]
       .map((entity) => ({ entity, artifact: entity.artifacts.find((a) => a.file === 'arazzo.yaml') }))
       .filter((pair): pair is { entity: Entity; artifact: Artifact } => pair.artifact !== undefined)
@@ -212,6 +214,27 @@ describe('shipped catalog', () => {
     // a thirteenth file is a failure.
     expect(workflows).toBeGreaterThanOrEqual(described.length)
     expect(steps).toBeGreaterThanOrEqual(workflows)
+  })
+
+  it('grounds every Arazzo description in the artifacts its own entity carries', () => {
+    // `W_PROTO_ARAZZO_UNGROUNDED` over the shipped corpus. Every source
+    // description names a sibling this entity holds, and every operation,
+    // channel and nested workflow a step names resolves inside it. The
+    // synthetic red cases live in `lib/protocol/arazzo-grounding.test.ts`; this
+    // is the green one, and it is the only place the rule meets real files.
+    //
+    // Derived rather than counted: the assertion is the finding list, so it
+    // stays true as the catalog grows and goes red the day an author renames a
+    // channel in a `transport.yaml` and leaves the `arazzo.yaml` beside it
+    // pointing at the old name — the drift the rule exists for, and the one the
+    // step graph draws perfectly happily.
+    const grounding = artifactDiagnostics(catalog).filter((d) => d.path.endsWith('/arazzo.yaml'))
+    expect(grounding.map(format)).toEqual([])
+
+    const described = [...catalog.entities.values()].filter((entity) =>
+      entity.artifacts.some((artifact) => artifact.file === 'arazzo.yaml'),
+    )
+    expect(described.length).toBeGreaterThanOrEqual(12)
   })
 
   it('identifies every datamodel schema by its canonical URL and its SRN', () => {

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: srn
-version: 9
+version: 10
 status: review
 title: SRN — Solution Resource Name
 summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, artifact addresses over the closed per-kind role table, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
@@ -586,13 +586,15 @@ catalog read. Its normative home is
 `{artifact}` vocabulary and versions with it; the copy above restates the
 constant in full so this document's validation rules read standalone.
 
-`openapi` and `arazzo` sit in the table as fixed bare roles: neither file is
-validated — this framework states no rule about the contents of either, so
-neither can be found wrong ([kinds/protocol.md](kinds/protocol.md)) — but the
-fixed name makes each addressable. What a reader does with the bytes it fetches
-is its own business, and the addresses are the same either way: the portal
-serves `openapi.yaml` and draws a step graph from `arazzo.yaml`, and neither
-fact is a rule of this document.
+`openapi` and `arazzo` sit in the table as fixed bare roles: neither file has a
+field table anywhere in this framework, so neither can be the wrong shape
+([kinds/protocol.md](kinds/protocol.md)) — but the fixed name makes each
+addressable. What a reader does with the bytes it fetches is its own business,
+and the addresses are the same either way: the portal serves `openapi.yaml` and
+draws a step graph from `arazzo.yaml`, and neither fact is a rule of this
+document. The one rule an `arazzo.yaml` can break is likewise not about its
+contents but about where its references land — `kinds/protocol.md` owns it, and
+it is a rule about siblings rather than about addresses.
 
 The `spec.file` attachment mechanism in `transport.yaml` remains
 for every other format (`pricing.proto`, `schema.graphql`) and remains

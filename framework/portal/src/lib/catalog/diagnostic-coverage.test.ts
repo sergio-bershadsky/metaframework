@@ -160,36 +160,29 @@ const UNIMPLEMENTED: Record<string, string> = {
   W_PROTO_TRANSPORT_HOST: 'nothing reads `servers` out of an AsyncAPI transport.yaml',
   W_PROTO_SPEC_ASYNCAPI: 'needs transport.yaml validated first, which nothing does',
   W_PROTO_ARTIFACT_UNKNOWN: 'nothing inspects a protocol entity directory for unrecognised files; JRN9 is the same rule on the journey kind and now has a reader to copy',
-  // The `arazzo` role of the protocol kind (ADR 0020). Half of what this row
-  // used to say has since been built and half has not, and the half that has not
-  // is the half the rule needs.
+  // `W_PROTO_ARAZZO_UNGROUNDED` was here, and its retirement is worth a note
+  // because the entry was wrong about itself in the direction that matters.
   //
-  // `lib/protocol/arazzo.ts` now reads the document — enough to draw the step
-  // graph — so "nothing opens it" is no longer why this is unimplemented.
+  // It called clause 1 (the source url names a sibling) "not blocked —
+  // unwritten" and clause 2 (every operation, channel or workflow a step names
+  // resolves) "genuinely blocked: it needs the sibling openapi.yaml /
+  // transport.yaml *interpreted*". Clause 2 was not blocked. The two grounding
+  // documents were already parsed objects on `entity.artifacts[].data`, and
+  // every resolution the rule asks for is a key lookup or a JSON-pointer walk —
+  // no AsyncAPI or OpenAPI validator, no schema, no dependency. What clause 2
+  // needed was a reader, and the reader was `Object.keys()`.
   //
-  // The rule has two clauses and only one of them is blocked. Stating that
-  // precisely matters: this register is the project's account of its own debt,
-  // and an implementable gap listed as an unimplementable one is how a gap stops
-  // being worked on.
+  // By this register's own standard — "an implementable gap listed as an
+  // unimplementable one is how a gap stops being worked on" — that entry was the
+  // failure it warns about, and it sat here for a release. The lesson is in the
+  // wording, not the code: "needs X interpreted" is a claim about cost, and a
+  // claim about cost belongs beside a look at what the pipeline already holds.
   //
-  //  1. `sourceDescriptions[].url` MUST be a `./`-relative reference naming a
-  //     sibling artifact this entity carries. Decidable from `entity.artifacts`
-  //     alone, with nothing interpreted. `arazzoSourceHrefs()` in
-  //     `components/entity/entity-artifacts.tsx` already computes exactly this
-  //     join and drops the miss (no link) instead of reporting it. Not blocked —
-  //     unwritten.
-  //  2. Every operation, channel or workflow a step names MUST resolve in the
-  //     document the step's source points at. Genuinely blocked: it needs the
-  //     sibling `openapi.yaml` / `transport.yaml` *interpreted*, and — note the
-  //     word — both are already **parsed** into `artifact.data` by the loader,
-  //     as the three E_PROTO_TRANSPORT_* rows above say. What no module does is
-  //     read a field out of either. `W_PROTO_TRANSPORT_HOST` is the same
-  //     obstacle seen from its own end.
-  //
-  // Reading is deliberately not checking. The graph reports an unresolved
-  // `dependsOn` under the drawing, as a note on a picture; that is a different
-  // claim from a diagnostic on the catalog, and it is not this code.
-  W_PROTO_ARAZZO_UNGROUNDED: 'arazzo.yaml is read for its step graph but never checked: the sibling-url clause is decidable today and unwritten, and the step-reference clause needs the sibling openapi.yaml / transport.yaml interpreted, which nothing does',
+  // `lib/protocol/arazzo-grounding.ts` is the emitter; the rule stays exactly as
+  // narrow as the spec states it, which is why the three `E_PROTO_TRANSPORT_*`
+  // rows above are untouched. Grounding reads a `channels` or `operations` key
+  // out of a transport document; it validates nothing in one, and a transport in
+  // a dialect it cannot read is left to whoever eventually writes that reader.
   W_PROTO_PARTICIPANT_MISSING: 'the `exposes`/`uses` back-edges and the participant list both resolve; nothing joins one against the other',
   W_PROTO_PARTICIPANT_UNLINKED: 'the same join, read from its other end',
   W_PROTO_STYLE_MISMATCH: '`style` frontmatter is never compared with the workflows beneath it',

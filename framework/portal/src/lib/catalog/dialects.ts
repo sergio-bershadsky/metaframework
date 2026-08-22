@@ -150,16 +150,19 @@ const DIALECTS: Record<string, RoleDialects | null> = {
   // file is still read and never broken — it takes `W_ARTIFACT_DIALECT`, exactly
   // as an OpenAPI 3.0 document does one row up.
   //
-  // This row is the whole of the portal's Arazzo *validation*, and deliberately
-  // — but it is not the whole of its Arazzo support, and the two must not be
-  // confused. `kinds/protocol.md` ("`arazzo.yaml` — the orchestration surface")
-  // calls the artifact **unvalidated**, not bytes-only, and says in the next
-  // breath that "unvalidated is not unread": `lib/protocol/arazzo.ts` reads the
-  // document and `components/diagrams/arazzo-graph.tsx` draws a step graph from
-  // it. What stops here is judgement. There is no published JSON Schema for
-  // Arazzo 1.1, so this framework has no grammar to enforce; no rule reaches the
-  // contents and no diagnostic is ever raised from them. `openapi.yaml` one row
-  // up is the artifact that really is bytes-only — nothing opens it at all.
+  // This row is the whole of the portal's Arazzo *grammar* checking, and
+  // deliberately — but it is not the whole of what reads the file, nor the whole
+  // of what judges it, and the three must not be confused. `kinds/protocol.md`
+  // ("`arazzo.yaml` — the orchestration surface") calls the artifact
+  // **grammar-free**, not bytes-only, and says in the next breath that
+  // "grammar-free is not unread": `lib/protocol/arazzo.ts` reads the document and
+  // `components/diagrams/arazzo-graph.tsx` draws a step graph from it. There is
+  // no published JSON Schema for Arazzo 1.1, so this framework has no grammar to
+  // enforce and no shape rule can be broken in one. Exactly one rule does reach
+  // the contents — `W_PROTO_ARAZZO_UNGROUNDED`, in
+  // `lib/protocol/arazzo-grounding.ts`, which asks where the document's
+  // references land rather than what shape it is. `openapi.yaml` one row up is
+  // the artifact that really is bytes-only — nothing opens it at all.
   'protocol:arazzo': {
     dialects: [{ key: 'arazzo', value: '1.1.0', owned: false, recognises: (v) => /^1\.1\.\d+$/.test(v) }],
     warns: true,

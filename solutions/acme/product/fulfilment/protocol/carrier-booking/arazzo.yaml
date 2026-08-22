@@ -1,7 +1,10 @@
 # Arazzo Description — the initiator-facing surface of this exchange, as the
-# delivery orchestrator drives it. Unvalidated here: this framework snapshots
-# and serves the file and states no rule about its contents (kinds/protocol.md,
-# "arazzo.yaml — the orchestration surface"); the portal reads it only to draw
+# delivery orchestrator drives it. Grammar-free here: this framework snapshots
+# and serves the file and judges it by no field table (kinds/protocol.md,
+# "arazzo.yaml — the orchestration surface"). One rule does reach it —
+# grounding: every source description must name a sibling artifact, and every
+# operation or channel a step names must resolve inside one, or `metaframework
+# check` raises W_PROTO_ARAZZO_UNGROUNDED. The portal reads the file to draw
 # the step graph beside this source. workflows/*.yaml stay the authoritative
 # choreography, and the sequence diagrams on this page derive from them alone.
 arazzo: 1.1.0

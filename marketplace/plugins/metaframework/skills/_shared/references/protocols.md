@@ -1,6 +1,6 @@
 # Protocols — participants, transport, workflows, states
 
-> Distilled from `framework/spec/kinds/protocol.md` (version 8). **When
+> Distilled from `framework/spec/kinds/protocol.md` (version 9). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec.
@@ -21,7 +21,7 @@ solutions/acme/product/shop/protocol/order-placement/
 ├── index.md                # REQUIRED  frontmatter + prose
 ├── transport.yaml          # OPTIONAL  wire binding — exactly one transport
 ├── openapi.yaml            # OPTIONAL  OpenAPI document — fixed name, bytes-only
-├── arazzo.yaml             # OPTIONAL  Arazzo description — fixed name, unvalidated
+├── arazzo.yaml             # OPTIONAL  Arazzo description — fixed name, grounded
 ├── states.json             # OPTIONAL  XState-subset conversation machine
 └── workflows/              # OPTIONAL  asset dir — never an entity
     ├── place-order.yaml    # one workflow; name = filename stem
@@ -806,14 +806,19 @@ profile rule 5 requires a non-empty `channels`.
 
 An **Arazzo Description** (the OpenAPI Initiative's format for a deterministic
 sequence of API calls), under that fixed bare name, OPTIONAL, addressable as
-`.arazzo`, **unvalidated**: snapshotted, served as authored, and judged by
-nothing — `protocol.md` states no field table for it, so no rule can be broken in
-one. Dialect key `arazzo: 1.1.0`.
+`.arazzo`, **grammar-free**: snapshotted, served as authored, and judged by no
+field table — `protocol.md` states none for it, so no *shape* rule can be broken
+in one. An unrecognised key, a missing REQUIRED field, a value of the wrong type:
+none of them is anything's business here. Dialect key `arazzo: 1.1.0`.
 
-Unvalidated is not unread: the portal draws a step graph of each workflow, which
+Grammar-free is not unread: the portal draws a step graph of each workflow, which
 asserts nothing about the grammar. A renderer that meets a field it does not know
 draws less; a validator would have to call the document wrong, and there is no
 published JSON Schema for Arazzo 1.1 to be right against.
+
+Exactly one rule reaches the file, and it is not a rule about Arazzo. Grounding
+asks where the document's references *land* — a question about two files in one
+directory, answerable without knowing Arazzo's grammar at all.
 
 **It is a sibling of `workflows/`, not a dialect of it.** The mini-spec above
 stays the authoritative choreography source; sequence diagrams derive from
@@ -829,18 +834,70 @@ picture of a multi-party exchange than the sequence diagram it cost.
 **It MUST be grounded in this entity's own artifacts.**
 
 - `sourceDescriptions[].url` MUST be a relative URI-reference to a sibling
-  artifact — `./openapi.yaml` or `./transport.yaml`. Arazzo permits an absolute
-  URL; this framework does not: a catalog is described offline, and a URL
-  pointing outside the entity is a claim nothing here can check.
+  artifact — `./openapi.yaml` or `./transport.yaml`. The `./` is the convention,
+  not the rule: a bare `openapi.yaml` names the same sibling and is equally
+  grounded. Refused is anything naming a document the entity does not carry — an
+  absolute URL, a `../` escape, a filename that is not there. Arazzo permits the
+  absolute form; this framework does not: a catalog is described offline, and a
+  URL pointing outside the entity is a claim nothing here can check.
 - Every operation, channel or workflow a step names MUST resolve into a document
   `sourceDescriptions` names, or into a workflow of the same file.
 
-Both are `W_PROTO_ARAZZO_UNGROUNDED`. So the artifact only makes sense where a
-grounding document exists: an `openapi.yaml`, or a `transport.yaml` in the
-AsyncAPI dialect. `sourceDescriptions[].type` is closed to `openapi`, `asyncapi`
-and `arazzo`, so `grpc` and `in-process` protocols can never carry one — do not
-write the file there, and do not write it for an `http` protocol that has no
+Both are `W_PROTO_ARAZZO_UNGROUNDED`, and it is emitted — by
+`lib/protocol/arazzo-grounding.ts`, on `/diagnostics` and in
+`metaframework check`. So the artifact only makes sense where a grounding
+document exists: an `openapi.yaml`, or a `transport.yaml` in the AsyncAPI
+dialect. `sourceDescriptions[].type` is closed to `openapi`, `asyncapi` and
+`arazzo`, so `grpc` and `in-process` protocols can never carry one — do not write
+the file there, and do not write it for an `http` protocol that has no
 `openapi.yaml` yet.
+
+**How "resolve" is decided**, per grounding grammar. Both rows are lookups into a
+document already parsed; neither validates one.
+
+| A step's field  | Against an OpenAPI source                | Against an AsyncAPI source               |
+| --------------- | ---------------------------------------- | ---------------------------------------- |
+| `operationId`   | an `operationId` declared under `paths`  | a key of the top-level `operations` map  |
+| `operationPath` | a pointer at `paths.<route>.<method>`    | a pointer at a member of `operations`    |
+| `channelPath`   | nothing — OpenAPI declares no channels   | a pointer at a member of `channels`      |
+| `workflowId`    | a `workflowId` of **this** `arazzo.yaml` | a `workflowId` of **this** `arazzo.yaml` |
+
+The AsyncAPI cell of the first row is the one resolution rule the framework had
+to state rather than inherit: AsyncAPI 3 names its operations by the **keys** of
+a top-level `operations` map, with no id field inside them. A reference spelled
+`$sourceDescriptions.<name>.<id>` names its source; a bare one names none and
+resolves if any source carries it.
+
+The two pointer rows say **a member of a named collection**, not "a node of the
+document", and the difference is the rule. A pointer that merely walks proves
+only that something is there: `#/info/title` walks, `#/` walks, and so does
+`#/channels/<channelId>/messages`, one segment inside a real channel. None of the
+three is a channel or an operation, so none of them grounds a step.
+
+A pointer walks the document's **keys**, so
+`{$sourceDescriptions.transport.url}#/channels/<channelId>` is keyed by
+channelId and never by a channel's `address` — the address lives inside the
+value. Writing the address there is the mistake to expect; it lands nowhere. The
+prefix is what names the source; a pointer written bare — `#/channels/<id>` —
+names none, and is resolved against every source and satisfied by any one of
+them, exactly as a bare `operationId` is.
+
+Four silences are part of the rule rather than gaps in it. A source whose
+document is in a grammar the framework does not read grounds and puts no step
+reference in question — a **mini-spec** `transport.yaml`, whose `channels` is a
+surface list and not AsyncAPI's map, and a sibling that failed to parse, which
+already carries the loader's own complaint; the absence of a check is not a
+warning, and a finding on `arazzo.yaml` for a defect in the transport would name
+the wrong file. A `sourceDescriptions` entry with no `url` names no document and
+is not judged. A source that already failed the first clause takes one finding
+rather than one per step naming it, and a document that grounds nothing at all is
+reported once against `sourceDescriptions` — reported once, not reported instead:
+every later reference is still judged, including a `workflowId`, which resolves
+inside the same file and needs no source. And `dependsOn`, along with the
+`stepId`/`workflowId` of an `onSuccess`/`onFailure` action, is intra-workflow
+control flow rather than a reference between artifacts: the step graph reports an
+unresolved one under the picture, which is a note on a drawing and not a finding
+on the catalog.
 
 ```yaml
 # arazzo.yaml — the two lines the framework reads, and the rule it adds
@@ -1071,39 +1128,39 @@ on a datamodel page is a **derived inverse**, never authored on the datamodel.
 
 ## Protocol error classes
 
-| Code                              | Meaning                                                                                                        |
-|-----------------------------------|----------------------------------------------------------------------------------------------------------------|
-| `E_PROTO_PARTICIPANTS`            | `participants` missing or with fewer than 2 entries.                                                           |
-| `E_PROTO_ALIAS_DUP`               | Two participants share an `alias`.                                                                             |
-| `E_PROTO_PARTICIPANT_KIND`        | A participant `ref` resolves to a kind other than component/product/actor.                                     |
-| `E_PROTO_TRANSPORT_SCHEMA`        | Mini-spec `transport.yaml` violates the top-level field table.                                                 |
-| `E_PROTO_TRANSPORT_BINDING`       | Mini-spec binding block key ≠ `kind`, block missing, or a required field absent.                               |
-| `E_PROTO_TRANSPORT_SPEC_CONFLICT` | Mini-spec `spec` and a surface list both present.                                                              |
-| `E_PROTO_TRANSPORT_ASYNCAPI`      | The AsyncAPI dialect violates its six profile rules, or its server's `protocol` is not admitted for this wire. |
-| `E_PROTO_SPEC_FILE`               | `spec.file` does not exist, is absolute, or escapes the entity directory.                                      |
-| `E_PROTO_WF_SCHEMA`               | Workflow file violates the field tables.                                                                       |
-| `E_PROTO_WF_NAME`                 | Workflow `name` ≠ filename stem.                                                                               |
-| `E_PROTO_WF_STEP_SHAPE`           | Step node lacks exactly one of `message`/`alt`/`opt`/`loop`.                                                   |
-| `E_PROTO_WF_ALIAS`                | `from`/`to`/`participants` names an undeclared alias.                                                          |
-| `E_PROTO_WF_EMPTY_BRANCH`         | A `steps` list is empty.                                                                                       |
-| `E_PROTO_WF_DEPTH`                | Fragment nesting deeper than 3.                                                                                |
-| `E_PROTO_WF_FANOUT`               | List-valued `to` on a step whose `kind` is not `event`.                                                        |
-| `E_PROTO_PAYLOAD_KIND`            | A payload ref resolves to a non-datamodel.                                                                     |
-| `E_PROTO_STATES_ID`               | `states.json` `id` ≠ the protocol entity `name`.                                                               |
-| `E_PROTO_STATES_SUBSET`           | An XState construct outside the supported subset.                                                              |
-| `E_PROTO_STATES_TARGET`           | Transition `target` is neither a sibling key nor a valid `#id.path`.                                           |
-| `E_PROTO_STATES_EVENT_NAME`       | Event key does not match `^[A-Z][A-Z0-9_]*$`.                                                                  |
-| `W_PROTO_TRANSPORT_HOST`          | An AsyncAPI server declares a literal `host` — a deployment fact.                                              |
-| `W_PROTO_SPEC_ASYNCAPI`           | A mini-spec transport on an AsyncAPI-capable wire links `spec.format: asyncapi`.                               |
-| `W_PROTO_PARTICIPANT_UNLINKED`    | Component/product participant with no `exposes`/`uses` back-edge.                                              |
-| `W_PROTO_PARTICIPANT_MISSING`     | Component/product `exposes`/`uses` this protocol but is not a participant.                                     |
-| `W_PROTO_STYLE_MISMATCH`          | Step kinds contradict the declared `style`.                                                                    |
-| `W_PROTO_WF_CHANNEL_UNKNOWN`      | `channel` matches no surface-list entry (mini-spec) or channel address/id (AsyncAPI).                          |
-| `W_PROTO_WF_ORPHAN_RETURN`        | `return`/`error` with no preceding counterpart `call`.                                                         |
-| `W_PROTO_STATES_EVENT_UNKNOWN`    | State event has no corresponding workflow message name.                                                        |
-| `W_PROTO_STATES_UNREACHABLE`      | A state no transition can reach.                                                                               |
-| `W_PROTO_ARAZZO_UNGROUNDED`       | An `arazzo.yaml` names a source document, operation or channel this protocol does not carry.                   |
-| `W_PROTO_ARTIFACT_UNKNOWN`        | Unrecognised file in the protocol entity directory.                                                            |
+| Code                              | Meaning                                                                                                              |
+|-----------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `E_PROTO_PARTICIPANTS`            | `participants` missing or with fewer than 2 entries.                                                                 |
+| `E_PROTO_ALIAS_DUP`               | Two participants share an `alias`.                                                                                   |
+| `E_PROTO_PARTICIPANT_KIND`        | A participant `ref` resolves to a kind other than component/product/actor.                                           |
+| `E_PROTO_TRANSPORT_SCHEMA`        | Mini-spec `transport.yaml` violates the top-level field table.                                                       |
+| `E_PROTO_TRANSPORT_BINDING`       | Mini-spec binding block key ≠ `kind`, block missing, or a required field absent.                                     |
+| `E_PROTO_TRANSPORT_SPEC_CONFLICT` | Mini-spec `spec` and a surface list both present.                                                                    |
+| `E_PROTO_TRANSPORT_ASYNCAPI`      | The AsyncAPI dialect violates its six profile rules, or its server's `protocol` is not admitted for this wire.       |
+| `E_PROTO_SPEC_FILE`               | `spec.file` does not exist, is absolute, or escapes the entity directory.                                            |
+| `E_PROTO_WF_SCHEMA`               | Workflow file violates the field tables.                                                                             |
+| `E_PROTO_WF_NAME`                 | Workflow `name` ≠ filename stem.                                                                                     |
+| `E_PROTO_WF_STEP_SHAPE`           | Step node lacks exactly one of `message`/`alt`/`opt`/`loop`.                                                         |
+| `E_PROTO_WF_ALIAS`                | `from`/`to`/`participants` names an undeclared alias.                                                                |
+| `E_PROTO_WF_EMPTY_BRANCH`         | A `steps` list is empty.                                                                                             |
+| `E_PROTO_WF_DEPTH`                | Fragment nesting deeper than 3.                                                                                      |
+| `E_PROTO_WF_FANOUT`               | List-valued `to` on a step whose `kind` is not `event`.                                                              |
+| `E_PROTO_PAYLOAD_KIND`            | A payload ref resolves to a non-datamodel.                                                                           |
+| `E_PROTO_STATES_ID`               | `states.json` `id` ≠ the protocol entity `name`.                                                                     |
+| `E_PROTO_STATES_SUBSET`           | An XState construct outside the supported subset.                                                                    |
+| `E_PROTO_STATES_TARGET`           | Transition `target` is neither a sibling key nor a valid `#id.path`.                                                 |
+| `E_PROTO_STATES_EVENT_NAME`       | Event key does not match `^[A-Z][A-Z0-9_]*$`.                                                                        |
+| `W_PROTO_TRANSPORT_HOST`          | An AsyncAPI server declares a literal `host` — a deployment fact.                                                    |
+| `W_PROTO_SPEC_ASYNCAPI`           | A mini-spec transport on an AsyncAPI-capable wire links `spec.format: asyncapi`.                                     |
+| `W_PROTO_PARTICIPANT_UNLINKED`    | Component/product participant with no `exposes`/`uses` back-edge.                                                    |
+| `W_PROTO_PARTICIPANT_MISSING`     | Component/product `exposes`/`uses` this protocol but is not a participant.                                           |
+| `W_PROTO_STYLE_MISMATCH`          | Step kinds contradict the declared `style`.                                                                          |
+| `W_PROTO_WF_CHANNEL_UNKNOWN`      | `channel` matches no surface-list entry (mini-spec) or channel address/id (AsyncAPI).                                |
+| `W_PROTO_WF_ORPHAN_RETURN`        | `return`/`error` with no preceding counterpart `call`.                                                               |
+| `W_PROTO_STATES_EVENT_UNKNOWN`    | State event has no corresponding workflow message name.                                                              |
+| `W_PROTO_STATES_UNREACHABLE`      | A state no transition can reach.                                                                                     |
+| `W_PROTO_ARAZZO_UNGROUNDED`       | An `arazzo.yaml` names a source document, operation, channel or workflow this protocol's own artifacts do not carry. |
+| `W_PROTO_ARTIFACT_UNKNOWN`        | Unrecognised file in the protocol entity directory.                                                                  |
 
 Codes from `srn.md`, `structure.md`, `frontmatter.md` and `evolution.md` apply
 unchanged — in particular `E_FM_SCHEMA` covers every type or enum violation of

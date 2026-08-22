@@ -25,8 +25,11 @@
 > belongs in the search path because the `--since` gate raises a class of its own
 > from there. Today that last one changes nothing — `bin/since.mjs` raises
 > `E_VER_UNBUMPED`, which `src/lib/history/git.ts` raises too, so both spellings
-> print the same 105 codes — but a class added only to the CLI would otherwise be
-> invisible to the command this file tells you to trust.
+> print the same set — but a class added only to the CLI would otherwise be
+> invisible to the command this file tells you to trust. (The size of that set is
+> deliberately not written here: it moves whenever a class gains an emitter, and
+> a number restated beside the command that derives it is a number that goes
+> stale between one release of this plugin and the next.)
 >
 > Section 1 below carries a row for every code that command prints and no row
 > for anything else — one row each, with a single deliberate exception:
@@ -366,6 +369,56 @@ site passes, so nothing emits it.
 | `E_PROTO_WF_DEPTH`             | error    | `workflows/*.yaml` — nesting past the limit                          |
 | `W_PROTO_WF_ORPHAN_RETURN`     | warning  | `workflows/*.yaml` — a return with no request                        |
 
+### `lib/protocol/arazzo-grounding.ts` — the one rule an `arazzo.yaml` can break
+
+Run by the same `withArtifactChecks` composition, on the same two surfaces.
+Nothing validates an Arazzo Description — the framework states no field table
+for one and no published JSON Schema for Arazzo 1.1 was located — so this module
+asks the single question `kinds/protocol.md` does state about the file: do its
+references land inside artifacts the entity carries.
+
+| Code                        | Severity | Artifact                                                             |
+|-----------------------------|----------|----------------------------------------------------------------------|
+| `W_PROTO_ARAZZO_UNGROUNDED` | warning  | `arazzo.yaml` — a source or step reference this entity cannot ground |
+
+Both clauses of the rule are this one class:
+
+1. `sourceDescriptions[].url` names a **sibling artifact of this entity**. A
+   leading `./` is the convention, not the rule; an absolute URL, a `../`
+   escape, and a file that is not there all warn.
+2. Every operation, channel or workflow **a step names** resolves — into a
+   document `sourceDescriptions` names, or into a workflow of this same file.
+
+Resolution is per grammar, and the checker reads only what it can name:
+an `operationId` against an **OpenAPI** source is an `operationId` under
+`paths`; against an **AsyncAPI** source it is a key of the `operations` map.
+`operationPath` and `channelPath` are JSON pointers, and they must **land on** a
+channel or an operation rather than merely walk — a member of the source's
+`channels` or `operations` map, or a `paths.<route>.<method>` in an OpenAPI
+source. `{$sourceDescriptions.<name>.url}#/channels/<channelId>` is keyed by
+channelId and never by a channel's `address`; `#/info/title` and
+`#/channels/<channelId>/messages` reach a node and no channel, so neither
+grounds. A pointer written without the `{$sourceDescriptions.<name>.url}` prefix
+names no source and is searched across all of them. A `workflowId` resolves
+inside the same `arazzo.yaml`, because a split Description is not a shape this
+kind recognises.
+
+Four silences are deliberate. A source whose document is in a grammar this
+module does not read grounds and judges no step reference — a **mini-spec**
+`transport.yaml`, whose `channels` is a surface list rather than AsyncAPI's map,
+and a sibling that failed to parse, whose complaint is already the loader's;
+warning on either would report the Arazzo file for a defect in the other, and
+nothing validates a `transport.yaml` yet in any case. A `sourceDescriptions`
+entry with no `url` names no document and is not judged. A source that already
+failed clause 1 takes one finding, not one per step naming it — as does a
+document whose sources ground nothing at all, which is reported once against
+`sourceDescriptions` while every later reference is still judged.
+
+And the rule says nothing about `dependsOn`, or about the `stepId`/`workflowId`
+of an `onSuccess`/`onFailure` action: those are intra-workflow control flow, and
+the portal reports an unresolved one as a note under the step graph rather than
+as a finding on the catalog.
+
 ### `lib/journey/journey.ts` — the `journey.yaml` parser
 
 Run by the check via the same artifact composition as the protocol validators:
@@ -704,11 +757,11 @@ plain silence if a green check is read as coverage. Everything here is a real
 rule of the specification, and a catalog can violate all of it with a green
 check. Verify by reading.
 
-**Eighteen classes, and it used to be forty-one.** Seventeen belong to the
+**Seventeen classes, and it used to be forty-one.** Sixteen belong to the
 protocol kind and one to datamodels; the two-and-a-half journey rules are the
 half-implemented remainder and carry no register line, because a register keyed
 by code cannot express half a rule. Four of the seven groups below are now empty,
-and each says where its classes went. The authority for the eighteen is
+and each says where its classes went. The authority for the seventeen is
 `UNIMPLEMENTED` in `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`
 — re-read it rather than this prose if the two disagree.
 
@@ -732,7 +785,7 @@ listing) and not the kind. There is no `lib/component/`.
 
 **Protocols**
 
-The whole of what is left, bar one datamodel rule: seventeen classes, and every
+The whole of what is left, bar one datamodel rule: sixteen classes, and every
 one of them is a rule `framework/spec/kinds/protocol.md` states and nothing runs.
 
 `E_PROTO_PARTICIPANTS` (≥ 2 — *enforced by `KIND_FRONTMATTER.protocol`'s
@@ -752,24 +805,19 @@ so an AsyncAPI `transport.yaml` is **detected** — it loads, records its dialec
 and keeps its native key — but nothing *reads* the document. The profile rules
 have a dialect to fire on and no reader to fire them.
 
-One more arrived with the `arazzo` role (ADR 0020): `W_PROTO_ARAZZO_UNGROUNDED`.
-Most of what blocked it has since been built. `lib/protocol/arazzo.ts` reads the
-document — enough to draw the step graph — so "nothing opens it" is no longer
-the obstacle. The rule has two clauses and only one is still blocked:
+The `arazzo` role's grounding rule (ADR 0020) is **no longer on this list** —
+`lib/protocol/arazzo-grounding.ts` emits it, and its row is in section 1. It is
+worth one paragraph anyway, because of how it left: the release before this one
+listed it here and called half of it "blocked, behind a missing reader", which
+was wrong. The sibling `openapi.yaml` and `transport.yaml` were already *parsed*
+into `artifact.data` — the same fact the three `E_PROTO_TRANSPORT_*` rows above
+state — and every resolution the rule asks for is a key lookup or a JSON-pointer
+walk over an object already in hand. A gap described as unimplementable is a gap
+nobody tries, which is exactly what this section exists not to be.
 
-1. `sourceDescriptions[].url` MUST be a `./`-relative reference naming a sibling
-   artifact the entity carries. That is decidable from the entity's artifact
-   list alone, with nothing interpreted — the portal's own entity page already
-   computes this join to decide whether to link a source, and drops the miss
-   instead of reporting it. **Unwritten, not blocked.**
-2. Every operation, channel or workflow a step names MUST resolve in the
-   document its source points at. **Blocked**, behind the same missing reader as
-   the row above.
-
-Note the word in clause 2. The sibling `openapi.yaml` and `transport.yaml` are
-already *parsed* — every YAML artifact is, into `artifact.data`, which is why
-the three `E_PROTO_TRANSPORT_*` rows say "parsed and never validated". What no
-module does is read a field out of either.
+That distinction still holds for the rows that remain. "Parsed and never
+validated" is a real obstacle for a rule that must judge a document's *shape*;
+it is no obstacle at all for a rule that only has to look a name up in one.
 
 The `participants` gap sharpened this release rather than closing, and the new
 shape is worth knowing because it looks like coverage and is not. **Three modules

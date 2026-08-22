@@ -1,7 +1,7 @@
 ---
 name: zero-error-catalog-load
 kind: requirement
-version: 1
+version: 2
 title: The shipped catalog loads with zero error diagnostics
 summary: Every catalog under solutions/ loads with no error-severity diagnostic, asserted against the real tree rather than a fixture.
 status: review
@@ -82,10 +82,16 @@ Stated plainly, because a green check invites the wrong inference:
 - **`W_DM_CONTRADICTION` reaches the entity page but not `/diagnostics`.** It is
   written into a local array that `buildLineage()` surfaces, not into
   `catalog.diagnostics`.
-- **Roughly fifty specified codes are implemented nowhere**, concentrated in
-  protocol, environment, ADR and requirement validation — `E_ADR_SECTIONS` and
-  `E_REQ_CRITERIA` among them. This document's own required
-  `## Acceptance criteria` heading is checked by nothing.
+- **Some specified codes are implemented nowhere**, and the live list is the
+  `UNIMPLEMENTED` register in
+  `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read the count
+  there rather than from a figure written here. It was roughly fifty when this
+  requirement was written, concentrated in protocol, environment, ADR and
+  requirement validation; environment, ADR and requirement are gone from it and
+  what is left is mostly protocol. `E_ADR_SECTIONS` and `E_REQ_CRITERIA` were
+  named here as the pair that mattered, and both are emitted — this document's
+  own required `## Acceptance criteria` heading is checked by
+  `lib/requirement/requirement.ts`.
 
 ## Out of scope
 

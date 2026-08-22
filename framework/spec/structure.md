@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: structure
-version: 9
+version: 10
 status: review
 title: Directory structure
 summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, what an index.md body may state, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
@@ -575,10 +575,12 @@ Rules:
   ones. `arazzo.yaml` is the second file to arrive by that route, and by the
   half of it that matters here — fixed bare name, its own row, addressable. It
   does not arrive on the same reading terms: `openapi.yaml` is served as bytes
-  and opened by nothing, while `arazzo.yaml` is unvalidated rather than unread,
-  and a portal MAY draw from it ([kinds/protocol.md](kinds/protocol.md)). What
-  the two share is that no rule of this specification reaches either one's
-  contents. Promotion is about the name, never about what a reader then does.
+  and opened by nothing, while `arazzo.yaml` is read — a portal MAY draw from it
+  — and carries one rule of the owning kind, that its references land inside
+  artifacts of its own entity ([kinds/protocol.md](kinds/protocol.md)). What the
+  two share is that no *field table* reaches either one's contents, here or
+  there, so neither can be the wrong shape. Promotion is about the name, never
+  about what a reader then does.
 
 - **Growth is additive, and additive only.** A new role is an additive spec
   change to the owning kind's document plus this table — the same appending

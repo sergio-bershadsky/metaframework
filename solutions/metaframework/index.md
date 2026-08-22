@@ -1,7 +1,7 @@
 ---
 name: metaframework
 kind: solution
-version: 4
+version: 5
 title: Metaframework
 summary: The repository that describes itself — the catalog specification, the portal that renders a catalog, and the plugin that teaches an author to write one.
 status: review
@@ -165,10 +165,16 @@ organised lives in the kit's.
   `status: review`, except `kinds/capability.md` and `kinds/metric.md`, which
   carry `status: draft`. Not one is `approved`, and on
   conflict `docs/decision-record.md` wins anyway.
-- **Roughly fifty specified diagnostic codes are implemented nowhere**,
-  concentrated in protocol, environment, ADR and requirement validation —
-  including `E_ADR_SECTIONS` and `E_REQ_CRITERIA`. This solution's own ADRs and
-  requirements are therefore checked by author discipline, not by the loader.
+- **Some specified diagnostic codes are implemented nowhere.** The live list is
+  the `UNIMPLEMENTED` register in
+  `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read the count
+  there rather than from a figure written here, because the register's ratchet
+  keeps it honest and a number in this sentence would not be. It was roughly
+  fifty when this page was written and is a fraction of that now; what is left is
+  concentrated in protocol validation, chiefly `transport.yaml`, which nothing
+  reads in either dialect. `E_ADR_SECTIONS` and `E_REQ_CRITERIA` were named here
+  as the two that bit this catalog directly, and both are emitted: this
+  solution's own ADRs and requirements are checked by the loader now.
 - **The repository is days old.** One author, one merge commit, and
   `git log --format=%ad --date=short | sort -u` fits on a screen. Nothing here has an operating history, a team,
   or a user outside this machine.

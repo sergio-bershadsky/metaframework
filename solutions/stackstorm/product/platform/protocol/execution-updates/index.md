@@ -1,7 +1,7 @@
 ---
 name: execution-updates
 kind: protocol
-version: 2
+version: 3
 title: Execution updates
 summary: The audit record and the live output, fanned out to a notifier, a workflow engine and every open stream connection — one routing key, five queues, three of them with no name.
 status: review
@@ -106,9 +106,12 @@ omission.
 An Arazzo Description has a single executor, so it describes one participant's
 path and never the whole exchange: `workflows/` stays the authoritative
 choreography, and the sequence diagrams on this page derive from it alone. The
-file is unvalidated — snapshotted with the entity, served as authored, and
-judged by nothing: the framework states no rule about its contents. The portal
-reads it to draw a step graph of each workflow, which checks nothing.
+file is grammar-free — snapshotted with the entity, served as authored, and
+judged by no field table, so no shape of it can be wrong here. One rule does
+reach it: grounding, `W_PROTO_ARAZZO_UNGROUNDED` — every source description
+must name a sibling artifact, and every operation or channel a step names must
+resolve inside one. The step graph the portal draws from the file is a picture
+and checks nothing.
 
 ## Sources
 

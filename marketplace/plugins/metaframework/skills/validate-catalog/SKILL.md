@@ -198,7 +198,10 @@ The thirteen warnings these modules add are in the warnings section below.
 mini-spec parsers, and `withArtifactChecks` runs those parsers over every
 artifact during the load — the same dispatch table the entity page uses, so the
 check and the page derive the same findings from the same file. A broken
-`journey.yaml` therefore exits non-zero. One thing a green check still does not
+`journey.yaml` therefore exits non-zero. `W_PROTO_ARAZZO_UNGROUNDED` rides the
+same dispatch without being a mini-spec parser at all: nothing checks an
+`arazzo.yaml`'s grammar, and that one branch asks only whether its references
+land inside artifacts the entity carries. One thing a green check still does not
 prove: that a step's `touches`, `protocol` or `actor` resolves to the right
 *kind* — the parser refuses an artifact address there and leaves the kind
 question to nobody. (That a journey entity **has** a `journey.yaml` used to be
@@ -389,7 +392,7 @@ available here. The check proves the tree *loads*. It does not prove the tree is
   was — the kind disciplines above took twenty-four classes out of it — and what
   is left is almost entirely **one kind and one missing reader**:
 
-  - **The protocol kind, seventeen classes.** Nothing validates `transport.yaml`
+  - **The protocol kind, sixteen classes.** Nothing validates `transport.yaml`
     at all (`E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
     `E_PROTO_TRANSPORT_SPEC_CONFLICT`, and the AsyncAPI profile rules that
     arrived with ADR 0017), nothing inspects a protocol entity directory
@@ -399,13 +402,13 @@ available here. The check proves the tree *loads*. It does not prove the tree is
     the `exposes`/`uses` cross-check (`W_PROTO_PARTICIPANT_MISSING`,
     `W_PROTO_PARTICIPANT_UNLINKED`), or `style` against the workflows beneath it
     (`W_PROTO_STYLE_MISMATCH`). Three modules now *resolve* that list for their
-    own purposes, which is not the same as checking it. An `arazzo.yaml` **is**
-    read — `lib/protocol/arazzo.ts` reads it to draw the step graph — and its
-    grounding rule (`W_PROTO_ARAZZO_UNGROUNDED`, ADR 0020) is still silent
-    anyway: the half of it that checks step references against the sibling
-    `transport.yaml` waits on the same missing reader as everything else in this
-    bullet. Reading is not checking, and the portal drawing a picture of your
-    file is not the portal agreeing with it.
+    own purposes, which is not the same as checking it.
+
+    `W_PROTO_ARAZZO_UNGROUNDED` left this bullet: `lib/protocol/arazzo-grounding.ts`
+    emits it, and an `arazzo.yaml` whose source or step references miss the
+    siblings its entity carries now warns. Nothing else about the file is
+    checked — the framework states no field table for an Arazzo Description, so
+    drawing a picture of your document is still not the portal agreeing with it.
   - **`E_DM_NOT_ADDITIVE`**, the only rule in the spec that no input the load
     pipeline has can answer: it diffs `schema.json` at version N−1 out of git
     against the document on disk, and `metaframework check` never spawns git.

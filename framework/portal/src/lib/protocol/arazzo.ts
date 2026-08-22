@@ -3,10 +3,13 @@
  *
  * ## What this module is allowed to be
  *
- * `arazzo.yaml` carries no rule of this framework. `kinds/protocol.md` states no
- * field table for it, `metaframework check` raises nothing from its contents,
- * and the file is served to `/artifacts` exactly as authored. That is unchanged
- * by this module and must stay unchanged: **reading is not validating**.
+ * `arazzo.yaml` is **grammar-free**: `kinds/protocol.md` states no field table
+ * for it, so no shape rule can be broken in one, and the file is served to
+ * `/artifacts` exactly as authored. Exactly one rule reaches it —
+ * `W_PROTO_ARAZZO_UNGROUNDED`, which asks where the document's references *land*
+ * — and it lives next door in `./arazzo-grounding.ts`, deliberately sharing not
+ * one function with this file. That is the line this module must stay on the far
+ * side of: **reading is not validating**.
  *
  * The distinction is the whole design. A validator asserts a grammar, and this
  * framework has no Arazzo grammar to assert — no published JSON Schema for

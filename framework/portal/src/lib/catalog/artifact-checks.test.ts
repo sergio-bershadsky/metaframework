@@ -141,6 +141,52 @@ describe('artifactDiagnostics', () => {
     expect(diagnostics[0].path).toBe('acme/protocol/settlement/workflows/settle.yaml')
   })
 
+  it('reports an arazzo.yaml whose source names no artifact this entity carries', () => {
+    // The grounding rule reaching the fold. The branch is handed the whole
+    // entity because the rule is about references BETWEEN artifacts: the sibling
+    // filenames answer the source clause and the sibling documents answer the
+    // reference clause, both out of `entity.artifacts` and neither out of a file.
+    const catalog = catalogOf(
+      entity({
+        srn: 'srn://acme/protocol/settlement',
+        kind: 'protocol',
+        relDir: 'acme/protocol/settlement',
+        frontmatter: { name: 'settlement' } as Entity['frontmatter'],
+        artifacts: [
+          artifact('arazzo.yaml', {
+            arazzo: '1.1.0',
+            sourceDescriptions: [{ name: 'orders', type: 'openapi', url: 'https://api.example.com/openapi.yaml' }],
+            workflows: [{ workflowId: 'settle', steps: [{ stepId: 'a', operationId: 'requestRefund' }] }],
+          }),
+          artifact('transport.yaml', { asyncapi: '3.1.0', channels: { 'order-paid': {} } }),
+        ],
+      }),
+    )
+
+    const diagnostics = artifactDiagnostics(catalog)
+    expect(diagnostics.map((d) => [d.code, d.path, d.severity])).toEqual([
+      ['W_PROTO_ARAZZO_UNGROUNDED', 'acme/protocol/settlement/arazzo.yaml', 'warning'],
+    ])
+  })
+
+  it('says nothing about a protocol that carries no arazzo.yaml', () => {
+    // The role is optional (ADR 0020), so its absence asserts nothing. A gate
+    // that fired on every protocol without an Arazzo Description would make
+    // authoring one the only way to a clean catalog, which is the opposite of
+    // what an optional role means.
+    const catalog = catalogOf(
+      entity({
+        srn: 'srn://acme/protocol/settlement',
+        kind: 'protocol',
+        relDir: 'acme/protocol/settlement',
+        frontmatter: { name: 'settlement' } as Entity['frontmatter'],
+        artifacts: [artifact('transport.yaml', { asyncapi: '3.1.0', channels: { 'order-paid': {} } })],
+      }),
+    )
+
+    expect(artifactDiagnostics(catalog)).toEqual([])
+  })
+
   it('leaves alone the files no parser claims', () => {
     // `schema.json` on a protocol is a JSON file, and a datamodel's belongs to
     // the schema registry. Neither is this module's to complain about.

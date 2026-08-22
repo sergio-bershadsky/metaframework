@@ -581,19 +581,27 @@ describe('the AsyncAPI dialect, through the loader', () => {
   })
 
   it('reaches every view the mini-spec dialect reaches', () => {
-    // Measured before this row was added rather than assumed: **nothing in the
-    // portal derives anything from `transport.yaml` in either dialect today.**
-    // It is not in `artifact-checks.ts`'s dispatch table and not in
-    // `entity-artifacts.tsx`'s, so its only readers are the source pane and the
+    // **Nothing in the portal derives a view from `transport.yaml` in either
+    // dialect.** It is not in `artifact-checks.ts`'s dispatch table and not in
+    // `entity-artifacts.tsx`'s, so its own readers are the source pane and the
     // /artifacts route, and both serve `raw`. The transport card, the message ×
     // datamodel matrix and workflow rule W9 are stated in kinds/protocol.md and
     // implemented nowhere — `W_PROTO_WF_CHANNEL_UNKNOWN` sits in the
     // diagnostic-coverage debt register saying exactly that.
     //
+    // One thing does now read the file, and reads the two dialects differently:
+    // `lib/protocol/arazzo-grounding.ts` resolves a sibling `arazzo.yaml`'s step
+    // references into an AsyncAPI transport's `channels`/`operations` maps, and
+    // stays silent against a mini-spec one, whose `channels` is a surface list.
+    // That is a rule about the *Arazzo* file, raised on the *Arazzo* file, and it
+    // validates nothing here — no diagnostic reaches a `transport.yaml`, which is
+    // what the assertions below still hold.
+    //
     // So "the derived views hold for both dialects" is, today, the claim that
-    // the two files are indistinguishable to every consumer that exists: parsed
-    // without error, bytes intact, dialect recorded, no diagnostic. When a reader
-    // is written, this test is where it stops being true by default.
+    // the two files are indistinguishable to every consumer that derives a view:
+    // parsed without error, bytes intact, dialect recorded, no diagnostic. When a
+    // transport reader is written, this test is where it stops being true by
+    // default.
     const mini = transportOf('srn://acme/product/shop/protocol/order-events')
     const async = transportOf(SRN)
 
@@ -629,28 +637,60 @@ describe('the arazzo role, through the loader', () => {
     expect(arazzoOf()?.raw).toContain('arazzo: 1.1.0')
   })
 
-  it('is unvalidated: read for a drawing, judged by nothing', () => {
-    // The contract in one assertion, and this is the rewrite the previous
-    // version of this test asked for in as many words — it said that when a
-    // reader was written, this is what would have to change to admit it. A
-    // reader now exists (`lib/protocol/arazzo.ts`, drawn by `arazzo-graph.tsx`),
-    // and the half of the contract that moved is exactly the half that was about
-    // reading. The half that did not move is this one: `kinds/protocol.md`
-    // states no rule about the contents of an `arazzo.yaml`, so no rule can be
-    // broken, and the artifact must still reach exactly the state `openapi.yaml`
-    // reaches — no error, bytes intact, dialect recorded, and NO branch in
-    // `artifact-checks.ts`, the one consumer that turns kind × filename into
-    // diagnostics.
+  it('has no grammar checked, and exactly one rule: it must be grounded', () => {
+    // The contract in one assertion, and it has been rewritten twice now —
+    // first when a reader arrived, and again here when the grounding rule got
+    // its emitter. Both rewrites moved the same boundary in the same direction,
+    // and what has NOT moved is the sentence on the other side of it:
+    // `kinds/protocol.md` still states no field table for an Arazzo Description,
+    // so nothing here checks Arazzo's own shape, and a document declaring a
+    // field this portal has never heard of still loads, still draws, and is
+    // still not wrong.
     //
-    // The grounding rule the spec states against this file
-    // (`W_PROTO_ARAZZO_UNGROUNDED`) still has no emitter and still sits in the
-    // diagnostic-coverage debt register saying so. Drawing a document is not
-    // checking it: the graph reports a dangling `dependsOn` in its own panel,
-    // where it is a note on a picture, and not as a finding on the catalog.
+    // What `artifact-checks.ts` now asks of this file is one question about
+    // *references between artifacts*: does `sourceDescriptions[].url` name a
+    // sibling this entity carries, and does every operation, channel or workflow
+    // a step names resolve inside it. This fixture is grounded — `order-shipped`
+    // is a channelId of the AsyncAPI `transport.yaml` beside it — so the answer
+    // is silence, which is the assertion below. `lib/protocol/arazzo-grounding.test.ts`
+    // holds the documents where it is not.
+    //
+    // Drawing a document is still not checking it, and the line between them is
+    // narrower than it looks: the step graph reports a dangling `dependsOn` in
+    // its own panel, where it is a note on a picture, and the rule says nothing
+    // about `dependsOn` at all.
     const arazzo = arazzoOf()
     expect(arazzo?.error).toBeUndefined()
     expect(arazzo?.extension).toBe('.yaml')
     expect(artifactDiagnostics(catalog).filter((d) => d.path.endsWith('arazzo.yaml'))).toEqual([])
+  })
+
+  it('warns when a source description names a document the entity does not carry', () => {
+    // The same fixture with one byte of drift, through the whole loader: the
+    // dialect is still recognised, the file still parses, the graph still draws
+    // — and the grounding rule fires, on the file, as a warning. A green
+    // assertion above and no red one beside it would prove only that the branch
+    // is unreachable.
+    const drifted = {
+      ...(arazzoOf()?.data as Record<string, unknown>),
+      sourceDescriptions: [{ name: 'order-shipping', type: 'asyncapi', url: './openapi.yaml' }],
+    }
+    const entity = catalog.entities.get(SRN)
+    const diagnostics = artifactDiagnostics({
+      ...catalog,
+      entities: new Map([
+        [
+          SRN,
+          {
+            ...entity,
+            artifacts: entity!.artifacts.map((a) => (a.file === 'arazzo.yaml' ? { ...a, data: drifted } : a)),
+          } as Entity,
+        ],
+      ]),
+    })
+
+    expect(diagnostics.map((d) => [d.code, d.severity])).toEqual([['W_PROTO_ARAZZO_UNGROUNDED', 'warning']])
+    expect(diagnostics[0].path).toBe(`${ASYNCAPI_PROTOCOL}/arazzo.yaml`)
   })
 
   it('reaches the reader as a drawable graph, through the loader’s parse product', () => {

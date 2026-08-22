@@ -69,14 +69,17 @@ export function withSchemaRegistry(catalog: Catalog): LoadedCatalog {
 }
 
 /**
- * Fold the artifact mini-spec parsers in, for the same reason and by the same
- * route as {@link withSchemaRegistry}.
+ * Fold the artifact checks in, for the same reason and by the same route as
+ * {@link withSchemaRegistry}.
  *
- * `journey.yaml`, `workflows/*.yaml` and `states.json` each have a parser that
- * validates them, and every one of those parsers was reachable only from a
- * rendering component — so a journey with an unknown key showed `E_JRN_SCHEMA`
- * on its own page while /diagnostics reported the catalog clean and the header
- * count did not move. See ./artifact-checks for what is checked and what is
+ * `journey.yaml`, `workflows/*.yaml` and `states.json` each have a mini-spec
+ * parser that validates them, and every one of those parsers was reachable only
+ * from a rendering component — so a journey with an unknown key showed
+ * `E_JRN_SCHEMA` on its own page while /diagnostics reported the catalog clean
+ * and the header count did not move. `arazzo.yaml` is the fourth branch and the
+ * one that is not a mini-spec parser: nothing validates an Arazzo Description,
+ * and what runs there is the grounding rule, which asks where the document's
+ * references land. See ./artifact-checks for what is checked and what is
  * deliberately left out.
  *
  * Composed here rather than inside `loadCatalog` on the same grounds: that

@@ -1,7 +1,7 @@
 ---
 name: diagrams
 kind: component
-version: 5
+version: 6
 title: Diagrams
 summary: The derived-drawing subsystem — five renderers over one shared kit, every drawing computed from catalog data and none hand-authored.
 status: review
@@ -51,10 +51,11 @@ The three graphs that *are* free graphs share
 so they look like siblings.
 
 One of the five is unlike the other four in a way worth stating here rather than
-only on its own page: every other drawing is derived from a file this framework
-**owns and validates**, and `arazzo-graph` is derived from one it deliberately
-does not. Reading a foreign document to show it is not the same as checking it,
-and the reader behind that canvas raises nothing, ever
+only on its own page: every other drawing is derived from a file whose **grammar**
+this framework owns, and `arazzo-graph` is derived from one it deliberately does
+not. Reading a foreign document to show it is not the same as checking it, and
+the reader behind that canvas raises nothing, ever — the one rule an
+`arazzo.yaml` can break is checked by a separate module that draws nothing
 ([0020-arazzo-as-a-sibling-role](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
 
 ## Colour is not available to a diagram
@@ -95,6 +96,7 @@ under `src/lib/diagrams/`, plus `narrateWorkflow` and `statesToMermaid` in
 [protocol-model](srn://metaframework/product/portal/component/protocol-model).
 `arazzo-graph` is the one exception, and only because its model is a *reader* of
 a foreign format rather than a layout: `arazzo.test.ts` covers the document, the
-step graph and the text equivalent, and every Arazzo file the shipped catalog
-carries is walked by `fixture-check.test.ts`. Every component in this subtree — all the
+step graph and the text equivalent, `arazzo-grounding.test.ts` covers the one
+rule that judges the file, and every Arazzo file the shipped catalog carries is
+walked — and grounded — by `fixture-check.test.ts`. Every component in this subtree — all the
 rendering and all the interaction — is still verified by looking at it.
