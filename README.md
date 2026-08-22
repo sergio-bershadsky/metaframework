@@ -14,6 +14,10 @@ cd ~/code/any-repo-with-a-solutions-folder
 metaframework
 ```
 
+Nothing to point it at yet? **[Getting started](docs/getting-started.md)** builds
+a catalog from an empty directory — a solution, a product, two components, a data
+model and a protocol — and every command in it has been run.
+
 A **solution** is described as a catalog of markdown + JSON/YAML files — products,
 components, protocols, data models, actors, environments, ADRs, and requirements —
 every entity addressable by a stable **SRN** (Solution Resource Name), every artifact

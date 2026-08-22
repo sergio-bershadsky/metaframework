@@ -7,6 +7,7 @@
   "scripts": {
     "release": "bash scripts/release.sh",
     "release:dry": "bash scripts/release.sh --dry-run",
+    "hygiene": "node framework/portal/scripts/repo-hygiene.mjs",
     "dev": "npm --prefix framework/portal run dev",
     "build": "npm --prefix framework/portal run build",
     "start": "npm --prefix framework/portal run start",

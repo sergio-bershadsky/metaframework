@@ -25,6 +25,11 @@ metaframework
   Watching the catalog — the open page reloads itself. Ctrl-C to stop.
 ```
 
+No catalog yet? **[Getting started][start]** walks from an empty directory to a
+described solution you can navigate here — a solution, a product, two components,
+a data model with a real `schema.json`, and a protocol whose sequence diagram the
+portal compiles from a workflow file. Every command in it has been run.
+
 Installing pulls in **no dependencies**: the tarball carries a compiled server,
 so `npm install -g` adds exactly one package. Needs **Node 20.11 or newer**
 (tested on 20.11.0 and 25.2.1; 20.10 and below are refused, and 20.9 is Next
@@ -117,8 +122,8 @@ metaframework [options]          start the portal and watch the catalog
 metaframework check [options]    validate the catalog and exit non-zero on errors
 ```
 
-| Flag                 | Does                                                                     |
-|----------------------|--------------------------------------------------------------------------|
+| Flag                 | Does                                                                      |
+|----------------------|---------------------------------------------------------------------------|
 | `-d`, `--dir <path>` | Catalog directory to serve, skipping discovery. Point it at `solutions/`. |
 | `-p`, `--port <n>`   | Port to listen on. Default `6363`.                                        |
 | `--host <addr>`      | Address to bind. Default `127.0.0.1`; `0.0.0.0` to share.                 |
@@ -197,3 +202,4 @@ The switch is `METAFRAMEWORK_MODE`, not `NODE_ENV`; the CLI sets it, and
 
 [spec]: https://github.com/sergio-bershadsky/metaframework/tree/main/framework/spec
 [repo]: https://github.com/sergio-bershadsky/metaframework
+[start]: https://github.com/sergio-bershadsky/metaframework/blob/main/docs/getting-started.md

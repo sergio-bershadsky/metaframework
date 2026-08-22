@@ -51,6 +51,23 @@ jobs:
           cache: npm
           cache-dependency-path: framework/portal/package-lock.json
 
+      # Seven defects that recurred through 0.2.0 review despite an adversarial
+      # read each time — a tracked `.pyc`, raw NUL bytes that made a source file
+      # invisible to grep, ragged tables, stale distilled-from markers, drifted
+      # verbatim copies, stray scratch, and a bundle inventory six times out of
+      # step with the portal. All seven are decidable from the bytes, so they are
+      # a program now rather than a thing a reviewer must remember.
+      #
+      # It runs BEFORE `npm ci` on purpose: the script has no dependencies and
+      # needs only the checkout, so a committed build artefact is reported in
+      # seconds instead of after an install, a typegen and a build. The same
+      # checks are also driven from `npm test` by scripts/repo-hygiene.test.mjs —
+      # once against a synthetic tree that must make each of them go RED, once
+      # against this repository, which must stay clean.
+      - name: repo hygiene
+        run: node framework/portal/scripts/repo-hygiene.mjs
+        working-directory: .
+
       - run: npm ci
 
       # Next 16 generates the route types (`PageProps<'/route'>`,
