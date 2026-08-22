@@ -1,0 +1,18 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
+
+# The only configuration key in this catalog that a human actually types, and
+# the only one the cloud or edge runtime reads from its process environment
+# rather than from a nested component-config document.
+
+config:
+  - key: CHECK_EDGECORE_ENVIRONMENT
+    for: /product/core/component/edgecore
+    value: "false"
+    description: Turns off the refusal to start while a kubelet is running, which an all-in-one host always trips.
+
+# The value is a quoted string and not a boolean, deliberately. The runtime
+# compares the raw environment string against the literal `false`, so anything
+# else — including a value this format would happily accept as a native boolean
+# and render as `False` or `FALSE` — leaves the check switched on. The dialect
+# now permits native scalars; this key is one of the cases where the string is
+# what the process actually means.

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/trigger-dispatch-message",
+  "x-srn": "srn://stackstorm/datamodel/trigger-dispatch-message",
+  "title": "Trigger dispatch message",
+  "description": "The published wrapper on the trigger-instance dispatch exchange. It is not the stored trigger instance: the consumer creates that record before it acknowledges this message.",
+  "type": "object",
+  "properties": {
+    "trigger": {
+      "description": "Which trigger fired, as the pack.name reference the dispatcher documents, or as an object. No discriminator separates the two forms.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "object" }
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "The event, in whatever shape the trigger type declares. The platform validates that it is a mapping and nothing else."
+    },
+    "trace-context": {
+      "description": "Correlation token, or null when the sender has none — the consumer then mints one from the trigger instance it creates. Wire key: trace_context.",
+      "anyOf": [
+        { "$ref": "https://schemas.metaframework.dev/stackstorm/datamodel/trace-context" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "required": ["trigger"]
+}

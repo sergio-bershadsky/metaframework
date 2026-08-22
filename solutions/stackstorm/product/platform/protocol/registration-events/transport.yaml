@@ -1,0 +1,178 @@
+asyncapi: 3.1.0
+x-srn: srn://stackstorm/product/platform/protocol/registration-events
+info:
+  title: Registration events
+  version: unversioned
+  description: >-
+    Create, update and delete events for the three record kinds that long-running
+    processes hold in memory, and the queues those processes invent for
+    themselves at connect time.
+defaultContentType: application/x-python-serialize
+servers:
+  st2-bus:
+    host: "{host}"
+    protocol: amqp
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - connection-url-password
+    x-st2-messaging-vhost: /
+    x-st2-messaging-prefix: st2
+channels:
+  # ------------------------------------------------------------ trigger records
+  trigger-create:
+    address: create
+    summary: A trigger was registered — usually because a rule that names it was written.
+    bindings: &trigger-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.trigger
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+  trigger-update:
+    address: update
+    summary: A trigger's parameters changed.
+    bindings: *trigger-exchange
+  trigger-delete:
+    address: delete
+    summary: A trigger went away with the last rule that used it.
+    bindings: *trigger-exchange
+
+  # ------------------------------------------------------------- sensor records
+  sensor-create:
+    address: create
+    summary: A sensor was registered, most often by installing a pack.
+    bindings: &sensor-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.sensor
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+  sensor-update:
+    address: update
+    summary: A sensor's registration changed — enabled, disabled, reconfigured.
+    bindings: *sensor-exchange
+  sensor-delete:
+    address: delete
+    summary: A sensor was removed with its pack.
+    bindings: *sensor-exchange
+
+  # -------------------------------------------------------------- alias records
+  alias-create:
+    address: create
+    summary: A chat alias was registered.
+    bindings: &alias-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.actionalias
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+  alias-update:
+    address: update
+    summary: An alias changed.
+    bindings: *alias-exchange
+  alias-delete:
+    address: delete
+    summary: An alias was removed.
+    bindings: *alias-exchange
+
+  # ------------------------------------------------------------------- queues
+  trigger-watch:
+    # Client-generated at connect time, so unknown at design time. The pattern is
+    # the fact and no field of either dialect holds a pattern.
+    address: null
+    summary: >-
+      One per watching process. The name is built from a fixed base, a suffix
+      naming the watching class or the webhook controller, and a random
+      hexadecimal tail; the queue is exclusive to the connection that made it and
+      binds the match-everything pattern.
+    x-bound-to-exchange: st2.trigger
+    x-binding-routing-key: "#"
+    x-queue-name-pattern: st2.trigger.watch.{suffix}-{10 hex characters}
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          durable: true
+          exclusive: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  sensor-watch:
+    address: null
+    summary: >-
+      The same pattern for sensor records, used by the process that supervises
+      sensor subprocesses so that installing a pack starts its sensors without a
+      restart.
+    x-bound-to-exchange: st2.sensor
+    x-binding-routing-key: "#"
+    x-queue-name-pattern: st2.sensor.watch.{suffix}-{10 hex characters}
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          durable: true
+          exclusive: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  stream-actionalias:
+    address: null
+    summary: >-
+      One per open stream connection, named by the broker rather than by the
+      client — the third naming rule, on the same protocol as the other two.
+    x-bound-to-exchange: st2.actionalias
+    x-binding-routing-key: "*"
+    x-server-named-queue: true
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          durable: true
+          exclusive: true
+          autoDelete: true
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  preinit-trigger:
+    address: st2.preinit
+    summary: >-
+      Declared at start-up against the trigger exchange with the routing key
+      "init", so that the topology exists before any watcher connects.
+    x-bound-to-exchange: st2.trigger
+    x-binding-routing-key: init
+    bindings: &preinit-queue
+      amqp:
+        is: queue
+        queue:
+          name: st2.preinit
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  preinit-sensor:
+    address: st2.preinit
+    summary: >-
+      The same queue name, declared again against the sensor exchange. One name,
+      two exchanges — the one topology fact neither dialect can state, since a
+      channel holds an exchange or a queue and never the edge between them.
+    x-bound-to-exchange: st2.sensor
+    x-binding-routing-key: init
+    bindings: *preinit-queue

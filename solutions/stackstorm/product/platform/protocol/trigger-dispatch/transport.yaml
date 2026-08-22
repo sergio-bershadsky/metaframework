@@ -1,0 +1,90 @@
+asyncapi: 3.1.0
+x-srn: srn://stackstorm/product/platform/protocol/trigger-dispatch
+info:
+  title: Trigger dispatch
+  version: unversioned
+  description: >-
+    Five publishers, one fixed routing key, one durable queue bound with the
+    match-everything pattern. The message is the dispatch wrapper; the trigger
+    instance record is created by the consumer.
+# The real content type, not a mapping of the mini-spec `encoding` enum: the
+# publisher names its serializer explicitly and the platform registers that
+# serializer under this content type. No row of the framework's
+# encoding-to-content-type table produces this value, and the enum has no member
+# that means "one language's own object graph".
+defaultContentType: application/x-python-serialize
+servers:
+  st2-bus:
+    host: "{host}"
+    # The plain spelling, and here it is measured rather than assumed: the
+    # sample configuration sets the messaging TLS switch to false, so `amqps`
+    # would assert a fact the shipped default contradicts.
+    protocol: amqp
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - connection-url-password
+    # Neither of these has a home in the mini-spec `amqp` block, and only one of
+    # them has a home here: AsyncAPI's amqp binding puts `vhost` on the exchange
+    # and on the queue rather than on the server, and has nothing at all for a
+    # namespace prefix. Both values below are the shipped defaults and are
+    # per-installation configuration, not deployment-independent facts.
+    x-st2-messaging-vhost: /
+    x-st2-messaging-prefix: st2
+channels:
+  # ---------------------------------------------------------------- publish side
+  trigger-instance:
+    address: trigger_instance
+    summary: >-
+      The one routing key every publisher sends under. It is a constant in the
+      dispatcher, not a parameter, and it is not the key anything binds with.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.trigger_instances_dispatch
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      trigger-dispatch:
+        x-srn-payload: /datamodel/trigger-dispatch-message@1
+        summary: Trigger reference, opaque payload, optional trace context.
+
+  # ---------------------------------------------------------------- consume side
+  rules-engine-work:
+    address: st2.trigger_instances_dispatch.rules_engine
+    summary: >-
+      The rules engine's durable queue. It binds the exchange above with the
+      routing key "#", which matches every key the exchange ever sees. That
+      binding pattern is the one fact this document cannot carry — see below.
+    # The AMQP channel binding is `is: routingKey` OR `is: queue`, and a queue
+    # channel names only the queue. Which exchange it is bound to, and with which
+    # routing key, are not fields of it. The framework's own migration table says
+    # a mini-spec `bindings[].queue` becomes "a second channel, is: queue", and
+    # this is that second channel: the edge between the two channels exists on
+    # the broker and in neither object below.
+    x-bound-to-exchange: st2.trigger_instances_dispatch
+    x-binding-routing-key: "#"
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.trigger_instances_dispatch.rules_engine
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      trigger-dispatch:
+        x-srn-payload: /datamodel/trigger-dispatch-message@1
+        summary: The same message, arriving. Acknowledged only after the record exists.
+
+# No `operations` block. `action` is send or receive relative to one application
+# and six applications appear on this exchange; naming one of them as the
+# document's `id` would make the other five invisible. Who publishes and who
+# consumes is in `participants` in index.md, where the framework puts it.

@@ -1,0 +1,39 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+name: remediate-an-alert
+steps:
+  - actor: /actor/monitoring-system
+    touches: /product/platform/component/st2api
+    protocol: /product/platform/protocol/webhook-ingress
+    note: The alert arrives on a path an operator's own rule created. The sender
+      gets an acceptance code and learns nothing further.
+
+  - actor: /actor/automation-operator
+    touches: /product/operator-surfaces/component/st2web
+    protocol: /protocol/rest-api
+    note: Some time later, a person opens the executions list. Everything the
+      platform did in between has no actor and therefore no step here.
+
+  - actor: /actor/automation-operator
+    touches: /product/platform/component/st2stream
+    protocol: /protocol/event-stream
+    note: If the run is still going, its output arrives as server-sent events
+      rather than by refreshing.
+
+  - actor: /actor/managed-host
+    touches: /product/platform/component/st2actionrunner
+    protocol: /product/platform/component/st2actionrunner/protocol/remote-execution
+    note: The step where the product does its job — and the one step in this
+      repository whose actor is the object of the hop rather than its initiator.
+
+  - actor: /actor/automation-operator
+    touches: /product/platform/component/st2api
+    protocol: /protocol/rest-api
+    note: Afterwards, the audit record — the run, its result, the rule that fired
+      and the trigger instance that caused it, all embedded by value.
+
+  - actor: /actor/automation-operator
+    touches: /product/automation-content/component/bundled-packs
+    protocol: none
+    # platform -> automation-content, carried by the person.
+    note: To find out what the action actually does, they read the pack. Nothing
+      links the audit record to the source of the action that produced it.

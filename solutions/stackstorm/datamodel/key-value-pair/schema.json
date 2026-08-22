@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/key-value-pair",
+  "x-srn": "srn://stackstorm/datamodel/key-value-pair",
+  "title": "Key-value pair",
+  "description": "One entry in the platform's datastore. Stored in the document store, served over the REST API, and substituted into action parameters and rule criteria by name.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "uid": {
+      "type": "string",
+      "description": "The platform-wide uid of the record, which encodes its resource type and name."
+    },
+    "name": {
+      "type": "string",
+      "description": "The key an automation refers to. Together with the scope it is the identity of the entry."
+    },
+    "description": {
+      "type": "string",
+      "description": "Free text for whoever finds the key later."
+    },
+    "value": {
+      "type": "string",
+      "description": "Always characters. A stored secret is ciphertext here; a masked read answers with a placeholder instead."
+    },
+    "secret": {
+      "type": "boolean",
+      "default": false,
+      "description": "On write, a request to store the value encrypted; an installation with no key file refuses the write."
+    },
+    "encrypted": {
+      "type": "boolean",
+      "default": false,
+      "description": "On write, an assertion that the supplied value is already ciphertext — it forces secret on. On read, a computed fact: the value in this response was not decrypted for the caller."
+    },
+    "scope": {
+      "type": "string",
+      "description": "Which namespace the entry lives in. The default is the system-wide scope; the per-user scope is how one key name means different things to different operators."
+    },
+    "expire-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the entry stops being readable, derived from the time-to-live given at write time. Wire key: expire_timestamp."
+    },
+    "ttl": {
+      "type": "integer",
+      "description": "Seconds to live. Input only — the source says so in a note beside the field; a stored entry reports the timestamp instead."
+    }
+  },
+  "required": ["value"]
+}

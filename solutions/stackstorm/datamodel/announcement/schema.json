@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/announcement",
+  "x-srn": "srn://stackstorm/datamodel/announcement",
+  "title": "Announcement",
+  "description": "Envelope published by the announcement runner. The routing key that carries it is chosen by the pack author and is not part of this shape.",
+  "type": "object",
+  "properties": {
+    "payload": {
+      "type": "object",
+      "description": "The announcing action's own parameters, forwarded whole. The dispatcher validates that it is a mapping or absent, and nothing else."
+    },
+    "trace-context": {
+      "description": "Correlation token, or null when the announcing action carries none. Wire key: trace_context.",
+      "anyOf": [
+        { "$ref": "https://schemas.metaframework.dev/stackstorm/datamodel/trace-context" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

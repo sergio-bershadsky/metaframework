@@ -1,0 +1,161 @@
+asyncapi: 3.1.0
+x-srn: srn://stackstorm/product/platform/protocol/execution-updates
+info:
+  title: Execution updates
+  version: unversioned
+  description: >-
+    The audit record on create, update and delete, and the output of a running
+    action on create. Five queues bind them, three of which the broker names.
+defaultContentType: application/x-python-serialize
+servers:
+  st2-bus:
+    host: "{host}"
+    protocol: amqp
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - connection-url-password
+    x-st2-messaging-vhost: /
+    x-st2-messaging-prefix: st2
+channels:
+  # ------------------------------------------------------- the record exchange
+  execution-create:
+    address: create
+    summary: A run has been recorded. Reaches the general stream only.
+    bindings: &execution-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.execution
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: &execution-message
+      action-execution:
+        x-srn-payload: /datamodel/action-execution@1
+        summary: The whole audit record, with the resources that caused it embedded by value.
+
+  execution-update:
+    address: update
+    summary: >-
+      The busiest address in the platform. Four consumers of three different
+      kinds bind it, and they know nothing about each other.
+    bindings: *execution-exchange
+    messages: *execution-message
+
+  execution-delete:
+    address: delete
+    summary: A record was removed, usually by the garbage collector. Reaches the general stream only.
+    bindings: *execution-exchange
+    messages: *execution-message
+
+  # ------------------------------------------------------- the output exchange
+  output-create:
+    address: create
+    summary: >-
+      One chunk of a running action's output. Shares the address string with the
+      record exchange's create key and is a different channel, because a routing
+      key means nothing without its exchange.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.execution.output
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      action-execution-output:
+        x-srn-payload: /datamodel/action-execution-output@1
+
+  # -------------------------------------------------------------- the queues
+  notifier-work:
+    address: st2.notifiers.execution.work
+    summary: >-
+      The notifier's durable queue, shared by every notifier process. It decides
+      whether a human hears about the run.
+    x-bound-to-exchange: st2.execution
+    x-binding-routing-key: update
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.notifiers.execution.work
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: *execution-message
+
+  workflow-action-update:
+    address: st2.workflow.action.update
+    summary: >-
+      The workflow engine's queue for finished tasks. Its name sits in the
+      workflow namespace while its binding is on the execution exchange, because
+      queue names here are chosen for the consumer rather than for the traffic.
+      It is also outside the set the platform pre-declares at start-up.
+    x-bound-to-exchange: st2.execution
+    x-binding-routing-key: update
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.workflow.action.update
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: *execution-message
+
+  stream-execution-all:
+    address: null
+    summary: >-
+      One per open general-stream connection. Binds the single-word wildcard, so
+      it receives create, update and delete alike.
+    x-bound-to-exchange: st2.execution
+    x-binding-routing-key: "*"
+    x-server-named-queue: true
+    bindings: &anonymous-queue
+      amqp:
+        is: queue
+        queue:
+          durable: true
+          exclusive: true
+          autoDelete: true
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: *execution-message
+
+  stream-execution-update:
+    address: null
+    summary: >-
+      One per open per-execution output-stream connection, so that a client
+      watching one run is told when that run finishes. Outside the pre-declared
+      set, like every queue that exists only while somebody is listening.
+    x-bound-to-exchange: st2.execution
+    x-binding-routing-key: update
+    x-server-named-queue: true
+    bindings: *anonymous-queue
+    messages: *execution-message
+
+  stream-execution-output:
+    address: null
+    summary: >-
+      One per open stream connection of either kind — this is the only queue both
+      listeners consume. It carries the characters an operator watches scroll.
+    x-bound-to-exchange: st2.execution.output
+    x-binding-routing-key: create
+    x-server-named-queue: true
+    bindings: *anonymous-queue
+    messages:
+      action-execution-output:
+        x-srn-payload: /datamodel/action-execution-output@1
+
+# No `operations`: six applications, and `action` is relative to one.

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/action-execution",
+  "x-srn": "srn://stackstorm/datamodel/action-execution",
+  "title": "Action execution",
+  "description": "The audit record of one run, carrying frozen copies of the resources that caused it. Published under create, update and delete on the execution exchange.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "status": {
+      "$ref": "#/$defs/status"
+    },
+    "action": {
+      "type": "object",
+      "description": "The action as it was when this ran, by value."
+    },
+    "runner": {
+      "type": "object",
+      "description": "The runner type as it was when this ran, by value."
+    },
+    "liveaction": {
+      "type": "object",
+      "description": "The work item this record is the history of, by value. Wire key: liveaction, one word."
+    },
+    "rule": {
+      "type": "object",
+      "description": "The rule that fired, by value. Absent when a human asked directly."
+    },
+    "trigger": {
+      "type": "object",
+      "description": "The trigger that matched, by value."
+    },
+    "trigger-type": {
+      "type": "object",
+      "description": "Wire key: trigger_type."
+    },
+    "trigger-instance": {
+      "type": "object",
+      "description": "The received event, by value. Wire key: trigger_instance."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Input the action was run with."
+    },
+    "context": {
+      "type": "object",
+      "description": "Who asked and why."
+    },
+    "result": {
+      "description": "Whatever the runner returned. Any JSON type."
+    },
+    "result-size": {
+      "type": "integer",
+      "description": "Size of the stored result, so a list view need not fetch it. Wire key: result_size."
+    },
+    "parent": {
+      "type": "string",
+      "description": "Id of the execution that started this one, for workflow tasks."
+    },
+    "children": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ids of executions this one started."
+    },
+    "elapsed-seconds": {
+      "type": "number",
+      "description": "Wire key: elapsed_seconds."
+    },
+    "web-url": {
+      "type": "string",
+      "description": "Link into the web UI for this record. Wire key: web_url."
+    },
+    "start-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wire key: start_timestamp."
+    },
+    "end-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wire key: end_timestamp."
+    },
+    "log": {
+      "type": "array",
+      "description": "Observed transition history: one entry per status change, appended as it happened.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "status": { "$ref": "#/$defs/status" }
+        }
+      }
+    }
+  },
+  "required": ["id"],
+  "$defs": {
+    "status": {
+      "enum": [
+        "requested",
+        "scheduled",
+        "delayed",
+        "running",
+        "succeeded",
+        "failed",
+        "timeout",
+        "abandoned",
+        "canceling",
+        "canceled",
+        "pending",
+        "pausing",
+        "paused",
+        "resuming"
+      ],
+      "description": "The same fourteen values the live action carries; this record mirrors them."
+    }
+  }
+}

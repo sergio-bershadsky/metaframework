@@ -1,0 +1,98 @@
+asyncapi: 3.1.0
+x-srn: srn://stackstorm/product/platform/protocol/workflow-dispatch
+info:
+  title: Workflow dispatch
+  version: unversioned
+  description: >-
+    Two status keys, two durable queues, one consumer group. The workflow record
+    exchange beside them is declared and never published to.
+defaultContentType: application/x-python-serialize
+servers:
+  st2-bus:
+    host: "{host}"
+    protocol: amqp
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - connection-url-password
+    x-st2-messaging-vhost: /
+    x-st2-messaging-prefix: st2
+
+# Declared, pre-declared at service start-up, and never published to: every write
+# of a workflow execution record in the shipped source passes publishing off, and
+# the one call site that takes the flag as a parameter defaults it off and is
+# never given anything else. A Channel Object would assert somebody is at one end
+# of it, so the exchange is recorded here instead.
+x-st2-declared-unused-exchange:
+  name: st2.workflow
+  type: topic
+  note: No publish call at v3.9.0; no queue binds it either.
+
+# Statuses other than the two below are published to the status exchange as the
+# conductor moves the graph, and nothing binds them. They are not enumerated:
+# unlike the live action's fourteen, the workflow status vocabulary belongs to
+# the conductor library rather than to a constants module this catalog read.
+x-st2-unbound-status-routing-keys: other conductor statuses, not enumerated here
+
+channels:
+  status-requested:
+    address: requested
+    summary: A graph is waiting for an engine. Published by the runner that discovered the action is a workflow.
+    bindings: &status-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.workflow.status
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: &workflow-message
+      workflow-execution:
+        x-srn-payload: /datamodel/workflow-execution@1
+        summary: The whole record — compiled spec, task graph, conductor state.
+
+  status-resuming:
+    address: resuming
+    summary: A held graph may go on, most often because an inquiry was answered.
+    bindings: *status-exchange
+    messages: *workflow-message
+
+  workflow-work:
+    address: st2.workflow.work
+    summary: The engine's durable queue for new graphs. Shared by every engine process.
+    x-bound-to-exchange: st2.workflow.status
+    x-binding-routing-key: requested
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.workflow.work
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: *workflow-message
+
+  workflow-resume:
+    address: st2.workflow.resume
+    summary: >-
+      The engine's durable queue for resumes. Whichever engine process takes it
+      is not necessarily the one that was driving the graph before it was held,
+      which is why the whole conductor state travels in the message.
+    x-bound-to-exchange: st2.workflow.status
+    x-binding-routing-key: resuming
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.workflow.resume
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: *workflow-message

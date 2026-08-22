@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/action-execution-state",
+  "x-srn": "srn://stackstorm/datamodel/action-execution-state",
+  "title": "Action execution state",
+  "description": "Polling record written when a runner starts work that completes elsewhere. Published under the create routing key onto an exchange whose durable queue no shipped process consumes.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "execution-id": {
+      "type": "string",
+      "description": "The live action to come back to. Unique across the collection. Wire key: execution_id."
+    },
+    "query-module": {
+      "type": "string",
+      "description": "Name of the in-process module that knows how to ask whether the remote work finished. Not a queue and not a URL. Wire key: query_module."
+    },
+    "query-context": {
+      "type": "object",
+      "description": "Whatever that module needs in order to ask. The shape belongs to the module. Wire key: query_context."
+    }
+  },
+  "required": ["execution-id", "query-module", "query-context"]
+}

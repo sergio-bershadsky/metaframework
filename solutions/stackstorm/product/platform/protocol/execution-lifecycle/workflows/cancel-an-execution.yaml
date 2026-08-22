@@ -1,0 +1,41 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: cancel-an-execution
+title: Cancel an execution
+summary: A cancel is a status like any other, taken from a shared queue by whichever runner is free — not by the one holding the work.
+participants: [api, broker, action-runner]
+steps:
+  - message: canceling
+    from: api
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: canceling
+    note: Legal from seven of the fourteen statuses — the cancelable set the
+      source names.
+
+  - message: canceling
+    from: broker
+    to: action-runner
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: st2.actionrunner.cancel
+    note: A different runner process may take this message than the one running
+      the action, which is why cancellation is cooperative rather than immediate.
+
+  - alt:
+      - when: the runner stopped the work
+        steps:
+          - message: canceled
+            from: action-runner
+            to: broker
+            kind: event
+            payload: /datamodel/live-action@1
+            channel: canceled
+    otherwise:
+      - message: abandoned
+        from: action-runner
+        to: broker
+        kind: event
+        payload: /datamodel/live-action@1
+        channel: abandoned
+        note: The worker went away mid-cancel.

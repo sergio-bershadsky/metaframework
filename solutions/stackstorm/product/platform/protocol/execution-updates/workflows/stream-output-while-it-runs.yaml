@@ -1,0 +1,26 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: stream-output-while-it-runs
+title: Watch an action's output before it finishes
+summary: Chunks of standard output and standard error are published as they are produced, and only transient queues are bound to them.
+participants: [action-runner, broker, stream]
+steps:
+  - loop:
+      while: the action is still producing output
+      steps:
+        - message: execution-output
+          from: action-runner
+          to: broker
+          kind: event
+          payload: /datamodel/action-execution-output@1
+          channel: output-create
+          note: Also written to the document store, which is why an operator who
+            connects late still sees what they missed.
+
+        - message: execution-output
+          from: broker
+          to: stream
+          kind: event
+          payload: /datamodel/action-execution-output@1
+          channel: stream-execution-output
+          note: Nothing durable binds this exchange, so output nobody is watching
+            is published and dropped.

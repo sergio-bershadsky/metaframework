@@ -1,0 +1,30 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: push-an-alert
+title: A monitoring system pushes an alert
+summary: One request, one receipt, and no way for the sender to learn what happened next.
+participants: [monitoring-system, edge, api]
+steps:
+  - message: post-webhook
+    from: monitoring-system
+    to: edge
+    kind: call
+    channel: post-webhook
+    note: The path was created when somebody wrote a rule that listens on it.
+
+  - message: post-webhook
+    from: edge
+    to: api
+    kind: call
+    channel: post-webhook
+
+  - message: accepted
+    from: api
+    to: edge
+    kind: return
+
+  - message: accepted
+    from: edge
+    to: monitoring-system
+    kind: return
+    note: An acceptance code echoing the body. No execution id, no rule-match
+      result, and nothing to correlate this push with what it caused.

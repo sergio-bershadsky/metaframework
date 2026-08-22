@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/push-method",
+  "x-srn": "srn://kubeedge/datamodel/push-method",
+  "title": "Push method",
+  "description": "Where a mapper sends the readings of one device property. At most one destination branch is set; the choice is made by whoever writes the device resource.",
+  "type": "object",
+  "properties": {
+    "http": {
+      "type": "object",
+      "description": "Post readings to an HTTP endpoint the operator names.",
+      "properties": {
+        "host-name": { "type": "string", "description": "Wire key: hostName." },
+        "port": { "type": "integer", "description": "Destination port." },
+        "request-path": { "type": "string", "description": "Path appended to the host. Wire key: requestPath." },
+        "timeout": { "type": "integer", "description": "Per-request timeout, in seconds." }
+      }
+    },
+    "mqtt": {
+      "type": "object",
+      "description": "Publish readings to an MQTT broker of the operator's choosing. Unrelated to the eventbus module's own broker.",
+      "properties": {
+        "address": { "type": "string", "description": "Broker address." },
+        "topic": { "type": "string", "description": "Topic the readings are published on." },
+        "qos": { "type": "integer", "description": "MQTT quality of service for the publish." },
+        "retained": { "type": "boolean", "description": "Whether the broker retains the last reading." }
+      }
+    },
+    "otel": {
+      "type": "object",
+      "description": "Export readings over OTLP.",
+      "properties": {
+        "endpoint-url": { "type": "string", "description": "Collector endpoint. Wire key: endpointURL." }
+      }
+    },
+    "db-method": {
+      "type": "object",
+      "description": "Write readings into one of four databases. Wire key: dbMethod.",
+      "properties": {
+        "influxdb2": {
+          "type": "object",
+          "properties": {
+            "influxdb2-client-config": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string" },
+                "org": { "type": "string" },
+                "bucket": { "type": "string" }
+              },
+              "description": "Wire key: influxdb2ClientConfig. The write token is not here — it is read from the mapper's environment."
+            },
+            "influxdb2-data-config": {
+              "type": "object",
+              "properties": {
+                "measurement": { "type": "string" },
+                "tag": { "type": "object", "additionalProperties": { "type": "string" } },
+                "field-key": { "type": "string", "description": "Wire key: fieldKey." }
+              },
+              "description": "Wire key: influxdb2DataConfig."
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "redis-client-config": {
+              "type": "object",
+              "properties": {
+                "addr": { "type": "string" },
+                "db": { "type": "integer" },
+                "poolsize": { "type": "integer" },
+                "min-idle-conns": { "type": "integer", "description": "Wire key: minIdleConns." }
+              },
+              "description": "Wire key: redisClientConfig. The password is not here — it is read from the mapper's environment."
+            }
+          }
+        },
+        "tdengine": {
+          "type": "object",
+          "description": "Wire key: TDEngine in the Kubernetes resource, tdengine in the DMI protobuf description.",
+          "properties": {
+            "td-engine-client-config": {
+              "type": "object",
+              "properties": {
+                "addr": { "type": "string" },
+                "db-name": { "type": "string", "description": "Wire key: dbName." }
+              },
+              "description": "Wire key: TDEngineClientConfig. Credentials are read from the mapper's environment."
+            }
+          }
+        },
+        "mysql": {
+          "type": "object",
+          "properties": {
+            "mysql-client-config": {
+              "type": "object",
+              "properties": {
+                "addr": { "type": "string" },
+                "database": { "type": "string" },
+                "user-name": { "type": "string", "description": "Wire key: userName." }
+              },
+              "description": "Wire key: mysqlClientConfig. The password is read from the mapper's environment."
+            }
+          }
+        }
+      }
+    },
+    "anomaly-detection": {
+      "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/customized-value",
+      "description": "Not a destination: configuration for detection logic the mapper runs itself, introduced in v1.23.0. Wire key: anomalyDetection."
+    }
+  }
+}

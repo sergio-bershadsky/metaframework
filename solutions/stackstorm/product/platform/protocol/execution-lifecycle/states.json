@@ -1,0 +1,154 @@
+{
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "id": "execution-lifecycle",
+  "initial": "requested",
+  "description": "RECONSTRUCTION, not a transcription. The source declares fourteen status values, four named subsets of them, and which status each queue binds; it declares no transition table, and the function that changes a status checks membership only. Every transition below carries the evidence it was assembled from. Read at v3.9.0.",
+  "states": {
+    "requested": {
+      "description": "Written by whoever asked — the API, the rules engine, or the workflow engine. The scheduler's queue binds this key.",
+      "on": {
+        "SCHEDULED": {
+          "target": "scheduled",
+          "description": "The scheduler admitted the item past its policies."
+        },
+        "DELAYED": {
+          "target": "delayed",
+          "description": "A policy held the item back; the scheduler writes this without publishing it."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "requested is a member of the cancelable set."
+        }
+      }
+    },
+    "delayed": {
+      "description": "Held by a concurrency or throttling policy. The scheduler revisits it.",
+      "on": {
+        "SCHEDULED": {
+          "target": "scheduled",
+          "description": "The scheduler re-examines delayed items alongside requested ones."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "delayed is a member of the cancelable set."
+        }
+      }
+    },
+    "scheduled": {
+      "description": "Admitted. The runners' work queue binds this key, and whichever runner is free takes it.",
+      "on": {
+        "RUNNING": {
+          "target": "running",
+          "description": "The runner stamps its own process information and starts the action."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "A cancel may arrive between admission and start."
+        }
+      }
+    },
+    "running": {
+      "description": "A runner process is executing the action.",
+      "on": {
+        "SUCCEEDED": {
+          "target": "succeeded",
+          "description": "Terminal status returned by the runner. Member of the completed set."
+        },
+        "FAILED": {
+          "target": "failed",
+          "description": "Returned by the runner, or written by the worker when the dispatch raised."
+        },
+        "TIMEOUT": {
+          "target": "timeout",
+          "description": "Member of the completed and failed sets; the runner enforces its own timeout parameter."
+        },
+        "ABANDONED": {
+          "target": "abandoned",
+          "description": "Written when a worker shuts down with the item still incomplete."
+        },
+        "PENDING": {
+          "target": "pending",
+          "description": "The inquirer runner returns this instead of a terminal status when it asks a human a question."
+        },
+        "PAUSING": {
+          "target": "pausing",
+          "description": "Only runners that support pausing act on it."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "running is a member of the cancelable set."
+        }
+      }
+    },
+    "pending": {
+      "description": "Waiting for a human to answer an inquiry. Not a member of the completed set, so nothing downstream treats it as finished.",
+      "on": {
+        "SUCCEEDED": {
+          "target": "succeeded",
+          "description": "Answering the inquiry writes succeeded and asks for the parent workflow to resume."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "An unanswered inquiry can be cancelled like anything else."
+        }
+      }
+    },
+    "pausing": {
+      "description": "Pause requested. The runners' pause queue binds this key.",
+      "on": {
+        "PAUSED": {
+          "target": "paused",
+          "description": "The runner reports the work is held."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "pausing is a member of the cancelable set."
+        }
+      }
+    },
+    "paused": {
+      "description": "Held. Member of the runnable set, which is what lets it be picked up again.",
+      "on": {
+        "RESUMING": {
+          "target": "resuming",
+          "description": "Resume requested; the runners' resume queue binds this key."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "paused is a member of the cancelable set."
+        }
+      }
+    },
+    "resuming": {
+      "description": "Resume in flight.",
+      "on": {
+        "RUNNING": {
+          "target": "running",
+          "description": "The runner picks the work up again."
+        },
+        "CANCELING": {
+          "target": "canceling",
+          "description": "resuming is a member of the cancelable set."
+        }
+      }
+    },
+    "canceling": {
+      "description": "Cancel requested. The runners' cancel queue binds this key, and the runner that takes it need not be the one holding the work.",
+      "on": {
+        "CANCELED": {
+          "target": "canceled",
+          "description": "The runner reports the work stopped. Member of the completed set."
+        },
+        "ABANDONED": {
+          "target": "abandoned",
+          "description": "A worker shutting down mid-cancel abandons the item instead."
+        }
+      }
+    },
+    "succeeded": { "type": "final", "tags": ["completed"] },
+    "failed": { "type": "final", "tags": ["completed", "failure"] },
+    "timeout": { "type": "final", "tags": ["completed", "failure"] },
+    "canceled": { "type": "final", "tags": ["completed"] },
+    "abandoned": { "type": "final", "tags": ["completed", "failure"] }
+  }
+}

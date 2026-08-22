@@ -1,0 +1,40 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: fan-out-a-finished-run
+title: One update, three unrelated consequences
+summary: A single publish under the update key reaches a notifier, a workflow engine and every open stream connection, none of which knows about the others.
+participants: [action-runner, broker, notifier, workflow-engine, stream]
+steps:
+  - message: execution-update
+    from: action-runner
+    to: broker
+    kind: event
+    payload: /datamodel/action-execution@1
+    channel: update
+    note: Published once. Everything below is the broker's copy of the same
+      message going to a different queue.
+
+  - message: execution-update
+    from: broker
+    to: notifier
+    kind: event
+    payload: /datamodel/action-execution@1
+    channel: st2.notifiers.execution.work
+    note: Durable and shared — whichever notifier process is free takes it, and
+      a notifier that is down does not lose it.
+
+  - message: execution-update
+    from: broker
+    to: workflow-engine
+    kind: event
+    payload: /datamodel/action-execution@1
+    channel: st2.workflow.action.update
+    note: The same message read as "a task of some graph has finished".
+
+  - message: execution-update
+    from: broker
+    to: stream
+    kind: event
+    payload: /datamodel/action-execution@1
+    channel: stream-execution-all
+    note: One copy per open connection, into a queue the broker named and will
+      delete when the connection closes.

@@ -1,0 +1,50 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# No `regions` block, and here the format's default reading is finally true:
+# one unnamed place, because there is exactly one host.
+
+hosts:
+  - component: /product/core/component/cloudcore
+    replicas: { min: 1, max: 1 }
+    scaling: none — one process on the host
+    notes: |
+      Either a pod in the in-Kind cluster or a plain process, depending which of
+      the project's single-host paths was used. Both are the same binary with
+      the same defaults; what changes is who supervises it.
+
+  - component: /product/core/component/edgecore
+    replicas: { min: 1, max: 1 }
+    scaling: none — one process on the host
+    notes: |
+      Installed by the installer as a host service, exactly as on a real edge
+      node. This is the entry that makes the environment worth having: the edge
+      runtime is not simulated here, it is the shipped artifact with its
+      addresses pointed at loopback.
+
+  - component: /product/core/component/keadm
+    replicas: { min: 0, max: 1 }
+    scaling: none — a command, not a workload
+    notes: |
+      Present in the placement view because the installer genuinely executes on
+      this host, and absent from any capacity reading because it is a program
+      somebody runs and then leaves. `min: 0` is the state of the host for all
+      but a few seconds of its life.
+
+  - component: /product/console/component/dashboard-bff
+    replicas: { min: 0, max: 1 }
+    scaling: none — started by hand, from source
+    notes: |
+      This is the only target the console is placed in, and the placement is a
+      reading of the repository's own instructions rather than of a manifest:
+      the Dashboard ships neither a chart nor a deployment template at the
+      surveyed tag, and this process binds the loopback address by default. The
+      floor is zero because nothing starts it automatically.
+
+  - component: /product/console/component/dashboard-ui
+    replicas: { min: 0, max: 1 }
+    scaling: none — started by hand, from source
+    notes: |
+      Same reading as the backend it talks to. Note that this half is a server
+      and not a bundle of files: its build is configured to emit a standalone
+      Node application, so a person running the console has two processes on the
+      host, not one process and some static assets.

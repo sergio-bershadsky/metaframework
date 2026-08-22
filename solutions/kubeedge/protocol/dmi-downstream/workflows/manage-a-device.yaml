@@ -1,0 +1,76 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: manage-a-device
+title: A device's life inside a mapper
+summary: Model first, then the device, then the southbound link the interface never mentions — and the three calls that keep it current.
+participants: [devicetwin, mapper, physical-device]
+steps:
+  - message: create-device-model
+    from: devicetwin
+    to: mapper
+    kind: call
+    payload: /datamodel/device-model@1
+    note: >-
+      The class before the instance. A mapper that is handed a device whose model
+      it does not hold has no property list to read.
+
+  - message: register-device
+    from: devicetwin
+    to: mapper
+    kind: call
+    payload: /datamodel/device@1
+
+  - message: open-southbound-link
+    from: mapper
+    to: physical-device
+    kind: call
+    note: >-
+      Not a call on this wire, and the whole point of the previous one. Which
+      protocol this is — Modbus, OPC-UA, BLE — is the mapper's business; the
+      catalog describes neither it nor the device behind it.
+
+  - message: register-device-result
+    from: mapper
+    to: devicetwin
+    kind: return
+    note: An echo of the device's name and namespace, sent whether or not the link opened.
+
+  - opt:
+      when: an operator changes a desired value or a visitor
+      steps:
+        - message: update-device
+          from: devicetwin
+          to: mapper
+          kind: call
+          payload: /datamodel/device@1
+          note: >-
+            Carries the whole device again, not a patch. The mapper reconnects if
+            the connection details moved.
+        - message: update-device-result
+          from: mapper
+          to: devicetwin
+          kind: return
+
+  - opt:
+      when: the runtime needs the mapper's own view rather than its cached twin
+      steps:
+        - message: get-device
+          from: devicetwin
+          to: mapper
+          kind: call
+        - message: get-device-result
+          from: mapper
+          to: devicetwin
+          kind: return
+          payload: /datamodel/device@1
+
+  - message: remove-device
+    from: devicetwin
+    to: mapper
+    kind: call
+    condition: the device resource was deleted, or moved to another node
+    note: The mapper drops it from its list and disconnects. The reply is empty.
+
+  - message: remove-device-result
+    from: mapper
+    to: devicetwin
+    kind: return

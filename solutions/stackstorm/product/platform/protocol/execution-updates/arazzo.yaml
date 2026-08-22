@@ -1,0 +1,63 @@
+# Arazzo Description — the initiator's path across this bus. Unvalidated here:
+# this framework snapshots and serves the file and states no rule about its
+# contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface"); the
+# portal reads it only to draw the step graph beside this source.
+# workflows/*.yaml stay the authoritative choreography, and the sequence
+# diagrams on this page derive from them alone.
+#
+# WHOSE PATH. `action-runner`, the publisher — the participant that initiates
+# both workflows here. Every other step of those files is the broker copying one
+# published message onto a different queue, which is the bus doing its job rather
+# than anything an executor drives. The Arazzo Specification states that an
+# AsyncAPI send step completes as soon as the message is sent, and that it models
+# no broker acknowledgement or delivery confirmation; the fan-out therefore has
+# no carrier here by construction, not by omission.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block. Direction is stated per step instead, and it is
+# taken from the `from`/`to` of the workflow files.
+arazzo: 1.1.0
+info:
+  title: Execution updates
+  summary: An action runner's two publishes onto the execution record exchange.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Two workflows of one step each, because that is the whole of the initiator's
+    side. A description with the consumers in it would be a second copy of the
+    choreography, which workflows/fan-out-a-finished-run.yaml already holds and
+    holds better — it can name three consumers at once, and this format cannot.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: fan-out-a-finished-run
+    summary: Publish one execution update.
+    description: >-
+      The first step of workflows/fan-out-a-finished-run.yaml. Published once;
+      the notifier, the workflow engine and every open stream connection each
+      read the broker's own copy of it, on three queues of their own.
+    steps:
+      - stepId: send-execution-update
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/execution-update"
+        action: send
+  - workflowId: stream-output-while-it-runs
+    summary: Publish a chunk of output as it is produced.
+    description: >-
+      The body of the `loop` in workflows/stream-output-while-it-runs.yaml,
+      written once: Arazzo has no loop construct, and the repetition — one
+      publish per chunk, for as long as the action is still producing output —
+      stays in the workflow file. Each chunk is also written to the document
+      store, which is why an operator who connects late still sees what they
+      missed; that write is not on this bus and is not a step.
+    steps:
+      - stepId: send-execution-output
+        description: >-
+          Nothing durable binds this exchange, so output nobody is watching is
+          published and dropped. No successCriteria and no timeout: nothing
+          comes back that a criterion could read.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/output-create"
+        action: send

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/device-status",
+  "x-srn": "srn://kubeedge/datamodel/device-status",
+  "title": "Device status",
+  "description": "The reported state of one device, as its own Kubernetes resource since v1.23.0.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Resource name, from the object metadata; it matches the device it is the status of."
+    },
+    "namespace": {
+      "type": "string",
+      "description": "Namespace of the resource."
+    },
+    "spec": {
+      "type": "object",
+      "description": "Declared and empty: nothing is desired of a status resource."
+    },
+    "status": {
+      "type": "object",
+      "properties": {
+        "twins": {
+          "type": "array",
+          "description": "One entry per property: what was read, and what was asked for.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "property-name": {
+                "type": "string",
+                "description": "Property this twin is about, as named on the device model. Wire key: propertyName."
+              },
+              "reported": {
+                "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/twin-property",
+                "description": "What the mapper last read from the device."
+              },
+              "observed-desired": {
+                "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/twin-property",
+                "description": "The desired value the mapper has actually seen, which may lag the one on the device resource. Wire key: observedDesired."
+              }
+            }
+          }
+        },
+        "state": {
+          "type": "string",
+          "description": "Reachability state of the device, as reported by its mapper."
+        },
+        "last-online-time": {
+          "type": "string",
+          "description": "When the device was last seen, as characters rather than a typed timestamp. Wire key: lastOnlineTime."
+        },
+        "extensions": {
+          "type": "object",
+          "description": "Free map written by mapper-side logic, the anomaly-detection framework included. No key is defined by the resource."
+        }
+      }
+    }
+  }
+}

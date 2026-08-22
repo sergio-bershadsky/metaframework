@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
+  "id": "dmi-downstream",
+  "initial": "unknown-to-the-mapper",
+  "description": "One device, as this conversation sees it. Not the state of the hardware and not the state reported upward — those are the device's twin and its reachability state, which live in the device-status resource.",
+  "states": {
+    "unknown-to-the-mapper": {
+      "description": "The mapper holds nothing for this device. A device resource may well exist in Kubernetes and be in this state on the node that is supposed to drive it.",
+      "on": {
+        "CREATE_DEVICE_MODEL": {
+          "description": "The class arrives first. The device itself is still unknown, so the machine does not move.",
+          "actions": ["hold-the-model"]
+        },
+        "REGISTER_DEVICE": [
+          {
+            "target": "driven",
+            "guard": "the mapper already holds the device's model",
+            "actions": ["open-the-southbound-link"]
+          },
+          {
+            "target": "unknown-to-the-mapper",
+            "actions": ["refuse-without-a-model"]
+          }
+        ]
+      }
+    },
+    "driven": {
+      "description": "The mapper holds the device, has opened the southbound link, and is collecting on the configured cycle.",
+      "on": {
+        "UPDATE_DEVICE": {
+          "description": "The whole device again. The link is reopened only when the connection details moved.",
+          "actions": ["reconnect-if-the-visitor-changed"]
+        },
+        "GET_DEVICE": {
+          "description": "A read of the mapper's own view. Nothing about the device changes."
+        },
+        "REMOVE_DEVICE": {
+          "target": "retired",
+          "actions": ["close-the-southbound-link"]
+        }
+      }
+    },
+    "retired": {
+      "type": "final",
+      "description": "The mapper has dropped the device and disconnected. Nothing in the interface distinguishes this from a device that was never registered, which is why the initial state is named for the mapper's ignorance rather than for the device's absence.",
+      "tags": ["terminal"]
+    }
+  }
+}

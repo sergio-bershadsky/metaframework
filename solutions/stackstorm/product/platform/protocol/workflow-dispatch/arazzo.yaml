@@ -1,0 +1,55 @@
+# Arazzo Description — the initiator's path across this bus. Unvalidated here:
+# this framework snapshots and serves the file and states no rule about its
+# contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface"); the
+# portal reads it only to draw the step graph beside this source.
+# workflows/hand-a-graph-to-an-engine.yaml stays the authoritative
+# choreography, and the sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. `action-runner`, the publisher — the participant that initiates.
+# The engine's side of each workflow is the broker's copy arriving on a work
+# queue; a different engine process may take it than the one that was driving the
+# graph, which is why the conductor state travels in the message rather than in
+# the process. That hop is the consumer's and is not a step here.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block.
+arazzo: 1.1.0
+info:
+  title: Workflow dispatch
+  summary: An action runner's publishes onto the workflow status exchange.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Two workflows, because the `opt` in hand-a-graph-to-an-engine.yaml is a
+    second, independent occasion rather than a continuation: a graph is handed
+    over once, and let go again only if it was held. Writing them as one
+    sequence would claim every dispatch is followed by a resume.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: hand-a-graph-to-an-engine
+    summary: Publish a workflow execution as requested.
+    description: >-
+      The first step of workflows/hand-a-graph-to-an-engine.yaml. The runner
+      executes nothing itself once it sees the action is a graph.
+    steps:
+      - stepId: send-workflow-requested
+        description: >-
+          No successCriteria and no timeout: nothing comes back on this protocol
+          that a criterion could read.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-requested"
+        action: send
+  - workflowId: resume-a-held-graph
+    summary: Publish a workflow execution as resuming.
+    description: >-
+      The `opt` of workflows/hand-a-graph-to-an-engine.yaml, which fires when a
+      graph that was held is being let go again. Arazzo carries no guard, so
+      that condition is stated here and enforced nowhere in this file.
+    steps:
+      - stepId: send-workflow-resuming
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-resuming"
+        action: send

@@ -1,0 +1,27 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+summary: One-way pushes onto paths an operator's own rules created, answered with an acceptance code and nothing else.
+encoding: json
+auth:
+  - api-key-header
+  - bearer-token
+http:
+  base-path: /api/v1/webhooks
+  tls: true
+  operations:
+    - name: post-webhook
+      method: POST
+      path: /{hook}
+      summary: >-
+        The whole ingress. The path segment is content — it exists because a rule
+        that listens on it exists — and the body is whatever the sender sends, so
+        neither a request model nor a concrete path can be named here. The
+        response is an acceptance code that echoes the body.
+
+    - name: list-webhooks
+      method: GET
+      path: /
+      summary: >-
+        Which endpoints currently exist. It is an operator's question rather than
+        a sender's, and it is in this entity rather than in the REST API because
+        the answer is this protocol's own address space.

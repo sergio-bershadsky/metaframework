@@ -1,0 +1,38 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: ask-the-cloud
+title: The edge asks a question it cannot answer locally
+summary: The synchronous half of the channel — the one path that sets the header's sync flag and waits for a message carrying its own identity as a parent.
+participants: [edgehub, cloudhub]
+steps:
+  - message: remote-query
+    from: edgehub
+    to: cloudhub
+    kind: call
+    channel: resource
+    payload: /product/core/datamodel/beehive-message@1
+    note: >-
+      Sent with the header's synchronous flag set. The caller blocks on a
+      timeout that defaults to 60 seconds.
+
+  - alt:
+      - when: the cloud answers within the timeout
+        steps:
+          - message: remote-query-result
+            from: cloudhub
+            to: edgehub
+            kind: return
+            channel: resource
+            payload: /product/core/datamodel/beehive-message@1
+            note: >-
+              Correlated by the parent-identity header field carrying the
+              request's identity. This is the only correlation mechanism on the
+              whole channel.
+
+      - when: the timeout expires, link up or link down
+        steps:
+          - message: remote-query-timeout
+            from: cloudhub
+            to: edgehub
+            kind: error
+            note: >-
+              Not a wire message: nothing is sent. The caller gives up, and from its side a slow cloud and a severed link are the same event.

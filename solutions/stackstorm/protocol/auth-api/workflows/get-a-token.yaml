@@ -1,0 +1,45 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: get-a-token
+title: Exchange a password for a token
+summary: The one exchange every other surface depends on, and the one place a password appears.
+participants: [operator, cli, edge, auth]
+steps:
+  - message: sign-in
+    from: operator
+    to: cli
+    kind: call
+    note: The credential is typed once. Everything after this carries a token.
+
+  - message: request-token
+    from: cli
+    to: edge
+    kind: call
+    channel: request-token
+
+  - message: request-token
+    from: edge
+    to: auth
+    kind: call
+    channel: request-token
+    note: The proxy passes the authorization header through explicitly — a proxy
+      that dropped it would break this protocol and no other.
+
+  - message: token-issued
+    from: auth
+    to: edge
+    kind: return
+    payload: /datamodel/auth-token@1
+
+  - message: token-issued
+    from: edge
+    to: cli
+    kind: return
+    payload: /datamodel/auth-token@1
+
+  - message: signed-in
+    from: cli
+    to: operator
+    kind: return
+    note: The client caches the token under the user's own configuration
+      directory by default, which is why a person types a password far less
+      often than they run an action.

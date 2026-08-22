@@ -1,0 +1,76 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: enrol-a-node
+title: A machine becomes an edge node
+summary: Token in hand, the runtime authenticates the cluster before the cluster authenticates it, and leaves holding a client certificate.
+participants: [operator, keadm, edgehub, cloudhub]
+steps:
+  - message: get-token
+    from: operator
+    to: keadm
+    kind: call
+    note: >-
+      Not a call on this protocol. The installer reads the enrolment secret
+      through the Kubernetes API; what it prints is a CA hash and a signed token,
+      joined by a dot.
+
+  - message: join
+    from: operator
+    to: keadm
+    kind: call
+    note: >-
+      The installer writes the runtime's configuration, installs it as a system
+      service and starts it. Everything below is done by the runtime, not by the
+      installer.
+
+  - message: fetch-ca
+    from: edgehub
+    to: cloudhub
+    kind: call
+    channel: /ca.crt
+    note: Sent over a connection whose server certificate is deliberately not verified.
+
+  - message: ca-certificate
+    from: cloudhub
+    to: edgehub
+    kind: return
+
+  - alt:
+      - when: the hash of the received CA matches the token's first part
+        steps:
+          - message: request-certificate
+            from: edgehub
+            to: cloudhub
+            kind: call
+            channel: /edge.crt
+            note: >-
+              A certificate signing request, PEM-encoded, sent as the body of a
+              GET, with the token's second part as a bearer credential.
+          - message: signed-certificate
+            from: cloudhub
+            to: edgehub
+            kind: return
+            note: >-
+              Certificate and key come back in DER and are written to the node's
+              certificate directory. From here the main channel can be opened.
+          - message: rotate-certificate
+            from: edgehub
+            to: cloudhub
+            kind: call
+            channel: /edge.crt
+            condition: the certificate is approaching expiry
+            note: Same endpoint, no token; the current certificate is the credential.
+          - message: rotated-certificate
+            from: cloudhub
+            to: edgehub
+            kind: return
+
+      - when: the hashes differ
+        steps:
+          - message: ca-rejected
+            from: edgehub
+            to: cloudhub
+            kind: error
+            note: >-
+              Not a wire message: the runtime refuses locally and never sends the
+              token. This is the whole defence against a forged CloudHub, and it
+              runs entirely on the client.

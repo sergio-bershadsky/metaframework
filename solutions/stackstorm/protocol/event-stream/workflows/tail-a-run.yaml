@@ -1,0 +1,55 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: tail-a-run
+title: Watch one run as it produces output
+summary: One request, no reply, and a response that keeps arriving until the client goes away.
+participants: [operator, cli, edge, stream]
+steps:
+  - message: tail-execution
+    from: operator
+    to: cli
+    kind: call
+
+  - message: open-output-stream
+    from: cli
+    to: edge
+    kind: call
+    channel: execution-output
+
+  - message: open-output-stream
+    from: edge
+    to: stream
+    kind: call
+    channel: execution-output
+    note: The proxy has its own location for this prefix, with buffering off —
+      an intermediary that buffered would defeat the whole protocol.
+
+  - loop:
+      while: the client keeps the response open
+      steps:
+        - message: output-event
+          from: stream
+          to: cli
+          kind: event
+          payload: /datamodel/action-execution-output@1
+          note: The event name is the AMQP exchange and routing key joined by a
+            double underscore. Nothing in this protocol's artifact can say that.
+
+        - opt:
+            when: the connection has been idle
+            steps:
+              - message: heartbeat
+                from: stream
+                to: cli
+                kind: event
+                note: An empty message on an interval from configuration, so that
+                  a client can tell silence from death. No field of the binding
+                  block holds it.
+
+  - message: run-finished
+    from: stream
+    to: cli
+    kind: event
+    payload: /datamodel/action-execution@1
+    note: The completion event arrives on the same response as the output, which
+      is why one operation's response names two models and the artifact can hold
+      one.

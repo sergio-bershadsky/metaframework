@@ -1,0 +1,53 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+
+# Same file, same package, other service — and the other direction. The endpoint
+# is not merely absent from this block: it is not knowable from this entity at
+# all, because the runtime dials whatever local address the mapper stated when it
+# registered over the upstream protocol. See index.md.
+kind: grpc
+summary: Seven unary calls the edge runtime makes into a mapper, over a local socket the mapper named at registration, with no transport security.
+encoding: protobuf
+x-endpoint-source: /datamodel/mapper-info@1 address field, dialed with a unix-network dialer
+grpc:
+  package: v1beta1
+  service: DeviceMapperService
+  tls: false
+  methods:
+    - name: RegisterDevice
+      request: /datamodel/device@1
+      summary: >-
+        Hand the mapper a device to drive. The mapper adds it to its list and
+        opens the southbound link. The reply echoes the device's name and
+        namespace.
+
+    - name: UpdateDevice
+      request: /datamodel/device@1
+      summary: >-
+        Replace what the mapper holds for a device — metadata and status alike —
+        and reconnect if the connection details changed. The reply is empty.
+
+    - name: RemoveDevice
+      summary: >-
+        Stop driving a device and disconnect from it. The request carries name
+        and namespace only, so no model is named; the reply is empty.
+
+    - name: GetDevice
+      response: /datamodel/device@1
+      summary: >-
+        Ask the mapper what it currently holds for one device. The only call in
+        this direction whose reply carries a model.
+
+    - name: CreateDeviceModel
+      request: /datamodel/device-model@1
+      summary: >-
+        Add a device class to the mapper's model list. The reply echoes the
+        model's name and namespace.
+
+    - name: UpdateDeviceModel
+      request: /datamodel/device-model@1
+      summary: Replace a device class the mapper already holds. The reply is empty.
+
+    - name: RemoveDeviceModel
+      summary: >-
+        Drop a device class. Name and namespace only, empty reply. Nothing in the
+        interface says what happens to devices still referencing it.

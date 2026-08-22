@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/trigger-instance",
+  "x-srn": "srn://stackstorm/datamodel/trigger-instance",
+  "title": "Trigger instance",
+  "description": "One received event as the platform records it. Created by the rules engine from a dispatch message, then served over the REST API.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id, assigned by the store when the rules engine creates the record."
+    },
+    "trigger": {
+      "type": "string",
+      "description": "Reference to the trigger that fired, in pack.name form."
+    },
+    "payload": {
+      "type": "object",
+      "description": "The event as it arrived. Rule criteria are evaluated against these fields; the shape belongs to the pack that registered the trigger type."
+    },
+    "occurrence-time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the engine took the message off the queue, not when the world event happened. Wire key: occurrence_time."
+    },
+    "status": {
+      "enum": ["pending", "processing", "processed", "processing_failed"],
+      "description": "What the platform did with the event. The failure value is snake_case on the wire and is written here as it is sent."
+    }
+  },
+  "required": ["trigger"]
+}

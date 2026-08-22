@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/device-model",
+  "x-srn": "srn://kubeedge/datamodel/device-model",
+  "title": "Device model",
+  "description": "The class of a physical device, as the Kubernetes resource states it. The device management interface carries a message of the same name with a different field set; see the entity prose.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Resource name, from the object metadata. A device instance names its model by this."
+    },
+    "namespace": {
+      "type": "string",
+      "description": "Namespace of the resource."
+    },
+    "spec": {
+      "type": "object",
+      "properties": {
+        "properties": {
+          "type": "array",
+          "description": "The properties instances of this model have.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "type": {
+                "enum": ["INT", "FLOAT", "DOUBLE", "STRING", "BOOLEAN", "BYTES", "STREAM"],
+                "description": "How to read the characters a twin property carries for this name."
+              },
+              "access-mode": {
+                "enum": ["ReadWrite", "ReadOnly"],
+                "description": "Whether a desired value may be written. Wire key: accessMode."
+              },
+              "minimum": { "type": "string", "description": "Lower bound, as characters." },
+              "maximum": { "type": "string", "description": "Upper bound, as characters." },
+              "unit": { "type": "string", "description": "Unit of the reading, for readers rather than for validation." },
+              "visitors": {
+                "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/visitor-config",
+                "description": "Default instruction for reaching this property; a device instance may state its own."
+              }
+            }
+          }
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Southbound protocol this model is served over. Absent from the interface message of the same name."
+        },
+        "protocol-config-data": {
+          "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/customized-value",
+          "description": "Protocol settings shared by every instance of the model. Wire key: protocolConfigData."
+        }
+      }
+    }
+  }
+}

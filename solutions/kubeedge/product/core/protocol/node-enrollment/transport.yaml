@@ -1,0 +1,44 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+summary: The TLS listener CloudHub runs beside its WebSocket port — certificates on the way in, node tasks for runtimes with no working channel.
+encoding: binary
+auth:
+  - bearer-token
+  - mtls
+x-min-tls-version: "1.2"
+x-client-auth: requested, not required — the certificate endpoints accept a caller that has none yet
+http:
+  base-path: /
+  tls: true
+  operations:
+    - name: get-ca
+      method: GET
+      path: /ca.crt
+      summary: >-
+        The cluster CA, in PEM. Fetched over a connection the client does not
+        verify, then checked against the hash carried in the enrolment token.
+
+    - name: get-edge-cert
+      method: GET
+      path: /edge.crt
+      summary: >-
+        Sign a certificate signing request carried as the body of this GET. First
+        call presents a bearer token and no client certificate; every rotation
+        presents the current certificate and no token.
+
+    - name: check-node
+      method: GET
+      path: /node/{nodename}
+      summary: Whether the cluster already knows a node of this name; a re-join is not a first join.
+
+    - name: upgrade-edge
+      method: POST
+      path: /nodeupgrade
+      summary: >-
+        Instruct a node to upgrade itself. On this listener rather than the main
+        channel because an upgrading node may not have one.
+
+    - name: report-task-status
+      method: POST
+      path: /task/{taskType}/name/{taskID}/node/{nodeID}/status
+      summary: Report the outcome of a node task, keyed by task type, task id and node id.

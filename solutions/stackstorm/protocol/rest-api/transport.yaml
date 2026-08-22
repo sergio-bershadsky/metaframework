@@ -1,0 +1,93 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+
+# The mini-spec dialect, and not by preference: OpenAPI owns this wire in the
+# framework's dialect table, and the description this project publishes is
+# Swagger 2.0 — which the `openapi.yaml` role's dialect row does not admit — and
+# is in any case a large body of somebody else's text that this repository does
+# not vendor. So there is no `spec` link, and the surface list below is the only
+# option the anti-duplication rule leaves.
+#
+# It is a SELECTION of the published surface, not an enumeration of it: the
+# published description carries ninety-two paths and a hundred and twenty-one
+# operations. The nine below are the ones this catalog's journeys and datamodels
+# refer to. The mini-spec has no field that says so, which is the finding.
+kind: http
+summary: JSON over HTTPS behind the reverse proxy. Every operator surface is a client of this one API.
+encoding: json
+auth:
+  - bearer-token
+  - api-key-header
+http:
+  # One of three spellings. The service serves /v1/... after a start-up
+  # transform, the reverse proxy strips its own /api/ location before proxying,
+  # and this is the prefix a client types.
+  base-path: /api/v1
+  tls: true
+  operations:
+    - name: list-executions
+      method: GET
+      path: /executions
+      response: /datamodel/action-execution@1
+      summary: >-
+        The audit history, filtered and paged. The response is an array, and the
+        operation object has no cardinality field to say so.
+
+    - name: create-execution
+      method: POST
+      path: /executions
+      request: /datamodel/live-action@1
+      response: /datamodel/action-execution@1
+      summary: >-
+        Ask for an action to run. The request is the work item and the response
+        is the audit record — two models for one call, which is exactly what the
+        request and response fields are for.
+
+    - name: get-execution
+      method: GET
+      path: /executions/{id}
+      response: /datamodel/action-execution@1
+
+    - name: get-execution-output
+      method: GET
+      path: /executions/{id}/output
+      response: /datamodel/action-execution-output@1
+      summary: >-
+        The stored output of a run. The same characters stream live from
+        srn://stackstorm/protocol/event-stream, and this is the way to read them
+        afterwards.
+
+    - name: list-keys
+      method: GET
+      path: /keys
+      response: /datamodel/key-value-pair@1
+
+    - name: set-key
+      method: PUT
+      path: /keys/{name}
+      request: /datamodel/key-value-pair@1
+      response: /datamodel/key-value-pair@1
+      summary: Write a datastore entry, optionally asking for it to be encrypted at rest.
+
+    - name: get-config-schema
+      method: GET
+      path: /config_schemas/{pack_ref}
+      response: /datamodel/pack-config-schema@1
+      summary: >-
+        What a pack needs to be told. The path segment is snake_case because the
+        API's own vocabulary is, not because the catalog chose it.
+
+    - name: install-pack
+      method: POST
+      path: /packs/install
+      summary: >-
+        Install content at runtime. Answers with the execution that is doing the
+        installing, so the caller then follows the execution rather than this
+        call.
+
+    - name: match-and-execute
+      method: POST
+      path: /aliasexecution/match_and_execute
+      response: /datamodel/action-execution@1
+      summary: >-
+        Turn a line of chat into an execution. The one operation whose caller is
+        the chat bridge rather than a person or a script.

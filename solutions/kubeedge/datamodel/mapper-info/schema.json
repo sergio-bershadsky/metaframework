@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/mapper-info",
+  "x-srn": "srn://kubeedge/datamodel/mapper-info",
+  "title": "Mapper info",
+  "description": "A mapper's self-description, sent once when it comes online and stored by the edge runtime.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Mapper name. Also the key the edge runtime stores the record under."
+    },
+    "version": {
+      "type": "string",
+      "description": "The mapper's own version."
+    },
+    "api-version": {
+      "type": "string",
+      "description": "Version of the device management interface this mapper was built against. Wire key: api_version."
+    },
+    "protocol": {
+      "type": "string",
+      "description": "The southbound protocol this mapper serves, matched against the protocol-name of a device's visitor config. Registration is refused outright when it is empty."
+    },
+    "address": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "Local endpoint the edge runtime dials for downstream calls: a Unix socket path, or a named pipe on Windows. Carried as bytes on the wire."
+    },
+    "state": {
+      "type": "string",
+      "description": "Free state label reported by the mapper."
+    }
+  }
+}

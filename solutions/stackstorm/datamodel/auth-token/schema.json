@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/auth-token",
+  "x-srn": "srn://stackstorm/datamodel/auth-token",
+  "title": "Auth token",
+  "description": "The time-limited credential the authentication endpoint returns, and the record it validates against later.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "user": {
+      "type": ["string", "null"],
+      "description": "Who the token belongs to, as the configured backend named them."
+    },
+    "token": {
+      "type": ["string", "null"],
+      "description": "The opaque credential itself. Every other surface accepts this string."
+    },
+    "ttl": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Requested lifespan in seconds. Supplied by the caller; the response states the resulting expiry instead."
+    },
+    "expiry": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When the token stops being accepted."
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "description": "Free mapping, empty in the ordinary case. Nothing about permissions is carried here — they are evaluated per request against the user."
+    }
+  }
+}

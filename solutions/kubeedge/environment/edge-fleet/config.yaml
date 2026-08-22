@@ -1,0 +1,29 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/config-document
+
+# Everything in this file is read by the generated mapper's data-publishing
+# layer, and nothing else in the surveyed tree reads a configuration value from
+# the process environment at all. The shortness is the finding, not an omission
+# — see this environment's index.md and the cloud environment's for why.
+#
+# No `value:` is given for any of them. An environment declares the keys it
+# provides; these three are per-deployment and per-device-owner, so a literal
+# here would be a value this description made up.
+
+config:
+  - key: PASSWORD
+    for: /product/device-integration/component/mapper
+    secret: true
+    source: supplied by whoever deploys the mapper, in that workload's own manifest
+    description: Credential the generated database publishing clients read from the process environment rather than from the device resource.
+
+  - key: USERNAME
+    for: /product/device-integration/component/mapper
+    secret: true
+    source: supplied by whoever deploys the mapper, in that workload's own manifest
+    description: Account name for the time-series publishing client; the relational client reads its user name from the device resource instead.
+
+  - key: TOKEN
+    for: /product/device-integration/component/mapper
+    secret: true
+    source: supplied by whoever deploys the mapper, in that workload's own manifest
+    description: Access token for the other of the two generated time-series publishing clients, which authenticates with a token and no user name.

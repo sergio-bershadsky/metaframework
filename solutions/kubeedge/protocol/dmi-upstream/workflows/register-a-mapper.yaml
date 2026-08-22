@@ -1,0 +1,59 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: register-a-mapper
+title: A mapper comes online
+summary: The one call a mapper makes uninvited, the two ways it is refused, and the device list it gets back.
+participants: [mapper, devicetwin]
+steps:
+  - message: mapper-register
+    from: mapper
+    to: devicetwin
+    kind: call
+    payload: /datamodel/mapper-info@1
+    note: >-
+      Carries the local address the mapper is about to serve the downstream half
+      on. Everything the runtime does to this mapper afterwards depends on it.
+
+  - alt:
+      - when: the rate limiter admits the call and the mapper names a protocol
+        steps:
+          - message: mapper-register-result
+            from: devicetwin
+            to: mapper
+            kind: return
+            note: >-
+              Empty when the request did not ask for data; otherwise two lists,
+              of device models and of devices, which is why no single payload
+              model is named on this arrow.
+          - message: report-device-states
+            from: mapper
+            to: devicetwin
+            kind: call
+            condition: the mapper has opened its southbound link
+            note: >-
+              First proof the device is reachable. Sent on the mapper's own
+              schedule, not in reply to anything.
+          - message: report-device-states-ack
+            from: devicetwin
+            to: mapper
+            kind: return
+
+      - when: the limiter is exhausted
+        steps:
+          - message: register-refused
+            from: devicetwin
+            to: mapper
+            kind: error
+            note: >-
+              The error names the mapper. Nothing in the interface says how long
+              to wait before trying again.
+
+      - when: the mapper names no protocol
+        steps:
+          - message: register-refused
+            from: devicetwin
+            to: mapper
+            kind: error
+            note: >-
+              An empty protocol field is refused outright: it is the only field
+              on the registration the runtime validates, and it is the one a
+              device's visitor config is later matched against.

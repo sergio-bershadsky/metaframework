@@ -1,0 +1,32 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+summary: Two never-ending HTTP responses carrying bus traffic as server-sent events.
+# `text` is the closest the enum comes. The frames are text with a JSON document
+# inside each data field, and there is no member of the enum for "a text framing
+# whose payload is JSON" — nor a field anywhere in this block for the event names
+# that make the framing meaningful.
+encoding: text
+auth:
+  - bearer-token
+  - api-key-header
+http:
+  base-path: /stream/v1
+  tls: true
+  operations:
+    - name: stream
+      method: GET
+      path: /stream
+      response: /datamodel/action-execution@1
+      summary: >-
+        Everything the stream service consumes, filtered by a query parameter
+        listing event names. The response never ends and carries five shapes; the
+        model named here is the one that dominates it, and the operation object
+        has no way to name the others.
+
+    - name: execution-output
+      method: GET
+      path: /executions/{id}/output
+      response: /datamodel/action-execution-output@1
+      summary: >-
+        The output of one run as it is produced, followed by the run's own
+        completion event. Two shapes, one response field.

@@ -1,0 +1,103 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: run-an-action
+title: Run an action, from request to terminal status
+summary: The five hops that move one work item across two processes, and the three publishes at the end that nothing is bound to.
+participants: [api, broker, scheduler, action-runner, stream]
+steps:
+  - message: requested
+    from: api
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: requested
+    note: The rules engine and the workflow engine publish the same first message;
+      the API is drawn here because it is the one a person can see.
+
+  - message: requested
+    from: broker
+    to: scheduler
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: st2.actionrunner.req
+
+  - alt:
+      - when: the item passes its policies
+        steps:
+          - message: scheduled
+            from: scheduler
+            to: broker
+            kind: event
+            payload: /datamodel/live-action@1
+            channel: scheduled
+
+          - message: scheduled
+            from: broker
+            to: action-runner
+            kind: event
+            payload: /datamodel/live-action@1
+            channel: st2.actionrunner.work
+            note: Every runner process binds this one queue, so which process gets
+              the item is the broker's choice, not the platform's.
+
+          - message: running
+            from: action-runner
+            to: broker
+            kind: event
+            payload: /datamodel/live-action@1
+            channel: running
+            note: Published, and bound by nothing — a reader of the status exchange
+              alone never sees an action start.
+
+          - alt:
+              - when: the action returned
+                steps:
+                  - message: succeeded
+                    from: action-runner
+                    to: broker
+                    kind: event
+                    payload: /datamodel/live-action@1
+                    channel: succeeded
+              - when: the action raised, or the runner returned a failure
+                steps:
+                  - message: failed
+                    from: action-runner
+                    to: broker
+                    kind: event
+                    payload: /datamodel/live-action@1
+                    channel: failed
+              - when: the runner's own timeout elapsed
+                steps:
+                  - message: timeout
+                    from: action-runner
+                    to: broker
+                    kind: event
+                    payload: /datamodel/live-action@1
+                    channel: timeout
+            otherwise:
+              - message: abandoned
+                from: action-runner
+                to: broker
+                kind: event
+                payload: /datamodel/live-action@1
+                channel: abandoned
+                note: The worker was shutting down while the item was still
+                  incomplete.
+      - when: a concurrency or throttling policy holds it back
+        steps:
+          - message: delayed
+            from: scheduler
+            to: scheduler
+            kind: event
+            payload: /datamodel/live-action@1
+            note: Written to the store without being published at all — the one
+              status change in this protocol that never reaches the bus, which is
+              why this step names no channel.
+
+  - message: update
+    from: broker
+    to: stream
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: update
+    note: The record exchange, not the status exchange. This is how a terminal
+      status reaches a watching operator at all.

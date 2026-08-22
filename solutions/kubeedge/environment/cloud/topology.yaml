@@ -1,0 +1,56 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# No `regions` block: the project's chart records no geography at all — it
+# installs into whatever cluster the operator points it at — so a single
+# unnamed region is the only true reading. Naming one would be inventing a
+# place, and every host entry below therefore carries no `regions` either.
+
+hosts:
+  - component: /product/core/component/cloudcore
+    replicas: { min: 1, max: 1 }
+    scaling: none — the chart ships a fixed replica count and installs no autoscaler
+    notes: |
+      A Deployment, on the host network, with an affinity rule that keeps it off
+      any node labelled as an edge node. The replica range above is the chart's
+      default and not a limit: the project's own published scalability report
+      ran more than one instance, sized by hand for the fleet under test
+      (https://kubeedge.io/blog/scalability-test-report/). Nothing autoscales it
+      at either count, which is why `scaling` says so rather than naming a
+      trigger.
+
+  - component: /product/core/component/admission-controller
+    replicas: { min: 0, max: 1 }
+    scaling: none — switched on or off in the chart's values, never scaled
+    notes: |
+      Shipped disabled. `min: 0` is the honest floor for a workload whose
+      default state is "not installed"; the range is not a capacity statement
+      but the two positions of a switch.
+
+  - component: /product/core/component/controller-manager
+    replicas: { min: 0, max: 1 }
+    scaling: none — switched on or off in the chart's values, never scaled
+    notes: Shipped disabled, like the admission webhook, and read the same way.
+
+  - component: /product/core/component/iptables-manager
+    scaling: none — a DaemonSet, so the count is the cluster's non-edge node count
+    notes: |
+      No `replicas` on purpose. A DaemonSet's real count is one per matching
+      node, which is a property of the cluster rather than a range this format
+      can hold; `{ min: 1, max: 1 }` would be false on any cluster with more
+      than one node and there is no way to write the true statement.
+
+  # The console's two components are deliberately NOT hosted here. At the
+  # surveyed tag the Dashboard repository ships no deployment manifest, no
+  # chart and no release artifact, its backend binds the loopback address by
+  # default, and the project's own instructions run both halves from source
+  # against a named cluster endpoint. Placing them in a production-typed
+  # cluster would be a reading of nothing; both declare the single-machine
+  # target instead, and their own pages carry the argument.
+
+  - component: /product/networking/component/edgemesh-agent
+    scaling: none — a DaemonSet on every node, cloud nodes included
+    notes: |
+      Listed here as well as in the edge fleet because the agent's DaemonSet
+      carries no affinity restricting it to edge nodes: cloud-to-edge traffic
+      needs an agent at both ends. Replicas omitted for the DaemonSet reason
+      above.

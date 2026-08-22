@@ -1,0 +1,40 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+
+# The endpoint has no field in this block, and it is the load-bearing fact about
+# this wire: the server listens on a local socket, not on a network. On Linux it
+# is a Unix domain socket under the runtime's configuration directory, named for
+# the interface; on Windows it is a named pipe, because Unix sockets do not exist
+# there. `tls: false` below is true and is the smaller half of the story — see
+# index.md.
+kind: grpc
+summary: Three unary calls a device mapper makes into the edge runtime, over a local socket with no transport security.
+encoding: protobuf
+x-endpoint-linux: unix domain socket, <config-dir>/dmi.sock
+x-endpoint-windows: named pipe, per-runtime prefix
+grpc:
+  # A single bare segment. The binding table documents this field as
+  # dot-separated; the interface description declares its package as the version
+  # word alone, and the value here is what the file says.
+  package: v1beta1
+  service: DeviceManagerService
+  tls: false
+  methods:
+    - name: MapperRegister
+      request: /datamodel/mapper-info@1
+      summary: >-
+        Announce this mapper and the local address it is about to serve on. The
+        request also carries a boolean asking for the device list back; the reply
+        carries two lists, so no single response model can be named here.
+
+    - name: ReportDeviceStatus
+      request: /datamodel/device-status@1
+      summary: >-
+        Report one device's twins. The request wraps the status with the device's
+        name and namespace, which is why the named model is the status alone. The
+        reply is an empty message.
+
+    - name: ReportDeviceStates
+      summary: >-
+        Report whether one device is reachable. Every field of the request is a
+        scalar — device name, namespace, state — so no model is named, and the
+        reply is an empty message.

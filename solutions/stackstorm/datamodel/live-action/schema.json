@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/live-action",
+  "x-srn": "srn://stackstorm/datamodel/live-action",
+  "title": "Live action",
+  "description": "One attempt to run one action. Published to the status exchange on every transition, with the status string as the routing key.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "action": {
+      "type": "string",
+      "description": "Reference to the action to run, in pack.name form. The one field the requester must supply besides parameters."
+    },
+    "status": {
+      "enum": [
+        "requested",
+        "scheduled",
+        "delayed",
+        "running",
+        "succeeded",
+        "failed",
+        "timeout",
+        "abandoned",
+        "canceling",
+        "canceled",
+        "pending",
+        "pausing",
+        "paused",
+        "resuming"
+      ],
+      "description": "Current status. Also the routing key this record is published under; five of these fourteen have a durable queue bound to them."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Input for the action, keyed by parameter name. The shape is declared by the action's own metadata, which ships in a pack."
+    },
+    "result": {
+      "description": "Whatever the runner returned. Any JSON type, including a bare scalar."
+    },
+    "context": {
+      "type": "object",
+      "description": "Who asked and why — user, parent execution, originating rule. Open mapping in the source."
+    },
+    "callback": {
+      "type": "object",
+      "description": "Where an asynchronous runner reports back to. Filled by the runner, not by the requester."
+    },
+    "runner-info": {
+      "type": "object",
+      "description": "Which process picked the work up. Wire key: runner_info."
+    },
+    "notify": {
+      "type": "object",
+      "description": "Per-execution notification settings, read by the notifier when the record completes."
+    },
+    "start-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wire key: start_timestamp."
+    },
+    "end-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wire key: end_timestamp."
+    }
+  },
+  "required": ["action"]
+}

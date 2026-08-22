@@ -1,0 +1,150 @@
+# Arazzo Description — one participant's path across this bus. Unvalidated
+# here: this framework snapshots and serves the file and states no rule about
+# its contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface");
+# the portal reads it only to draw the step graph beside this source.
+# workflows/*.yaml stay the authoritative choreography, and the sequence
+# diagrams on this page derive from them alone.
+#
+# WHOSE PATH. `action-runner`. The requesters' side of each of these workflows is
+# a single publish onto the status exchange — `requested`, `canceling`,
+# `pausing`, `resuming` — and nothing follows it that the requester itself does.
+# The runner's side is the sequence the exchange exists to carry, and it is the
+# only side of this protocol whose path is more than one step.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block. Direction is stated per step instead, and it is
+# taken from the `from`/`to` of the workflow files.
+#
+# NO successCriteria ON THE RECEIVE STEPS. The Arazzo Specification asks authors
+# to write one against the received payload, and allows it to be omitted only
+# where the channel declares a single unambiguous message. The four
+# `st2.actionrunner.*` queues this file receives on declare no `messages` map at
+# all, so neither condition can be met honestly: there is no declared payload
+# field for a criterion to read. The gap is left open rather than filled with an
+# invented field name.
+arazzo: 1.1.0
+info:
+  title: Execution lifecycle
+  summary: An action runner's path across the liveaction status exchange.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Four workflows, one per file under workflows/. The queue a runner takes work
+    from is shared by every runner process, so which process receives any given
+    message is the broker's choice; a workflow here describes what one runner
+    does with a message, never which runner gets it.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: run-an-action
+    summary: Take a scheduled item, start it, and publish where it ended.
+    description: >-
+      workflows/run-an-action.yaml, from the runner. Two things there are not
+      the runner's and have no step here: the two hops that carry `requested`
+      from a requester to the scheduler, and the `delayed` branch, which the
+      scheduler writes to the store without publishing at all.
+
+      The terminal publish below is the `succeeded` arm of that file's inner
+      `alt`. Its three siblings — `failed`, `timeout` and `abandoned` — are
+      three more channels of transport.yaml reached under conditions no
+      criterion in this file can read, and Arazzo carries no conditional
+      fragment, so they stay in the workflow file.
+    steps:
+      - stepId: receive-scheduled
+        description: >-
+          The runners' work queue, and the platform's entire horizontal-scaling
+          story: every runner process binds this one queue and the broker shares
+          the messages between them.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/actionrunner-work"
+        action: receive
+      - stepId: send-running
+        description: >-
+          Published, and bound by nothing — a reader of the status exchange
+          alone never sees an action start.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-running"
+        action: send
+        dependsOn:
+          - receive-scheduled
+      - stepId: send-succeeded
+        description: >-
+          Terminal. Read from the store by everything that cares, and carried to
+          a watching operator by the record exchange rather than by this one.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-succeeded"
+        action: send
+        dependsOn:
+          - send-running
+  - workflowId: cancel-an-execution
+    summary: Take a cancel request and confirm it stopped.
+    description: >-
+      workflows/cancel-an-execution.yaml, from the runner. A different runner
+      process may take the cancel than the one running the action, which is why
+      cancellation is cooperative rather than immediate. That file's `otherwise`
+      arm publishes `abandoned` instead, on a channel of its own, when the
+      worker goes away mid-cancel; Arazzo carries no conditional fragment, so it
+      stays there.
+    steps:
+      - stepId: receive-canceling
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/actionrunner-cancel"
+        action: receive
+      - stepId: send-canceled
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-canceled"
+        action: send
+        dependsOn:
+          - receive-canceling
+  - workflowId: pause-and-resume-a-task
+    summary: Hold a running action, then let it go again.
+    description: >-
+      workflows/pause-and-resume-a-task.yaml, from the runner. The two publishes
+      that start each half are the API's. The pause queue is not in the set the
+      platform pre-declares at start-up, so it exists only after a runner has
+      connected once — and only runners that implement pausing answer at all;
+      the others leave the item in the requesting status, which is an absence
+      rather than a step.
+    steps:
+      - stepId: receive-pausing
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/actionrunner-pause"
+        action: receive
+      - stepId: send-paused
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-paused"
+        action: send
+        dependsOn:
+          - receive-pausing
+      - stepId: receive-resuming
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/actionrunner-resume"
+        action: receive
+        dependsOn:
+          - send-paused
+      - stepId: send-running
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-running"
+        action: send
+        dependsOn:
+          - receive-resuming
+  - workflowId: answer-an-inquiry
+    summary: Ask for a human, and be picked up again once one answered.
+    description: >-
+      workflows/answer-an-inquiry.yaml, from the runner. The two publishes
+      between the steps below are the API's — the terminal status written onto
+      the inquiry's own item, and the request that the parent workflow be picked
+      up again — and neither is this executor's, so neither is a step here. The
+      dependency is the workflow file's ordering: the resume cannot arrive
+      before the inquiry was raised.
+    steps:
+      - stepId: send-pending
+        description: >-
+          The inquirer runner returns this instead of a terminal status. It is
+          not a member of the completed set, so nothing downstream treats the
+          item as finished.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/status-pending"
+        action: send
+      - stepId: receive-resuming
+        description: >-
+          Taken from the shared resume queue, so possibly by a different runner
+          process than the one that raised the inquiry.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/actionrunner-resume"
+        action: receive
+        dependsOn:
+          - send-pending

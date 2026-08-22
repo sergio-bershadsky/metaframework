@@ -1,0 +1,40 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: hand-a-graph-to-an-engine
+title: Hand a workflow graph to an engine
+summary: The runner writes the record and publishes its status; whichever engine process is free takes the graph and starts asking the conductor what runs next.
+participants: [action-runner, broker, workflow-engine]
+steps:
+  - message: workflow-requested
+    from: action-runner
+    to: broker
+    kind: event
+    payload: /datamodel/workflow-execution@1
+    channel: requested
+    note: The runner executes nothing itself once it sees the action is a graph.
+
+  - message: workflow-requested
+    from: broker
+    to: workflow-engine
+    kind: event
+    payload: /datamodel/workflow-execution@1
+    channel: st2.workflow.work
+
+  - opt:
+      when: the graph was held and is being let go again
+      steps:
+        - message: workflow-resuming
+          from: action-runner
+          to: broker
+          kind: event
+          payload: /datamodel/workflow-execution@1
+          channel: resuming
+
+        - message: workflow-resuming
+          from: broker
+          to: workflow-engine
+          kind: event
+          payload: /datamodel/workflow-execution@1
+          channel: st2.workflow.resume
+          note: A different engine process may take it than the one that was
+            driving the graph, which is why the conductor state travels in the
+            message rather than in the process.

@@ -1,0 +1,52 @@
+# Arazzo Description — the initiator's path across this bus. Unvalidated here:
+# this framework snapshots and serves the file and states no rule about its
+# contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface"); the
+# portal reads it only to draw the step graph beside this source.
+# workflows/dispatch-an-event.yaml stays the authoritative choreography, and
+# the sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. `sensor-container`, one of the five publishers index.md lists. The
+# same step is taken by the timers engine, the API on a webhook, the notifier and
+# the inquirer runner — five publishers, one routing key — so this workflow is
+# every publisher's path, and naming one of them is a presentation choice rather
+# than a claim about the wire.
+#
+# The rules engine's side is the second step of that file plus a record write and
+# an acknowledgement, neither of which is a wire message on this protocol. It is
+# not described here: this file is the initiator's surface.
+#
+# The step references its channel by `channelPath`, not by `operationId`:
+# transport.yaml declares no `operations` block.
+arazzo: 1.1.0
+info:
+  title: Trigger dispatch
+  summary: A sensor's one publish onto the trigger-instance exchange.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    One workflow with one step, because that is the whole of the initiator's
+    side. The consumer queue binds "#", so it receives everything this exchange
+    is ever sent, whatever key it was sent under — which means the publisher has
+    no routing decision to describe either.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: dispatch-an-event
+    summary: Publish the wrapper for something a sensor noticed.
+    description: >-
+      The first step of workflows/dispatch-an-event.yaml. The `alt` in that file
+      is the consumer's: a trigger instance is recorded before the message is
+      acknowledged, and when no trigger is registered for the reference nothing
+      is acknowledged and the message stays on the queue. The publisher is told
+      none of that, and this description carries none of it.
+    steps:
+      - stepId: send-trigger-instance
+        description: >-
+          No successCriteria and no timeout: nothing comes back on this protocol
+          that a criterion could read.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/trigger-instance"
+        action: send

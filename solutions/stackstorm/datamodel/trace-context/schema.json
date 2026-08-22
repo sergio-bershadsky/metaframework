@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/trace-context",
+  "x-srn": "srn://stackstorm/datamodel/trace-context",
+  "title": "Trace context",
+  "description": "Correlation token carried inside the body of a trigger dispatch or an announcement. At least one of the two members must be present for a consumer to resolve it.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Id of a trace record that already exists. Wire key: id_ — the trailing underscore is on the wire."
+    },
+    "trace-tag": {
+      "type": "string",
+      "description": "Free-form label that opens a trace if no id is given. Not unique, and not an id despite the name of the constant that holds it. Wire key: trace_tag."
+    }
+  },
+  "anyOf": [
+    { "required": ["id"] },
+    { "required": ["trace-tag"] }
+  ]
+}

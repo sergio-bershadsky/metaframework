@@ -1,0 +1,112 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# Every replica figure below is a DEFAULT PUBLISHED BY THE CHART, read from the
+# chart repository on 2026-08-22 — not a measurement of any running cluster.
+# An operator changes them, and the chart moves on its own release train, so a
+# figure here is a claim about an artifact rather than about a deployment.
+#
+# No `regions` list is declared. The chart targets one Kubernetes cluster and
+# says nothing about where its nodes are; inventing region names would be
+# describing a deployment this catalog has never seen.
+
+hosts:
+  - component: /product/platform/component/st2api
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, active-active behind the ingress; the chart's default, which an operator raises
+    notes: |
+      Stateless. Every request either reads the store or writes to it and
+      publishes a message, so any instance can serve any request.
+
+  - component: /product/platform/component/st2auth
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, active-active behind the ingress
+
+  - component: /product/platform/component/st2stream
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, but connection-bound rather than request-bound
+    notes: |
+      Each instance creates its own broker-named exclusive queues per client
+      connection, so scaling this component multiplies queues on the broker in
+      a way scaling the request services does not.
+
+  - component: /product/platform/component/st2rulesengine
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, active-active; competing consumers on one durable queue
+
+  - component: /product/platform/component/st2scheduler
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, active-active; concurrency policies rely on the coordination backend
+    notes: |
+      This is the component whose behaviour genuinely differs between this
+      target and the single-host one. With a real coordination backend its
+      concurrency limits hold across instances; with the no-op fallback the
+      other target uses, they hold nowhere at all.
+
+  - component: /product/platform/component/st2actionrunner
+    replicas: { min: 5, max: 5 }
+    scaling: horizontal, active-active; the chart's highest default, because this is where work happens
+    notes: |
+      Competing consumers on the durable runner queues. The default is higher
+      than every other workload's, which is the chart's own statement about
+      where the load is.
+
+  - component: /product/platform/component/st2workflowengine
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, active-active; workflow concurrency policies rely on the coordination backend
+
+  - component: /product/platform/component/st2notifier
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal, active-active; its rescue pass relies on the coordination backend
+    notes: |
+      The second responsibility is the one that constrains this entry: two
+      instances both re-driving the same stuck execution would start it twice,
+      which is what the shared lock prevents.
+
+  - component: /product/platform/component/st2timersengine
+    replicas: { min: 1, max: 1 }
+    scaling: none — the chart pins one replica because the process cannot run active-active
+    notes: |
+      This range is not a sizing decision. One is the only correct number, on
+      every target, forever: two instances fire every timer twice. The format
+      cannot distinguish that from an ordinary placement claim, and the
+      component's own page carries the argument.
+
+  - component: /product/platform/component/st2garbagecollector
+    replicas: { min: 1, max: 1 }
+    scaling: none — a periodic pass; the project notes little benefit in running several
+
+  - component: /product/platform/component/st2sensorcontainer
+    replicas: { min: 1, max: 1 }
+    scaling: partitioned, not competing — extra instances need a sensor partitioning scheme, not a queue
+    notes: |
+      The chart's default is a single deployment. Sensors cannot be scaled the
+      way runners are: two containers running one sensor would both observe the
+      same external event and emit it twice, so the scaling mechanism here is
+      ownership of a subset rather than sharing a queue.
+
+  - component: /product/platform/component/mongodb
+    replicas: { min: 3, max: 3 }
+    scaling: replica set; the chart's default member count
+    notes: The only stateful workload here whose data loss is unrecoverable.
+
+  - component: /product/platform/component/rabbitmq
+    replicas: { min: 3, max: 3 }
+    scaling: broker cluster; the chart's default node count
+    notes: |
+      The project's own guidance for a clustered deployment is to mirror the
+      queues and exchanges, so that losing one node does not lose the routing
+      topology every process depends on.
+
+  - component: /product/platform/component/redis
+    scaling: replicated with Sentinel; the chart deploys it as the coordination backend the cluster requires
+    notes: |
+      No replica range is recorded here on purpose. The chart's own README and
+      its values document describe this deployment two different ways — a node
+      count in one and a replica count beside a primary in the other — so any
+      single `{min, max}` written here would be picking one of them. What is
+      certain, and is what a reader needs, is that this target deploys a real
+      coordination backend and the single-host target does not.
+
+  - component: /product/operator-surfaces/component/st2web
+    replicas: { min: 2, max: 2 }
+    scaling: horizontal; static assets served from replicated pods behind the ingress

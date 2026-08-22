@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/customized-value",
+  "x-srn": "srn://kubeedge/datamodel/customized-value",
+  "title": "Customized value",
+  "description": "Protocol-specific settings carried opaquely by the device shapes. Keys and value types are decided by the mapper that reads them; the API server is told to preserve unknown fields here rather than validate them.",
+  "type": "object"
+}

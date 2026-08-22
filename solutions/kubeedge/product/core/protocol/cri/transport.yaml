@@ -1,0 +1,18 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+
+# Two services share this package, this endpoint and this client: a runtime
+# service of 29 calls and an image service of 5. `service` holds one string, so
+# only the first is named here. See index.md.
+#
+# No `methods` list: the surface is a foreign standard's, specified and versioned
+# outside this catalog, and its description may not be vendored here.
+kind: grpc
+summary: The edge runtime driving containerd over Kubernetes' container runtime interface, on containerd's local socket.
+encoding: protobuf
+x-endpoint-linux: unix domain socket, containerd's default under the host run directory
+x-endpoint-windows: named pipe, containerd's default
+x-second-service: ImageService, same package and endpoint, not nameable in this block
+grpc:
+  package: runtime.v1
+  service: RuntimeService
+  tls: false

@@ -1,0 +1,64 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: run-an-action-from-the-cli
+title: Run an action from the command line and wait for it
+summary: Two hops through the proxy, one execution created, and a poll — because the REST API has no way to tell a caller that a run has finished.
+participants: [operator, cli, edge, api]
+steps:
+  - message: run-action
+    from: operator
+    to: cli
+    kind: call
+    note: A person types the pack.action reference and its parameters.
+
+  - message: create-execution
+    from: cli
+    to: edge
+    kind: call
+    payload: /datamodel/live-action@1
+    channel: create-execution
+
+  - message: create-execution
+    from: edge
+    to: api
+    kind: call
+    payload: /datamodel/live-action@1
+    channel: create-execution
+    note: The proxy strips its own location prefix, so the path the service sees
+      is not the path the client typed.
+
+  - message: execution-accepted
+    from: api
+    to: edge
+    kind: return
+    payload: /datamodel/action-execution@1
+
+  - message: execution-accepted
+    from: edge
+    to: cli
+    kind: return
+    payload: /datamodel/action-execution@1
+    note: The API has published the work item onto the bus and answered. Nothing
+      has run yet.
+
+  - loop:
+      while: the execution has not reached a completed status
+      steps:
+        - message: get-execution
+          from: cli
+          to: api
+          kind: call
+          channel: get-execution
+
+        - message: execution-state
+          from: api
+          to: cli
+          kind: return
+          payload: /datamodel/action-execution@1
+
+  - message: result
+    from: cli
+    to: operator
+    kind: return
+    note: Polling is what the command line does by default. The event stream
+      exists so that a client need not, and the CLI uses it only for tailing
+      output.

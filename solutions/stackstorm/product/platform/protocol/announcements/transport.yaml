@@ -1,0 +1,68 @@
+asyncapi: 3.1.0
+x-srn: srn://stackstorm/product/platform/protocol/announcements
+info:
+  title: Announcements
+  version: unversioned
+  description: >-
+    One exchange, a routing key chosen by the automation, and one transient
+    subscriber per open stream connection.
+defaultContentType: application/x-python-serialize
+servers:
+  st2-bus:
+    host: "{host}"
+    protocol: amqp
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - connection-url-password
+    x-st2-messaging-vhost: /
+    x-st2-messaging-prefix: st2
+channels:
+  announcement:
+    # Chosen by the running automation, so unknown at design time. AsyncAPI
+    # defines `null` as exactly that; the mini-spec's `routing-key` is a required
+    # string and the only true string here has a hole in it.
+    address: null
+    summary: >-
+      Whatever route the action passed. The runner's parameter documentation
+      says it may be several words separated by dots, which the only subscriber
+      below cannot match.
+    x-route-parameter-default: general
+    x-route-parameter-constraints: 1 to 255 characters
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.announcement
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      announcement:
+        x-srn-payload: /datamodel/announcement@1
+        summary: The action's own parameters, wrapped with a trace context.
+
+  stream-announcement:
+    address: null
+    summary: >-
+      One per open stream connection, named by the broker and deleted with the
+      connection. It binds the single-word wildcard, which matches the route
+      parameter's default and not the dotted form the runner documents.
+    x-bound-to-exchange: st2.announcement
+    x-binding-routing-key: "*"
+    x-server-named-queue: true
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          durable: true
+          exclusive: true
+          autoDelete: true
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      announcement:
+        x-srn-payload: /datamodel/announcement@1

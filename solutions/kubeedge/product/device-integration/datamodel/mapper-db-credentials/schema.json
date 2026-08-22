@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/product/device-integration/datamodel/mapper-db-credentials",
+  "x-srn": "srn://kubeedge/product/device-integration/datamodel/mapper-db-credentials",
+  "title": "Mapper database credentials",
+  "description": "The environment keys a generated mapper reads when it pushes device readings into a database. Every key is optional: a mapper reads only the one its configured push target needs.",
+  "type": "object",
+  "properties": {
+    "PASSWORD": {
+      "type": "string",
+      "writeOnly": true,
+      "description": "Password for the Redis, MySQL or TDengine client the mapper was generated with. Secret: the value never enters the catalog."
+    },
+    "USERNAME": {
+      "type": "string",
+      "writeOnly": true,
+      "description": "User name for the TDengine client. Secret by association: it is supplied through the same channel as the password and is not written in a device resource."
+    },
+    "TOKEN": {
+      "type": "string",
+      "writeOnly": true,
+      "description": "Write token for the InfluxDB 2 client. Secret: the value never enters the catalog."
+    }
+  }
+}

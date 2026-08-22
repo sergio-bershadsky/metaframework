@@ -1,0 +1,31 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+name: run-an-action-from-chat
+steps:
+  - actor: /actor/chat-user
+    touches: /product/operator-surfaces/component/st2chatops
+    protocol: none
+    note: A phrase in a room. The chat platform that carried it is outside this
+      solution and is described nowhere in this catalog.
+
+  - actor: /actor/api-key-identity
+    touches: /product/platform/component/st2api
+    protocol: /protocol/rest-api
+    # operator-surfaces -> platform, documented.
+    note: The bridge matches the phrase against installed aliases and asks for an
+      execution, holding its own key. From here the person is invisible.
+
+  - actor: /actor/api-key-identity
+    touches: /product/platform/component/st2stream
+    protocol: /protocol/event-stream
+    note: The subscription was opened long before this conversation started. It
+      listens for one fixed event name built from the announcement exchange and
+      the route "chatops".
+
+  - actor: /actor/chat-user
+    touches: /product/operator-surfaces/component/st2chatops
+    protocol: none
+    # platform -> operator-surfaces. See index.md: none is the least wrong of the
+    # three states the field has, and what it stands in for is "described
+    # elsewhere, deliberately out of scope".
+    note: The answer appears in the room. Nothing about it tells the person which
+      machine changed, or that anything ran at all.

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/visitor-config",
+  "x-srn": "srn://kubeedge/datamodel/visitor-config",
+  "title": "Visitor config",
+  "description": "How a mapper reaches one property of one physical device.",
+  "type": "object",
+  "properties": {
+    "protocol-name": {
+      "type": "string",
+      "description": "Name of the southbound protocol, matched against the protocol a mapper declares when it registers. Wire key: protocolName."
+    },
+    "config-data": {
+      "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/customized-value",
+      "description": "The register, node id or characteristic to read, in whatever shape that protocol's mapper defined. Wire key: configData."
+    }
+  }
+}

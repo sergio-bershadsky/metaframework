@@ -1,0 +1,39 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: answer-an-inquiry
+title: Answer an inquiry and let the workflow go on
+summary: The one status that means "waiting for a human", and the two publishes that follow when the human answers.
+participants: [action-runner, broker, api]
+steps:
+  - message: pending
+    from: action-runner
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: pending
+    note: The inquirer runner returns this instead of a terminal status. It is not
+      a member of the completed set, so nothing downstream treats the item as
+      finished.
+
+  - message: succeeded
+    from: api
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: succeeded
+    note: Answering the inquiry writes the terminal status onto the inquiry's own
+      item, from the API process rather than from a runner.
+
+  - message: resuming
+    from: api
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: resuming
+    note: And asks for the parent workflow's paused item to be picked up again.
+
+  - message: resuming
+    from: broker
+    to: action-runner
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: st2.actionrunner.resume

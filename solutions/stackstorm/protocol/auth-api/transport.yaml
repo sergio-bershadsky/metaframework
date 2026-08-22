@@ -1,0 +1,25 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/transport-document
+kind: http
+summary: Credentials in a header, a time-limited token out, on its own port behind its own proxy location.
+encoding: json
+auth:
+  - basic
+http:
+  base-path: /auth/v1
+  tls: true
+  operations:
+    - name: request-token
+      method: POST
+      path: /tokens
+      response: /datamodel/auth-token@1
+      summary: >-
+        Credentials arrive in the standard authorization header rather than in
+        the body; the body carries only the requested lifespan, which is why
+        this operation names a response model and no request model.
+
+    - name: validate-token
+      method: POST
+      path: /tokens/validate
+      summary: >-
+        Answers whether a token is still good. The response is a single boolean
+        wrapper, which this catalog does not model as a datamodel of its own.

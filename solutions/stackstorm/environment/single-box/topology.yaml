@@ -1,0 +1,126 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# One host, so no region is declared: an absent `regions` list means a single
+# unnamed region, which is exactly what this target is. Every entry below is a
+# single instance, because "one box" is the whole definition of this shape.
+
+hosts:
+  - component: /product/platform/component/st2api
+    replicas: { min: 1, max: 1 }
+    scaling: none — one process; the reverse proxy in front of it has nothing to balance across
+    notes: |
+      Listens on the port the `[api]` section of the sample configuration
+      defaults to, on the loopback interface. Reached from outside only through
+      the reverse proxy.
+
+  - component: /product/platform/component/st2auth
+    replicas: { min: 1, max: 1 }
+    scaling: none — one process
+    notes: Listens on the port the `[auth]` section defaults to, on the loopback interface.
+
+  - component: /product/platform/component/st2stream
+    replicas: { min: 1, max: 1 }
+    scaling: none — one process
+    notes: |
+      Listens on the port the `[stream]` section defaults to. Each client
+      connection causes a set of broker-named exclusive queues to be created
+      and torn down, so connection count and queue count move together here.
+
+  - component: /product/platform/component/st2rulesengine
+    replicas: { min: 1, max: 1 }
+    scaling: none — one consumer on the trigger-instance queue
+
+  - component: /product/platform/component/st2scheduler
+    replicas: { min: 1, max: 1 }
+    scaling: none — one consumer, so nothing here competes with it for the queue
+    notes: |
+      One scheduler instance does not make the absent coordination backend
+      harmless. The fallback driver enforces no lock at all, and an action's
+      concurrency policy is a claim about how many *executions* may run, which
+      the runners settle among themselves — so the limit is best effort on this
+      target even with a single scheduler.
+
+  - component: /product/platform/component/st2actionrunner
+    replicas: { min: 1, max: 1 }
+    scaling: none by default — the installer starts one; nothing prevents an operator raising it
+    notes: |
+      The one process here whose count an operator most often changes, because
+      it is where the work happens. Raising it on this host is safe: the runner
+      queues are durable and shared, so extra instances compete for messages.
+
+  - component: /product/platform/component/st2workflowengine
+    replicas: { min: 1, max: 1 }
+    scaling: none — one consumer
+
+  - component: /product/platform/component/st2notifier
+    replicas: { min: 1, max: 1 }
+    scaling: none — one consumer, which also makes its rescue pass unambiguous
+
+  - component: /product/platform/component/st2timersengine
+    replicas: { min: 1, max: 1 }
+    scaling: none, and here the constraint and the deployment happen to agree
+    notes: |
+      One is not a sizing choice for this component, it is the only correct
+      number anywhere. On this target the distinction is invisible, which is
+      precisely why the component's own page has to state it.
+
+  - component: /product/platform/component/st2garbagecollector
+    replicas: { min: 1, max: 1 }
+    scaling: none — a periodic pass, and a second one would only duplicate deletes
+
+  - component: /product/platform/component/st2sensorcontainer
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container owning every registered sensor, so no partitioning is needed
+    notes: |
+      It starts one child process per enabled sensor, so the process count on
+      this host tracks how many packs with sensors are installed rather than
+      anything in this file.
+
+  - component: /product/platform/component/nginx
+    replicas: { min: 1, max: 1 }
+    scaling: none — the single entry point
+    notes: |
+      Terminates TLS, serves the web interface's built assets from disk, and
+      proxies the three HTTP services. The only component here that is reachable
+      from outside the host.
+
+  - component: /product/platform/component/mongodb
+    replicas: { min: 1, max: 1 }
+    scaling: none — a single instance, with no replica set
+    notes: |
+      Installed by the project's installer alongside everything else. Its data
+      directory is the only thing on this host whose loss is unrecoverable.
+
+  - component: /product/platform/component/rabbitmq
+    replicas: { min: 1, max: 1 }
+    scaling: none — a single broker, reached over the loopback interface
+
+  - component: /product/platform/component/redis
+    replicas: { min: 1, max: 1 }
+    scaling: none — a single instance, and by default nothing is configured to use it
+    notes: |
+      Installed, but the coordination URL is unset by default, so the platform
+      uses a no-op driver instead and takes no real locks at all. The entry
+      records that the software is here; it does not claim the platform is
+      talking to it.
+
+  - component: /product/operator-surfaces/component/st2web
+    replicas: { min: 1, max: 1 }
+    scaling: none — static assets on disk, served by the reverse proxy
+    notes: Not a process on this host; a built bundle the proxy reads from the filesystem.
+
+  - component: /product/operator-surfaces/component/st2client
+    replicas: { min: 1, max: 1 }
+    scaling: none — a command-line tool, not a running instance
+    notes: |
+      Installed on the box by the installer so an operator who is already on the
+      host can use it. The replica range is the format's only way to say
+      "present", which is a poor fit for a program that runs when somebody types
+      its name.
+
+  - component: /product/operator-surfaces/component/st2chatops
+    replicas: { min: 1, max: 1 }
+    scaling: none — one bridge process per chat workspace
+    notes: |
+      Installed as a separate package rather than by the main installer, so this
+      entry describes a deployment that has chosen to add it.

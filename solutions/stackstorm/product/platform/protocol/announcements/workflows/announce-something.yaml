@@ -1,0 +1,34 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: announce-something
+title: An automation announces something
+summary: One publish, one transient subscriber per listener, and no way to learn whether anybody heard.
+participants: [action-runner, broker, stream]
+steps:
+  - message: announcement
+    from: action-runner
+    to: broker
+    kind: event
+    payload: /datamodel/announcement@1
+    channel: announcement
+    note: The routing key came from the action's parameters. The runner refuses to
+      run at all unless the action acknowledges that this mechanism is
+      experimental.
+
+  - alt:
+      - when: the route is a single word
+        steps:
+          - message: announcement
+            from: broker
+            to: stream
+            kind: event
+            payload: /datamodel/announcement@1
+            channel: stream-announcement
+            note: One copy per open connection, into a queue the broker named.
+    otherwise:
+      - message: announcement
+        from: broker
+        to: broker
+        kind: event
+        note: A dotted route matches no binding, so the broker drops it. Nothing
+          tells the automation, because there is nothing on this protocol that
+          could.

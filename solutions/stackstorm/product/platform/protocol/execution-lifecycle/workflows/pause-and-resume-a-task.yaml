@@ -1,0 +1,51 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: pause-and-resume-a-task
+title: Pause a running action and let it go again
+summary: Two request statuses, two queues that are not pre-declared, and a runner that has to support both.
+participants: [api, broker, action-runner]
+steps:
+  - message: pausing
+    from: api
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: pausing
+
+  - message: pausing
+    from: broker
+    to: action-runner
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: st2.actionrunner.pause
+    note: This queue is not in the set the platform pre-declares at start-up, so
+      it exists only after a runner has connected once.
+
+  - message: paused
+    from: action-runner
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: paused
+    note: Only runners that implement pausing answer; the others leave the item
+      in the requesting status.
+
+  - message: resuming
+    from: api
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: resuming
+
+  - message: resuming
+    from: broker
+    to: action-runner
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: st2.actionrunner.resume
+
+  - message: running
+    from: action-runner
+    to: broker
+    kind: event
+    payload: /datamodel/live-action@1
+    channel: running

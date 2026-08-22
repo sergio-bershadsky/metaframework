@@ -1,0 +1,30 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: report-a-reading
+title: A reading reaches the twin
+summary: One collected value travelling from the mapper into the edge runtime's twin cache, and the branch that decides whether the cloud ever sees it.
+participants: [mapper, devicetwin]
+steps:
+  - message: report-device-status
+    from: mapper
+    to: devicetwin
+    kind: call
+    payload: /datamodel/device-status@1
+    note: >-
+      Sent on the report cycle configured per property in the device resource.
+      The mapper decides when; nothing polls it.
+
+  - message: report-device-status-ack
+    from: devicetwin
+    to: mapper
+    kind: return
+    note: An empty message. Acknowledgement is that the call returned at all.
+
+  - opt:
+      when: the property is marked report-to-cloud
+      steps:
+        - message: twin-update-upstream
+          from: devicetwin
+          to: devicetwin
+          kind: event
+          note: >-
+            Not a call on this wire: the module hands the update to the local bus and it leaves over the cloud-edge channel. An unmarked property stays on the node.

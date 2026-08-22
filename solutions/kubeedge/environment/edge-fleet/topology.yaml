@@ -1,0 +1,69 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+regions:
+  - name: edge-site
+    notes: |
+      Read this name as a CLASS of place, not a place. The real placement is
+      "one instance per site, and the number of sites is unbounded, changes
+      without a commit, and is enumerated in no repository". This format has
+      exactly two shapes available — a list of named regions, or no list at all
+      — and neither can carry that sentence: a list means somebody enumerated
+      the sites, and no list is defined to mean one unnamed place, which is the
+      one thing this environment is not.
+
+      The single entry below is therefore a placeholder that keeps every host's
+      `regions` reference resolvable, and the environment's own page carries the
+      argument. Nobody should read a count, a location or a failure domain out
+      of it. `zones` is omitted for the same reason: a site's internal failure
+      domains, where a site even has any, are the site owner's fact and are not
+      in any KubeEdge artifact.
+
+hosts:
+  - component: /product/core/component/edgecore
+    regions: [edge-site]
+    replicas: { min: 1, max: 1 }
+    scaling: none — exactly one per enrolled node, installed as a host service rather than scheduled
+    notes: |
+      The replica range is per node and is genuinely fixed at one: the installer
+      registers it as a system service on the host, so there is no scheduler
+      that could ever make a second. What the range does NOT say, and cannot, is
+      how many nodes there are.
+
+  - component: /product/core/component/mosquitto
+    regions: [edge-site]
+    scaling: none — a DaemonSet, so the count is the enrolled edge node count
+    notes: |
+      Installed onto the edge nodes by the CLOUD chart, with an affinity rule
+      that requires the edge node role — which is the detail most likely to be
+      misread: the broker is declared in the cloud half's chart and it does not
+      run in the cloud. Replicas omitted because a DaemonSet's count is a
+      property of the cluster.
+
+  - component: /product/device-integration/component/mapper
+    regions: [edge-site]
+    scaling: manual — one mapper process per device protocol per site, deployed by the operator
+    notes: |
+      The least placeable entry in the catalog. A mapper is deployed by whoever
+      owns the devices, once per fieldbus family they have, on the nodes those
+      devices are wired to. There is no chart in any KubeEdge repository that
+      places one, so no count, no region detail and no replica range would be a
+      reading of anything — the entry exists so the placement view shows the
+      component at all, with `scaling` carrying the only true sentence
+      available.
+
+  - component: /product/networking/component/edgemesh-agent
+    regions: [edge-site]
+    scaling: none — a DaemonSet on every node
+    notes: |
+      Also listed in the cloud environment: the agent's DaemonSet carries no
+      affinity restricting it to edge nodes, because cross-network traffic needs
+      an agent at both ends.
+
+  - component: /product/networking/component/edgemesh-gateway
+    regions: [edge-site]
+    replicas: { min: 0, max: 1 }
+    scaling: none — an optional Deployment, installed per site that needs inbound access
+    notes: |
+      Optional and separately installed, so `min: 0` is the floor rather than a
+      capacity claim. Where it is installed at all, it is the ingress point for
+      traffic entering a site's mesh from outside it.

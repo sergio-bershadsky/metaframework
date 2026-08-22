@@ -1,0 +1,84 @@
+asyncapi: 3.1.0
+x-srn: srn://kubeedge/product/core/protocol/cloud-edge-channel
+info:
+  title: Cloud-edge channel
+  version: unversioned
+  description: One mutually authenticated WebSocket per edge node, carrying protobuf-framed envelopes multiplexed by a routing group in the message header.
+defaultContentType: application/vnd.google.protobuf
+servers:
+  # Exactly one server, as the profile requires — and the reason that constraint
+  # bites here is in index.md: the same conversation is also served over QUIC and
+  # over a local socket, and neither has a name in this framework's wire enum.
+  cloudhub-websocket:
+    host: "{host}"
+    protocol: wss
+    # The client's path, not the server's: the server accepts any path and routes
+    # automatically, while the address a node dials carries its own identity.
+    pathname: /{project-id}/{node-name}/events
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment. The listener defaults to port 10000.
+      project-id:
+        description: Fixed identifier configured on the edge runtime; the same constant on every stock installation.
+      node-name:
+        description: The edge node's own name, which is also the identity in its client certificate.
+    x-srn-auth:
+      - mtls
+
+# Five channels, one per routing group. The address is the group name the
+# envelope's own header carries, because that value — not a path and not a topic
+# — is what decides which module family receives the message.
+#
+# Every channel carries the same message shape. That is the wire's doing: the
+# envelope's payload is an opaque byte field whose meaning the receiver infers
+# from the resource string, so the message x datamodel matrix of this protocol
+# has one column no matter how many channels are declared.
+channels:
+  resource-sync:
+    address: resource
+    summary: >-
+      Kubernetes-shaped traffic: pods, nodes, secrets, config maps, leases,
+      certificate signing requests. Both directions.
+    messages:
+      envelope:
+        x-srn-payload: /product/core/datamodel/beehive-message@1
+
+  twin-sync:
+    address: twin
+    summary: Device twins — desired values going down, reported values coming up.
+    messages:
+      envelope:
+        x-srn-payload: /product/core/datamodel/beehive-message@1
+
+  function-call:
+    address: func
+    summary: >-
+      The rule-routing surface: messages the cloud router sends to an edge
+      endpoint, and their answers.
+    messages:
+      envelope:
+        x-srn-payload: /product/core/datamodel/beehive-message@1
+
+  user-message:
+    address: user
+    summary: >-
+      Messages the edge event bus originated from its MQTT broker, and messages
+      addressed back to it.
+    messages:
+      envelope:
+        x-srn-payload: /product/core/datamodel/beehive-message@1
+
+  node-task:
+    address: taskmanager
+    summary: >-
+      Node upgrade, image pre-pull and configuration-update jobs, and the status
+      reports they produce.
+    messages:
+      envelope:
+        x-srn-payload: /product/core/datamodel/beehive-message@1
+
+# No `operations` block, and no `id`. `action` is send/receive relative to one
+# application; this channel has two ends running the same framing library, and
+# every group above carries traffic both ways. Naming one side as the document's
+# subject would state a fact the wire does not have. Direction, where it matters,
+# is in the workflows.

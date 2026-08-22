@@ -1,0 +1,330 @@
+asyncapi: 3.1.0
+x-srn: srn://stackstorm/product/platform/protocol/execution-lifecycle
+info:
+  title: Execution lifecycle
+  version: unversioned
+  description: >-
+    One work item, three exchanges. The status exchange dispatches by routing
+    key, the record exchange feeds the event stream, and the polling exchange
+    feeds a durable queue nothing consumes.
+defaultContentType: application/x-python-serialize
+servers:
+  st2-bus:
+    host: "{host}"
+    protocol: amqp
+    variables:
+      host:
+        description: Supplied by the environment; this protocol names no deployment.
+    x-srn-auth:
+      - connection-url-password
+    x-st2-messaging-vhost: /
+    x-st2-messaging-prefix: st2
+
+# All fourteen status values are real addresses on the status exchange, and only
+# five of them have a queue bound. The nine without one carry
+# `x-st2-bound-by-nothing` below.
+#
+# AsyncAPI cannot say it in its own vocabulary. Whether anybody is at the far end
+# of a channel is expressed by `operations`, and an operation's `action` is send
+# or receive *relative to one application* — so a document describing seven
+# applications on one bus either picks one of them and hides the rest, or carries
+# no operations and says nothing about who consumes what. This document is the
+# second, which the framework's own profile rule 6 requires of it.
+
+channels:
+  # ------------------------------------------- status exchange, the five bound keys
+  status-requested:
+    address: requested
+    summary: A new work item. The only key the scheduler waits on.
+    bindings: &status-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.liveaction.status
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: &live-action-message
+      live-action:
+        x-srn-payload: /datamodel/live-action@1
+        summary: The whole work item, not a delta. The status field equals the routing key.
+
+  status-scheduled:
+    address: scheduled
+    summary: The scheduler has admitted the item past its policies. Runners wait on this.
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-canceling:
+    address: canceling
+    summary: Somebody asked for a cancel. The runner holding the work reacts.
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-pausing:
+    address: pausing
+    summary: Pause requested; only runners that support pausing act on it.
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-resuming:
+    address: resuming
+    summary: Resume requested, for a paused item or a workflow whose inquiry was answered.
+    bindings: *status-exchange
+    messages: *live-action-message
+
+
+  # ---------------------------- status exchange, the nine keys nothing binds
+  status-running:
+    address: running
+    summary: A runner has started the action. Nothing binds this key, so no process learns it from the bus.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-delayed:
+    address: delayed
+    summary: A policy held the item back. Written to the store without being published at all — the one status change that never reaches the exchange.
+    x-st2-bound-by-nothing: true
+    x-st2-published: false
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-pending:
+    address: pending
+    summary: Waiting for a human to answer an inquiry.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-paused:
+    address: paused
+    summary: The runner reports the work is held.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-canceled:
+    address: canceled
+    summary: The work stopped on request.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-succeeded:
+    address: succeeded
+    summary: Terminal. Read from the store by everything that cares, and carried to the stream by the record exchange instead.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-failed:
+    address: failed
+    summary: Terminal.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-timeout:
+    address: timeout
+    summary: Terminal — the runner enforced its own timeout parameter.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  status-abandoned:
+    address: abandoned
+    summary: Terminal — a worker went away with the item still incomplete.
+    x-st2-bound-by-nothing: true
+    bindings: *status-exchange
+    messages: *live-action-message
+
+  # ------------------------------------------------- record exchange, create/update/delete
+  record-create:
+    address: create
+    summary: The work item as a record, on creation.
+    bindings: &record-exchange
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.liveaction
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages: *live-action-message
+
+  record-update:
+    address: update
+    summary: The work item as a record, on every write.
+    bindings: *record-exchange
+    messages: *live-action-message
+
+  record-delete:
+    address: delete
+    summary: The work item as a record, on deletion.
+    bindings: *record-exchange
+    messages: *live-action-message
+
+  # --------------------------------------------------------------- polling exchange
+  polling-record-create:
+    address: create
+    summary: >-
+      Written when a runner starts work that finishes elsewhere. Shares its
+      address string with the record exchange above and is a different channel,
+      because a routing key is only meaningful against an exchange.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: st2.actionexecutionstate
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      action-execution-state:
+        x-srn-payload: /datamodel/action-execution-state@1
+        summary: Execution id, the module that knows how to poll, and its context.
+
+  # ------------------------------------------------------------- the durable queues
+  actionrunner-req:
+    address: st2.actionrunner.req
+    summary: The scheduler's queue. One consumer group; several scheduler processes may share it.
+    x-bound-to-exchange: st2.liveaction.status
+    x-binding-routing-key: requested
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.actionrunner.req
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  actionrunner-work:
+    address: st2.actionrunner.work
+    summary: >-
+      The runners' work queue, and the platform's entire horizontal-scaling
+      story: every runner process binds this one queue and the broker shares the
+      messages between them. Neither dialect has a field for competing consumers.
+    x-bound-to-exchange: st2.liveaction.status
+    x-binding-routing-key: scheduled
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.actionrunner.work
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  actionrunner-cancel:
+    address: st2.actionrunner.cancel
+    summary: Cancel requests, taken by whichever runner is free rather than by the one running the work.
+    x-bound-to-exchange: st2.liveaction.status
+    x-binding-routing-key: canceling
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.actionrunner.cancel
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  actionrunner-pause:
+    address: st2.actionrunner.pause
+    summary: >-
+      Pause requests. Declared and bound like the others, and — unlike them — not
+      in the set the platform pre-declares at start-up, so it exists only once a
+      runner has connected.
+    x-bound-to-exchange: st2.liveaction.status
+    x-binding-routing-key: pausing
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.actionrunner.pause
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  actionrunner-resume:
+    address: st2.actionrunner.resume
+    summary: Resume requests. Also outside the pre-declared set.
+    x-bound-to-exchange: st2.liveaction.status
+    x-binding-routing-key: resuming
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.actionrunner.resume
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  # ------------------------------------------------- the queue with no name
+  stream-liveaction:
+    # `null` is AsyncAPI's own spelling for an address generated at runtime, and
+    # it is the literal truth here: the queue is declared with no name and the
+    # broker mints one per connection. The mini-spec's `queue` field is REQUIRED
+    # and there is no true string to put in it.
+    address: null
+    summary: >-
+      One per live stream connection: unnamed, exclusive to that connection, and
+      deleted when it closes. It binds the record exchange with the single-word
+      wildcard, so it receives create, update and delete.
+    x-bound-to-exchange: st2.liveaction
+    x-binding-routing-key: "*"
+    x-server-named-queue: true
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          durable: true
+          exclusive: true
+          autoDelete: true
+          vhost: /
+        bindingVersion: "0.3.0"
+
+  # ------------------------------------------------ the queue with no consumer
+  resultstracker-work:
+    address: st2.resultstracker.work
+    summary: >-
+      Durable, bound, pre-declared at start-up so that messages are not lost
+      while no consumer is online — and at this release no shipped process
+      consumes it. The publisher is still wired up.
+    x-bound-to-exchange: st2.actionexecutionstate
+    x-binding-routing-key: create
+    x-st2-no-consumer: true
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: st2.resultstracker.work
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+        bindingVersion: "0.3.0"
+    messages:
+      action-execution-state:
+        x-srn-payload: /datamodel/action-execution-state@1
+
+# No `operations`. Seven applications share these exchanges and `action` is
+# send/receive relative to exactly one of them.

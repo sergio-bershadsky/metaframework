@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/action-execution-output",
+  "x-srn": "srn://stackstorm/datamodel/action-execution-output",
+  "title": "Action execution output",
+  "description": "One chunk of a running action's output, persisted and published under the create routing key on the execution output exchange.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "execution-id": {
+      "type": "string",
+      "description": "The run this chunk belongs to. Wire key: execution_id."
+    },
+    "action-ref": {
+      "type": "string",
+      "description": "Reference of the action being run, in pack.name form. Wire key: action_ref."
+    },
+    "runner-ref": {
+      "type": "string",
+      "description": "Which runner produced it. Wire key: runner_ref."
+    },
+    "output-type": {
+      "type": "string",
+      "description": "Which stream the characters came from — standard output and standard error are recorded separately. Wire key: output_type."
+    },
+    "data": {
+      "type": "string",
+      "description": "The chunk itself. No offset and no sequence number; order is write order."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the chunk was recorded — the only ordering this shape carries."
+    },
+    "delay": {
+      "type": "integer",
+      "description": "Pacing hint for a consumer when output arrives faster than it can be forwarded. Not a duration of anything."
+    }
+  },
+  "required": ["execution-id"]
+}

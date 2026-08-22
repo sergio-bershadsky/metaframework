@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/pack-config-schema",
+  "x-srn": "srn://stackstorm/datamodel/pack-config-schema",
+  "title": "Pack config schema",
+  "description": "A pack's declared configuration contract as the platform stores it: the pack reference plus the attribute map read from the pack's own config schema file. The attribute descriptors are written in a modified draft-04 dialect, restated here in 2020-12.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "pack": {
+      "type": "string",
+      "description": "Reference of the pack this contract belongs to."
+    },
+    "attributes": {
+      "type": "object",
+      "description": "The authored file's root map, keyed by attribute name. The names are snake_case because they are read as keyword arguments, not exported into an environment.",
+      "additionalProperties": { "$ref": "#/$defs/attribute" }
+    }
+  },
+  "required": ["pack"],
+  "$defs": {
+    "attribute": {
+      "type": "object",
+      "description": "One declared attribute. Draft-04 keywords, plus this project's three extensions, plus required-as-a-boolean.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Declared type. Objects and arrays are permitted, which is what makes this contract nested."
+        },
+        "description": {
+          "type": "string",
+          "description": "Shown to the operator filling the value in."
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Draft-03's spelling: a boolean on the property, not a member of an array on the parent. The vendored meta-schema redefines it this way while still identifying itself as draft-04."
+        },
+        "default": {
+          "description": "Value used when the operator supplies none. Any JSON type."
+        },
+        "secret": {
+          "type": "boolean",
+          "default": false,
+          "description": "Project extension. Marks a value to be encrypted at rest and masked on read — this dialect's answer to writeOnly."
+        },
+        "immutable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Project extension. The value may not be overridden by a caller."
+        },
+        "position": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Project extension. Ordering hint for the rendered form."
+        },
+        "enum": {
+          "type": "array",
+          "description": "Permitted values, as in draft-04."
+        },
+        "items": {
+          "description": "Item schema for an array attribute; an attribute descriptor in its own right."
+        },
+        "properties": {
+          "type": "object",
+          "description": "Members of an object attribute — the recursion that makes this contract arbitrarily deep.",
+          "additionalProperties": { "$ref": "#/$defs/attribute" }
+        }
+      }
+    }
+  }
+}

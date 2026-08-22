@@ -1,0 +1,94 @@
+# Arazzo Description — one end's path across this channel. Unvalidated here:
+# this framework snapshots and serves the file and states no rule about its
+# contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface"); the
+# portal reads it only to draw the step graph beside this source.
+# workflows/*.yaml stay the authoritative choreography, and the sequence
+# diagrams on this page derive from them alone.
+#
+# WHOSE PATH. Both workflows are written for `edgehub`, the spoke. transport.yaml
+# names no side at all — its closing comment says so, and gives the reason: two
+# ends run the same framing library and every routing group carries traffic both
+# ways. Arazzo has to name one, so this file names the edge and says where the
+# fact came from: the `from`/`to` of the workflow files.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block, for that same reason.
+arazzo: 1.1.0
+info:
+  title: Cloud-edge channel
+  summary: The edge hub's path across the cloud-edge channel.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Both workflows ride the `resource-sync` group, which is the one the workflow
+    files name. The five groups are the same envelope on five routing keys, so a
+    description of `twin`, `func`, `user` or `taskmanager` would be this file
+    with one pointer changed and nothing else — and no workflow file describes
+    them, so none is written.
+
+    No `correlationId` on the receive step below. Arazzo requires that field to
+    be in sync with a correlationId defined in the AsyncAPI document, and
+    transport.yaml defines none; the envelope's parent-identity header is what
+    actually correlates the pair, and it is described in prose in index.md and in
+    workflows/ask-the-cloud.yaml rather than on the wire description.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: ask-the-cloud
+    summary: Ask a question the edge cannot answer locally, and wait.
+    description: >-
+      workflows/ask-the-cloud.yaml. The synchronous half of the channel — the
+      one path that sets the header's sync flag. Its second `alt` branch is
+      explicitly not a wire message: nothing is sent when the wait expires, and
+      from the caller's side a slow cloud and a severed link are the same event.
+      That branch is therefore the `timeout` below rather than a step.
+    steps:
+      - stepId: send-remote-query
+        description: >-
+          Sent with the header's synchronous flag set. transport.yaml binds this
+          channel's payload by reference to datamodel/beehive-message, whose
+          payload field is opaque bytes, so no requestBody is spelled out here.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/resource-sync"
+        action: send
+      - stepId: receive-remote-query-result
+        description: >-
+          Correlated by the parent-identity header field carrying the request's
+          identity — the only correlation mechanism on the whole channel. No
+          successCriteria: this channel declares exactly one message and it is
+          unambiguously the successful outcome, which is the case the Arazzo
+          Specification allows the criteria to be omitted in.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/resource-sync"
+        action: receive
+        # The 60-second default the caller blocks on, stated in
+        # workflows/ask-the-cloud.yaml, in the milliseconds Arazzo expects.
+        timeout: 60000
+        dependsOn:
+          - send-remote-query
+  - workflowId: carry-a-resource-update
+    summary: Take a workload change, and report status when there is something to say.
+    description: >-
+      workflows/carry-a-resource-update.yaml. The middle step of that file —
+      the metadata manager's local write — is explicitly not a wire message and
+      has no step here. Nothing correlates the status report with the update
+      that preceded it; the dependency below is the workflow file's ordering,
+      not a correlation the wire carries.
+    steps:
+      - stepId: receive-resource-update
+        description: >-
+          No synchronous flag, no reply expected. The operation and resource
+          strings in the header say what it is; the payload is opaque bytes.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/resource-sync"
+        action: receive
+      - stepId: send-status-report
+        description: >-
+          Sent when the workload's status changed, rather than in reply. Arazzo
+          carries no guard, so that condition is stated here and enforced
+          nowhere in this file.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/resource-sync"
+        action: send
+        dependsOn:
+          - receive-resource-update

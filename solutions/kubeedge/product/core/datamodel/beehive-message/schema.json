@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/product/core/datamodel/beehive-message",
+  "x-srn": "srn://kubeedge/product/core/datamodel/beehive-message",
+  "title": "Beehive message",
+  "description": "The envelope exchanged between modules and across the cloud-edge channel. Described in its wire form; the in-process form carries one extra header field.",
+  "type": "object",
+  "properties": {
+    "header": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Message identity, a UUID assigned by the sender. Wire key: ID; JSON key in the in-process form: msg_id."
+        },
+        "parent-id": {
+          "type": "string",
+          "description": "Identity of the message this one answers. Set only on a reply. Wire key: ParentID."
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "Send time in milliseconds since the epoch, as a signed integer."
+        },
+        "sync": {
+          "type": "boolean",
+          "description": "The sender expects a correlated reply. Absent or false on the great majority of traffic."
+        },
+        "message-type": {
+          "type": "string",
+          "description": "Free label set by the sending module. Wire key: MessageType."
+        },
+        "resource-version": {
+          "type": "string",
+          "description": "Kubernetes resource version the message is about. Present in the in-process form only: the wire header has no field for it."
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "description": "Who sent it, who should get it, and what it is about. The wire form of this object carries source, group, operation and resource; destination is in-process only.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Sending module name."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Receiving module name. In-process only."
+        },
+        "group": {
+          "type": "string",
+          "description": "The module group that should receive it — resource, twin, func, user or taskmanager on the edge side. This is what the receiving hub dispatches on."
+        },
+        "operation": {
+          "type": "string",
+          "description": "What to do with the resource: insert, delete, query, update, patch, upload, response, error, unhold-upgrade."
+        },
+        "resource": {
+          "type": "string",
+          "description": "Slash-joined path naming what the message is about — node, namespace, resource type, name. Spelled Resouce in the protobuf description, a typo preserved because renaming it would break the wire."
+        }
+      }
+    },
+    "content": {
+      "description": "The payload. Opaque bytes on the wire and an untyped value in process; its shape is inferred by the receiver from route.resource and route.operation. Capped at 32 MiB since v1.23.1."
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# Arazzo Description — the initiator's path across this bus. Unvalidated here:
+# this framework snapshots and serves the file and states no rule about its
+# contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface"); the
+# portal reads it only to draw the step graph beside this source.
+# workflows/announce-something.yaml stays the authoritative choreography, and
+# the sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. `action-runner`, the publisher — the participant that initiates.
+# The broker's copy onto a stream connection, and the drop when a dotted route
+# matches no binding, are the `alt` of announce-something.yaml and belong to the
+# broker rather than to the automation. Neither is a step here, and that is not a
+# gap: the Arazzo Specification states that an AsyncAPI send step completes as
+# soon as the message is sent, and that it models no broker acknowledgement or
+# delivery confirmation. That is exactly this protocol's own summary — one
+# publish, and no way to learn whether anybody heard.
+#
+# The step references its channel by `channelPath`, not by `operationId`:
+# transport.yaml declares no `operations` block.
+arazzo: 1.1.0
+info:
+  title: Announcements
+  summary: The automation's one publish onto the announcement exchange.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    One workflow with one step, because that is the whole of the initiator's
+    side. A description with more in it would be describing the broker.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: announce-something
+    summary: Publish an announcement under a route the action chose.
+    description: >-
+      The first step of workflows/announce-something.yaml. The routing key is
+      chosen by the running automation and is therefore unknown at design time —
+      transport.yaml gives that channel a null address for exactly that reason,
+      so there is no parameter here to carry it.
+    steps:
+      - stepId: send-announcement
+        description: >-
+          The action's own parameters, wrapped with a trace context. No
+          successCriteria and no timeout: nothing comes back on this protocol
+          that a criterion could read.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/announcement"
+        action: send

@@ -1,0 +1,45 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: dispatch-an-event
+title: Dispatch an event to the rules engine
+summary: A sensor notices something, publishes the wrapper, and the rules engine turns it into a record before acknowledging it.
+participants: [sensor-container, broker, rules-engine]
+steps:
+  - message: trigger-instance
+    from: sensor-container
+    to: broker
+    kind: event
+    payload: /datamodel/trigger-dispatch-message@1
+    channel: trigger_instance
+    note: The same step is taken by the timers engine, the API on a webhook, the
+      notifier, and the inquirer runner — five publishers, one routing key.
+
+  - message: trigger-instance
+    from: broker
+    to: rules-engine
+    kind: event
+    payload: /datamodel/trigger-dispatch-message@1
+    channel: st2.trigger_instances_dispatch.rules_engine
+    note: The queue binds "#", so it receives everything this exchange is ever
+      sent, whatever key it was sent under.
+
+  - alt:
+      - when: a trigger is registered for the reference
+        steps:
+          - message: trigger-instance-recorded
+            from: rules-engine
+            to: rules-engine
+            kind: event
+            payload: /datamodel/trigger-instance@1
+            note: The record is created here, on the consumer, and created before
+              the acknowledgement below.
+          - message: ack
+            from: rules-engine
+            to: broker
+            kind: event
+    otherwise:
+      - message: nack
+        from: rules-engine
+        to: broker
+        kind: event
+        note: No record could be created, so the message is not acknowledged and
+          stays on the queue. Nothing is lost and nothing progresses.

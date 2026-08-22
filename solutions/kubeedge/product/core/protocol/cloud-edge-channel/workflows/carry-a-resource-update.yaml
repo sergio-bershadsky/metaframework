@@ -1,0 +1,33 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
+name: carry-a-resource-update
+title: A workload change reaches a node
+summary: The ordinary direction of travel — a controller's decision going down as a one-way envelope, and the status that comes back on its own schedule.
+participants: [cloudhub, edgehub]
+steps:
+  - message: resource-update
+    from: cloudhub
+    to: edgehub
+    kind: event
+    channel: resource
+    payload: /product/core/datamodel/beehive-message@1
+    note: >-
+      No synchronous flag, no reply expected. The operation and resource strings
+      in the header say what it is; the payload is opaque bytes.
+
+  - message: resource-stored
+    from: edgehub
+    to: edgehub
+    kind: event
+    note: >-
+      Not a wire message. The hub hands the envelope to the metadata manager, which writes it locally before anything acts on it — that write is what survives a dropped link.
+
+  - message: status-report
+    from: edgehub
+    to: cloudhub
+    kind: event
+    channel: resource
+    payload: /product/core/datamodel/beehive-message@1
+    condition: the workload's status changed
+    note: >-
+      Sent when there is something to say rather than in reply. Nothing
+      correlates it with the update above.

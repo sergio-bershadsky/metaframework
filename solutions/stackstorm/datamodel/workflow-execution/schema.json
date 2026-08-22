@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/stackstorm/datamodel/workflow-execution",
+  "x-srn": "srn://stackstorm/datamodel/workflow-execution",
+  "title": "Workflow execution",
+  "description": "One run of a workflow graph, held by the workflow engine and published to a status exchange whose routing key is the status string.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Document id."
+    },
+    "action-execution": {
+      "type": "string",
+      "description": "Id of the execution this workflow stands behind — the row an operator sees. Wire key: action_execution."
+    },
+    "status": {
+      "type": "string",
+      "description": "Conductor status. Not enumerated here: the values come from the workflow engine library rather than from a constants module this catalog read."
+    },
+    "spec": {
+      "type": "object",
+      "description": "The workflow definition as compiled from the pack's YAML."
+    },
+    "graph": {
+      "type": "object",
+      "description": "Task graph derived from the spec."
+    },
+    "state": {
+      "type": "object",
+      "description": "Where the conductor currently is inside that graph."
+    },
+    "input": {
+      "type": "object",
+      "description": "Input the workflow was started with."
+    },
+    "output": {
+      "type": "object",
+      "description": "Output the workflow produced, once it has any."
+    },
+    "context": {
+      "type": "object",
+      "description": "Who asked and why, mirroring the execution's own context."
+    },
+    "notify": {
+      "type": "object",
+      "description": "Notification settings carried down from the requesting execution."
+    },
+    "errors": {
+      "description": "Failures the conductor collected. Declared with the store's dynamic type, so nothing constrains the shape."
+    },
+    "start-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wire key: start_timestamp."
+    },
+    "end-timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wire key: end_timestamp."
+    }
+  },
+  "required": ["action-execution", "status"]
+}

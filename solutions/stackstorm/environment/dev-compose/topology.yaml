@@ -1,0 +1,99 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/topology-document
+
+# One container host, so no region is declared. Every entry is a single
+# container, which is what the published compose file defines: it names a
+# service per process and sets no replica count anywhere, and one is what a
+# service with no replica count runs.
+#
+# The service set below was read from the project's published compose file on
+# 2026-08-22. It is an artifact on its own release train, so it can gain or
+# lose a service without anything in the platform changing.
+
+hosts:
+  - component: /product/platform/component/st2api
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container; the compose file publishes its port directly
+    notes: |
+      There is no reverse proxy in this deployment. Where the single-host shape
+      puts one origin in front of the three HTTP services, here each service's
+      port is published on the container host, and the web interface's own
+      container serves itself.
+
+  - component: /product/platform/component/st2auth
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container
+
+  - component: /product/platform/component/st2stream
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container
+
+  - component: /product/platform/component/st2rulesengine
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container
+
+  - component: /product/platform/component/st2scheduler
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container, so its concurrency policies need no shared lock
+
+  - component: /product/platform/component/st2actionrunner
+    replicas: { min: 1, max: 1 }
+    scaling: none by default — the compose file defines one, and the durable queues would tolerate more
+
+  - component: /product/platform/component/st2workflowengine
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container
+
+  - component: /product/platform/component/st2notifier
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container
+
+  - component: /product/platform/component/st2timersengine
+    replicas: { min: 1, max: 1 }
+    scaling: none, and again the constraint and the deployment happen to agree
+
+  - component: /product/platform/component/st2garbagecollector
+    replicas: { min: 1, max: 1 }
+    scaling: none — a periodic pass
+
+  - component: /product/platform/component/st2sensorcontainer
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container owning every registered sensor
+    notes: |
+      This is the process a pack author actually watches, because a sensor under
+      development runs here as a child of this container.
+
+  - component: /product/platform/component/mongodb
+    replicas: { min: 1, max: 1 }
+    scaling: none — a single container, with no replica set
+
+  - component: /product/platform/component/rabbitmq
+    replicas: { min: 1, max: 1 }
+    scaling: none — a single broker container
+
+  - component: /product/platform/component/redis
+    replicas: { min: 1, max: 1 }
+    scaling: none — a single container
+    notes: |
+      Present as a service in the compose file. Whether the platform is
+      configured to use it as a coordination backend here is a property of the
+      generated configuration and is not claimed by this entry.
+
+  - component: /product/operator-surfaces/component/st2web
+    replicas: { min: 1, max: 1 }
+    scaling: none — one container, which serves its own built assets
+
+  - component: /product/operator-surfaces/component/st2client
+    replicas: { min: 1, max: 1 }
+    scaling: none — a container an operator runs commands in rather than a running service
+    notes: |
+      The compose file defines it as a service, which is the container-shaped
+      way to ship a command-line tool: the container exists so somebody can
+      execute the tool inside it against the stack beside it.
+
+  - component: /product/operator-surfaces/component/st2chatops
+    replicas: { min: 1, max: 1 }
+    scaling: none — one bridge container
+    notes: |
+      Defined as an ordinary service here, unlike the clustered chart, which
+      carries it disabled by default. This is the only target in the catalog
+      where the ChatOps bridge comes up without a separate decision.

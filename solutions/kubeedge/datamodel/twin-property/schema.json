@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/twin-property",
+  "x-srn": "srn://kubeedge/datamodel/twin-property",
+  "title": "Twin property",
+  "description": "One value of one device property. Both the desired and the reported half of a twin are instances of this shape.",
+  "type": "object",
+  "properties": {
+    "value": {
+      "type": "string",
+      "description": "The value, always as characters. How to read them is decided by the property's declared type on the device model, not here."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Free string-to-string map the mapper attaches to the reading; a timestamp is the usual member. No key is defined by the interface."
+    }
+  },
+  "required": ["value"]
+}

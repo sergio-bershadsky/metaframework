@@ -1,0 +1,42 @@
+$schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
+name: install-a-pack
+steps:
+  - actor: /actor/pack-author
+    touches: /product/automation-content/component/stackstorm-exchange
+    protocol: none
+    note: Somebody else, at some other time, published the pack. The hand-off is
+      a registry entry and nothing in this solution carries it.
+
+  - actor: /actor/automation-operator
+    touches: /product/operator-surfaces/component/st2client
+    protocol: none
+    # automation-content -> operator-surfaces, carried by the person: they read a
+    # pack name and type it.
+    note: The operator types the pack name they read. No system hands it over.
+
+  - actor: /actor/automation-operator
+    touches: /product/platform/component/st2api
+    protocol: /protocol/rest-api
+    note: The install is itself an execution — the API answers with the run that
+      is doing the installing, and the operator then watches an ordinary run
+      whose effect is to change what can run.
+
+  - actor: /actor/automation-operator
+    touches: /product/platform/component/st2stream
+    protocol: /protocol/event-stream
+    note: Watching that run means watching a virtualenv being built, which is why
+      the output stream matters here more than anywhere else.
+
+  - actor: /actor/automation-operator
+    touches: /product/platform/component/st2api
+    protocol: /protocol/rest-api
+    note: The pack declared what it needs; the operator writes the values,
+      including the ones marked secret. This is the only step in any journey here
+      that handles a credential.
+
+  - actor: /actor/automation-operator
+    touches: /product/operator-surfaces/component/st2web
+    protocol: /protocol/rest-api
+    # platform -> operator-surfaces, documented.
+    note: The new actions are simply there — no restart, because the processes
+      that had to be told were told over the bus.

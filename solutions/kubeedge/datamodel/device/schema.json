@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.metaframework.dev/kubeedge/datamodel/device",
+  "x-srn": "srn://kubeedge/datamodel/device",
+  "title": "Device",
+  "description": "One physical device as a Kubernetes resource, at the storage version of the CRD the project's chart installs.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Resource name, from the object metadata."
+    },
+    "namespace": {
+      "type": "string",
+      "description": "Namespace of the resource. Carried as an ordinary field in the interface message, rather than inside metadata."
+    },
+    "spec": {
+      "type": "object",
+      "properties": {
+        "device-model-ref": {
+          "type": "object",
+          "description": "Local reference to the device model this instance is of. Wire key: deviceModelRef.",
+          "properties": {
+            "name": { "type": "string" }
+          }
+        },
+        "node-name": {
+          "type": "string",
+          "description": "Node whose mapper reaches this device. The whole of the model's notion of where a device is. Wire key: nodeName."
+        },
+        "protocol": {
+          "type": "object",
+          "description": "Southbound protocol for this instance.",
+          "properties": {
+            "protocol-name": { "type": "string", "description": "Wire key: protocolName." },
+            "config-data": {
+              "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/customized-value",
+              "description": "Wire key: configData."
+            }
+          }
+        },
+        "properties": {
+          "type": "array",
+          "description": "One entry per property of the model this instance overrides or configures.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "description": "Property name, as declared on the model." },
+              "desired": {
+                "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/twin-property",
+                "description": "The value an operator wants. Nothing checks it against the type the model declares."
+              },
+              "visitors": {
+                "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/visitor-config",
+                "description": "How this instance's property is reached, overriding the model's."
+              },
+              "report-cycle": { "type": "integer", "description": "How often the mapper reports the value. Wire key: reportCycle." },
+              "collect-cycle": { "type": "integer", "description": "How often the mapper reads the device. Wire key: collectCycle." },
+              "report-to-cloud": { "type": "boolean", "description": "Whether readings travel up the cloud-edge channel at all. Wire key: reportToCloud." },
+              "push-method": {
+                "$ref": "https://schemas.metaframework.dev/kubeedge/datamodel/push-method",
+                "description": "Where else the readings go. Wire key: pushMethod."
+              }
+            }
+          }
+        },
+        "methods": {
+          "type": "array",
+          "description": "Named groups of properties a caller may act on together.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "property-names": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Wire key: propertyNames."
+              }
+            }
+          }
+        },
+        "state-report": {
+          "type": "object",
+          "description": "Whether and how often the device's own online state is reported upward. Wire key: stateReport.",
+          "properties": {
+            "report-to-cloud": { "type": "boolean", "description": "Wire key: reportToCloud." },
+            "report-cycle": { "type": "integer", "description": "Wire key: reportCycle." }
+          }
+        }
+      }
+    }
+  }
+}
