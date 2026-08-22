@@ -490,6 +490,18 @@ inherits them is worth less than one that says so:
   authoring and about an unimplemented check, and it is recorded here so that
   nobody later reads the clean build as evidence the join holds.
 
+  **Follow-up: the check landed, and it agrees with the hand count exactly.**
+  `lib/protocol/participants-checks.ts` emits `W_PROTO_PARTICIPANT_UNLINKED`, and
+  measured 2026-08-22 by
+  `node framework/portal/bin/metaframework.mjs check | grep W_PROTO_PARTICIPANT_UNLINKED`
+  the portal reports **41 in stackstorm, 3 in acme and 0 elsewhere** — the same
+  three figures this bullet arrived at by hand, from a different method, before
+  any emitter existed. That is worth more than the warnings themselves: it is the
+  one case in this catalog where a hand-counted claim about a gap and a
+  machine-counted one about the same gap can be compared, and they do not
+  disagree. The gap is no longer invisible; the clean build is now clean *and*
+  says so about this join.
+
 ## Alternatives considered
 
 - **Eclipse Hono, as 0019 recommended.** The pre-registered choice, and rejected

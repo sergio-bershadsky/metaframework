@@ -1,7 +1,7 @@
 ---
 name: schema-registry
 kind: component
-version: 5
+version: 7
 title: Schema registry
 summary: Identity and validation for every schema.json — the canonical host constant, the E_DM_* profile validator, one ajv instance keyed by $id, and the allOf inheritance DAG.
 status: review
@@ -12,7 +12,7 @@ relations:
   depends-on:
     - ../srn
   uses:
-    - /product/specification/datamodel/schema-document@3
+    - /product/specification/datamodel/schema-document@4
   realizes:
     - /capability/schema-interoperability
 tags:
@@ -45,8 +45,12 @@ the **current** schema; pins live in frontmatter `relations`, which is the only
 place [git-history](srn://metaframework/product/portal/component/git-history)
 can resolve them.
 
-**Nothing serves that host.** `https://schemas.metaframework.dev` has no DNS, no
-hosting and no redirect anywhere in this repository. It is an identifier. A
+**Nothing answers that host.** `host schemas.metaframework.dev` is NXDOMAIN and
+no redirect points at it. What now exists in this repository is the build that
+*would* answer it: commit `f3c677a` added `npm run schemas:build`, which emits a
+static site for the eight specification meta-schemas, and `docs/schema-hosting.md`
+states what is in scope and what deliberately is not. Nothing is deployed behind
+the name, so until that changes the URL is an identifier. A
 consumer that prefers fetching to trusting a cache maps it onto a serving
 address in resolver configuration — which is exactly what
 [schema-bundler](srn://metaframework/product/portal/component/schema-registry/component/schema-bundler)
@@ -96,10 +100,15 @@ Two warnings are worth naming because they do **not** behave like the rest:
   in `registry.test.ts`. It was the API of the schema explorer that Stoplight
   replaced. The warning is therefore **unreachable in the running portal**.
 
-`schemaValidator()` is unreachable for the same reason, which is why
-`E_DM_EXAMPLE_INVALID` is specified and implemented nowhere: the function that
-would validate an `examples/` file against its schema exists and nothing calls
-it.
+`schemaValidator()` used to be listed here as a third case of the same shape, and
+it no longer belongs: `lib/datamodel/datamodel.ts` imports it and compiles a
+validator per datamodel, so `E_DM_EXAMPLE_INVALID` is emitted, folded in by
+`withDatamodelChecks()`, and reaches `catalog.diagnostics` like any other class.
+The two warnings above are genuinely still local; this one was overtaken by the
+example check being written. Worth keeping as a caution: "the function exists and
+nothing calls it" is a claim with a short shelf life, and it is checked by
+`grep -rn schemaValidator src --include='*.ts' | grep -v '\.test\.'` rather than
+by memory.
 
 ## What it is not
 

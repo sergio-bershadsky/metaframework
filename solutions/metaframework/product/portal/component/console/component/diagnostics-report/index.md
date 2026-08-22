@@ -79,9 +79,9 @@ framework's own error taxonomy.
   the XState subset, and an `arazzo.yaml` whose references miss the siblings its
   entity carries (`W_PROTO_ARAZZO_UNGROUNDED`) all land here as well as on that
   page. The bullet above used to say the opposite, and was true when the parsers
-  ran only while a protocol page rendered. What is still out of reach is every
-  `E_PROTO_*` rule with no emitter at all — chiefly `transport.yaml`, which
-  nothing validates in either dialect.
+  ran only while a protocol page rendered. `transport.yaml` made the same
+  crossing since: `lib/protocol/transport-checks.ts` validates it in both
+  dialects and the same artifact fold carries the findings here.
 - **No `E_VER_REGRESSION`.** It exists in
   [git-history](srn://metaframework/product/portal/component/git-history) with
   its own tests and is never run over `solutions/`.
@@ -89,10 +89,12 @@ framework's own error taxonomy.
   `UNIMPLEMENTED` register in
   `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read it there
   rather than from a count written here, because its ratchet keeps it honest and
-  a number in this sentence would not be. It has shrunk by most of its length
-  since this page was written: `E_ADR_SECTIONS` and `E_REQ_CRITERIA`, both named
-  here as gaps that mattered to this catalog directly, are emitted, and what
-  remains is concentrated in protocol validation.
+  a number in this sentence would not be. It is **empty** as of the protocol
+  families landing: `E_ADR_SECTIONS` and `E_REQ_CRITERIA`, both named here as
+  gaps that mattered to this catalog directly, are emitted, and so is every other
+  class any document in `framework/spec` defines. What this report cannot show is
+  narrower than a code — `W_PROTO_STATES_EVENT_UNKNOWN`, whose emitter has a
+  branch neither call site reaches, and three half-rules whose other half fires.
 
 ## And nothing runs it unattended
 

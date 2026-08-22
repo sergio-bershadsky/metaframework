@@ -91,6 +91,9 @@ describe('the real repository', () => {
     const out = mkdtempSync(path.join(tmpdir(), 'schema-site-out-'))
     temps.push(out)
     const { schemas } = build({ root: REPO_ROOT, out })
+    // Its own floor: a build that served nothing would pass this loop silently,
+    // and the preceding test is the only thing establishing otherwise today.
+    expect(schemas.length).toBeGreaterThan(0)
     for (const { name } of schemas) {
       const served = readFileSync(path.join(out, SERVED_DIR, name), 'utf8')
       const source = readFileSync(

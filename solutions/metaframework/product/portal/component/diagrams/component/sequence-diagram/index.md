@@ -1,7 +1,7 @@
 ---
 name: sequence-diagram
 kind: component
-version: 3
+version: 4
 title: Sequence diagram
 summary: Hand-rolled SVG over a pure layout pass — lifelines as columns, steps as ordered rows, fragments as nested boxes, and an ordered list that is the diagram in words.
 status: review
@@ -24,8 +24,9 @@ tags:
 protocol's `workflows/*.yaml` through `layoutWorkflow()` and `narrateWorkflow()`
 in
 [protocol-model](srn://metaframework/product/portal/component/protocol-model).
-There are 22 such YAML files across 14 `workflows/` directories in the catalog
-today.
+Every protocol in every solution that ships a `workflows/` directory is drawn by
+this renderer; `find solutions -path '*/workflows/*' -name '*.yaml'` is the
+population.
 
 ## No React Flow, deliberately
 

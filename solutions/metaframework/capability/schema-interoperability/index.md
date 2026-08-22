@@ -1,7 +1,7 @@
 ---
 name: schema-interoperability
 kind: capability
-version: 2
+version: 3
 title: Hand a data contract to a tool that has never heard of this framework
 summary: Let an outside program resolve a catalog's data models from a URL alone — every reference followed, no clone, no plugin, nothing taught.
 status: review
@@ -34,10 +34,13 @@ tool handed the same starting point resolved nothing.
 ## Boundaries
 
 - **Identity, not hosting.** The doing is that the *form* of the identifier works
-  for a stranger. Nothing in this repository serves the canonical host
+  for a stranger. Nothing serves the canonical host
   `https://schemas.metaframework.dev` — it is a constant at
   `framework/portal/src/lib/schema/url.ts:46`, deliberately not configuration,
-  and there is no DNS, no deployment and no redirect for it anywhere here. A
+  `host schemas.metaframework.dev` is NXDOMAIN, and no redirect points at it.
+  A static site for the eight specification meta-schemas is buildable here
+  (`npm run schemas:build`, `docs/schema-hosting.md`) and is deployed nowhere,
+  so the boundary this bullet draws is unchanged. A
   consumer maps that host onto a serving address in one line of resolver config,
   outside the artifacts
   ([0007-canonical-schema-host-and-x-srn-restored](srn://metaframework/adr/0007-canonical-schema-host-and-x-srn-restored)).
@@ -99,8 +102,9 @@ Stated on the capability page because a reader who sees "measured" stops reading
 ## Not this
 
 - *Serving the catalog* is not this capability. The entity graph has no public
-  surface at all; `/api/history` is the only other route and its sole client is
-  unmounted
+  surface at all. The portal's other routes serve artifact bytes and this
+  process's own history, status and watch stream — inward-facing every one, and
+  none of them hands a stranger the description
   ([catalog-history](srn://metaframework/product/portal/protocol/catalog-history)).
 - *The SRN* is not it either. Identity inside the catalog and identity on the
   wire were deliberately separated —

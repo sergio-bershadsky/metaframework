@@ -89,13 +89,27 @@ The module's own unit suite still runs against hermetic fixtures; the corpus
 assertions live in `lib/catalog/fixture-check.test.ts`, which is where the
 shipped `workflows/*.yaml` are exercised against the real loader.
 
-Two rules in the spec are not implemented at all: `W_PROTO_WF_CHANNEL_UNKNOWN`,
-which would cross-check a step's `channel` against the transport's surface list,
-and `W_PROTO_ARTIFACT_UNKNOWN`. The first is unimplementable in practice for the
-reason
-[transport-document](srn://metaframework/product/specification/datamodel/transport-document)
-records: nothing in the portal parses `transport.yaml`, so there is no surface
-list to check against.
+Two rules this page listed as unimplemented now have emitters, and the reason
+given for one of them was wrong in a way worth keeping.
+`W_PROTO_WF_CHANNEL_UNKNOWN` is `lib/protocol/payload-checks.ts`, which matches a
+step's `channel` against the transport's surface in whichever dialect it is
+written; `W_PROTO_ARTIFACT_UNKNOWN` is `lib/protocol/spec-file-checks.ts`, which
+judges the protocol entity directory.
+
+The first was called "unimplementable in practice, because nothing parses
+`transport.yaml`". The document was parsed — the loader puts it on
+`artifact.data` — and collecting the surface entries' names is a walk over an
+object already in hand. What it needed was a *reader*, not a *validator*, and the
+two were conflated. That distinction is recorded from the other side by
+[transport-document](srn://metaframework/product/specification/datamodel/transport-document),
+and the same conflation had already cost `W_PROTO_ARAZZO_UNGROUNDED` a release.
+
+What remains unenforced about a workflow step's references is narrower: a
+`payload` that resolves to a legal-but-absent SRN is `E_SRN_DANGLING`'s and
+nothing raises it. And the `x-` hatch, which the spec extends to a workflow root
+and to step and fragment entries, is not implemented here at all — every schema
+in `workflow.ts` is a `z.strictObject` with no catchall, so `x-anything` in a
+workflow file is `E_PROTO_WF_SCHEMA`. No shipped workflow writes one.
 
 ## The header the schema had to be reopened for
 

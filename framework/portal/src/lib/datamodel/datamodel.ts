@@ -25,14 +25,16 @@ import { formatSrn, parseSrn, resolveRef } from '../srn/srn'
  *   two artifacts and three dialects. {@link payloadReferences} is that set, and
  *   it is deliberately the only catalog-wide scan in this module.
  *
- * What is *not* here, and why. `E_DM_NOT_ADDITIVE` is the fourth datamodel gap
- * and it stays in the register: the rule compares version N read from **git**
- * with N+1 on the filesystem (datamodel.md, "What the portal checks
- * mechanically"), and nothing in the load pipeline reads git — `loadCatalog` is
- * the pure filesystem→graph step and `metaframework check` never spawns one. It
- * cannot be faked from the working tree either: diffing the working tree against
- * the commit carrying the *current* version is `E_VER_UNBUMPED`'s question, not
- * this one.
+ * What is *not* here, and why. `E_DM_NOT_ADDITIVE` was the fourth datamodel gap
+ * and is now ./additive.ts, in its own module rather than a fourth branch in
+ * this one, because it takes an input nothing else in the pipeline takes: it
+ * compares version N read from **git** with N+1 on the filesystem (datamodel.md,
+ * "What the portal checks mechanically"), so it is `async` and it spawns a
+ * subprocess, and `withEvolutionChecks` is the fold that owns those two facts.
+ * The half of the old note that survives is a limit on what it can see rather
+ * than a reason not to run it: diffing the working tree against the commit
+ * carrying the *current* version is `E_VER_UNBUMPED`'s question, not this one,
+ * so a breaking edit that also forgot its bump is measured against N−1.
  */
 
 /* --------------------------------------------------------------- payloads */

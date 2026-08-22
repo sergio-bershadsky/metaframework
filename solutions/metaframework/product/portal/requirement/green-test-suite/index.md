@@ -1,7 +1,7 @@
 ---
 name: green-test-suite
 kind: requirement
-version: 3
+version: 4
 title: The portal's test suite is green
 summary: Every suite passes, on demand at the repository root and on every push and pull request in CI — and the criterion is that it exits zero, never that it exits zero at a particular count.
 status: review
@@ -54,12 +54,15 @@ that was overturned.
 
 ## What this requirement does not claim
 
-It does not claim coverage. Every suite lives under `src/lib/**`;
-`find src -name '*.test.tsx'` returns nothing, so `src/components` and
-`src/app` are exercised by no test at all. Two of the three HTTP
-surfaces in the product are in that gap: `/schemas` is reached only because
-`fixture-check.test.ts` imports its handler directly, and `/api/history` is
-reached by nothing.
+It does not claim coverage. Almost every suite lives under `src/lib/**`, and
+`find src -name '*.test.tsx'` returns nothing, so no test renders a component.
+The suites outside `src/lib` mark the shape of that gap rather than close it:
+`src/components/diagrams/state-simulator.test.ts` asserts a model deliberately
+without a DOM, and `src/app/artifacts/[...path]/route.test.ts` calls a route
+handler as deployed. Of the HTTP surfaces in the product — `find src -name
+route.ts` lists them — only `/artifacts` and `/schemas` are reached, the second
+because `fixture-check.test.ts` imports its handler directly; everything under
+`src/app/api/` is reached by nothing.
 
 It does not claim every criterion is enforced. The workflow's `test` step covers
 the substance of AC-1 — `vitest run` with the portal as the working directory —

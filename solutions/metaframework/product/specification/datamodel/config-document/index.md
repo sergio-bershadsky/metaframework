@@ -1,7 +1,7 @@
 ---
 name: config-document
 kind: datamodel
-version: 3
+version: 4
 title: Config document
 summary: config.yaml — which configuration keys a target provides and where their values come from, never a value that is a secret; the rule is one sentence, and as of this version a reader enforces it.
 status: review
@@ -56,10 +56,14 @@ An exchange needs a consumer outside it. Recording the mistaken prediction is
 worth more than deleting it: the test for `exchange` is the boundary, not the
 existence of a reader.
 
-`grep -rn "config\.yaml" framework/portal/src` returns 15 hits, 8 of them
-outside tests: the `ARTIFACT_ROLES` row in `lib/srn/artifacts.ts`, one line of
-`lib/catalog/dialects.ts`, one in `lib/catalog/index.ts` where the check is
-folded into the load pipeline, and five in the reader itself.
+`grep -rn "config\.yaml" framework/portal/src` names every site. Outside tests,
+the ones that are wiring rather than prose are the `ARTIFACT_ROLES` row in
+`lib/srn/artifacts.ts`, one line of `lib/catalog/dialects.ts`, one in
+`lib/catalog/index.ts` where the check is folded into the load pipeline, and the
+reader itself, `lib/environment/environment.ts`. The rest of the hits are the
+filename appearing in English — a kind blurb in `lib/ui/kind.ts`, a worked
+example inside a docblock in `lib/catalog/measurements.ts` — so a grep total
+read as a count of code that touches this file overstates it.
 `components/entity/entity-artifacts.tsx` still has no environment branch, so the
 file renders as a YAML code block — the spec's "masked config surface (secret
 entries render as key + source, never a value)" is a derived view that does not

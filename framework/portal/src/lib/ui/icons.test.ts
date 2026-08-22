@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { COMPONENT_TYPES, COMPONENT_TYPE_STYLES } from './component-type'
 import { KIND_STYLES } from './kind'
-import type { EntityKind } from '../catalog/frontmatter'
+import { ENTITY_KINDS, type EntityKind } from '../catalog/frontmatter'
 
 /**
  * One glyph, one meaning — across both typing registers at once.
@@ -79,10 +79,18 @@ describe('icon identity', () => {
   })
 
   it('covers every slot both registers declare', () => {
-    // Guards the guard: if a register grows and this file reads a stale list,
-    // the checks above would pass while the new value went unexamined. Derived
-    // from the same maps the console draws from, so it cannot fall behind.
-    expect(SLOTS.length).toBe(KINDS.length + COMPONENT_TYPES.length)
+    // Guards the guard: if a vocabulary grows and the style map it is drawn
+    // from does not, the checks above would pass while the new value went
+    // unexamined — it would simply not be in `SLOTS`. So the comparison is
+    // against the vocabularies themselves, which live in other files:
+    // `ENTITY_KINDS` in the frontmatter schema, `COMPONENT_TYPES` off the zod
+    // enum. `SLOTS.length === KINDS.length + COMPONENT_TYPES.length`, which
+    // stood here before, could not fail for any value of either list —
+    // `SLOTS` is built by mapping over both, and `map` preserves length.
+    // `Record<EntityKind, …>` makes a missing key a *typecheck* failure, and
+    // vitest does not typecheck, so this is the run-time half of that.
+    expect(Object.keys(KIND_STYLES).sort()).toEqual([...ENTITY_KINDS].sort())
+    expect(Object.keys(COMPONENT_TYPE_STYLES).sort()).toEqual([...COMPONENT_TYPES].sort())
     expect(new Set(SLOTS.map((entry) => entry.slot)).size).toBe(SLOTS.length)
   })
 })

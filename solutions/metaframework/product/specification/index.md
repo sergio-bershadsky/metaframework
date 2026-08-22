@@ -1,7 +1,7 @@
 ---
 name: specification
 kind: product
-version: 6
+version: 7
 title: Specification
 summary: The normative contract under framework/spec — the core and kind documents the portal implements, the authoring kit distils, and the meta-schema datamodels they name.
 status: review
@@ -50,10 +50,10 @@ prose and the two most load-bearing statements in this catalog become
 unstateable — that
 [portal](srn://metaframework/product/portal) implements it, and that
 [authoring-kit](srn://metaframework/product/authoring-kit) distils it. Both are
-facts with evidence: twenty-four source files under `framework/portal/src` cite
-`framework/spec` by path, and commit 6a1b1f1 is titled "SRN parser, resolver and
-disk mapping with **spec-derived** tests"; nine of the ten files in
-`marketplace/plugins/metaframework/skills/_shared/references/` open by conceding
+facts with evidence: `grep -rl "framework/spec" framework/portal/src` lists the
+source files that cite the spec by path, and commit 6a1b1f1 is titled "SRN
+parser, resolver and disk mapping with **spec-derived** tests"; nine of the ten
+files in `marketplace/plugins/metaframework/skills/_shared/references/` open by conceding
 that "when `framework/spec/` is present in the repository, it is authoritative
 and wins over this file", and eight of those name the spec document they distil.
 The tenth, `philosophy.md`, distils nothing and concedes nothing — it is the

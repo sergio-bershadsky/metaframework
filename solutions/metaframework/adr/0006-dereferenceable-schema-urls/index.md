@@ -1,7 +1,7 @@
 ---
 name: 0006-dereferenceable-schema-urls
 kind: adr
-version: 1
+version: 2
 title: Schema identity is a dereferenceable URL
 summary: $id and every cross-entity $ref become absolute HTTP URLs served by the portal, measured by a stock ref-parser bundling eight documents over HTTP with no filesystem read.
 status: review
@@ -113,8 +113,11 @@ serves the bytes as `application/schema+json`.
   URL back to a local file — deliberately, because SSR must not depend on the
   server reaching itself over the network. The URLs are dereferenceable *for
   outsiders*; for the portal they are identity. That split is now
-  `framework/portal/src/lib/schema/dereference.ts` (92 lines), whose catalog
-  resolver sits at `order: 1` ahead of the built-in HTTP one.
+  `framework/portal/src/lib/schema/dereference.ts`, whose catalog resolver sits
+  at `order: 1` ahead of the built-in HTTP one. (This bullet read "92 lines"
+  when it was filed; the file is 231 lines, measured 2026-08-22 by `wc -l`. The
+  digit was never what the bullet claimed — `order: 1` is — so it is dropped
+  rather than re-typed.)
 - **This is the decision in the chain that held.** 0007 amends it on two points —
   which host an artifact names, and whether `x-srn` exists — and leaves the URL
   form, the one-spelling rule, the absent version suffix, the entity-private

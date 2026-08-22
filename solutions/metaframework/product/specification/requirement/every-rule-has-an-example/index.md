@@ -1,9 +1,9 @@
 ---
 name: every-rule-has-an-example
 kind: requirement
-version: 2
+version: 3
 title: Every normative rule carries a worked example
-summary: The spec's own bar — a rule without an example is a spec defect — measured against the 14 documents it governs, and currently not met.
+summary: The spec's own bar — a rule without an example is a spec defect — measured against every document it governs, and currently not met.
 status: review
 owner: sergio
 requirement-type: non-functional
@@ -42,19 +42,23 @@ document is measured.
 ## Acceptance criteria
 
 - **AC-1** Every section of `framework/spec/` that states a rule with an RFC 2119 keyword contains at least one fenced example.
-  - **Not met.** Measured 2026-08-20 across all 14 documents, over the keyword
-    set `index.md:29` names plus REQUIRED — which the spec uses freely in its
-    field tables and forgot to list: 194 sections at heading level 2–4, of which
+  - **Not met.** Measured 2026-08-20 across `framework/spec/` as it then stood —
+    `kinds/capability.md`, `kinds/journey.md` and `kinds/metric.md` joined it
+    afterwards, so the denominator has grown and this count has not been
+    retaken — over the keyword set §"Normative language" names plus
+    REQUIRED, which the spec uses freely in its field tables and forgot to list:
+    194 sections at heading level 2–4, of which
     **68 carry a keyword outside a code fence and 11 of those carry no fenced
-    block at all**. The eleven:
-    `evolution.md:139` (§Protocols and other entities), `evolution.md:307`
-    (§Evolution error classes), `frontmatter.md:241` (§Delegation to kind
-    documents), `index.md:26` (§Normative language), `srn.md:412` (§Version
-    suffix semantics), `kinds/adr.md:225` (§Sibling artifacts),
-    `kinds/adr.md:279` (§Evolution), `kinds/datamodel.md:1164` (§DataModel error
-    classes), `kinds/product.md:78` (§Frontmatter additions),
-    `kinds/protocol.md:745` (§Supported subset), `kinds/requirement.md:302`
-    (§Sibling artifacts).
+    block at all**. The eleven, named by section rather than by line because a
+    line number in a dated measurement points somewhere else by the time anyone
+    reads it: `evolution.md` §"Protocols and other entities" and §"Evolution
+    error classes", `frontmatter.md` §"Delegation to kind documents",
+    `index.md` §"Normative language", `srn.md` §"Version suffix semantics",
+    `kinds/adr.md` §"Sibling artifacts" and §"Evolution",
+    `kinds/datamodel.md` §"DataModel error classes",
+    `kinds/product.md` §"Frontmatter additions",
+    `kinds/protocol.md` §"Supported subset",
+    `kinds/requirement.md` §"Sibling artifacts".
   - Two of the eleven are error-code reference tables, where the normative
     language sits inside a code's description rather than in a rule of its own.
     One is §"Normative language" itself: the sentence stating this bar has no

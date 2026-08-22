@@ -1,7 +1,7 @@
 ---
 name: core-contracts
 kind: component
-version: 7
+version: 8
 title: Core contracts
 summary: The five spec documents binding on every kind — index, structure, srn, frontmatter, evolution — carrying the rules no kind document may relax.
 status: review
@@ -83,12 +83,17 @@ the portal actually raises against `solutions/` today — `E_SRN_SYNTAX`,
 `E_FM_UNKNOWN_FIELD`, `E_FM_NAME_MISMATCH`, `E_FM_KIND_LOCATION`,
 `E_FM_EDGE_SOURCE`, `E_FM_EDGE_TARGET`, `E_STRUCT_*`.
 
-`evolution.md` is the exception and the honest one. Its central rule — never
-reduce a contract surface, only extend or swap — has one implemented check,
-`E_VER_REGRESSION` in `framework/portal/src/lib/history/git.ts`, and that check
-is never run over `solutions/`. Nothing compares a schema, a frontmatter contract
-or an acceptance-criteria list against its predecessor. Removing a property,
-narrowing an enum or renaming a directory produces no diagnostic at all.
+`evolution.md` is the exception, and it is now the *partial* one. Its central
+rule — never reduce a contract surface, only extend or swap — has exactly one
+surface where the portal can decide it. `E_DM_NOT_ADDITIVE` compares a
+datamodel's `schema.json` against the commit carrying its previous version, so
+removing a property or narrowing an enum does produce a diagnostic, and produces
+it over `solutions/` on every run. `E_VER_REGRESSION` is implemented in
+`framework/portal/src/lib/history/git.ts` and is still never run over
+`solutions/`; nothing compares a frontmatter contract or an acceptance-criteria
+list against its predecessor, and renaming a directory produces no diagnostic at
+all. The rule's reach is one kind wide, and this document states it for all of
+them.
 
 ## The obligation it carries
 

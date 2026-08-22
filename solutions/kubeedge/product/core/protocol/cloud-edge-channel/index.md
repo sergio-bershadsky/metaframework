@@ -77,11 +77,21 @@ But the great majority of traffic sets neither field and is one-way push. So one
 value has to describe a channel that carries both interaction shapes, and
 `request-response` is chosen because it is the stronger claim: a reader who
 assumes replies exist will not be surprised, and a reader who assumes they do not
-would be wrong about the query path. The consequence is that any workflow authored
-here as pure event fan-out draws a `W_PROTO_STYLE_MISMATCH` that the catalog can
-never clear — which is why `workflows/carry-a-resource-update.yaml` and
-`workflows/ask-the-cloud.yaml` are written as one file each rather than merged:
-the second one is what keeps the declared style honest.
+would be wrong about the query path. The consequence is that this protocol owes
+the catalog a `call`/`return` pair *somewhere* — which is why
+`workflows/carry-a-resource-update.yaml` and `workflows/ask-the-cloud.yaml` are
+written as one file each rather than merged: the second one is what keeps the
+declared style honest.
+
+The rule is protocol-wide rather than per-workflow, and the distinction matters
+here because this entity is the case that shows it. `W_PROTO_STYLE_MISMATCH`'s
+`request-response` clause is "no workflow ever answers … no `call`/`return` pair
+**anywhere**" — one finding against `index.md`, not one per file — so the pure
+fan-out in `carry-a-resource-update.yaml` draws nothing on its own, and
+`ask-the-cloud.yaml` answering is what clears the protocol. Since
+`lib/protocol/spec-file-checks.ts` gained the emitter this entity draws no
+`W_PROTO_STYLE_MISMATCH` at all, which is the intended outcome of splitting the
+two files rather than an accident of the split.
 
 ## Channels are routing groups, not paths
 

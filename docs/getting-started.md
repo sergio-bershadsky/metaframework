@@ -740,13 +740,26 @@ kind's:
 - **`participants` is read four ways and judged none of them.** Duplicate
   aliases, a participant that is not a component, and a participant list that
   disagrees with the `exposes`/`uses` edges are all specified and all silent.
-- **`E_DM_NOT_ADDITIVE` is not enforced.** Nothing compares your `schema.json`
-  against its previous version, so a *removed* property passes the check. The
-  additive rule in step 11 is real, and today it is on you and your reviewer.
-
 The workflow mini-spec, frontmatter, SRN resolution, placement, schemas, journeys
 and environments *are* enforced. When in doubt, the honest test is the one you
 just ran: break it on purpose in a scratch copy and see whether anything says so.
+
+**`E_DM_NOT_ADDITIVE` moved off that list**, and it is worth knowing exactly how
+far. The check now reads git: for every datamodel past version 1 it finds the
+commit carrying version N−1, reads that commit's `schema.json`, and compares it
+with yours. Remove a property, add a name to `required`, drop an enum member,
+narrow a `type`, tighten a bound, add a `pattern`, close the schema with
+`"additionalProperties": false`, or point a `$ref` at a different entity, and the
+check goes red with the JSON pointer of the position.
+
+Two limits, because a checker you trust for the wrong things is still worse than
+none. The comparison is against **N−1**, so if you break the schema *and* forget
+to bump `version`, you are compared with the wrong document — bump first. And
+where git cannot answer — a tarball, a shallow clone, an entity you have not
+committed yet — the check adds nothing rather than guessing; the rest of the
+list is unaffected. The additive rule in step 11 is still yours to understand:
+the portal now catches the mechanical half of it, and a semantic break (same
+name, same type, new meaning) is invisible to any checker there will ever be.
 
 ## 13. Let the authoring kit do it
 

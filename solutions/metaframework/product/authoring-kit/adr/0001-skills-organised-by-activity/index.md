@@ -1,7 +1,7 @@
 ---
 name: 0001-skills-organised-by-activity
 kind: adr
-version: 3
+version: 4
 title: Organise the skills by activity, not by entity kind
 summary: Skills are cut by what the author is doing — design, add, evolve, validate, review — because one skill per kind would make seven skills fight over the same trigger phrases.
 status: review
@@ -58,11 +58,14 @@ those two and covers the other seven kinds. The dispatch rule lives in one place
   `evolve-entity` is a skill plus a swap walkthrough covering a
   procedure that touches every kind; under a per-kind cut that procedure would
   have been copied nine times or omitted eight.
-- The cost lands on `add-entity`. One 255-line skill now carries seven kinds'
-  frontmatter contracts and required prose, and it is the file most likely to go
-  stale when a kind document changes. Its 612-line `worked-examples.md` exists
-  because a single procedure covering seven kinds is not readable without one
-  worked instance per kind.
+- The cost lands on `add-entity`. One skill carries seven kinds' frontmatter
+  contracts and required prose, and it is the file most likely to go stale when a
+  kind document changes. Its `worked-examples.md` exists because a single
+  procedure covering seven kinds is not readable without one worked instance per
+  kind. This record was written against a 255-line `SKILL.md` and a 612-line
+  `worked-examples.md`; measured 2026-08-22 by `wc -l` they are **527** and
+  **1,148**, so the cost this bullet priced has roughly doubled on both halves
+  and the bullet reads more strongly now than when it was filed.
 - The catalog does not model the cut as component boundaries. A skill cannot
   ship, version, fail or be owned apart from the plugin that carries it, so this
   solution models the whole deliverable as one component,
@@ -84,10 +87,14 @@ those two and covers the other seven kinds. The dispatch rule lives in one place
   changing, validating and reviewing their kind, and every one of them would have
   matched "add a thing to the catalog".
 - **One skill for everything.** Rejected on size before it was rejected on
-  design: the seven skills plus their references run to 4,079 lines, and a single
-  file carrying the interview, seven frontmatter contracts, three artifact
-  formats, the swap procedure and the review checklist would be loaded in full
-  for a request that needed one paragraph of it.
+  design: a single file carrying the interview, seven frontmatter contracts,
+  three artifact formats, the swap procedure and the review checklist would be
+  loaded in full for a request that needed one paragraph of it. The figure filed
+  with this record was 4,079 lines, and it did not say which population it
+  counted. Measured 2026-08-22 by
+  `find marketplace/plugins/metaframework/skills -type f -exec wc -l {} +`, the
+  whole skills directory is **13,880** lines, **8,541** of them outside
+  `_shared/`. Either reading argues the point harder than the original did.
 - **A skill per artifact format** — one for `schema.json`, one for
   `transport.yaml`, one for workflows. Rejected because an author does not set
   out to write a transport binding; they set out to describe a protocol, and the

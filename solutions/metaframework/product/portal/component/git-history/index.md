@@ -1,7 +1,7 @@
 ---
 name: git-history
 kind: component
-version: 4
+version: 5
 title: Git history
 summary: Every historical read in the portal, shelled out to git through an argv array, classified into four failure reasons, and never permitted to throw.
 status: review
@@ -98,3 +98,16 @@ the entity page, which drives its historical view off `?v=N` in the URL so a
 past state is a shareable link. The HTTP surface over this module,
 [history-service](srn://metaframework/product/portal/component/history-service),
 has a different story, and it is on that page.
+
+The heading is out of date by one caller, and the caller is the reason the
+module's failure classification earns its keep. `resolveVersion()` and
+`readFileAtRevision()` are now also called from the *catalog pipeline*, by the
+additive-only check that
+[catalog-loader](srn://metaframework/product/portal/component/catalog-loader)
+folds in: it asks for a datamodel's version N−1 and diffs that `schema.json`
+against the working tree. A page can render a notice when the past is
+unreachable; a diagnostics list cannot — an accusation the accuser cannot
+support is worse than none — so the caller reads a `HistoryUnavailable` of any
+of the four reasons as *say nothing*. The one thing this module promises,
+that no function throws and every failure returns a value, is what lets a
+build-time check depend on git without depending on git being there.

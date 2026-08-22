@@ -1,7 +1,7 @@
 ---
 name: zero-error-catalog-load
 kind: requirement
-version: 2
+version: 3
 title: The shipped catalog loads with zero error diagnostics
 summary: Every catalog under solutions/ loads with no error-severity diagnostic, asserted against the real tree rather than a fixture.
 status: review
@@ -71,9 +71,15 @@ records from the process side.
 
 Stated plainly, because a green check invites the wrong inference:
 
-- **`E_PROTO_*` never runs over `solutions/`.** The workflow and state validators
-  meet real content only when the portal *renders* a protocol page, and their
-  output does not reach `/diagnostics`.
+- **`E_PROTO_*` now runs over `solutions/`,** and this bullet used to say it never
+  did. Every module that raises a protocol class is reachable from `load()`: the
+  participant, payload and spec-file disciplines through `withKindChecks()`, and
+  the transport reader, `parseWorkflow`, `parseStates` and the Arazzo grounding
+  check through `withArtifactChecks()`. Their output reaches `/diagnostics` like
+  any other class. One branch is still unreachable rather than merely quiet —
+  `W_PROTO_STATES_EVENT_UNKNOWN` fires only when `parseStates` is handed
+  `workflowMessages`, and neither call site passes it, deliberately and on the
+  record in `lib/catalog/artifact-checks.ts`.
 - **`E_VER_REGRESSION` never runs over `solutions/`** either — see
   [additive-only-evolution](srn://metaframework/requirement/additive-only-evolution).
 - **`W_DM_UNION_TAG` can never reach `/diagnostics`.** It is emitted only inside
@@ -82,16 +88,16 @@ Stated plainly, because a green check invites the wrong inference:
 - **`W_DM_CONTRADICTION` reaches the entity page but not `/diagnostics`.** It is
   written into a local array that `buildLineage()` surfaces, not into
   `catalog.diagnostics`.
-- **Some specified codes are implemented nowhere**, and the live list is the
-  `UNIMPLEMENTED` register in
-  `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read the count
-  there rather than from a figure written here. It was roughly fifty when this
+- **Codes specified but implemented nowhere** are the `UNIMPLEMENTED` register in
+  `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read it there
+  rather than from a figure written here. It was roughly fifty when this
   requirement was written, concentrated in protocol, environment, ADR and
-  requirement validation; environment, ADR and requirement are gone from it and
-  what is left is mostly protocol. `E_ADR_SECTIONS` and `E_REQ_CRITERIA` were
-  named here as the pair that mattered, and both are emitted — this document's
-  own required `## Acceptance criteria` heading is checked by
-  `lib/requirement/requirement.ts`.
+  requirement validation; those families left it in that order, protocol last,
+  and the register is now empty. Empty is a state it can leave again: the gate is
+  total over the spec, so a kind document defining a class nothing raises puts a
+  row straight back. `E_ADR_SECTIONS` and `E_REQ_CRITERIA` were named here as the
+  pair that mattered, and both are emitted — this document's own required
+  `## Acceptance criteria` heading is checked by `lib/requirement/requirement.ts`.
 
 ## Out of scope
 

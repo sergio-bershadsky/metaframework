@@ -229,37 +229,84 @@ One deliberate gap survives the fold: `W_PROTO_STATES_EVENT_UNKNOWN` needs the
 workflow message list, which neither call site passes, so nothing emits it and
 neither surface is stricter than the other.
 
-## What is specified and absent
+## `transport-checks.ts` — the mini-spec and the profile, in one module
 
 `transport.yaml` has a full mini-spec in the protocol kind document — a closed
-`kind` enum, binding blocks, the `spec`/surface-list exclusivity rule — and
-**this component has no parser for it**, in either of the two dialects that file
-now admits. Grepping `src` for `transport` outside tests turns up nothing that
-reads one: comments, the protocol
-kind's blurb string in `lib/ui/kind.ts`, the role-table row in
-`lib/srn/artifacts.ts` that makes the file addressable, and the two
-dialect-registry rows in `lib/catalog/dialects.ts` — the framework `$schema` that
-[0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects)
-requires, read and stripped, and the native `asyncapi:` that
-[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi) added
-beside it, recognised and left in place. Identity, in other words, and no reader:
-none of those lines looks at a field of the document beneath. The file still
-renders as generic YAML like any other, and `E_PROTO_TRANSPORT_SCHEMA`,
-`E_PROTO_TRANSPORT_BINDING`, `E_PROTO_TRANSPORT_SPEC_CONFLICT`,
-`E_PROTO_TRANSPORT_ASYNCAPI` and `E_PROTO_SPEC_FILE` appear in `src` as five rows
-of the debt register in `lib/catalog/diagnostic-coverage.test.ts`, and once more
-as a comment in `dialects.test.ts` — nowhere else. The AsyncAPI row reads "the
-AsyncAPI dialect is detected and never read", which is the whole of what a second
-dialect cost this component. Every catalog under `solutions/` authors
-`transport.yaml` files — `find solutions -name transport.yaml` lists them, in
-both dialects — and not one of them has ever been validated by anything.
+`kind` enum, binding blocks, the `spec`/surface-list exclusivity rule — and a
+second dialect beside it, the AsyncAPI profile
+[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi) added.
+This module reads both, and reads them as two grammars that share no rule,
+because the kind document states none in common between them.
 
-Two more gaps in the same direction: `W_PROTO_WF_CHANNEL_UNKNOWN` — which would
-check a step's `channel` against the transport's surface list — cannot exist
-without that parser; and `E_PROTO_PARTICIPANT_KIND`, `E_PROTO_ALIAS_DUP` and
-`E_PROTO_PAYLOAD_KIND` are unimplemented, so a participant pointing at a
-datamodel is caught only if the reference dangles. The one participant rule that
-*is* enforced is "at least two", and it arrives as `E_FM_SCHEMA` from the zod
-schema in
-[catalog-loader](srn://metaframework/product/portal/component/catalog-loader),
-under the wrong code.
+Which branch runs comes from `artifact.dialect` — the loader's own ruling,
+recorded once by [catalog-loader](srn://metaframework/product/portal/component/catalog-loader)
+— and never from sniffing the document. That is what makes a file declaring
+`$schema` *and* `asyncapi:` the mini-spec, which is the kind document's own
+worked counter-example, and it is what makes an `asyncapi:` version outside the
+recognised band fall back to the legacy grammar rather than to a reader that
+would not understand it.
+
+The module is pure: a parsed document and a handful of optional facts about the
+owning entity go in, diagnostics come out. There is no filesystem in it and no
+catalog. Four of the six profile rules need something only the entity knows — the
+`x-srn` must be the entity's SRN, `info.title` its title, an `operations`
+document's `id` one of its participant refs — so those travel in as options, and
+an option the caller omits leaves its rule **unchecked** rather than assumed. A
+reader with only the bytes gets every verdict the bytes can support and no
+invented one.
+
+## `participants-checks.ts`, `payload-checks.ts`, `spec-file-checks.ts`
+
+Three modules that judge a protocol from outside its artifacts, and they are here
+rather than in the artifact fold because none of them can be answered from one
+file:
+
+- **`participants-checks.ts`** owns the `participants` list. Three modules
+  already *resolved* that list before it existed — `lib/structure` for the
+  nearest-common-ancestor rule, `lib/actor` for the orphan rule,
+  `lib/journey/artifacts` for the hop rule — and each treated a participant it
+  could not use as somebody else's finding, correctly, because none of them owned
+  the surface. The list was read three ways and judged by nobody.
+- **`payload-checks.ts`** owns two joins: a payload reference against the kind it
+  resolves to, and a workflow step's `channel` against the transport's surface,
+  in whichever dialect the transport is written. It reads both surfaces
+  *structurally* rather than by key scan — `message:` is an arrow label in a
+  workflow step and an SRN in a transport surface entry, and a join may guess
+  between those where a diagnostic may not.
+- **`spec-file-checks.ts`** owns the entity **directory** and the `style`
+  declaration. It is the protocol kind's JRN4/JRN9, and like them it needs a
+  directory listing rather than a document, which
+  [catalog-loader](srn://metaframework/product/portal/component/catalog-loader)
+  now takes for protocols alongside journeys — recursive and by path, because a
+  linked spec file may sit in a subdirectory and a `pricing.proto` never becomes
+  an artifact at all.
+
+## What is specified and absent
+
+The debt register in `lib/catalog/diagnostic-coverage.test.ts` is **empty**:
+every class the protocol kind document defines has an emitter, and the sixteen
+that did not were the last entries in it. What is absent is narrower than it was,
+and none of it is a missing class.
+
+**The derived views.** The kind document specifies that the AsyncAPI dialect be
+parsed rather than served as bytes *because* it feeds three views — a transport
+card, a message × datamodel matrix, and a surface list. None of the three is
+built. The file is parsed and judged and still renders as generic YAML, so the
+reason given for parsing it is not yet the reason it is parsed. `transport.yaml`
+now carries an artifact role and a findings footer on the entity page and nothing
+more.
+
+**One class with an unreachable branch.** `W_PROTO_STATES_EVENT_UNKNOWN` is
+written in `states.ts` and needs the workflow message list, which neither call
+site passes. It has an emitter and no path to it — which is why it is not a
+register row, and why "every class has an emitter" is a weaker statement than
+"every rule fires".
+
+**Two half-rules on the payload surfaces.** A payload reference that resolves to
+a legal-but-absent SRN is `E_SRN_DANGLING`'s, and nothing raises it on the
+workflow, mini-spec or AsyncAPI surface. On the two *transport* surfaces
+`E_SRN_SYNTAX`, `E_SRN_CROSS_SOLUTION` and `E_SRN_ARTIFACT` have no owner either;
+`workflow.ts` files them for a workflow `payload` only. Neither can be a register
+row, because a register keyed by code cannot hold half a rule — they live as
+`it.todo`s beside the clause that does fire, which is the treatment JRN11 and
+JRN12 already get.

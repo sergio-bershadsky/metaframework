@@ -1,7 +1,7 @@
 ---
 name: artifact-viewer
 kind: component
-version: 3
+version: 4
 title: Artifact viewer
 summary: Monaco source panes and the JSON Schema view, joined to their drawings by a line index built from the file's own parse tree.
 status: review
@@ -122,10 +122,13 @@ The raw server-rendered source is the only no-JavaScript path to an artifact:
 both the Stoplight viewer and the Monaco pane are `ssr: false`, so a reader
 without JavaScript sees the file and no shape.
 
-Nothing here validates an example against its schema. `examples/` directories
-exist in the catalog and `E_DM_EXAMPLE_INVALID` is specified, but the function
-that would check them — `schemaValidator()` in the registry — has no production
-caller.
+Nothing *here* validates an example against its schema, and that is now a
+statement about this component only. `E_DM_EXAMPLE_INVALID` is emitted —
+`lib/datamodel/datamodel.ts` compiles a validator per datamodel through
+`schemaValidator()` and checks every `examples/` file, reaching `/diagnostics`
+through `withDatamodelChecks()`. What this viewer does is render the file, so a
+reader looking at an example here still sees no verdict beside it; the verdict is
+on the diagnostics page.
 
 Neither the Stoplight view, the lineage footer, nor any file under
 `src/components/code/` has a test.

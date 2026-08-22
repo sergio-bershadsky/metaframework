@@ -1,7 +1,7 @@
 ---
 name: schema-document
 kind: datamodel
-version: 3
+version: 4
 title: Schema document
 summary: The schema.json profile — 2020-12, a canonical $id, a required x-srn, four forbidden keywords, and cross-entity refs as absolute URLs.
 status: review
@@ -100,12 +100,15 @@ break additivity.
 
 **`https://schemas.metaframework.dev` resolves nowhere.** It is a constant at
 `framework/portal/src/lib/schema/url.ts:46`, mirrored at
-`scripts/migrate_schema_ids.py:45`, and there is no DNS, hosting or redirect
-configuration for it anywhere in this repository. Every one of the 82 `$id`
-values in the catalog names a host that answers nothing. That is the intended
+`scripts/migrate_schema_ids.py:45`; `host schemas.metaframework.dev` is NXDOMAIN
+and no redirect points at it. Every `$id` in the catalog therefore names a host
+that answers nothing. That is the intended
 design — identity is not a retrieval address — but it means an outside consumer
 needs one line of resolver configuration before any of this dereferences, and no
-such consumer exists in-repo.
+such consumer exists in-repo. What the repository does now hold is the build for
+the eight specification meta-schemas — `npm run schemas:build`, scoped and
+explained in `docs/schema-hosting.md` — which is a site that could answer the
+name and is deployed behind nothing.
 
 **The serving route has no test file.** `app/schemas/[...path]/route.ts` is
 exercised only indirectly, by `lib/catalog/fixture-check.test.ts` importing the
@@ -113,7 +116,13 @@ handler and asserting a 200 whose `$id` is the canonical URL rather than the
 serving one, plus `>= 400` for a `..` climb, `.git/config`, and a real
 non-datamodel entity.
 
-**Examples are never validated.** `datamodel.md` defines `E_DM_EXAMPLE_INVALID`
-and the catalog holds three `examples/` directories. The function that would do
-the checking, `schemaValidator()` in `registry.ts`, has no production caller —
-its only importer is `registry.test.ts`.
+**`W_DM_UNION_TAG` cannot reach the diagnostics page.** It is emitted only inside
+`buildSchemaBundle()` in `registry.ts`, and that function has no production
+caller: its only importers are `registry.test.ts` and the coverage register.
+
+This section used to read "examples are never validated", on the grounds that
+`schemaValidator()` was in the same position. It is not, and has not been since
+`lib/datamodel/datamodel.ts` began compiling each entity's own validator through
+it and running every file in the entity's `examples/` directory against the
+result — which is `E_DM_EXAMPLE_INVALID`, defined in `datamodel.md` and emitted
+there.

@@ -1,7 +1,7 @@
 ---
 name: human-and-ai-readable
 kind: requirement
-version: 3
+version: 4
 title: The catalog is readable by a human and by an agent, with grep alone
 summary: A person or a model with no tooling must be able to navigate, cite and correctly modify the catalog using a text editor and grep.
 status: review
@@ -41,10 +41,14 @@ equivalent.
     and the brass environment that are genuinely deprecated.
 - **AC-2** Every reference the framework owns the format of is greppable as text, with no index and no parser.
   - It takes two queries, not one, and the criterion says so rather than rounding
-    up. Measured over `solutions/acme` on 2026-08-19: `grep -rn
-    "srn://acme/datamodel/money"` returns 16 hits — prose links and the schema's
-    `x-srn` — while `grep -rn "datamodel/money"` returns 61, of which 28 are in
-    YAML and JSON artifacts. The gap is not a defect: the spec asks for the
+    up. Over `solutions/acme`, `grep -rn "srn://acme/datamodel/money"` finds the
+    prose links and the schema's `x-srn`; `grep -rn "datamodel/money"` finds
+    those and, on top of them, every solution-absolute reference in the YAML and
+    JSON artifacts, so it is the strictly larger set. Both counts are left to the
+    commands: this is a current-state entity, and a grep total typed into it goes
+    stale on somebody else's commit
+    ([0018-measured-facts-are-derived-or-dated](srn://metaframework/adr/0018-measured-facts-are-derived-or-dated)).
+    The gap is not a defect: the spec asks for the
     solution-absolute form (`/datamodel/money@1`) for anything outside an entity's
     own subtree, and artifacts take it. So the greppable token is the tail of the
     path, and the full `srn://` form is the narrower query, not the complete one.

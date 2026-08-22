@@ -117,50 +117,70 @@ outright — "The ADR kind defines no sibling artifacts. An ADR is `index.md`" �
 because "an ADR's substance is argument, and argument does not have a
 machine-readable form".
 
-## Enforcement is thin here, and thickest in the core
+## Enforcement was thin here, and no longer is
 
-This is the honest asymmetry between the two components. The core contracts are
-largely enforced by the portal loader; the kind contracts largely are not. Codes
-these documents specify that appear nowhere in `framework/portal/src`
-include `E_ADR_SECTIONS` (the ADR's four required headings), `E_REQ_CRITERIA`
-(the requirement's `## Acceptance criteria` shape), `E_PROD_ACTOR_TARGET`,
-`E_PROTO_PARTICIPANT_KIND`, `E_PROTO_ALIAS_DUP`, `E_ENV_TOPOLOGY_SCHEMA`,
-`E_COMP_LIBRARY_ENVIRONMENT`, `W_STRUCT_PROTOCOL_NCA` and
-`W_REQ_UNIMPLEMENTED` — roughly fifty in total, concentrated in the protocol,
-environment, ADR and requirement documents.
+This section recorded an asymmetry between the two components — the core
+contracts largely enforced by the portal loader, the kind contracts largely not —
+and it named nine codes as appearing "nowhere in `framework/portal/src`". All
+nine have emitters, and so does every other class any document in
+`framework/spec` defines: the debt register in
+`framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` is empty. The
+register is a ratchet rather than a list, so that claim is the gate's rather than
+this page's — it reads the spec's own definition tables at run time and fails on
+any documented class with no emitter.
 
-The consequence lands on this solution directly: the ADRs and the requirements in
-this catalog are checked by author discipline alone.
+The asymmetry closed in four moves, none of which was a change to these
+documents. The kind disciplines under `lib/{adr,requirement,actor,structure}/`
+took the ADR, requirement, product and placement rules; `lib/environment/` took
+the environment artifacts; `lib/journey/artifacts.ts` took the journey directory
+rules; and the protocol-checking modules under `lib/protocol/` took what the
+protocol kind had left. Each had named the same missing thing in a different accent — a check
+that needs a *second* entity, or a *directory listing*, and so could not live in
+the loader's per-entity pass.
 
-## Two documents specify a format no code reads
+What is left is not a kind contract that goes unchecked but three narrower
+things, each recorded where it belongs:
+`W_PROTO_STATES_EVENT_UNKNOWN` has an emitter whose branch no call site reaches;
+the *kind* clause of a journey step's three reference rules needs a resolved
+catalog the parser is not handed; and a payload reference resolving to a
+legal-but-absent SRN is nobody's. None of the three is a whole class, which is
+why none of them can be a register row.
+
+The consequence that landed on this solution has reversed with it: the ADRs and
+the requirements in this catalog are no longer checked by author discipline
+alone.
+
+## Two documents specified a format no code read
 
 `transport.yaml` has a complete mini-spec in `protocol.md` — a closed `kind`
 enum, six binding blocks, six surface lists, the `spec`/surface-list exclusivity
 rule — and, since
 [0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi), a
 second admitted grammar for three of those six kinds, with its own profile rules
-on top of AsyncAPI. Sixteen authored instances, 12 in the mini-spec and 4 in
-AsyncAPI (`find solutions -name transport.yaml`, 2026-08-21). Nothing in `framework/portal/src` validates either: the file renders
-as generic YAML and `E_PROTO_TRANSPORT_*` is implemented nowhere.
-`environment.md`'s `topology.yaml` is in the same position.
+on top of AsyncAPI. Both are now read: `lib/protocol/transport-checks.ts` takes
+the branch the loader's dialect ruling names, and every `E_PROTO_TRANSPORT_*`
+class has an emitter. `environment.md`'s `topology.yaml` made the same crossing
+one release earlier, into `lib/environment/environment.ts`.
 
-What both formats now have in `src` is an *identity*, not a reader.
+What both formats had in `src` before that was an *identity*, not a reader, and
+the distinction is worth keeping because it is what made the gap easy to miss.
 `lib/srn/artifacts.ts` gives each a role row so it can be addressed, and
 `lib/catalog/dialects.ts` gives each a dialect row so the `$schema` header
 [0015-artifact-dialects](srn://metaframework/adr/0015-artifact-dialects) requires
 can be recognised and stripped. The `transport` role has **two** such rows —
-[0017-transport-asyncapi](srn://metaframework/adr/0017-transport-asyncapi) admits
-an AsyncAPI 3.x document under the same filename for the `kafka`, `websocket` and
-`amqp` wires, discriminated by its own `asyncapi:` key and left unstripped, while
-`http`, `grpc` and `in-process` keep the mini-spec — so the transport role is
-specified twice over and read neither time. No row looks at a single field of the
-document beneath it.
+0017 admits an AsyncAPI 3.x document under the same filename for the `kafka`,
+`websocket` and `amqp` wires, discriminated by its own `asyncapi:` key and left
+unstripped, while `http`, `grpc` and `in-process` keep the mini-spec. A role row
+and a dialect row look at no field of the document beneath them, so a format can
+be fully addressable, fully header-checked, and entirely unread — which is what
+both of these were.
 
-That gap is why
+The rows are still identity-only; what changed is that a reader now sits above
+them and uses the dialect row's ruling to choose a grammar.
 [transport-document](srn://metaframework/product/specification/datamodel/transport-document)
-is modelled at all, and
+records the crossing from the format's own side, and
 [topology-document](srn://metaframework/product/specification/datamodel/topology-document)
-records the same gap from the environment side.
+records the environment one.
 
 ## `component-type: library`
 

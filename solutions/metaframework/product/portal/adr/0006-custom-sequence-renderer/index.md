@@ -1,9 +1,9 @@
 ---
 name: 0006-custom-sequence-renderer
 kind: adr
-version: 2
+version: 3
 title: Sequence diagrams are hand-rolled SVG, not a graph library
-summary: A sequence diagram is a grid, not a free graph, so it is drawn by 616 lines of the portal's own SVG over a pure layout pass.
+summary: A sequence diagram is a grid, not a free graph, so it is drawn by the portal's own SVG over a pure layout pass rather than by any graph library.
 status: review
 owner: sergio
 decision-status: accepted
@@ -35,7 +35,8 @@ graph library offers is a constraint this drawing has to fight.
 ## Decision
 
 The sequence diagram is the portal's own SVG.
-`src/components/diagrams/sequence-diagram.tsx` (616 lines) paints a layout
+`src/components/diagrams/sequence-diagram.tsx` (616 lines when this record was
+filed; 649, measured 2026-08-22 by `wc -l`) paints a layout
 computed by `layoutWorkflow()` in
 [protocol-model](srn://metaframework/product/portal/component/protocol-model),
 which is a pure function from a parsed workflow to geometry. The component owns

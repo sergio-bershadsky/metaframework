@@ -1,7 +1,7 @@
 ---
 name: 0010-additive-only-evolution
 kind: adr
-version: 2
+version: 3
 title: Evolution is additive-only — never reduce, only extend or swap
 summary: A contract surface is extended in place with a version bump or replaced by a successor carrying a supersedes edge; it is never narrowed, and no entity is ever deleted, moved or renamed.
 status: review
@@ -93,17 +93,43 @@ one at a time as ordinary additive changes, set the predecessor to
   lineage on all four. That is the whole cost of the rule and the whole benefit,
   in one bucket.
 - **Almost nothing enforces it, and the inventory matters more than the
-  principle.** `E_VER_REGRESSION` is implemented at
-  `framework/portal/src/lib/history/git.ts:654` with its own tests
-  (`git.test.ts:290`), but it is **never run over `solutions/`** — the module's
-  suite uses hermetic fixtures and `fixture-check.test.ts` does not call it.
-  Nothing compares a schema against its predecessor, nothing compares a
-  frontmatter contract against its predecessor, and nothing detects a deleted
-  directory at all. `docs/decision-record.md` being append-only is enforced by no
-  test, no lint and no hook. The rule is held by author discipline and by the
-  authoring kit's `evolve-entity` skill, carried by its
+  principle.** `E_VER_REGRESSION` is implemented in
+  `framework/portal/src/lib/history/git.ts` with its own tests, but it is
+  **never run over `solutions/`** — the module's suite uses hermetic fixtures and
+  `fixture-check.test.ts` does not call it. Nothing compares a frontmatter
+  contract against its predecessor, and nothing detects a deleted directory at
+  all. `docs/decision-record.md` being append-only is enforced by no test, no
+  lint and no hook. The rule is held by author discipline and by the authoring
+  kit's `evolve-entity` skill, carried by its
   [plugin](srn://metaframework/product/authoring-kit/component/plugin)
   component.
+- **One clause of the inventory above has since closed, and it is the datamodel
+  one.** `E_DM_NOT_ADDITIVE` is
+  `framework/portal/src/lib/datamodel/additive.ts`, folded into the catalog
+  pipeline by `withEvolutionChecks` — the one step that reads a *commit* rather
+  than the working tree. For every datamodel past version 1 it resolves version
+  N−1 through the version→commit index, reads that commit's `schema.json`, and
+  reports the decidable tightenings `framework/spec/kinds/datamodel.md`
+  enumerates: a property removed, a name added to `required`, an enum member
+  dropped, a narrowed `type`, a tightened bound, a `pattern` added, a schema
+  closed, a `$ref` moved to another entity. The whole shipped catalog passes it
+  (measured 2026-08-22 by `node framework/portal/bin/metaframework.mjs check`,
+  which reports no `E_DM_NOT_ADDITIVE`). What the sentence above still describes
+  correctly is everything that is not a schema: a requirement's acceptance
+  criteria, an ADR's decision paragraph and a protocol's operation list are all
+  contract surfaces, and none of them has a comparator.
+- **Implementing it found the rule's own blind spot, and the blind spot is this
+  record's `522c6bb` bullet again.** A byte comparison of `$ref` strings called
+  every step of the schema-identity chain
+  ([0005](srn://metaframework/adr/0005-relative-path-schema-refs-without-id) →
+  [0006](srn://metaframework/adr/0006-dereferenceable-schema-urls) →
+  [0007](srn://metaframework/adr/0007-canonical-schema-host-and-x-srn-restored))
+  a retarget, because each rewrote how a reference is *spelled* without moving a
+  single target. The check therefore compares the entity a reference names, not
+  the bytes — the same URL→SRN mapping the registry records edges with — and says
+  nothing when either side is written in a grammar this framework no longer
+  accepts. A grammar change is not a contract change, which is precisely what the
+  `522c6bb` bullet below already had to say about paths.
 - **The spec has already broken it twice, and the breaches are recorded rather
   than repaired.** Commit `5b8a3e8` bumped `index.md` 3→5, `srn.md` 3→5,
   `evolution.md` 2→4 and `frontmatter.md` 2→4 in one commit, so `index.md@4`,
@@ -113,9 +139,15 @@ one at a time as ordinary additive changes, set the predecessor to
   `structure.md` leaving both at 1. Fixing either would require rewriting history,
   which is the violation this rule exists to prevent.
 - **One bulk relocation has been performed, and it is the rule's only breach in
-  the catalog.** Commit `522c6bb` moved 45 entities and re-emitted 118 references
-  in the same commit
-  ([0008-fully-bucketed-srn-paths](srn://metaframework/adr/0008-fully-bucketed-srn-paths)).
+  the catalog.** Commit `522c6bb` moved 30 of the 45 entities then in the
+  catalog and, by its own commit body, re-emitted 118 references in the same
+  change
+  ([0008-fully-bucketed-srn-paths](srn://metaframework/adr/0008-fully-bucketed-srn-paths),
+  which measured the move rather than quoting it: 30 `index.md` files changed
+  path, 13 were modified in place, 2 were untouched, 51 files were renamed in
+  total). This bullet read "moved 45 entities" until 2026-08-22 — the commit
+  body's own wording, and the error 0008 exists to correct, since 45 was the
+  size of the catalog and not the size of the move.
   It was a change to the SRN grammar itself rather than to any described system,
   which is the only category of change the rule has no move for — the swap
   procedure operates on entities, and a grammar is not one.
@@ -151,9 +183,12 @@ one at a time as ordinary additive changes, set the predecessor to
   address does not, and the reader is left with a dangling reference whose target
   demonstrably once existed. Keeping the directory costs bytes; removing it costs
   the property the framework is built on.
-- **Enforce the rule in CI.** Not rejected — *unbuilt*. There is no CI in this
-  repository, by the same posture that produced
-  [0011-no-cli-in-v1](srn://metaframework/adr/0011-no-cli-in-v1): the only
-  integrity gate is the portal's own diagnostics page, and the diff that would
-  catch a reduction is a comparison against a predecessor that no loader
-  currently performs.
+- **Enforce the rule in CI.** Not rejected — *partly built*. There is still no CI
+  in this repository, by the same posture that produced
+  [0011-no-cli-in-v1](srn://metaframework/adr/0011-no-cli-in-v1), and the only
+  integrity gate is the portal's own diagnostics page. What has changed since
+  this record was written is that the gate can now perform the comparison: it
+  reads git, so `metaframework check` fails a schema reduction and
+  `metaframework check --since <ref>` fails an unbumped one. Every other contract
+  surface still has no comparator, which is why this stays an alternative rather
+  than becoming a decision.

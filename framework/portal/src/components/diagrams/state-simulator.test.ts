@@ -284,12 +284,31 @@ describe('the shipped catalog', () => {
       const active = activeStateIds(actor.getSnapshot().value as SimulatedStateValue)
       expect(active).toContain(chart.initial)
 
-      // Every event the model offers has to be one the machine really accepts:
-      // this is the join that lets the panel blame a guard rather than the file.
+      // The join that lets the panel blame a guard rather than the file — with
+      // its two sides derived independently. `accepted` is xstate's answer;
+      // `declared` is read straight off `chart.edges`, not out of an offer.
+      // Checking an `available` offer against `can` alone proves nothing:
+      // `available` is *defined* as `can`, so that loop asserted `true === true`
+      // and survived inverting the status offerEvents hands back.
       const snapshot = actor.getSnapshot()
+      const accepted = eventNames(chart).filter((event) => snapshot.can({ type: event }))
+      const declared = new Set(chart.edges.filter((edge) => active.includes(edge.source)).map((edge) => edge.event))
+      expect(accepted.length, 'an initial configuration that accepts nothing has no join to check').toBeGreaterThan(0)
+
+      // An event the machine will really move on has to be one the drawn chart
+      // declares out of a lit state, or `unaccepted` is a lie about the file.
+      // Only this direction is safe: an internal transition with no actions is
+      // drawn but does not move the machine, so `declared` may exceed `accepted`.
+      for (const event of accepted) expect(declared, `${event} is accepted by xstate`).toContain(event)
+
       const offers = offerEvents(chart, active, (event) => snapshot.can({ type: event }))
-      for (const offer of offers.filter((entry) => entry.status === 'available')) {
-        expect(snapshot.can({ type: offer.event })).toBe(true)
+      for (const offer of offers) {
+        const expected = accepted.includes(offer.event)
+          ? 'available'
+          : declared.has(offer.event)
+            ? 'guarded'
+            : 'unaccepted'
+        expect(offer.status, offer.event).toBe(expected)
       }
       // Entry actions report through inspect without a single implementation.
       const entry = chart.nodes.filter((node) => active.includes(node.id)).flatMap((node) => node.entry)

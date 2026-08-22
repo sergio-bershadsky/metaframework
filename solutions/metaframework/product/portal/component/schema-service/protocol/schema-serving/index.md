@@ -1,7 +1,7 @@
 ---
 name: schema-serving
 kind: protocol
-version: 2
+version: 3
 title: Schema serving
 summary: How a JSON Schema tool that has never heard of this framework fetches a catalog schema, and what happens when it follows a $ref out of one.
 status: review
@@ -47,8 +47,11 @@ that same host — not on the origin the bytes just came from. That is the
 identity/retrieval split working exactly as
 [0007](srn://metaframework/adr/0007-canonical-schema-host-and-x-srn-restored)
 intends, and it means a naive consumer's next fetch goes to a host **that
-resolves nowhere**. There is no DNS, no hosting and no redirect for
-`schemas.metaframework.dev` anywhere in this repository.
+resolves nowhere**. `schemas.metaframework.dev` has no DNS record and no
+redirect. A static site that would answer the eight specification meta-schemas
+is buildable here — `npm run schemas:build`, described in
+`docs/schema-hosting.md` — but nothing is deployed behind the name, so the
+`[else]` branch below is still the branch a real consumer takes.
 
 The consumer therefore needs one line of resolver configuration mapping the
 canonical host onto a serving address, outside the artifacts. The `alt` fragment

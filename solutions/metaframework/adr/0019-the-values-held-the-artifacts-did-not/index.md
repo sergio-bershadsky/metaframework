@@ -148,6 +148,15 @@ portal's debt register with the same note — nothing reads `transport.yaml`. Th
 authors obeyed the specification because it is the specification. That also means
 none of the fixes below carries migration risk today.
 
+**Follow-up (2026-08-22): the register entry is gone.**
+`lib/protocol/transport-checks.ts` reads `transport.yaml` in both dialects and
+all four codes have emitters. The observation above is unaffected and is in fact
+now confirmed rather than merely inferred: the shipped catalog draws **zero**
+`E_PROTO_TRANSPORT_*` findings, so the authors really had obeyed a specification
+nothing was checking. What has changed is only that a future divergence would be
+caught, which is what makes the fixes below cheap rather than what made them
+safe.
+
 | #  | The strain                                                             | The rule that strained                                    | Cost of the fix                        |
 | -- | ---------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------- |
 | 1  | MQTT has no value, in either dialect                                   | `kind` enum; AsyncAPI profile rule 4                      | one table row                          |

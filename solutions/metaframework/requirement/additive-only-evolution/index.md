@@ -1,7 +1,7 @@
 ---
 name: additive-only-evolution
 kind: requirement
-version: 3
+version: 4
 title: A contract surface is never reduced, only extended or swapped
 summary: An entity's contract surface may be extended with a version bump or replaced by a successor that is swapped in; it is never narrowed in place.
 status: review
@@ -50,22 +50,42 @@ because it does not.
 
 ## What enforces this
 
-Almost nothing, and the honest inventory matters more than the principle.
+One kind of contract surface, and the honest inventory matters more than the
+principle.
 
-`E_VER_REGRESSION` exists in
-[git-history](srn://metaframework/product/portal/component/git-history) and has
-its own tests, but it is **never run over `solutions/`** — the module's suite
-uses hermetic fixtures, and `fixture-check.test.ts` does not call it. Nothing
-compares a schema against its predecessor, nothing compares a frontmatter
-contract against its predecessor, and nothing detects a deleted directory at all.
-`docs/decision-record.md` being append-only is enforced by no test, no lint and
-no hook.
+**A datamodel's schema is compared against its predecessor.**
+`E_DM_NOT_ADDITIVE` reads the commit carrying version N−1 through the
+version→commit index that
+[git-history](srn://metaframework/product/portal/component/git-history) builds,
+and diffs that `schema.json` against the one on disk. A removed property, a name
+added to `required`, a dropped enum member, a narrowed `type`, a tightened
+bound, a new `pattern`, a schema closed with `"additionalProperties": false` and
+a `$ref` moved to another entity all fail
+[metaframework check](srn://metaframework/product/portal/component/console/component/diagnostics-report).
+It is the only comparator in the repository that runs over `solutions/`.
+
+Everything else is still author discipline. `E_VER_REGRESSION` exists in
+git-history and has its own tests, but it is **never run over `solutions/`** —
+the module's suite uses hermetic fixtures, and `fixture-check.test.ts` does not
+call it. Nothing compares a frontmatter contract, an acceptance-criteria list or
+a protocol's operation set against its predecessor, and nothing detects a
+deleted directory at all. `docs/decision-record.md` being append-only is
+enforced by no test, no lint and no hook.
 
 So AC-1 through AC-3 are held by author discipline and by the authoring kit's
 `evolve-entity` skill
 ([plugin](srn://metaframework/product/authoring-kit/component/plugin)),
 which owns the additive-versus-swap decision. AC-4 is implemented but
 unwired. AC-5 is a convention that this repository has already broken twice.
+
+The schema comparator's own limits are worth carrying here rather than leaving
+on the check's page, because they are limits on this requirement's coverage.
+It compares against N−1, so a tightening that also skipped its version bump is
+measured against the wrong document; it is silent where git cannot reach the
+predecessor, because an accusation nothing can support is worse than none; and
+it decides only what `framework/spec/kinds/datamodel.md` calls the decidable
+subset — a semantic break, the same name and type carrying a new meaning, is
+invisible to it and to any checker that will ever be written.
 
 ## Rationale
 

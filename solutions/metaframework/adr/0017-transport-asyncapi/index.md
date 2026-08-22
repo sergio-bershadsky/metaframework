@@ -406,6 +406,22 @@ through to a generic YAML code block today. The three codes this ADR mints sit i
 mini-spec has never had. Adopting this ADR does not change that; implementing it
 does.
 
+**Follow-up: the reader landed, and it is half of what this section promised.**
+Measured 2026-08-22 by `ls framework/portal/src/lib/protocol/` and
+`grep -rn 'TransportCard\|Transport card' framework/portal/src`:
+`lib/protocol/transport-checks.ts` reads a `transport.yaml` in both dialects,
+`lib/catalog/artifact-checks.ts` and `components/entity/entity-artifacts.tsx`
+both dispatch to it, and all three codes this ADR mints have emitters — as do the
+four the mini-spec never had. The register entry that read "the AsyncAPI dialect
+is detected and never read" is gone, and the register is empty.
+
+The other half has not landed. The transport card, the message × datamodel
+matrix and the surface list are still unbuilt: nothing in `framework/portal/src`
+draws a view from this file, so the reason given above for parsing it rather than
+serving it as bytes is not yet the reason it is parsed. The dialect decision is
+implemented; the derived views it was argued from are still a promise, and this
+paragraph is here so that the emitters are not read as evidence they exist.
+
 What the reader will be, when written, is a **profile** — `asyncapi`, `id`,
 `x-srn`, `info`, `servers`, `channels`, `operations`, and the four bindings it
 knows — read with the portal's own schema and **no new dependency**:

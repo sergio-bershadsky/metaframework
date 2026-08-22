@@ -6,7 +6,13 @@ import { exportStructurizr, identifierFor, instancesLiteral } from './structuriz
 import type { ExportNote, StructurizrExport } from './structurizr'
 
 /**
- * The ADR 0016 prototype, driven by the seven `topology.yaml` files that exist.
+ * The ADR 0016 prototype, driven by the `topology.yaml` files that exist.
+ *
+ * A count stood in that sentence once and it rotted — it named a total the
+ * catalog had already grown past. Every corpus below is derived from the loaded
+ * catalog rather than listed here, so the digit was never load-bearing, which
+ * is precisely why nothing went red when it stopped being true. A number about
+ * the catalog belongs in an assertion that can fail, not in a sentence.
  *
  * The point of this suite is not that a string comes out. It is that the string
  * is **grammatical Structurizr** and that the two claims 0016 rests its

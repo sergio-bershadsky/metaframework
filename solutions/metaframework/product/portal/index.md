@@ -1,7 +1,7 @@
 ---
 name: portal
 kind: product
-version: 3
+version: 4
 title: Portal
 summary: The Next.js console that renders a catalog — the surface where a product's current state and the decisions around it are read.
 status: review
@@ -72,7 +72,8 @@ outside process can address.
 - [git-history](srn://metaframework/product/portal/component/git-history) — the
   past, read through a subprocess, and never allowed to throw.
 - [history-service](srn://metaframework/product/portal/component/history-service)
-  — `/api/history`, four read-only operations with no in-app caller today.
+  — `/api/history`, four read-only operations, reached from the history
+  disclosure at the foot of every entity page since `5c865d3`.
 - [protocol-model](srn://metaframework/product/portal/component/protocol-model)
   — the workflow mini-spec, the XState subset, and the mermaid compiler.
 - `console` and the diagram subsystem — the chrome, the tree, the entity page,
@@ -99,22 +100,30 @@ inside a requirement's acceptance criteria, where it can at least be checked.
 
 ## What is built and not wired
 
-Three gaps, all greppable, all deliberately modelled rather than tidied away:
+Two gaps, both greppable, both deliberately modelled rather than tidied away.
+A third — `history-panel.tsx` fetching `/api/history` with nothing mounting it —
+was closed by commit `5c865d3`, which imports and renders it at the foot of
+every entity page
+([history-panel](srn://metaframework/product/portal/component/console/component/history-panel)
+carries the correction).
 
-- `components/history/history-panel.tsx` is the only client of `/api/history`,
-  and nothing imports it. `grep -rn HistoryPanel src` returns three hits, all in
-  the file that defines it; `git log -S HistoryPanel` returns exactly one commit,
-  `4aa3f68`, which is also the commit that added the directory.
-- `buildSchemaBundle()` and `schemaValidator()` in
-  `src/lib/schema/registry.ts` have no production caller — the only importer is
-  `registry.test.ts`. They were the API of the schema explorer that Stoplight's
-  `JsonSchemaViewer` replaced. The direct consequence is that `W_DM_UNION_TAG`,
-  emitted only inside `buildSchemaBundle`, can never reach `/diagnostics`.
-- There are **zero component tests and zero end-to-end tests**. Every suite
-  lives under `src/lib/**`; `find src -name '*.test.tsx'` returns nothing, so
-  the whole of `src/components` and `src/app` is unverified except where a test
-  imports a route handler directly, which `fixture-check.test.ts` does for
-  `/schemas` and nothing does for `/api/history`.
+- `buildSchemaBundle()` in `src/lib/schema/registry.ts` has no production
+  caller — the only importers are `registry.test.ts` and the coverage register.
+  It was the API of the schema explorer that Stoplight's `JsonSchemaViewer`
+  replaced. The direct consequence is that `W_DM_UNION_TAG`, emitted only inside
+  `buildSchemaBundle`, can never reach `/diagnostics`. Its neighbour
+  `schemaValidator()` is no longer in that position: `lib/datamodel/datamodel.ts`
+  calls it, and `lib/catalog/index.ts` calls that.
+- **No test renders a component and no end-to-end harness exists** — there is no
+  Playwright, no Cypress and no Testing Library in `package.json`, and
+  `find src -name '*.test.tsx'` returns nothing. What that no longer means is
+  that `src/components` and `src/app` are untouched: `state-simulator.test.ts`
+  asserts the simulator's whole model out of `src/components/diagrams/` without a
+  DOM, and two route handlers are called directly as deployed —
+  `fixture-check.test.ts` does that for
+  `/schemas` and `src/app/artifacts/[...path]/route.test.ts` for `/artifacts`.
+  The three routes under `src/app/api/` — history, status, watch — are the ones
+  no test imports.
 
 ## Ownership
 

@@ -219,6 +219,16 @@ to the protocol kind and one to datamodels. The authority is `UNIMPLEMENTED` in
 `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`, which names the
 gap for every entry:
 
+> **Superseded after this note was written, and left standing on purpose.** All
+> seventeen landed in the working tree after 0.2.0 was prepared at `07633c5`:
+> `E_DM_NOT_ADDITIVE` in `lib/datamodel/additive.ts`, and the protocol sixteen in
+> four modules under `lib/protocol/` — `transport-checks.ts`,
+> `participants-checks.ts`, `spec-file-checks.ts` and `payload-checks.ts`. The
+> register is now empty. Every figure in this document is a capture of the tree
+> at `07633c5` and is not restated against a later one; read
+> `diagnostic-coverage.test.ts` for the current answer, not this list. The
+> paragraphs below are what the release itself shipped.
+
 - **`transport.yaml` is parsed and never validated**, in either dialect —
   `E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
   `E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_TRANSPORT_ASYNCAPI`,

@@ -1,7 +1,7 @@
 ---
 name: derived-visualization
 kind: capability
-version: 2
+version: 3
 title: See a system drawn, without anybody having drawn it
 summary: Turn a written description into pictures computed from it, so that a diagram cannot disagree with the thing it depicts.
 status: review
@@ -95,7 +95,10 @@ turn `workflows/*.yaml` and `states.json` into something drawable — and, now,
   [specification](srn://metaframework/product/specification).
 - *Verified drawings.* Only the geometry is tested — the pure layout modules
   under `src/lib/diagrams/`, plus `narrateWorkflow` and `statesToMermaid` in
-  `protocol-model`. `find src -name '*.test.tsx'` returns nothing, so every line
-  under `src/components/diagrams/` is verified by looking at it, the journey
-  renderer included. That is a fact about how well this capability is realized and belongs on
+  `protocol-model`, plus the state simulator's model, which
+  `src/components/diagrams/state-simulator.test.ts` asserts against the shipped
+  catalog and the real `xstate` without ever mounting the widget.
+  `find src -name '*.test.tsx'` returns nothing, so every *renderer* under
+  `src/components/diagrams/` is verified by looking at it, the journey renderer
+  included. That is a fact about how well this capability is realized and belongs on
   this page rather than in its definition.

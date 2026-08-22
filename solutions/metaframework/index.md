@@ -1,7 +1,7 @@
 ---
 name: metaframework
 kind: solution
-version: 5
+version: 6
 title: Metaframework
 summary: The repository that describes itself — the catalog specification, the portal that renders a catalog, and the plugin that teaches an author to write one.
 status: review
@@ -71,12 +71,14 @@ fixed it at nine, and decision-record amendment `2026-08-20-a` appended
 portal's own diagnostics page
 ([0011-no-cli-in-v1](srn://metaframework/adr/0011-no-cli-in-v1)).
 
-Thirty of this catalog's one hundred and nine entities are ADRs — thirteen
-constitutional ones in this bucket, eleven binding only the portal, five binding
-only devops, one binding only the kit.
-`find solutions/metaframework -name index.md | wc -l` returns 109 and the same
-command narrowed with `-path '*/adr/*'` returns 30, so a little over a quarter of
-the pages here are a decision rather than a description.
+A little over a quarter of this catalog's entities are ADRs — most of them the
+constitutional ones in this bucket, the rest filed under the container each
+binds: the portal, devops, the authoring kit.
+`find solutions/metaframework -name index.md | wc -l` against the same command
+narrowed with `-path '*/adr/*'` gives that ratio on any given day, which is the
+form a proportion has to take here to stay true — a page describing the current
+state states the claim and leaves the digit to the command
+([0018-measured-facts-are-derived-or-dated](srn://metaframework/adr/0018-measured-facts-are-derived-or-dated)).
 That proportion is deliberate and is the directive this solution was written to:
 the decisions are as prominent as the structure, filed in the bucket of the
 container each one binds rather than collected in one chronological pile.
@@ -157,10 +159,13 @@ organised lives in the kit's.
   shape found anywhere else is a defect, not a known gap.
 - **`https://schemas.metaframework.dev` resolves nowhere.** It is an identity
   constant at `framework/portal/src/lib/schema/url.ts:46`, deliberately not
-  configuration. Bytes are served only by the portal's own `/schemas` route at
-  `SCHEMA_BASE_URL`, default `http://localhost:3000`. A consumer that wants to
-  fetch rather than trust a cache maps one host onto the other in resolver
-  config.
+  configuration, and `host schemas.metaframework.dev` is NXDOMAIN. Bytes come
+  from the portal's own `/schemas` route at `SCHEMA_BASE_URL`, default
+  `http://localhost:3000`; a static site for the eight specification
+  meta-schemas can also be built with `npm run schemas:build`
+  (`docs/schema-hosting.md`), but it is deployed nowhere. A consumer that wants
+  to fetch rather than trust a cache maps one host onto a serving one in
+  resolver config.
 - **The spec is unratified.** Every document under `framework/spec/` carries
   `status: review`, except `kinds/capability.md` and `kinds/metric.md`, which
   carry `status: draft`. Not one is `approved`, and on
@@ -170,11 +175,18 @@ organised lives in the kit's.
   `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` — read the count
   there rather than from a figure written here, because the register's ratchet
   keeps it honest and a number in this sentence would not be. It was roughly
-  fifty when this page was written and is a fraction of that now; what is left is
-  concentrated in protocol validation, chiefly `transport.yaml`, which nothing
-  reads in either dialect. `E_ADR_SECTIONS` and `E_REQ_CRITERIA` were named here
-  as the two that bit this catalog directly, and both are emitted: this
-  solution's own ADRs and requirements are checked by the loader now.
+  fifty when this page was written and the register is now **empty** — the last
+  entries out were the protocol kind's, `transport.yaml` included, which
+  `lib/protocol/transport-checks.ts` reads in both dialects. `E_ADR_SECTIONS` and
+  `E_REQ_CRITERIA` were named here as the two that bit this catalog directly, and
+  both are emitted: this solution's own ADRs and requirements are checked by the
+  loader now.
+
+  This bullet stays rather than being deleted, because "implemented nowhere" is
+  the state a specification-first project returns to every time it writes a rule
+  ahead of its reader, and the register is what makes that safe. What is left is
+  smaller than a code: one class whose emitter has a branch no call site reaches,
+  and three half-rules whose other half fires.
 - **The repository is days old.** One author, one merge commit, and
   `git log --format=%ad --date=short | sort -u` fits on a screen. Nothing here has an operating history, a team,
   or a user outside this machine.

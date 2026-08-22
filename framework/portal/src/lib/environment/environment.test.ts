@@ -439,6 +439,9 @@ describe('environmentDiagnostics — rules that need the resolved catalog', () =
   })
 
   it('paths every finding at the file a reader can open', () => {
+    // A shape check over an empty list is not a check. Same floor as the one
+    // the participant and transport corpora carry, for the same reason.
+    expect(diagnostics.length).toBeGreaterThan(0)
     for (const diagnostic of diagnostics) {
       expect(diagnostic.path).toMatch(/\.(yaml|json|md)$/)
       expect(diagnostic.srn).toBeDefined()

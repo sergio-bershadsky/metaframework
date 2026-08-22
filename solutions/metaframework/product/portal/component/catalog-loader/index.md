@@ -1,7 +1,7 @@
 ---
 name: catalog-loader
 kind: component
-version: 7
+version: 9
 title: Catalog loader
 summary: The fail-soft walk from filesystem to entity graph — the zod frontmatter contract, relation resolution, the derived inverse index, and the dev fingerprint cache.
 status: review
@@ -106,10 +106,26 @@ can get wrong belongs to
 whose diagnostics are folded into this one's list by `withSchemaRegistry()` in
 `index.ts:53` — one list, one severity split, so a reader never has to know which
 validator found a problem. Protocol artifacts are parsed by
-[protocol-model](srn://metaframework/product/portal/component/protocol-model)
-only when a protocol page renders, so `E_PROTO_*` never reaches `/diagnostics`
-at all.
+[protocol-model](srn://metaframework/product/portal/component/protocol-model),
+and `load.ts` itself does none of that parsing — but the parse no longer stops at
+the protocol page. `withKindChecks()` and `withArtifactChecks()` fold the protocol
+disciplines into the same list, so `E_PROTO_*` does reach `/diagnostics`. Which
+classes arrive there is a question for the fold, not for this module; the codes
+`grep -rho "'[EW]_PROTO_[A-Z0-9_]*'" src/lib/protocol` prints are the population,
+and `metaframework check` reports the ones the catalog currently trips.
 
-Nothing here compares an entity against its predecessor. Additive-only evolution
-is enforced by author discipline; this loader would accept a removed property, a
-narrowed enum or a deleted requirement without a word.
+Nothing in `load.ts` compares an entity against its predecessor, and it cannot:
+the walk holds one working tree and the predecessor is a commit. That comparison
+is a *fold* over the graph this module produces rather than a step inside it, and
+`index.ts` now composes one — `withEvolutionChecks()`, the only `async` fold and
+the only place the catalog pipeline spawns a subprocess. It hands each datamodel
+to `lib/datamodel/additive.ts`, which resolves version N−1 through
+[git-history](srn://metaframework/product/portal/component/git-history) and
+reports `E_DM_NOT_ADDITIVE` on a schema that has been tightened.
+
+The fold is silent whenever git cannot answer, which is what keeps
+[catalog-renders-without-git](srn://metaframework/product/portal/requirement/catalog-renders-without-git)
+true of it: with no repository the diagnostics list is the same list, not a
+shorter one with a hole in it. And it covers exactly one contract surface. A
+removed acceptance criterion, a reversed decision paragraph or a deleted
+requirement still passes this loader without a word.

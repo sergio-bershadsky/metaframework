@@ -1,7 +1,7 @@
 ---
 name: console
 kind: component
-version: 3
+version: 4
 title: Console
 summary: The console chrome and the design tokens every other surface reads — shell, masthead, ontology hues, and the one hex mirror of the palette.
 status: review
@@ -50,8 +50,14 @@ the rail receives a serialisable projection, never the entity graph.
 ## Colour is ontology
 
 The palette rule is stated at the top of `globals.css` and enforced by
-convention alone: each of the nine entity kinds owns one hue at matched
-lightness and chroma, and nothing else in the UI is coloured. `lib/ui/kind.ts`
+convention alone: every entity kind owns one hue and nothing else in the UI is
+coloured. The hues sit in two tiers, which `globals.css` names: the nine
+**structural** kinds hold matched lightness and chroma so hue is the only
+difference a reader sees, and `capability`, `journey` and `metric` — appended by
+decision-record amendment `2026-08-20-a`, after nine hues had already taken the
+distinguishability floor — drop to about half the chroma and rise slightly in
+lightness, so the tier reads as concept-versus-structure before hue resolves at
+all. `lib/ui/kind.ts`
 is the single table — label, CSS variable, text/bg/border class, lucide icon,
 and a one-line blurb per kind — and every badge, tree row, diagram node and
 graph edge reads from it. The decision has its own record,
@@ -91,10 +97,13 @@ input, scroll-area, separator, skeleton, table, tabs, tooltip; only `button`
 not a design system, and it is recorded here rather than modelled as a part of
 the system.
 
-No component in this subtree is tested. All 16 vitest files live under
-`src/lib/**`; `find src -name '*.test.tsx'` returns nothing. Everything below —
-the shell, the rail, the entity page, the editors, the four diagrams — is
-verified by looking at it.
+No component in this subtree is tested. Almost every vitest suite lives under
+`src/lib/**` and `find src -name '*.test.tsx'` returns nothing; the two that sit
+outside `src/lib` are `src/components/diagrams/state-simulator.test.ts`, which
+asserts the simulator's model without a DOM, and
+`src/app/artifacts/[...path]/route.test.ts`, and neither is in this subtree.
+Everything below — the shell, the rail, the entity page, the editors, what the
+four diagrams actually paint — is verified by looking at it.
 
 ## Sub-components
 

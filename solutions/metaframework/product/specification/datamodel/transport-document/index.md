@@ -57,43 +57,47 @@ sharpest illustration: `'protocol:transport'` is now the only role in
 recognised, records `dialect.key: 'asyncapi'` on the artifact and keeps its
 native key unstripped — and recognising a grammar is not reading a document.
 
-What actually happens to the file is generic. `readArtifacts()` in
-`lib/catalog/load.ts` reads every recognised extension in an entity directory
-and parses YAML for syntax only; `components/entity/entity-artifacts.tsx`
-dispatches on entity kind *and* filename — `schema.json` on a datamodel,
-`workflows/*` on a protocol, `states.json` on a protocol — and `TRANSPORT_FILE`
-returns **0** hits in the whole of `framework/portal/src`, because there is no
-such constant to match against. `transport.yaml` falls through to the default
-branch and renders as a YAML code block, in both dialects. Its own contract
-decides nothing.
+What happens to the file is no longer generic, and the change is recent enough
+that it is worth saying precisely what moved. `readArtifacts()` in
+`lib/catalog/load.ts` still reads every recognised extension in an entity
+directory and parses YAML for syntax only; what changed is the layer above it.
+`lib/protocol/transport-checks.ts` reads a `transport.yaml` in both dialects,
+`lib/catalog/artifact-checks.ts` dispatches to it by entity kind *and* filename
+alongside `workflows/*`, `states.json` and `arazzo.yaml`, and
+`components/entity/entity-artifacts.tsx` carries the matching branch so the page
+and the check derive the same findings from the same bytes. The file has an
+artifact role and a findings footer; it no longer falls through to the default
+branch.
 
-`grep -rn "E_PROTO_TRANSPORT\|E_PROTO_SPEC_FILE" framework/portal/src` returns
-**6**, and every one of them is a string in a test rather than an emitter: five
-are debt-register entries in `diagnostic-coverage.test.ts` and one is a comment
-in `dialects.test.ts`. All four codes the mini-spec defines —
+Every code this format's contract defines now has an emitter —
 `E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
-`E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_SPEC_FILE` — are still implemented
-nowhere, joined in the register by 0017's three: `E_PROTO_TRANSPORT_ASYNCAPI`,
-`W_PROTO_TRANSPORT_HOST` and `W_PROTO_SPEC_ASYNCAPI`, whose entry reads "the
-AsyncAPI dialect is detected and never read". `lib/protocol/` contains modules
-for workflows and state machines and none for transports, in either dialect.
+`E_PROTO_TRANSPORT_SPEC_CONFLICT` and `E_PROTO_SPEC_FILE` from the mini-spec,
+plus 0017's `E_PROTO_TRANSPORT_ASYNCAPI`, `W_PROTO_TRANSPORT_HOST` and
+`W_PROTO_SPEC_ASYNCAPI`. The debt register in `diagnostic-coverage.test.ts` holds
+none of them, and holds nothing at all.
 
 That register is the reason this section can be trusted rather than merely
-asserted: it is a ratchet, and the inventory suite goes red the moment one of
-those seven codes gains an emitter. The sibling
+asserted, and it worked in both directions: it is a ratchet, and the inventory
+suite went red the moment those seven codes gained emitters, which is what forced
+this page to be rewritten rather than left. The sibling
 [topology-document](srn://metaframework/product/specification/datamodel/topology-document)
-is what that looks like when it fires — its seven rows left the register in this
-release, and this format's seven stayed.
+made the same crossing one release earlier.
 
-This is the format's whole reason for having an entity. A documented format with
-12 authored instances and no reader is a real state of affairs, and a catalog
-that listed seven of the eight spec formats and quietly dropped the one nothing
-implements would be describing a tidier repository than this one. The gap is
-also load-bearing elsewhere: `W_PROTO_WF_CHANNEL_UNKNOWN` — a workflow step's
-`channel` cross-checked against the transport's surface list — is unimplementable
-in practice because there is no parsed surface list to check against, which
+The entity was worth having while nothing read the format, and it is worth having
+now for the opposite reason. What it recorded then was that a documented format
+with authored instances and no reader is a real state of affairs, and that a
+catalog listing seven of the eight spec formats while quietly dropping the one
+nothing implemented would describe a tidier repository than this one. What it
+records now is the crossing itself.
+
+One claim this page used to make was wrong in the way worth keeping on the page.
+`W_PROTO_WF_CHANNEL_UNKNOWN` was called "unimplementable in practice because
+there is no parsed surface list to check against" — but the document *was*
+parsed, onto `artifact.data`, and collecting the surface entries' names is a walk
+over an object already in hand. It needed the file **read**, not validated, and
+those are different costs. `lib/protocol/payload-checks.ts` emits it, and
 [workflow-document](srn://metaframework/product/specification/datamodel/workflow-document)
-records from the other side.
+records the same correction from the other side.
 
 ## Why `usage: storage`
 
@@ -105,7 +109,8 @@ are the other two, and both cite this entry for the reasoning — and it is a
 statement rather than a hedge.
 
 The file is persisted in the tree and read by people and models out of the tree.
-Nothing exchanges it: no portal module parses it, no third-party tool is
+Nothing exchanges it — `transport-checks.ts` parses it to judge it, which is a
+reader and not a counterparty; no third-party tool is
 contracted to accept it (which is what makes
 [state-machine-document](srn://metaframework/product/specification/datamodel/state-machine-document)
 an exchange format — XState's `createMachine()` must take that file verbatim),

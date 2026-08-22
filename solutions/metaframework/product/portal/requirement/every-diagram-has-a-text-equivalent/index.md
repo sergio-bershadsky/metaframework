@@ -1,7 +1,7 @@
 ---
 name: every-diagram-has-a-text-equivalent
 kind: requirement
-version: 2
+version: 3
 title: Every diagram states itself in words
 summary: Every derived drawing in the portal ships a text equivalent in the DOM that carries the same facts as the picture.
 status: review
@@ -65,9 +65,11 @@ and its reasoning is
 Not far, and the gap is the point of writing this down.
 
 Nothing checks any of the criteria automatically. There is no CI in this
-repository, no accessibility linter, and no component test of any kind — all 16
-vitest files live under `src/lib/**` and `find src -name '*.test.tsx'` returns
-nothing.
+repository, no accessibility linter, and no test that renders a component:
+`find src -name '*.test.tsx'` returns nothing, and the single suite that reaches
+into `src/components` at all — `diagrams/state-simulator.test.ts` — asserts the
+simulator's model deliberately without a DOM, so it says nothing about what any
+diagram puts on screen.
 
 Of the four narrations, exactly one is exercised by a test: `narrateWorkflow()`,
 in `src/lib/protocol/workflow.test.ts`. The other three — `describe()` in

@@ -282,6 +282,28 @@ beforeAll(async () => {
       relations: { uses: ['/environment/production'], 'depends-on': ['/product/shop/component/inventory'] },
     }),
   )
+  // A loop made of `uses` and nothing else. CV7 is the `depends-on` graph, and
+  // a rule that read every resolved edge instead would call this a cycle — so
+  // this pair is what tells the two apart. `exposes` cannot make the same shape
+  // at all: EDGE_TARGET_KINDS lets it point only at a protocol or a datamodel.
+  await entity(
+    'acme/product/shop/component/loop-left',
+    deployed('loop-left', { relations: { uses: ['/environment/production', '../loop-right'] } }),
+  )
+  await entity(
+    'acme/product/shop/component/loop-right',
+    deployed('loop-right', { relations: { uses: ['/environment/production', '../loop-left'] } }),
+  )
+  // ...and a loop that is half a dependency. One `depends-on` edge does not
+  // close a `depends-on` cycle, however the other half of the ring is drawn.
+  await entity(
+    'acme/product/shop/component/hinge-a',
+    deployed('hinge-a', { relations: { uses: ['/environment/production'], 'depends-on': ['../hinge-b'] } }),
+  )
+  await entity(
+    'acme/product/shop/component/hinge-b',
+    deployed('hinge-b', { relations: { uses: ['/environment/production', '../hinge-a'] } }),
+  )
 
   // --- protocol placement --------------------------------------------------
   // At the NCA: both participants are under shop.
@@ -471,6 +493,18 @@ describe('W_COMP_DEP_CYCLE — CV7', () => {
     expect(dependencyCycleDiagnostics(catalog).map((d) => d.srn)).not.toContain(
       'srn://acme/product/billing/component/ledger',
     )
+  })
+
+  it('ignores a ring made of `uses`, because CV7 is the `depends-on` graph', () => {
+    // Without a cycle in another edge type on disk, the filter that picks
+    // `depends-on` out of the relations could be widened to accept every
+    // resolved edge and the whole suite would stay green — the exclusion in
+    // CV7's docstring ("the component-to-component `depends-on` edges only")
+    // would be documented and unenforced. These two pairs are what enforce it.
+    const named = dependencyCycleDiagnostics(catalog).flatMap((d) => [d.srn, d.message])
+    for (const component of ['loop-left', 'loop-right', 'hinge-a', 'hinge-b']) {
+      expect(named.join('\n'), component).not.toContain(`srn://acme/product/shop/component/${component}`)
+    }
   })
 })
 

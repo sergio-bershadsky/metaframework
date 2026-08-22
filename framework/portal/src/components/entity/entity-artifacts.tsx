@@ -18,6 +18,7 @@ import { journeySummary, parseJourney, type JourneyStep } from '@/lib/journey/jo
 import { readArazzo, type ArazzoDescription } from '@/lib/protocol/arazzo'
 import { arazzoGroundingDiagnostics } from '@/lib/protocol/arazzo-grounding'
 import { parseStates } from '@/lib/protocol/states'
+import { transportDiagnostics } from '@/lib/protocol/transport-checks'
 import { parseWorkflow } from '@/lib/protocol/workflow'
 import { bundleSchema } from '@/lib/schema/dereference'
 import { buildLineage } from '@/lib/schema/lineage'
@@ -302,6 +303,45 @@ async function describe(
     }
   }
 
+  if (entity.kind === 'protocol' && artifact.file === TRANSPORT_FILE) {
+    // The transport reader, in whichever of the two dialects the file declares.
+    // Same call, same arguments as `lib/catalog/artifact-checks.ts` — the two
+    // surfaces must derive the same findings from the same file, and this one is
+    // the reason that rule is written down: a `transport.yaml` was rendered here
+    // as bytes for two releases while its rules sat in the debt register.
+    //
+    // No `visual`. There is nothing to draw that the document does not already
+    // say better than a picture of it would — the workflows are the choreography
+    // and they have the diagram — so this branch adds findings and a role and
+    // leaves the source block exactly as it was.
+    const frontmatter = entity.frontmatter as { title?: unknown; participants?: unknown }
+    const findings = transportDiagnostics(artifact.data, {
+      ...(artifact.dialect ? { dialect: artifact.dialect } : {}),
+      srn: entity.srn,
+      ...(typeof frontmatter.title === 'string' ? { title: frontmatter.title } : {}),
+      ...(Array.isArray(frontmatter.participants) ? { participants: frontmatter.participants } : {}),
+    })
+
+    return {
+      ...base,
+      role: 'Wire',
+      primary: primaryFor(entity, artifact),
+      // `path` is dropped for the reason it is on `states.json` and `arazzo.yaml`
+      // — the block is already titled with the file, and the in-document
+      // position the message carries is the part worth showing.
+      footer:
+        findings.length > 0 ? (
+          <ArtifactFindings
+            issues={findings.map((issue) => ({
+              code: issue.code,
+              severity: issue.severity,
+              message: issue.message,
+            }))}
+          />
+        ) : undefined,
+    }
+  }
+
   if (entity.kind === 'journey' && artifact.file === JOURNEY_FILE) {
     const { journey, issues } = parseJourney(artifact.data, {
       entityName: entity.frontmatter.name,
@@ -348,6 +388,7 @@ const SCHEMA_FILE = 'schema.json'
 const STATES_FILE = 'states.json'
 const JOURNEY_FILE = 'journey.yaml'
 const ARAZZO_FILE = 'arazzo.yaml'
+const TRANSPORT_FILE = 'transport.yaml'
 
 /**
  * Where each source description of an Arazzo file leads.
