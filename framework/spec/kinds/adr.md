@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: adr
-version: 3
+version: 4
 status: review
 title: Kind — ADR
-summary: Contract for architecture decision records — owner-scoped placement, decision-status versus the common status field, date and deciders, the enforced body template, supersession, and derived views.
+summary: Contract for architecture decision records — owner-scoped placement, decision-status versus the common status field, date and deciders, the enforced body template, the one bucket that may author a measured number, supersession, and derived views.
 ---
 
 # Kind: adr
@@ -224,6 +224,81 @@ Section meanings, for authors:
 - **Alternatives considered** — each rejected option and the specific reason it
   lost. "Not considered" is an acceptable, honest entry when it is true.
 
+## Measured numbers name their commit
+
+**Rule (ADR8):** an ADR MAY state a **measured fact** — a number obtained by
+running a command against a repository — and when it does it MUST say when the
+measurement was taken. Violation is `W_ADR_MEASUREMENT`
+([below](#adr-error-classes)).
+
+This is the one bucket that may carry such a number at all. Every other kind is a
+current-state description, and a measurement inside one is
+`W_PROSE_MEASUREMENT` ([structure.md](../structure.md#measured-facts-in-the-prose)).
+The exemption is grammatical rather than editorial: an ADR is a **dated snapshot
+by construction** — it records evidence for a decision taken on a day — so a
+number in one is not a claim about now and never becomes wrong by ageing.
+
+It becomes wrong by having been taken over a **working tree**. That is the whole
+of what this rule asks:
+
+> A measurement of a commit cannot drift; a measurement of a working tree always
+> does.
+
+So the strongest form, and the one an author should reach for first, names the
+commit:
+
+```markdown
+## Context
+
+brass landed as commit `ec0f4be` — 148 files, 10,768 insertions, 98 entities.
+```
+
+Every digit there is verifiable by one `git show --stat ec0f4be` in 2030, and
+none of them was ever a claim about how many entities brass has *today*. Written
+without the commit — "brass is 98 entities" — the same sentence is false within a
+week and there is nothing on the page to tell a reader whether it is off by two
+or by two hundred.
+
+A calendar date is the weaker form and is accepted:
+
+```markdown
+Measured 2026-08-21: the reference bundle is 5,072 lines.
+```
+
+The **anchor scopes the section, not the sentence**. A heading, or any line under
+it, that names a commit or an ISO date covers every measurement down to the next
+heading of any level — so a census states its commit once and its table rows then
+carry bare digits, which is how the ADRs that get this right actually read.
+Restating the date in every cell is both unreadable and a fresh way for one
+document to disagree with itself.
+
+```markdown
+### The census, counted at commit `8e7a16c`     <!-- anchors everything below -->
+
+| Population                    | Entities |
+| ----------------------------- | -------- |
+| carry a file measurement      | 95       |
+| carry a catalog-graph count   | 108      |
+
+## Consequences                                 <!-- a new section: the anchor stops here -->
+
+`src/lib/history/git.ts` is 1,178 lines.        <!-- W_ADR_MEASUREMENT -->
+```
+
+The frontmatter `date` does **not** anchor anything. It is the date the decision
+reached its current `decision-status` and it *moves* when the standing does — so
+reading it as the measurement date would silently re-date every number in the
+body on the day the ADR is accepted. The anchor is in the prose, where the
+measurement is.
+
+Being an ADR is not a licence. Two shapes are still wrong in this bucket, and
+neither is caught by any check:
+
+- A measurement taken over the working tree and dated honestly is still a number
+  that was only ever true for one afternoon. Prefer the commit.
+- Quoting a stale ADR number into a current-state entity moves it back into the
+  population this rule exists to empty. Cite the decision, not its arithmetic.
+
 ## Sibling artifacts
 
 **The ADR kind defines no sibling artifacts.** An ADR is `index.md`.
@@ -380,9 +455,10 @@ and no `superseded-by` edge — that one is derived from ADR-0009's `supersedes`
 | ADR5 | `decision-status` / `date` / `deciders` appear only on `kind: adr` entities.          | `E_FM_UNKNOWN_FIELD` |
 | ADR6 | `decision-status: superseded` has a superseding ADR, and a superseded target says so. | `W_ADR_SUPERSESSION` |
 | ADR7 | Ordinal prefixes are unique within one `adr/` bucket.                                 | `W_ADR_ORDINAL`      |
+| ADR8 | Every measured number sits in a section that names the date or commit it was taken.   | `W_ADR_MEASUREMENT`  |
 
-ADR1–ADR5 are checkable from the entity alone; ADR6–ADR7 need the resolved
-catalog.
+ADR1–ADR5 and ADR8 are checkable from the entity alone; ADR6–ADR7 need the
+resolved catalog.
 
 ## What the portal derives
 
@@ -412,7 +488,12 @@ decision record and is not part of v1.
 | `E_ADR_SECTIONS`     | A canonical body section is missing, at the wrong heading level, or spelled differently. |
 | `W_ADR_SUPERSESSION` | `superseded` with no superseding ADR, or a `supersedes` target not marked `superseded`.  |
 | `W_ADR_ORDINAL`      | Two ADRs in the same bucket share an ordinal prefix.                                     |
+| `W_ADR_MEASUREMENT`  | A measured number in a section that names no date and no commit.                         |
 
 Frontmatter shape errors reuse `E_FM_SCHEMA` and `E_FM_UNKNOWN_FIELD`
 ([frontmatter.md](../frontmatter.md)); placement is unconstrained beyond the
 common container rules in [structure.md](../structure.md).
+
+`W_PROSE_MEASUREMENT` is the same subject read from the other side and is
+defined in [structure.md](../structure.md#measured-facts-in-the-prose), because
+it is a rule about every kind that is *not* this one. An ADR never raises it.

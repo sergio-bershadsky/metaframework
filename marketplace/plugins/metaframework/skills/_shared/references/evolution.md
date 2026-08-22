@@ -1,6 +1,6 @@
 # Evolution — additive-only change, the swap, git-backed history
 
-> Distilled from `framework/spec/evolution.md` (version 9), with the
+> Distilled from `framework/spec/evolution.md` (version 10), with the
 > schema-specific rules in `framework/spec/kinds/datamodel.md`. **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
@@ -170,8 +170,8 @@ the `c2` snapshot, approved status included. `order@5` → `E_SRN_VERSION`.
 
 Every addressable sibling artifact declares, in its own bytes, the grammar it is
 written in — a top-level `$schema:` holding a framework meta-schema URL, or the
-format's own native key where it has one (`openapi:`, `asyncapi:` on a
-`transport.yaml` written in the AsyncAPI dialect that role admits beside the
+format's own native key where it has one (`openapi:`, `arazzo:`, `asyncapi:` on
+a `transport.yaml` written in the AsyncAPI dialect that role admits beside the
 mini-spec, and a `schema.json`'s own 2020-12 `$schema`). Which key belongs to
 which role, which role has **two** and how a `transport.yaml` chooses, the exact
 URL per role, the one role that declares none (`examples/<name>.json`), the two

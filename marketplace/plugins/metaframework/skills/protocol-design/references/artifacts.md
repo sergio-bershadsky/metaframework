@@ -10,7 +10,7 @@
 > largest kind document in the spec and worth reading in full before authoring a
 > protocol.
 
-All three artifacts are optional. A protocol with only `index.md` is legal — an
+All five artifacts are optional. A protocol with only `index.md` is legal — an
 intent-level protocol under design, which simply derives no diagrams.
 
 Two shape rules bind the `transport.yaml` mini-spec and `workflows/*.yaml`
@@ -44,8 +44,9 @@ says which one it is written in, in its own bytes, under a fixed key. Writing
 | `states.json`           | XState subset | `$schema`  | `{meta}/state-machine-document` | the framework's          |
 | `workflows/<name>.yaml` | the mini-spec | `$schema`  | `{meta}/workflow-document`      | the framework's          |
 | `openapi.yaml`          | OpenAPI       | `openapi`  | `3.1.x`                         | OpenAPI's own, natively  |
+| `arazzo.yaml`           | Arazzo        | `arazzo`   | `1.1.x`                         | Arazzo's own, natively   |
 
-Four artifacts, five dialects: `transport.yaml` has two, and the mini-spec row is
+Five artifacts, six dialects: `transport.yaml` has two, and the mini-spec row is
 listed first because that order is what a headerless file is advised to add.
 
 Written out — every block below is the real opening of a shipped file, cut off a
@@ -98,16 +99,20 @@ Seven things decide whether you get this right.
 - **The framework's key is read once and deleted.** The loader records the
   dialect and removes `$schema` from the parsed document before the mini-spec
   parser is handed anything, which is why the strict validators stay strict and
-  `x-` stays a hatch for *authors'* keys. `openapi:` and `asyncapi:` are their
-  own formats' keys and are never stripped. The bytes on disk are untouched in
-  every case, so the source pane and the artifact route still serve the file as
-  authored.
+  `x-` stays a hatch for *authors'* keys. `openapi:`, `asyncapi:` and `arazzo:`
+  are their own formats' keys and are never stripped. The bytes on disk are
+  untouched in every case, so the source pane and the artifact route still serve
+  the file as authored.
 - **The native keys carry version bands, the framework URLs do not.**
   `openapi: 3.1.x` means the whole `3.1` line — OpenAPI versions the *document*,
   so `3.1.1` is the same dialect and is not warned. `asyncapi: 3.x` is wider
   still, because AsyncAPI promises a minor increment stays usable by tooling
   built for a lower minor and says tooling ignores the patch. Paste `3.1.0` for
-  either when writing a new file. A meta-schema URL has no version to widen.
+  either when writing a new file. `arazzo: 1.1.x` is the narrowest of the three:
+  Arazzo's Versions section is OpenAPI's verbatim, so the patch is errata and the
+  band is one minor line — and the line is `1.1` rather than `1.0` because 1.0's
+  `sourceDescriptions` cannot name an AsyncAPI document. Paste `1.1.0`. A
+  meta-schema URL has no version to widen.
 - **Unrecognised — not merely unfamiliar — is the legacy dialect**, warned and
   never broken: `W_ARTIFACT_DIALECT` on the owning *protocol entity*, pathed at
   the file, with the message ending `— read as the legacy dialect`. Recognition
@@ -198,7 +203,8 @@ directory and may not be absolute or contain `..` (`E_PROTO_SPEC_FILE`). In v1
 the portal renders the linked file as an opaque card and does not parse it. Such
 a file is named by the external tool's convention (`pricing.proto`,
 `schema.graphql`), not by the framework's bare-filename rule — `openapi.yaml` is
-the exception, a fixed-name artifact recognised link or no link.
+the exception, a fixed-name artifact recognised link or no link. `arazzo.yaml` is
+fixed-name too and is never linked from `spec` at all: it describes no wire.
 
 The shipped HTTP protocols show both halves of the choice:
 `order-placement/transport.yaml` and `authorization-check/transport.yaml` write
@@ -377,6 +383,50 @@ mini-spec one that links a `spec` instead of listing a surface; an AsyncAPI
 transport always has channels, so it is never skipped. And a `return`/`error`
 should be preceded by a `call` in the opposite direction in the same or an
 enclosing fragment (`W_PROTO_WF_ORPHAN_RETURN`).
+
+## `arazzo.yaml` — the orchestration surface
+
+An **Arazzo Description** — the OpenAPI Initiative's format for a deterministic
+sequence of API calls — under that fixed bare name, OPTIONAL, addressable as
+`.arazzo`, **unvalidated**: served as authored and judged by nothing — no rule
+of this framework reaches its contents. First key `arazzo: 1.1.0`. The portal
+draws a step graph of each workflow from it, which checks nothing: an unknown
+field is drawn less, never reported.
+
+**Do not reach for it as a replacement for `workflows/`.** It is a sibling role,
+not a second dialect, and the mini-spec above stays the authoritative
+choreography source. Arazzo models one executor chaining operations; the
+mini-spec models N participants with `from`/`to`, actors and `in-process`
+participants, self-calls, event fan-out, paired `call`/`return` arrows and
+`alt`/`opt`/`loop` fragments — none of which Arazzo carries outside `x-`
+extensions. A protocol may hold both files; neither deprecates the other and
+neither is warned for the other's presence.
+
+**Write it only where it can be grounded.** `sourceDescriptions[].url` MUST be a
+relative reference to a sibling artifact of the same entity — `./openapi.yaml`
+or `./transport.yaml` — and every operation, channel or workflow a step names
+MUST resolve into one of those documents or into a workflow of the same file.
+Both are `W_PROTO_ARAZZO_UNGROUNDED`. An absolute URL is legal Arazzo and refused
+here: it bakes a host into a catalog file and nothing offline can check it.
+
+```yaml
+# arazzo.yaml — the two lines the framework reads, and the rule it adds
+arazzo: 1.1.0
+sourceDescriptions:
+  - name: orders
+    type: openapi
+    url: ./openapi.yaml               # a sibling artifact — always relative
+```
+
+`sourceDescriptions[].type` is closed to `openapi`, `asyncapi` and `arazzo`, so a
+`grpc` or `in-process` protocol can never carry this file, and an `http` protocol
+needs an `openapi.yaml` first. Three more rules, each with a reason:
+`arazzo.json` is **not** recognised (`W_PROTO_ARTIFACT_UNKNOWN`) even though the
+Specification recommends both spellings, because a role's file may not vary its
+extension; write **one self-contained document**, because a split Description's
+non-entry parts would be free-named and unaddressable; and the framework's own
+extension prefix here is `x-srn` / `x-srn-*`, never `x-arazzo`, `x-oai-*` or
+`x-oas-*`, which the OAI reserves.
 
 ## `states.json` — the XState subset
 

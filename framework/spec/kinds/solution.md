@@ -191,11 +191,11 @@ These bind **solution, product, and component** alike.
 
 On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 
-| Field      | Type                                              | Required | Rule                                                                                 |
-| ---------- | ------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
-| `vision`   | string, multi-line allowed, ≤ 1000 chars          | yes      | The durable *why* of the solution. Distinct from `summary` (one catalog line).        |
-| `scope`    | map `{ in: [string], out: [string] }`             | no       | Boundary statements, one line ≤ 200 chars each; `out` is the anti-scope. SHOULD be set.|
-| `contacts` | list of `{ role, handle, channel? }`              | no       | `role` kebab-case and unique in the list; `handle` free-form. SHOULD hold ≥ 1 entry.  |
+| Field      | Type                                     | Required | Rule                                                                                    |
+|------------|------------------------------------------|----------|-----------------------------------------------------------------------------------------|
+| `vision`   | string, multi-line allowed, ≤ 1000 chars | yes      | The durable *why* of the solution. Distinct from `summary` (one catalog line).          |
+| `scope`    | map `{ in: [string], out: [string] }`    | no       | Boundary statements, one line ≤ 200 chars each; `out` is the anti-scope. SHOULD be set. |
+| `contacts` | list of `{ role, handle, channel? }`     | no       | `role` kebab-case and unique in the list; `handle` free-form. SHOULD hold ≥ 1 entry.    |
 
 - `vision` vs `summary`: `summary` is the one-line label shown in catalog lists;
   `vision` is the paragraph a newcomer reads first on the solution page. Both are
@@ -226,13 +226,13 @@ On top of [frontmatter.md](../frontmatter.md). Nothing there is redefined.
 
 ## Validation rules
 
-| #  | Rule                                                                       | Error class            |
-| -- | -------------------------------------------------------------------------- | ---------------------- |
-| S1 | Every directory directly under `solutions/` contains an `index.md`.        | `E_SOL_NO_ROOT`        |
-| S2 | That `index.md` declares `kind: solution` and `name` = directory name.     | `E_FM_KIND_LOCATION` / `E_FM_NAME_MISMATCH` |
-| S3 | `vision` present; `scope`/`contacts` well-shaped if present.               | `E_FM_SCHEMA`          |
-| S4 | No reference on any surface names a foreign solution.                      | `E_SRN_CROSS_SOLUTION` |
-| S5 | No `actor`/`environment`/`component` bucket below solution level, and no `product` bucket above it. | `E_SRN_PLACEMENT` |
+| #   | Rule                                                                                                | Error class                                 |
+|-----|-----------------------------------------------------------------------------------------------------|---------------------------------------------|
+| S1  | Every directory directly under `solutions/` contains an `index.md`.                                 | `E_SOL_NO_ROOT`                             |
+| S2  | That `index.md` declares `kind: solution` and `name` = directory name.                              | `E_FM_KIND_LOCATION` / `E_FM_NAME_MISMATCH` |
+| S3  | `vision` present; `scope`/`contacts` well-shaped if present.                                        | `E_FM_SCHEMA`                               |
+| S4  | No reference on any surface names a foreign solution.                                               | `E_SRN_CROSS_SOLUTION`                      |
+| S5  | No `actor`/`environment`/`component` bucket below solution level, and no `product` bucket above it. | `E_SRN_PLACEMENT`                           |
 
 ```text
 S1  solutions/legacy-import/product/shop/index.md   # "legacy-import" has no
@@ -321,8 +321,8 @@ reference in this catalog leaves `srn://acme`.
 
 ## Solution error classes
 
-| Code                   | New here | Meaning                                                                |
-| ---------------------- | -------- | ---------------------------------------------------------------------- |
-| `E_SOL_NO_ROOT`        | yes      | Directory directly under `solutions/` has no `index.md`.               |
-| `E_SRN_CROSS_SOLUTION` | no       | Defined by [srn.md](../srn.md); listed here because the solution boundary is this kind's central rule. |
+| Code                   | New here | Meaning                                                                                                                                                                          |
+|------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_SOL_NO_ROOT`        | yes      | Directory directly under `solutions/` has no `index.md`.                                                                                                                         |
+| `E_SRN_CROSS_SOLUTION` | no       | Defined by [srn.md](../srn.md); listed here because the solution boundary is this kind's central rule.                                                                           |
 | `E_SRN_PLACEMENT`      | no       | Defined by [srn.md](../srn.md); a bucket that may not sit where it does. Replaces the former `E_STRUCT_KIND_PLACEMENT`, which had no subject left once placement became grammar. |

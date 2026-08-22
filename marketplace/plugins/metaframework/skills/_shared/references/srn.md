@@ -288,14 +288,14 @@ literal path segment.
 
 ## Where SRNs are written
 
-| Surface                                       | Form                                                                |
-|-----------------------------------------------|---------------------------------------------------------------------|
-| Frontmatter `relations`, kind fields          | absolute / solution-absolute / relative — prefer absolute-from-root |
-| Protocol `participants[].ref`, step `payload` | same; solution-absolute recommended                                 |
-| `journey.yaml` `actor` / `touches` / `protocol` | same; solution-absolute is the readable form (`journeys.md`)      |
-| Prose markdown links                          | **MUST** be the full `srn://…` form                                 |
-| `schema.json` `$id` / `$ref`                  | the canonical schema URL — the SRN's projection (`schemas.md`)      |
-| `schema.json` `x-srn`                         | **required**: the entity's own SRN, unversioned, no relative form   |
+| Surface                                         | Form                                                                |
+|-------------------------------------------------|---------------------------------------------------------------------|
+| Frontmatter `relations`, kind fields            | absolute / solution-absolute / relative — prefer absolute-from-root |
+| Protocol `participants[].ref`, step `payload`   | same; solution-absolute recommended                                 |
+| `journey.yaml` `actor` / `touches` / `protocol` | same; solution-absolute is the readable form (`journeys.md`)        |
+| Prose markdown links                            | **MUST** be the full `srn://…` form                                 |
+| `schema.json` `$id` / `$ref`                    | the canonical schema URL — the SRN's projection (`schemas.md`)      |
+| `schema.json` `x-srn`                           | **required**: the entity's own SRN, unversioned, no relative form   |
 
 In workflow YAML, `from`/`to` are participant **aliases** and `message` is a
 logical message name — never SRNs. A bare relative path in a markdown link is

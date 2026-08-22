@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: srn
-version: 8
+version: 9
 status: review
 title: SRN — Solution Resource Name
 summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, artifact addresses over the closed per-kind role table, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
@@ -555,6 +555,7 @@ after the entity parse, because the legal roles depend on the addressed kind.
 |               | `states`           | `states.json`           |
 |               | `openapi`          | `openapi.yaml`          |
 |               | `workflows.<name>` | `workflows/<name>.yaml` |
+|               | `arazzo`           | `arazzo.yaml`           |
 | `journey`     | `journey`          | `journey.yaml`          |
 | `environment` | `topology`         | `topology.yaml`         |
 |               | `config`           | `config.yaml`           |
@@ -585,13 +586,21 @@ catalog read. Its normative home is
 `{artifact}` vocabulary and versions with it; the copy above restates the
 constant in full so this document's validation rules read standalone.
 
-`openapi` sits in the table as a fixed bare role: the file is a bytes-only
-contract in v1 — the portal links it, nothing parses it
-([kinds/protocol.md](kinds/protocol.md)) — but the fixed name makes it
-addressable. The `spec.file` attachment mechanism in `transport.yaml` remains
+`openapi` and `arazzo` sit in the table as fixed bare roles: neither file is
+validated — this framework states no rule about the contents of either, so
+neither can be found wrong ([kinds/protocol.md](kinds/protocol.md)) — but the
+fixed name makes each addressable. What a reader does with the bytes it fetches
+is its own business, and the addresses are the same either way: the portal
+serves `openapi.yaml` and draws a step graph from `arazzo.yaml`, and neither
+fact is a rule of this document.
+
+The `spec.file` attachment mechanism in `transport.yaml` remains
 for every other format (`pricing.proto`, `schema.graphql`) and remains
 non-addressable: a free filename cannot join a fixed-name table without
-reopening exactly the catalog read the table exists to close.
+reopening exactly the catalog read the table exists to close. `arazzo.json` —
+which the Arazzo Specification recommends beside `arazzo.yaml` — is
+unaddressable for the same reason in its sharper form: one role's file may not
+vary its extension, or file → role stops being a function of the table.
 
 ### `.schema` and the projection
 

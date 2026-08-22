@@ -80,10 +80,10 @@ coarse to own anything (they are the whole universe); components are too fine
 On top of [frontmatter.md](../frontmatter.md); nothing there is redefined. Kept
 deliberately minimal — two fields.
 
-| Field            | Type                                                              | Required | Rule                                                        |
-| ---------------- | ----------------------------------------------------------------- | -------- | ----------------------------------------------------------- |
-| `lifecycle`      | enum: `concept \| incubating \| active \| maintenance \| sunset \| retired` | yes | Real-world stage of the product. |
-| `primary-actors` | list of SRN refs                                                   | no       | Each MUST resolve to a solution-level `actor` (`E_PROD_ACTOR_TARGET`). SHOULD be set. |
+| Field            | Type                                                                        | Required | Rule                                                                                  |
+|------------------|-----------------------------------------------------------------------------|----------|---------------------------------------------------------------------------------------|
+| `lifecycle`      | enum: `concept \| incubating \| active \| maintenance \| sunset \| retired` | yes      | Real-world stage of the product.                                                      |
+| `primary-actors` | list of SRN refs                                                            | no       | Each MUST resolve to a solution-level `actor` (`E_PROD_ACTOR_TARGET`). SHOULD be set. |
 
 ### `lifecycle` — and why it is not `status`
 
@@ -92,14 +92,14 @@ reviewed, approved, or retired as a description. `lifecycle` describes **the
 product in the world**. They move independently, and conflating them would make
 one of the two unreadable.
 
-| `lifecycle`   | Meaning                                                             |
-| ------------- | ------------------------------------------------------------------- |
-| `concept`     | Described before it is built; nothing runs yet.                     |
-| `incubating`  | Being built; contracts still moving.                                |
-| `active`      | In production and invested in.                                      |
-| `maintenance` | In production, no new features; fixes and compliance only.          |
-| `sunset`      | Migration away is underway; new consumers are refused.              |
-| `retired`     | No longer running. The description is kept (nothing is ever deleted).|
+| `lifecycle`   | Meaning                                                               |
+|---------------|-----------------------------------------------------------------------|
+| `concept`     | Described before it is built; nothing runs yet.                       |
+| `incubating`  | Being built; contracts still moving.                                  |
+| `active`      | In production and invested in.                                        |
+| `maintenance` | In production, no new features; fixes and compliance only.            |
+| `sunset`      | Migration away is underway; new consumers are refused.                |
+| `retired`     | No longer running. The description is kept (nothing is ever deleted). |
 
 ```yaml
 lifecycle: retired
@@ -295,6 +295,6 @@ where it lands and needs no counting ([srn.md](../srn.md)).
 
 ## Product error classes
 
-| Code                    | Meaning                                                              |
-| ----------------------- | --------------------------------------------------------------------- |
-| `E_PROD_ACTOR_TARGET`   | A `primary-actors` entry does not resolve to a solution-level `actor`.|
+| Code                  | Meaning                                                                |
+|-----------------------|------------------------------------------------------------------------|
+| `E_PROD_ACTOR_TARGET` | A `primary-actors` entry does not resolve to a solution-level `actor`. |

@@ -1,6 +1,6 @@
 # Journeys — the `journey.yaml` ordered path
 
-> Distilled from `framework/spec/kinds/journey.md` (version 5). **When
+> Distilled from `framework/spec/kinds/journey.md` (version 6). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec — the same reason `protocols.md` exists.
@@ -53,8 +53,8 @@ mechanism of `W_JRN_UNDOCUMENTED_INTEGRATION` (below): the flagship check would
 then run entirely on data the standard's own tooling is obliged to ignore. In
 the other direction Arazzo requires what a journey does not have — a
 `sourceDescriptions` list with at least one entry, a `stepId` on every step, and
-on each step an `operationId`, `operationPath`, or `workflowId` naming the call
-it makes. `steps[5]` of the worked example below is a customer clicking a
+on each step an `operationId`, `operationPath`, `channelPath`, or `workflowId`
+naming the call it makes. `steps[5]` of the worked example below is a customer clicking a
 tracking link in an email, `protocol: none`; writing it as an Arazzo step means
 fabricating a source description, an operation to call, and an identifier for
 it, for a hop whose entire content is that no system carries it.

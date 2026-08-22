@@ -2,7 +2,7 @@ import { AlertTriangle, Link2 } from 'lucide-react'
 import Link from 'next/link'
 import { ArtifactBlock } from '@/components/code/artifact-block'
 import { JourneyDiagram, type JourneyStepTarget } from '@/components/diagrams/journey-diagram'
-import { LinkedStateChart, NavigableSequenceDiagram } from '@/components/diagrams/navigable'
+import { DeferredArazzoGraph, LinkedStateChart, NavigableSequenceDiagram } from '@/components/diagrams/navigable'
 import type { SequenceParticipant } from '@/components/diagrams/sequence-diagram'
 import { JourneyLegend, type JourneyLegendStep } from '@/components/entity/journey-legend'
 import { SectionHeading } from '@/components/entity/section-heading'
@@ -15,6 +15,7 @@ import { catalogDir, entityHref, getSchemaRegistry } from '@/lib/catalog'
 import type { Artifact, Catalog, Entity } from '@/lib/catalog'
 import { resolveMention } from '@/lib/catalog/mentions'
 import { journeySummary, parseJourney, type JourneyStep } from '@/lib/journey/journey'
+import { readArazzo, type ArazzoDescription } from '@/lib/protocol/arazzo'
 import { parseStates } from '@/lib/protocol/states'
 import { parseWorkflow } from '@/lib/protocol/workflow'
 import { bundleSchema } from '@/lib/schema/dereference'
@@ -247,6 +248,37 @@ async function describe(
     }
   }
 
+  if (entity.kind === 'protocol' && artifact.file === ARAZZO_FILE) {
+    const description = readArazzo(artifact.data)
+
+    return {
+      ...base,
+      role: 'Orchestration',
+      // Never promoted. `workflows/` is the authoritative choreography and keeps
+      // the top of the page; an Arazzo Description is one executor's path
+      // through the same exchange, which is a second view and not the first one
+      // ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
+      primary: false,
+      visual: description ? (
+        // No frame of its own: the block is the frame.
+        <DeferredArazzoGraph
+          description={description}
+          sourceHrefs={arazzoSourceHrefs(entity, description)}
+          className="rounded-none border-0"
+        />
+      ) : (
+        <Undrawable
+          messages={['The document declares no `workflows` array, so there are no steps to draw.']}
+          what="drawn"
+        />
+      ),
+      // No `footer` findings, and there is no branch above that could produce
+      // any. This artifact carries no rule of this framework: nothing here
+      // validates an Arazzo Description, and a reader that cannot draw one says
+      // so in the panel instead of reporting it as a defect.
+    }
+  }
+
   if (entity.kind === 'journey' && artifact.file === JOURNEY_FILE) {
     const { journey, issues } = parseJourney(artifact.data, {
       entityName: entity.frontmatter.name,
@@ -292,6 +324,32 @@ async function describe(
 const SCHEMA_FILE = 'schema.json'
 const STATES_FILE = 'states.json'
 const JOURNEY_FILE = 'journey.yaml'
+const ARAZZO_FILE = 'arazzo.yaml'
+
+/**
+ * Where each source description of an Arazzo file leads.
+ *
+ * Arazzo names its sources by a relative URI-reference — `./transport.yaml`,
+ * `./openapi.yaml` — which ADR 0020 requires to be a sibling artifact of the
+ * same entity. So the target is the artifact block for that file, on this same
+ * page, and the join is exact: the url has to name an artifact the entity
+ * actually carries, or the source gets no link rather than a dead one.
+ *
+ * A plain object because the graph is a client component reached through
+ * `next/dynamic` and this function runs on the server — a lookup closure could
+ * not cross that boundary.
+ */
+function arazzoSourceHrefs(entity: Entity, description: ArazzoDescription): Record<string, string> {
+  const carried = new Set(entity.artifacts.map((artifact) => artifact.file))
+  const hrefs: Record<string, string> = {}
+  for (const source of description.sources) {
+    if (source.name === null || source.url === null) continue
+    const file = source.url.replace(/^\.\//, '')
+    if (!carried.has(file)) continue
+    hrefs[source.name] = `#${blockId(file)}`
+  }
+  return hrefs
+}
 
 /**
  * One parsed step, resolved against the catalog twice over: once for the

@@ -320,11 +320,11 @@ Presented next to the tree, because this is where the design fails visibly:
 
 Every number below is a real count against the shipped fixture:
 
-| Capability              | `status`   | Realizers | Products          | Metrics | Journeys                       |
-|-------------------------|------------|-----------|-------------------|---------|--------------------------------|
-| `order-fulfilment`      | approved   | 5         | shop, fulfilment  | 2       | first-purchase, coupon-redemption |
-| `identity-verification` | review     | 2         | identity          | **0**   | first-purchase                 |
-| `promotion-pricing`     | draft      | 3         | shop, growth      | **0**   | first-purchase, coupon-redemption |
+| Capability              | `status` | Realizers | Products         | Metrics | Journeys                          |
+|-------------------------|----------|-----------|------------------|---------|-----------------------------------|
+| `order-fulfilment`      | approved | 5         | shop, fulfilment | 2       | first-purchase, coupon-redemption |
+| `identity-verification` | review   | 2         | identity         | **0**   | first-purchase                    |
+| `promotion-pricing`     | draft    | 3         | shop, growth     | **0**   | first-purchase, coupon-redemption |
 
 Three readings, reported as findings rather than filled in silently:
 
@@ -345,22 +345,22 @@ Three readings, reported as findings rather than filled in silently:
 
 ### Decisions and the alternatives rejected
 
-| Decision                                    | Rejected alternative                    | Why                                                                  |
-|---------------------------------------------|-----------------------------------------|----------------------------------------------------------------------|
-| `shop` and `billing` are peer products      | `billing` as a component of `shop`      | Ownership line, auditor, retention obligation (**H1**)               |
-| Storefront is not its own product           | `product/storefront`                    | Same release train as checkout — a layer, not a deliverable (**H1**) |
-| `payment` nests inside `checkout`           | Sibling component under `shop`          | Composition: payment is part of checkout (**H9**)                    |
-| `inventory` is a sibling, not nested        | Nested under `checkout`                 | Checkout calls it; calling is an edge, not containment (**H9**)      |
-| `psp` is a component, not an actor          | `actor/acquirer`                        | `depends-on` and `uses` never accept an actor (**H10**)              |
-| `tax-engine` is a component, not a product  | `product/tax`                           | No roadmap or budget of its own; it is a library (**H1**)            |
-| `settlement` sits at the solution root      | Inside `billing`                        | NCA of participants spanning both products (**H4**)                  |
-| `money` at the root, `order-line` in `shop` | Both at the root                        | Shop owns what a line means; nobody owns money (**H3**)              |
-| `identity` is a third product               | An `auth` component inside each product | Cross-cutting: model once, reference everywhere (**H7**)             |
-| `identity` has no `depends-on`              | `depends-on: /product/shop`             | Would create a cycle every login depends on (**H7**)                 |
-| Capabilities at solution level              | `product/identity/capability/…`         | Two products realize one doing; no product can own it                |
-| `reconciliation` is not a capability        | `capability/reconcile-settlement`       | It dies with the job — the rewrite test (**H11**)                    |
-| Returns are a second journey                | An `alt` branch in `first-purchase`     | Different outcome; a journey that branches is two journeys           |
-| `delivery-on-time-rate` inside `fulfilment` | At the solution root                    | Placement says *whose number*; fulfilment answers for this one       |
+| Decision                                    | Rejected alternative                    | Why                                                                              |
+|---------------------------------------------|-----------------------------------------|----------------------------------------------------------------------------------|
+| `shop` and `billing` are peer products      | `billing` as a component of `shop`      | Ownership line, auditor, retention obligation (**H1**)                           |
+| Storefront is not its own product           | `product/storefront`                    | Same release train as checkout — a layer, not a deliverable (**H1**)             |
+| `payment` nests inside `checkout`           | Sibling component under `shop`          | Composition: payment is part of checkout (**H9**)                                |
+| `inventory` is a sibling, not nested        | Nested under `checkout`                 | Checkout calls it; calling is an edge, not containment (**H9**)                  |
+| `psp` is a component, not an actor          | `actor/acquirer`                        | `depends-on` and `uses` never accept an actor (**H10**)                          |
+| `tax-engine` is a component, not a product  | `product/tax`                           | No roadmap or budget of its own; it is a library (**H1**)                        |
+| `settlement` sits at the solution root      | Inside `billing`                        | NCA of participants spanning both products (**H4**)                              |
+| `money` at the root, `order-line` in `shop` | Both at the root                        | Shop owns what a line means; nobody owns money (**H3**)                          |
+| `identity` is a third product               | An `auth` component inside each product | Cross-cutting: model once, reference everywhere (**H7**)                         |
+| `identity` has no `depends-on`              | `depends-on: /product/shop`             | Would create a cycle every login depends on (**H7**)                             |
+| Capabilities at solution level              | `product/identity/capability/…`         | Two products realize one doing; no product can own it                            |
+| `reconciliation` is not a capability        | `capability/reconcile-settlement`       | It dies with the job — the rewrite test (**H11**)                                |
+| Returns are a second journey                | An `alt` branch in `first-purchase`     | Different outcome; a journey that branches is two journeys                       |
+| `delivery-on-time-rate` inside `fulfilment` | At the solution root                    | Placement says *whose number*; fulfilment answers for this one                   |
 | Every crossing written `protocol: none`     | Leaving `protocol` off the step         | `none` is a claim; an omission is indistinguishable from forgetfulness (**H13**) |
 
 ### Open questions to put back to the user
@@ -383,7 +383,10 @@ Three readings, reported as findings rather than filled in silently:
 
 ## A settled product, field by field
 
-`solutions/acme/product/shop/index.md`, verbatim, minus its prose:
+`solutions/acme/product/shop/index.md`'s frontmatter, **annotated**: every key
+and value below is the file's, and every `#` note is added here. It is therefore
+not a block to copy — the copyable form is `worked-examples.md`, which reproduces
+this same file whole and is byte-checked against it on every push.
 
 ```yaml
 ---

@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: structure
-version: 7
+version: 9
 status: review
 title: Directory structure
-summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
+summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, what an index.md body may state, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
 ---
 
 # Directory structure
@@ -186,6 +186,89 @@ else.
 - A kind bucket MAY be absent when the owner has no entities of that kind.
   Empty kind buckets SHOULD NOT be committed (git does not track empty
   directories anyway).
+
+### Measured facts in the prose
+
+**Rule:** a **measured fact** MUST NOT appear as a digit in the prose of a
+current-state entity. Violation is `W_PROSE_MEASUREMENT`
+([below](#structure-error-classes)). The `adr/` bucket is the single exception
+and carries its own rule: an ADR MAY author a measured number and MUST say when
+it was measured (`W_ADR_MEASUREMENT`,
+[kinds/adr.md](kinds/adr.md#measured-numbers-name-their-commit)).
+
+A measured fact is a number an author obtained by **running a command** against a
+repository and then typed into a sentence. The test is that the command can be
+written down — `wc -l framework/spec/structure.md`, `git rev-list --count HEAD`,
+`ls solutions/acme/actor`, a test runner's tally. It is not an SLO, not a target,
+not a design constant and not a domain figure: `99.9%` on an environment,
+`four characters` on a coupon code and the `eleven kinds` of this ontology are
+**decisions**, and a decision does not go stale on somebody else's commit. A
+measurement does, on every commit, and no amount of care at authoring time
+reaches that: the number is correct when it is typed and wrong by the afternoon.
+
+Every other kind is a **current-state description** — it says what is true now,
+and it is rewritten when that changes. A cardinal claim inside one is therefore a
+promise the document cannot keep. An **ordinal** claim can be kept, is cheaper to
+keep true, and is usually what the sentence was actually about:
+
+| Instead of                                                       | Write                                                        |
+|------------------------------------------------------------------|--------------------------------------------------------------|
+| "`src/lib/history/git.ts`, 895 lines, the largest module here"   | "`src/lib/history/git.ts`, the largest module here"          |
+| "instrumenting 23,277 lines of someone else's product"           | "instrumenting a product we do not own, by hand"             |
+| "**AC-2** The run reports 16 test files and 395 tests passing"   | "**AC-2** Every suite passes and the run exits zero"         |
+| "the catalog knows all 197 entity names"                         | "the catalog knows every entity name"                        |
+
+Each rewrite loses a digit and none loses a claim. The first was never a claim
+about 895 — it was a claim about *largest*, and *largest* is still true while 895
+is not.
+
+Where the quantity really is the point, it is **derived and rendered**, never
+interpolated. A count over the catalog graph — entities beneath a container,
+artifacts beneath it, references into it — is already computed by anything that
+loads the catalog, so the prose states the claim and the surface beside it states
+the number, recomputed on every commit forever. That is the shape the portal
+already uses for `used-by` and `realized-by`, and it is deliberately **not** a
+placeholder syntax inside the sentence: this framework has exactly one reference
+syntax ([srn.md](srn.md)), a second one would fork it, and a paragraph whose
+numbers are template calls reads to `grep` — and to every consumer that is not
+the portal — as a paragraph with no numbers in it.
+
+A repository fact — a line count, a commit count, a test count — is outside the
+catalog directory by construction and cannot be derived at all. There the digit
+simply goes.
+
+```markdown
+`load.ts` is 745 lines, the largest module in `src/lib`.        <!-- W_PROSE_MEASUREMENT -->
+`load.ts` is the largest module in `src/lib`.                   <!-- fine -->
+
+All 344 entities under `solutions/` resolve.                    <!-- W_PROSE_MEASUREMENT -->
+Every entity under `solutions/` resolves.                       <!-- fine: the count is rendered -->
+
+The p99 budget is 250 ms over a 30d window.                     <!-- fine: a target, not a measurement -->
+Payment retries three times before giving up.                   <!-- fine: a design constant -->
+```
+
+**What the portal flags is narrower than the rule, on purpose.** Deciding which
+digit in an English sentence was a claim is not mechanically decidable, and a
+check that guessed would report a hundred non-findings to catch a dozen real
+ones. `W_PROSE_MEASUREMENT` is raised on two shapes only: a count of `lines`,
+`commits`, `insertions` or `deletions` anywhere at all — nobody sets a target in
+lines or budgets a design in commits — and a count of `files`, `modules`,
+`documents`, `directories`, `entities`, `entries`, `instances`, `tests` or bytes
+**within one clause of a backticked path**, where the path is the evidence that a
+command was run over something.
+
+Three things that look like counts are deliberately not read as one: a dotted
+version (`an AsyncAPI 3.1.0 document` ends in `0 document` and means nothing of
+the kind), a cap (`reads at most 200 commits` is a decision that happens to be
+denominated in commits), and a spelled number after *the* (`the window between
+the two commits` points back at two commits already named). The hyphenated
+adjectival form — `a 200-line schema with four $refs` — is left alone too,
+because that is where a document's *hypotheticals* live and a number inside an
+illustration was never counted.
+
+Everything else is the author's discipline, and the rule above is the whole rule
+whether or not a warning names it.
 
 ## Where each kind may live
 
@@ -383,8 +466,8 @@ Rules:
   itself parses obeys the rule above, and only fixed-name files are addressable
   ([below](#the-artifact-role-table)). `openapi.yaml` — once the leading
   example of this class — is a fixed protocol artifact in its own right and
-  sits in the role table; the free-named `spec.file` mechanism remains for the
-  other formats.
+  sits in the role table, and `arazzo.yaml` joined it by the same route; the
+  free-named `spec.file` mechanism remains for the other formats.
 
 - The frontmatter `name` field MUST equal the entity's directory name
   (`E_FM_NAME_MISMATCH`, see [frontmatter.md](frontmatter.md)), and the
@@ -423,6 +506,7 @@ the **role table**, kind × role × file × depth:
 | `protocol`    | `states`           | `states.json`           | 1     |
 | `protocol`    | `openapi`          | `openapi.yaml`          | 1     |
 | `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | 2     |
+| `protocol`    | `arazzo`           | `arazzo.yaml`           | 1     |
 | `journey`     | `journey`          | `journey.yaml`          | 1     |
 | `environment` | `topology`         | `topology.yaml`         | 1     |
 | `environment` | `config`           | `config.yaml`           | 1     |
@@ -454,8 +538,9 @@ Rules:
   disk access. A **legal** role whose file is absent on disk is
   `E_SRN_DANGLING` instead: the table states identity, not obligation. Whether
   a file must exist (`schema.json`, `journey.yaml`) or may (`transport.yaml`,
-  `states.json`, `openapi.yaml`, `topology.yaml`, `config.yaml`, every
-  `workflows/*` and `examples/*` member) remains each kind document's contract.
+  `states.json`, `openapi.yaml`, `arazzo.yaml`, `topology.yaml`, `config.yaml`,
+  every `workflows/*` and `examples/*` member) remains each kind document's
+  contract.
 
   ```text
   srn://acme/actor/customer.transport            # ILLEGAL — E_SRN_ARTIFACT: actor has no roles
@@ -487,7 +572,13 @@ Rules:
   of this class into the row above — recognised by its fixed bare name, served
   as bytes, not parsed — and that promotion is how another format becomes
   addressable: the table grows a fixed name; it never reaches out to free
-  ones.
+  ones. `arazzo.yaml` is the second file to arrive by that route, and by the
+  half of it that matters here — fixed bare name, its own row, addressable. It
+  does not arrive on the same reading terms: `openapi.yaml` is served as bytes
+  and opened by nothing, while `arazzo.yaml` is unvalidated rather than unread,
+  and a portal MAY draw from it ([kinds/protocol.md](kinds/protocol.md)). What
+  the two share is that no rule of this specification reaches either one's
+  contents. Promotion is about the name, never about what a reader then does.
 
 - **Growth is additive, and additive only.** A new role is an additive spec
   change to the owning kind's document plus this table — the same appending
@@ -551,6 +642,7 @@ prefix:
 | `protocol`    | `states`           | `states.json`           | XState subset | `$schema`  | `{meta}/state-machine-document`  |
 | `protocol`    | `openapi`          | `openapi.yaml`          | OpenAPI       | `openapi`  | `3.1.x` (native)                 |
 | `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | the mini-spec | `$schema`  | `{meta}/workflow-document`       |
+| `protocol`    | `arazzo`           | `arazzo.yaml`           | Arazzo        | `arazzo`   | `1.1.x` (native)                 |
 | `journey`     | `journey`          | `journey.yaml`          | the mini-spec | `$schema`  | `{meta}/journey-document`        |
 | `environment` | `topology`         | `topology.yaml`         | the mini-spec | `$schema`  | `{meta}/topology-document`       |
 | `environment` | `config`           | `config.yaml`           | the mini-spec | `$schema`  | `{meta}/config-document`         |
@@ -561,8 +653,8 @@ above without a ruling here would be a role whose dialect nobody decided, which
 is indistinguishable from a role that carries none — so the two tables grow
 together or neither does.
 
-Total, not one-to-one. A role carries **one or more** dialect rows — nine roles,
-ten rows at this revision — and where it carries several they are ordered
+Total, not one-to-one. A role carries **one or more** dialect rows — ten roles,
+eleven rows at this revision — and where it carries several they are ordered
 **most canonical first**. That order is read twice, and both readings are
 normative: it is the dialect a headerless file is told to add, and it is the
 dialect a file declaring two of the keys is read under. Rows are added to a role
@@ -579,7 +671,7 @@ one is a swap to a new meta-schema entity with a new name and a new URL
 ([evolution.md](evolution.md)), which is what "a new dialect lands beside the
 old" means one level up.
 
-Four of the rulings above carry their reasons rather than implying them.
+Five of the rulings above carry their reasons rather than implying them.
 
 - **A datamodel's `$schema` is not the framework's to spend.** On a JSON Schema
   document `$schema` already means the meta-schema of the *JSON Schema dialect*,
@@ -607,6 +699,17 @@ Four of the rulings above carry their reasons rather than implying them.
   the whole `3.1` line, while the advice a headerless file gets still names one
   concrete, pasteable value. The framework rows need no such latitude — a
   meta-schema URL carries no version to widen.
+
+- **`arazzo.yaml` is banded on a minor line for the same reason, and on the
+  `1.1` line for a different one.** Arazzo's own Versions section repeats
+  OpenAPI's wording — the `major`.`minor` portion designates the feature set,
+  `.patch` addresses errata and SHOULD NOT be considered by tooling — so the
+  band is one minor line and `1.1.1` would be the same dialect. *Which* line is
+  a ruling of [kinds/protocol.md](kinds/protocol.md) rather than of this
+  paragraph: 1.0 is shipped, legal Arazzo whose `sourceDescriptions` cannot name
+  an AsyncAPI document at all, and this catalog's groundable protocols are
+  overwhelmingly AsyncAPI-grounded. A 1.0 file is therefore read, warned
+  (`W_ARTIFACT_DIALECT`) and never broken, exactly like an OpenAPI 3.0 one.
 
 - **`transport` is the role that has two, and it is not a migration window.**
   [kinds/protocol.md](kinds/protocol.md) admits an AsyncAPI 3.x document under
@@ -775,8 +878,15 @@ governs every other row ([above](#the-artifact-role-table)).
 
 ```text
 transport.yaml grows an AsyncAPI dialect   # no row moves, no address moves
-arazzo.yaml beside workflows/              # a new role — append a row above first
+arazzo.yaml beside workflows/              # a new role — a row was appended above
 ```
+
+The second line is this rule having already run. `arazzo.yaml` stood here as the
+hypothetical, came back for the amendment, and is now a row of the table above
+rather than a second dialect of `workflows/<name>.yaml` — which is the outcome
+the rule exists to force, because the two files describe different things and
+collapsing them would have moved every workflow address. The next lane wanting a
+new filename walks the same path.
 
 The two are different changes with different blast radii. A new row mints
 addresses and obliges every SRN parser, in this document and in each of its
@@ -909,8 +1019,10 @@ occurrence anywhere below the solution is `E_SRN_PLACEMENT`.
 
 Placement is grammar now, so the structural checks are only what the grammar
 cannot see: a document that should exist and does not, an entity where no entity
-may be, two directories claiming one SRN, and a document whose prose opens a
-heading level the page has already used ([above](#the-document-body)).
+may be, two directories claiming one SRN, a document whose prose opens a heading
+level the page has already used ([above](#the-document-body)), and a document
+whose prose states a number somebody measured
+([above](#measured-facts-in-the-prose)).
 
 | Code                     | Meaning                                                                                    |
 |--------------------------|--------------------------------------------------------------------------------------------|
@@ -919,6 +1031,7 @@ heading level the page has already used ([above](#the-document-body)).
 | `E_STRUCT_DUPLICATE_SRN` | Two directories resolve to the same SRN.                                                   |
 | `E_STRUCT_BODY_H1`       | An `index.md` body carries a level-1 heading; the page already renders `title` as the h1.  |
 | `W_STRUCT_PROTOCOL_NCA`  | Protocol not at the NCA of its component/product participants.                             |
+| `W_PROSE_MEASUREMENT`    | A measured number typed into the prose of a current-state entity.                          |
 
 Notes on each, because the grammar overlaps them:
 
@@ -969,8 +1082,16 @@ cover is now `E_SRN_PLACEMENT`, raised by the parser, and is listed in
 `W_ARTIFACT_DIALECT` is defined in this document too, beside the table it
 belongs to ([above](#the-legacy-dialect-and-its-warning)), and not in the table
 here: it is about the bytes of a file rather than about where anything sits, and
-it is the one class in this document that is cross-kind by construction — the
-same warning on a protocol, a journey and an environment.
+it is one of the two classes in this document that are cross-kind by
+construction — the same warning on a protocol, a journey and an environment.
+
+`W_PROSE_MEASUREMENT` is the other, and it is in the table because it is a rule
+about the `index.md` this document defines. It is cross-kind by **subtraction**
+rather than by construction: it applies to every kind except `adr`, where the
+same subject is `W_ADR_MEASUREMENT`
+([kinds/adr.md](kinds/adr.md#measured-numbers-name-their-commit)) and the
+question is not whether the number may be there but whether it says when it was
+taken. No entity can raise both.
 
 SRN-level naming and artifact-addressing violations (`E_SRN_SYNTAX`,
 `E_SRN_RESERVED`, `E_SRN_ARTIFACT`, `E_SRN_DANGLING`) are defined in

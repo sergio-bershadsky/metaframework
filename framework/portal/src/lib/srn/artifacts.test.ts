@@ -29,7 +29,7 @@ function vocabulary(ref: string): () => void {
 }
 
 describe('the role table', () => {
-  it('is the nine rows of structure.md, in its order', () => {
+  it('is the ten rows of structure.md, in its order', () => {
     expect(ARTIFACT_ROLES.map((row) => `${row.kind} ${row.role} ${row.file} ${row.depth}`)).toEqual([
       'datamodel schema schema.json 1',
       'datamodel examples.<name> examples/<name>.json 2',
@@ -37,10 +37,30 @@ describe('the role table', () => {
       'protocol states states.json 1',
       'protocol openapi openapi.yaml 1',
       'protocol workflows.<name> workflows/<name>.yaml 2',
+      // Appended after the depth-2 family rather than filed with the depth-1
+      // protocol rows, because structure.md appends and this list is its order
+      // ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
+      'protocol arazzo arazzo.yaml 1',
       'journey journey journey.yaml 1',
       'environment topology topology.yaml 1',
       'environment config config.yaml 1',
     ])
+  })
+
+  it('stays a function in both directions — no role twice, no filename twice', () => {
+    // The property a row is appended *against*, and the one nothing else in the
+    // suite would catch: `artifactFile` picks the first matching row, so a
+    // duplicate role would silently shadow, and two roles sharing a filename
+    // would make file → role need a directory listing — the one thing the table
+    // exists to avoid.
+    const roles = ARTIFACT_ROLES.map((row) => `${row.kind}:${row.role}`)
+    const files = ARTIFACT_ROLES.map((row) => `${row.kind}:${row.file}`)
+    expect(new Set(roles).size).toBe(ARTIFACT_ROLES.length)
+    expect(new Set(files).size).toBe(ARTIFACT_ROLES.length)
+    // And no two files of one kind differ only by extension — `arazzo.json`
+    // beside `arazzo.yaml` is exactly the collision that rule forbids.
+    const stems = ARTIFACT_ROLES.map((row) => `${row.kind}:${row.file.replace(/\.[^./]+$/, '')}`)
+    expect(new Set(stems).size).toBe(ARTIFACT_ROLES.length)
   })
 
   it('names roles only on the four kinds that own artifacts', () => {
@@ -61,6 +81,7 @@ describe('artifactFile — the role → file direction', () => {
     ['srn://acme/protocol/settlement.states', 'states.json'],
     ['srn://acme/protocol/settlement.openapi', 'openapi.yaml'],
     ['srn://acme/protocol/settlement.workflows.settle-order', 'workflows/settle-order.yaml'],
+    ['srn://acme/protocol/settlement.arazzo', 'arazzo.yaml'],
     ['srn://acme/journey/place-an-order.journey', 'journey.yaml'],
     ['srn://acme/environment/production.topology', 'topology.yaml'],
     ['srn://acme/environment/production.config', 'config.yaml'],
@@ -106,6 +127,11 @@ describe('assertArtifactRole — V5, the ILLEGAL block of structure.md', () => {
     expect(codeOf(vocabulary('srn://acme/environment/production.topology.eu'))).toBe('E_SRN_ARTIFACT')
     expect(vocabulary('srn://acme/environment/production.topology.eu')).toThrow(/topology is depth 1/)
     expect(vocabulary('srn://acme/datamodel/money.schema.extra')).toThrow(/schema is depth 1/)
+    // The trap `arazzo` brings with it: one Arazzo Description carries N
+    // workflows, so `.arazzo.<workflowId>` is the address an author reaches for.
+    // It is not one — the role names the file, and the file is one document
+    // ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
+    expect(vocabulary('srn://acme/protocol/settlement.arazzo.observe-shipment')).toThrow(/arazzo is depth 1/)
   })
 
   it('rejects a family deeper than its two segments', () => {
@@ -120,6 +146,7 @@ describe('assertArtifactRole — V5, the ILLEGAL block of structure.md', () => {
       ['protocol', 'states'],
       ['protocol', 'openapi'],
       ['protocol', 'workflows.settle-order'],
+      ['protocol', 'arazzo'],
       ['journey', 'journey'],
       ['environment', 'topology'],
       ['environment', 'config'],

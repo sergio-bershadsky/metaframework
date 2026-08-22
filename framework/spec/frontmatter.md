@@ -48,17 +48,17 @@ error class is named.
 
 ## Field table
 
-| Field       | Type                              | Required | Rule                                                                    |
-| ----------- | --------------------------------- | -------- | ----------------------------------------------------------------------- |
-| `name`      | string, kebab-case                | yes      | MUST equal the directory name (`E_FM_NAME_MISMATCH`).                   |
-| `kind`      | enum, see below                   | yes      | MUST match the entity's position on disk (`E_FM_KIND_LOCATION`).        |
-| `version`   | integer ≥ 1                       | yes      | Bumped per [evolution.md](evolution.md); integer, never a string.       |
-| `title`     | string, ≤ 80 chars                | yes      | Human display name; any characters.                                     |
-| `summary`   | string, one line, ≤ 200 chars     | yes      | One sentence; shown in catalog lists; no markdown.                      |
-| `status`    | `draft \| review \| approved \| deprecated` | yes | Review state of **this document** per [evolution.md](evolution.md) — never the described thing's real-world stage ([below](#status-and-lifecycle-are-different-axes)). |
-| `owner`     | string                            | no       | Responsible team/person handle (e.g. `team-payments`); free-form, stable. |
-| `relations` | map of edge type → list of SRN refs | no     | Typed outgoing edges; see below.                                        |
-| `tags`      | list of kebab-case strings        | no       | Free navigation facets; no semantics attached.                          |
+| Field       | Type                                        | Required | Rule                                                                                                                                                                   |
+|-------------|---------------------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`      | string, kebab-case                          | yes      | MUST equal the directory name (`E_FM_NAME_MISMATCH`).                                                                                                                  |
+| `kind`      | enum, see below                             | yes      | MUST match the entity's position on disk (`E_FM_KIND_LOCATION`).                                                                                                       |
+| `version`   | integer ≥ 1                                 | yes      | Bumped per [evolution.md](evolution.md); integer, never a string.                                                                                                      |
+| `title`     | string, ≤ 80 chars                          | yes      | Human display name; any characters.                                                                                                                                    |
+| `summary`   | string, one line, ≤ 200 chars               | yes      | One sentence; shown in catalog lists; no markdown.                                                                                                                     |
+| `status`    | `draft \| review \| approved \| deprecated` | yes      | Review state of **this document** per [evolution.md](evolution.md) — never the described thing's real-world stage ([below](#status-and-lifecycle-are-different-axes)). |
+| `owner`     | string                                      | no       | Responsible team/person handle (e.g. `team-payments`); free-form, stable.                                                                                              |
+| `relations` | map of edge type → list of SRN refs         | no       | Typed outgoing edges; see below.                                                                                                                                       |
+| `tags`      | list of kebab-case strings                  | no       | Free navigation facets; no semantics attached.                                                                                                                         |
 
 `kind` enum — the twelve kinds (eleven of them also bucket words; `solution` has
 no bucket because it is the root):

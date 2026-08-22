@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: actor
-version: 4
+version: 5
 status: review
 title: Kind — Actor
-summary: Contract for actor entities — solution-level placement, the actor-type enum, goals, protocol and workflow participation, validation, and derived views.
+summary: Contract for actor entities — solution-level placement, the actor-type enum, goals, protocol, workflow and journey participation, validation, and derived views.
 ---
 
 # Kind: actor
@@ -36,12 +36,12 @@ Whether something is an actor or a component is decided by ownership of the
 description and by whether anything needs to *point at* it — not by network
 topology. Apply in order; the first `yes` wins:
 
-| # | Question                                                          | If yes                                                                                                                        |
-| - | ----------------------------------------------------------------- | ------------------------------------------------------------------------                                                      |
-| 1 | Does it originate requests or receive outcomes?                   | Continue. If **no**, it is not an actor at all — probably a datamodel, or a sentence of prose.                                |
-| 2 | Do we own and describe its internals in *this* solution?          | It is a **component** ([component.md](component.md)), not an actor.                                                           |
-| 3 | Must anything name it in a `uses`, `exposes`, `depends-on`, or `implements` edge? | It is an **`external` component** — no forward edge in the table accepts an actor target ([frontmatter.md](../frontmatter.md)). |
-| 4 | Otherwise                                                         | **Actor**.                                                                                                                    |
+| #   | Question                                                                          | If yes                                                                                                                          |
+|-----|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| 1   | Does it originate requests or receive outcomes?                                   | Continue. If **no**, it is not an actor at all — probably a datamodel, or a sentence of prose.                                  |
+| 2   | Do we own and describe its internals in *this* solution?                          | It is a **component** ([component.md](component.md)), not an actor.                                                             |
+| 3   | Must anything name it in a `uses`, `exposes`, `depends-on`, or `implements` edge? | It is an **`external` component** — no forward edge in the table accepts an actor target ([frontmatter.md](../frontmatter.md)). |
+| 4   | Otherwise                                                                         | **Actor**.                                                                                                                      |
 
 Question 3 is the mechanical part, and it is what separates an `external-system`
 actor from an `external` component ([component.md](component.md)) — the two
@@ -261,7 +261,7 @@ in requirements. A per-actor artifact would only duplicate those.
 Files placed next to an actor's `index.md` anyway are supporting material; the
 portal does not interpret them.
 
-## Actors in protocols and workflows
+## Actors in protocols, workflows and journeys
 
 Participation is authored **on the protocol side only**. From the actor side
 the contract is three rules:
@@ -299,9 +299,39 @@ the contract is three rules:
    `srn://acme/actor/customer` still belongs at
    `solutions/acme/product/shop/protocol/...`, not at the solution root.
 
-An actor named in no protocol's `participants` list and no workflow step is
-`W_ACTOR_ORPHAN` — legal (a newly described actor precedes its protocols), but
-flagged, because an actor nobody talks to is usually a leftover from a swap.
+An actor that no protocol's `participants` list names **and** that no journey
+references is `W_ACTOR_ORPHAN` — legal (a newly described actor precedes its
+protocols), but flagged, because an actor nobody talks to is usually a leftover
+from a swap.
+
+**Journeys count, and they are the only other surface that does.** A journey
+names its protagonist in frontmatter and names the `actor` of every step, both
+by **SRN directly** ([journey.md](journey.md)), and journey.md derives a
+"Journeys" panel on the actor page from exactly those references. An actor who
+stars in a journey is therefore talked to whatever the `protocol/` bucket holds,
+and calling it orphaned would be calling correct authoring a defect — which
+teaches authors to ignore the rule.
+
+**A `deprecated` actor is exempt**, and the exemption is the same sentence read
+to its end. "Usually a leftover from a swap" is a guess about why the participant
+lists are silent, and `status: deprecated` is the catalog answering it: the swap
+happened, and [evolution.md](../evolution.md) then requires the predecessor to
+stay on disk, so without the exemption the finding is one no author can clear —
+the only edits that silence it are deleting the entity, which the framework
+forbids, or inventing a protocol for a role nobody plays. It cannot hide a
+half-finished swap either: while any protocol still names the old actor, that
+actor is a participant and ACT6 was never going to fire.
+
+Two surfaces that look like participation and are not:
+
+- **Workflow steps** add nothing mechanically. A step names a participant by
+  **alias**, and an alias absent from `participants` is `E_PROTO_WF_ALIAS`, so
+  every actor a workflow can reach is already a participant. The class exists
+  for the sentence above it, not for a second scan.
+- **An actor's own outbound `uses` edge, and a product's `primary-actors`
+  list**, state reach rather than a modelled conversation. ACT5 forbids the
+  protocol case of the first outright, and counting it here would make this rule
+  unfireable on any actor that names a component — which is nearly all of them.
 
 ## Worked example
 
@@ -412,9 +442,10 @@ served" note, never silently deleted.
 | ACT3 | `goals` present, a list, ≥ 1 item, each a single line ≤ 200 chars.      | `E_FM_SCHEMA`                |
 | ACT4 | `actor-type` / `goals` appear only on `kind: actor` entities.           | `E_FM_UNKNOWN_FIELD`         |
 | ACT5 | No `uses` edge from an actor to a protocol.                             | `W_ACTOR_PARTICIPATION_EDGE` |
-| ACT6 | Actor is named in at least one protocol's `participants` list.          | `W_ACTOR_ORPHAN`             |
+| ACT6 | Actor is a protocol participant, or a journey's or a step's `actor`.    | `W_ACTOR_ORPHAN`             |
 
-Rules ACT1–ACT4 are per-entity; ACT5–ACT6 need the resolved catalog. Common
+Rules ACT1–ACT4 are per-entity; ACT5–ACT6 need the resolved catalog, and ACT6
+does not fire on a `status: deprecated` actor, for the reason above. Common
 rules (name/directory match, SRN syntax, edge target kinds, cross-solution
 sealing) apply unchanged and are not restated here.
 
@@ -438,7 +469,7 @@ sealing) apply unchanged and are not restated here.
 | Code                         | Meaning                                                                                       |
 | ---------------------------- | --------------------------------------------------------------------------------------------- |
 | `W_ACTOR_PARTICIPATION_EDGE` | Actor authors a `uses` edge to a protocol; participation belongs to the protocol's artifacts. |
-| `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no workflow step.                           |
+| `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no journey names it.                        |
 
 Placement, frontmatter shape, and reference errors reuse the existing classes:
 `E_SRN_PLACEMENT` ([srn.md](../srn.md)), `E_FM_SCHEMA` and

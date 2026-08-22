@@ -25,17 +25,17 @@ protocol the operations, messages and states; for a requirement or an ADR the
 substance of the statement; for an environment its identity, type and config
 keys.
 
-| The change…                                                              | Mechanism |
-|---------------------------------------------------------------------------|-----------|
-| Adds something optional (property, enum value, operation, state, workflow, config key, relation, prose) | in place |
-| Widens a type, relaxes a bound, drops a name from `required`               | in place  |
-| Clarifies wording, appends a consequence, corrects a typo, adds tags       | in place  |
-| Promotes a `$defs` shape to its own datamodel and `$ref`s it               | in place (instance shape unchanged) |
-| Removes or renames anything a referrer can name                           | **swap**  |
-| Narrows a type, tightens a bound, adds to `required`, removes an enum value | **swap** |
-| Repurposes the entity to mean something else                              | **swap**  |
-| Renames the entity, or moves it to a different owner                      | **swap**  |
-| Reverses or narrows a decision or a requirement                           | **swap**  |
+| The change…                                                                                             | Mechanism                           |
+|---------------------------------------------------------------------------------------------------------|-------------------------------------|
+| Adds something optional (property, enum value, operation, state, workflow, config key, relation, prose) | in place                            |
+| Widens a type, relaxes a bound, drops a name from `required`                                            | in place                            |
+| Clarifies wording, appends a consequence, corrects a typo, adds tags                                    | in place                            |
+| Promotes a `$defs` shape to its own datamodel and `$ref`s it                                            | in place (instance shape unchanged) |
+| Removes or renames anything a referrer can name                                                         | **swap**                            |
+| Narrows a type, tightens a bound, adds to `required`, removes an enum value                             | **swap**                            |
+| Repurposes the entity to mean something else                                                            | **swap**                            |
+| Renames the entity, or moves it to a different owner                                                    | **swap**                            |
+| Reverses or narrows a decision or a requirement                                                         | **swap**                            |
 
 The mechanical test for a datamodel: **version N+1 MUST accept every instance
 version N accepted.** If a document that validated yesterday would fail today,
@@ -238,7 +238,7 @@ states, and make sure `.git` is present and **unshallow** where the portal runs
 | `actor`                 | Splitting one role into several is one successor per role, each carrying `supersedes` toward the old actor.                                                                                                                                                                                                        |
 | `environment`           | Successor environment, then repoint each component's `uses` edge, then deprecate.                                                                                                                                                                                                                                  |
 | `requirement`           | A narrowed or reversed statement is a new requirement; migrate the `implements` edges that pointed at the old one.                                                                                                                                                                                                 |
-| `capability`            | Successor capability in the same solution-level bucket; migrate each realizer's `realizes` edge one at a time — the portal's derived `realized-by` list **is** the migration checklist — then deprecate. A split is two successors, both superseding the one predecessor, and that is the honest record.            |
+| `capability`            | Successor capability in the same solution-level bucket; migrate each realizer's `realizes` edge one at a time — the portal's derived `realized-by` list **is** the migration checklist — then deprecate. A split is two successors, both superseding the one predecessor, and that is the honest record.           |
 | `journey`               | Successor journey with its own `journey.yaml`. Nothing points at a journey in v1, so there are no referrers to migrate: create, deprecate the old one, link the two in prose.                                                                                                                                      |
 | `metric`                | Successor metric carrying the same `measures` subject; repoint whoever quoted the old one, then deprecate. Never deleted — a retired metric is the record of how the number *used* to be computed, and that is the only thing that keeps an old chart readable.                                                    |
 | `component` / `product` | Swapping a container implies swapping everything under it — see the cost above; prefer keeping the name.                                                                                                                                                                                                           |

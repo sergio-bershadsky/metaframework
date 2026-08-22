@@ -1,9 +1,10 @@
 # Environments — and the artifact-free kinds (actor, ADR, requirement)
 
 > Distilled from `framework/spec/kinds/environment.md` (version 6), with the
-> field and body detail of `framework/spec/kinds/actor.md` (4),
-> `framework/spec/kinds/adr.md` (3) and `framework/spec/kinds/requirement.md`
-> (3). **When `framework/spec/` is present in the repository, it is
+> field and body detail of `framework/spec/kinds/actor.md` (version 5),
+> `framework/spec/kinds/adr.md` (version 4) and
+> `framework/spec/kinds/requirement.md` (version 3). **When `framework/spec/` is
+> present in the repository, it is
 > authoritative and wins over this file.** This bundled copy exists because an
 > installed plugin cannot see the repo spec.
 >
@@ -537,9 +538,19 @@ structured facts *about* actors live where they are used — participation in
 protocol artifacts, credentials in an environment's config surface, obligations
 in requirements.
 
-An actor named in no protocol's `participants` and no workflow step is
-`W_ACTOR_ORPHAN` — legal (a newly described actor precedes its protocols), but
-usually a leftover from a swap.
+An actor that no protocol's `participants` names and that no journey references
+is `W_ACTOR_ORPHAN` — legal (a newly described actor precedes its protocols),
+but usually a leftover from a swap. **Journeys count, and they are the only
+other surface that does**: a journey names its protagonist and every step's
+`actor` by SRN (`journeys.md`), so an actor who stars in one is talked to
+whatever the `protocol/` bucket holds. Workflow steps add nothing — a step names
+a participant by alias, and an alias absent from `participants` is
+`E_PROTO_WF_ALIAS`, so every actor a workflow reaches is already a participant.
+An actor's own `uses` edge and a product's `primary-actors` state reach, not a
+conversation, and count for nothing here. **A `deprecated` actor is exempt**:
+"leftover from a swap" is a guess at why the lists are silent, `status` is the
+catalog answering it, and `evolution.md` forbids deleting the predecessor — so
+the finding would be one no author could ever clear.
 
 Evolution: the contract surface is **the identity and the `actor-type`**.
 Repurposing the name, or flipping `actor-type` because the counterpart changed
@@ -634,6 +645,43 @@ are `W_ADR_SUPERSESSION`.
 is the one visible divergence from the common rule: `evolution.md` exempts a
 change to `status` alone, because `status` is workflow state — `decision-status`
 is a fact about the architecture and is versioned like any other fact.
+
+## Measured numbers name their commit (ADR8)
+
+An ADR MAY state a **measured fact** — a number obtained by running a command
+against a repository — and when it does it MUST say when the measurement was
+taken (`W_ADR_MEASUREMENT`). **This is the only bucket that may carry such a
+number at all.** In every other kind the same sentence is
+`W_PROSE_MEASUREMENT`, because every other kind is a current-state description
+and a measurement inside one is a claim about *now*.
+
+The exemption is grammatical, not editorial: an ADR is a dated snapshot by
+construction, so a number in one never becomes wrong by ageing. It becomes
+wrong by having been taken over a working tree —
+
+> A measurement of a commit cannot drift; a measurement of a working tree always
+> does.
+
+— so the strongest form names the commit (``brass landed as commit `ec0f4be` —
+148 files, 10,768 insertions, 98 entities``), and a bare ISO date is the weaker
+form and is accepted.
+
+**The anchor scopes the section, not the sentence.** A heading, or any line
+under it, that names a commit or an ISO date covers every measurement down to
+the next heading of any level — so a census states its commit once in the
+heading and its table rows then carry bare digits. Restating the date in every
+cell is unreadable and is a fresh way for one document to disagree with itself.
+
+The frontmatter `date` anchors **nothing**. It is the date the decision reached
+its current `decision-status` and it moves when the standing does, so reading it
+as the measurement date would silently re-date every number in the body on the
+day the ADR is accepted.
+
+Two shapes stay wrong here and no check catches either: a working-tree
+measurement dated honestly is still a number that was true for one afternoon, so
+prefer the commit; and quoting a stale ADR number into a current-state entity
+moves it back into the population this rule exists to empty — cite the decision,
+not its arithmetic.
 
 ---
 
@@ -773,12 +821,13 @@ requirement *means* rather than sharpening it, it is a new requirement.
 | `E_COMP_LIBRARY_ENVIRONMENT` | A `library` component declares an environment via `uses`.                                                                   |
 | `W_COMP_NO_ENVIRONMENT`      | A runtime-bearing component declares no environment.                                                                        |
 | `W_ACTOR_PARTICIPATION_EDGE` | Actor authors a `uses` edge to a protocol.                                                                                  |
-| `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no workflow step.                                                         |
+| `W_ACTOR_ORPHAN`             | Actor appears in no protocol participant list and no journey names it.                                                      |
 | `E_ADR_DATE`                 | `date` missing, or not a bare `YYYY-MM-DD` calendar date.                                                                   |
 | `E_ADR_DECIDERS`             | A taken decision with an absent or empty `deciders` list.                                                                   |
 | `E_ADR_SECTIONS`             | A canonical body section missing, at the wrong level, or spelled differently.                                               |
 | `W_ADR_SUPERSESSION`         | `superseded` with no superseding ADR, or a `supersedes` target not marked `superseded`.                                     |
 | `W_ADR_ORDINAL`              | Two ADRs in one bucket share an ordinal prefix.                                                                             |
+| `W_ADR_MEASUREMENT`          | A measured number in an `adr` section that names neither an ISO date nor a commit.                                          |
 | `E_REQ_CRITERIA`             | The `## Acceptance criteria` section is missing, duplicated, mis-levelled, not opened by a list, empty, or uses checkboxes. |
 | `W_REQ_UNIMPLEMENTED`        | A `priority: must` requirement that no component `implements`.                                                              |
 | `W_REQ_WONT_IMPLEMENTED`     | A `priority: wont` requirement that some component claims to implement.                                                     |

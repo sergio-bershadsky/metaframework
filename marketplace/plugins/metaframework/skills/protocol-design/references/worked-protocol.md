@@ -2,34 +2,43 @@
 
 > Reproduced **verbatim** from `solutions/acme/protocol/settlement/`: the
 > `index.md` frontmatter (its prose body is not reproduced — the heading below
-> says so) and then all three artifact files, complete and unabridged, dialect
+> says so) and then all four artifact files, complete and unabridged, dialect
 > header and comments included. Nothing is elided. Every block below is
 > generated from the file on disk, never hand-copied. When the repository is
 > present, read the originals; this copy exists because an installed plugin
 > cannot see them.
+>
+> Each block carries an HTML comment naming its source
+> (`<!-- verbatim: solutions/acme/protocol/settlement/transport.yaml -->`), and
+> `framework/portal/scripts/repo-hygiene.mjs` byte-compares every one of them
+> against the catalog on every push — so "never hand-copied" is enforced rather
+> than promised.
 
 A `bus` protocol at the solution root: a Kafka transport written as an **AsyncAPI
-3.1.0 document**, one workflow with fan-out, and a compound state machine. Read
-it alongside `references/artifacts.md`, which carries the rules each file obeys.
+3.1.0 document**, one workflow with fan-out, a compound state machine, and an
+**Arazzo Description** of one participant's path across the bus. Read it
+alongside `references/artifacts.md`, which carries the rules each file obeys.
 
-Each of the three artifacts opens with a dialect header, and that first line is
+Each of the four artifacts opens with a dialect header, and that first line is
 part of what you are copying — but they are **not the same key**, and that is the
 lesson this protocol carries that no other file states as plainly. `states.json`
 and `workflows/settle-order.yaml` are written in framework mini-specs, so each
 carries the framework's `$schema` at a different meta-schema URL — one
 `state-machine-document`, one `workflow-document`. `transport.yaml` is written in
 the *other* dialect its role admits, so it carries AsyncAPI's own `asyncapi: 3.1.0`
-and the framework adds nothing beside it. Same protocol, same directory, same
-addresses; three files, two kinds of discriminator, because the key declares the
-grammar of *that file* and nothing else.
+and the framework adds nothing beside it. `arazzo.yaml` has only one dialect and
+it is likewise the format's own, `arazzo: 1.1.0`. Same protocol, same directory,
+same addresses; four files, two kinds of discriminator across three different
+keys, because the key declares the grammar of *that file* and nothing else.
 
 ## `index.md` frontmatter
 
+<!-- verbatim-excerpt: solutions/acme/protocol/settlement/index.md -->
 ```yaml
 ---
 name: settlement
 kind: protocol
-version: 4
+version: 5
 title: Settlement
 summary: Event bus carrying paid orders from shop into billing, and ledger postings onward to reconciliation.
 status: approved
@@ -66,6 +75,7 @@ because the message × datamodel matrix is derived from the artifacts below.
 
 ## `transport.yaml`
 
+<!-- verbatim: solutions/acme/protocol/settlement/transport.yaml -->
 ```yaml
 asyncapi: 3.1.0
 x-srn: srn://acme/protocol/settlement
@@ -147,6 +157,7 @@ channels:
 
 ## `workflows/settle-order.yaml`
 
+<!-- verbatim: solutions/acme/protocol/settlement/workflows/settle-order.yaml -->
 ```yaml
 $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
 name: settle-order
@@ -186,6 +197,7 @@ steps:
 Note the compound `posting` node carrying its own `initial`, and the absolute
 `#settlement.<state>` targets used to leave it.
 
+<!-- verbatim: solutions/acme/protocol/settlement/states.json -->
 ```json
 {
   "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document",
@@ -242,6 +254,103 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
 }
 ```
 
+## `arazzo.yaml`
+
+The one artifact of this protocol that this framework does not **validate**: it
+is snapshotted with the entity, served as authored, and no rule here reaches its
+contents. The portal still draws it — a step graph of each workflow, beside the
+source — because reading a document to show it is not the same as checking it,
+and there is no published Arazzo 1.1 schema to check one against.
+
+It deprecates nothing. The sequence diagram still derives from
+`workflows/settle-order.yaml`, the step graph is a second picture rather than a
+replacement, and where the two descriptions disagree the workflow file wins.
+
+Read the file's own comments for the decision that shapes it: an Arazzo
+Description has one executor and a bus has none, so a file like this must name
+whose path it describes and say where that fact came from.
+
+<!-- verbatim: solutions/acme/protocol/settlement/arazzo.yaml -->
+```yaml
+# Arazzo Description — one participant's path across this bus. Unvalidated
+# here: this framework snapshots and serves the file and states no rule about
+# its contents (kinds/protocol.md, "arazzo.yaml — the orchestration surface");
+# the portal reads it only to draw the step graph beside this source.
+# workflows/settle-order.yaml stays the authoritative choreography, and the
+# sequence diagram on this page derives from it alone.
+#
+# WHOSE PATH. An Arazzo Description has one executor; a bus has none. These
+# workflows are written for `reconciliation`, the one participant of
+# settle-order.yaml that both consumes and publishes on this bus, so it is the
+# only side whose path is a sequence rather than a single publish. Payment's
+# side is the first step alone, and the ledger's is the second.
+#
+# Steps reference channels by `channelPath`, not by `operationId`: transport.yaml
+# declares no `operations` block, deliberately — its own comment says inventing a
+# direction there would say more than the mini-spec it replaced. Direction is
+# stated per step below instead, and it is taken from settle-order.yaml's
+# `from`/`to`, which is where this catalog has always kept it.
+arazzo: 1.1.0
+info:
+  title: Settlement
+  summary: Reconciliation's path across the settlement bus.
+  # Arazzo REQUIRES info.version. It is a field of a foreign format and not this
+  # entity's clock — that is `version:` in index.md — so it carries the same
+  # spelling transport.yaml gives AsyncAPI's equally-required info.version.
+  version: unversioned
+  description: >-
+    Two workflows because settle-order.yaml describes two cadences: a per-order
+    pair of facts that arrive as they happen, and a nightly report that is
+    published inside a window. Writing them as one sequence would claim a report
+    follows every settled order, which is the one thing the `opt` in that file
+    says is not true.
+sourceDescriptions:
+  - name: transport
+    type: asyncapi
+    url: ./transport.yaml # a sibling artifact of this entity — always relative
+workflows:
+  - workflowId: observe-a-settlement
+    summary: Take in the two facts one settled order produces.
+    description: >-
+      The first two steps of workflows/settle-order.yaml, seen from
+      reconciliation. Both channels are keyed by order-id, so the pair for one
+      order arrives in publication order on one partition — which is what makes
+      the dependency below a real ordering rather than a hopeful one.
+    steps:
+      - stepId: receive-order-paid
+        description: >-
+          Published after funds are captured, never before; a reversal is a new
+          fact rather than an edit. No successCriteria: this channel declares
+          exactly one message and it is unambiguously the successful outcome,
+          which is the case the Arazzo Specification allows the criteria to be
+          omitted in.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/order-paid"
+        action: receive
+      - stepId: receive-ledger-entry-posted
+        description: >-
+          One event per posted leg, debit and credit. settle-order.yaml draws
+          this as caused by the paid order above, which is the dependency
+          declared here.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/ledger-entry-posted"
+        action: receive
+        dependsOn:
+          - receive-order-paid
+  - workflowId: publish-a-reconciliation-report
+    summary: Publish the nightly outcome.
+    description: >-
+      The `opt` of workflows/settle-order.yaml, which fires on the nightly
+      window rather than on a settled order. Arazzo carries no guard, so the
+      window is stated here and enforced nowhere in this file.
+    steps:
+      - stepId: send-reconciliation-report
+        description: >-
+          This channel declares no messages map — transport.yaml withheld the
+          payload model because the mini-spec it replaced named none — so no
+          requestBody is spelled out here either.
+        channelPath: "{$sourceDescriptions.transport.url}#/channels/reconciliation-report"
+        action: send
+```
+
 ## Audit — run this checklist on any protocol you write
 
 - **Placement.** Participant pair prefixes are `product/shop + component/checkout
@@ -251,7 +360,8 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
 - **Dialect.** Each artifact declares one as its **first** key, naming that
   file's grammar and no revision of it: `workflows/settle-order.yaml` and
   `states.json` carry the framework's `$schema` at their own meta-schema URLs,
-  `transport.yaml` carries AsyncAPI's native `asyncapi: 3.1.0`. Both are
+  `transport.yaml` carries AsyncAPI's native `asyncapi: 3.1.0`, and `arazzo.yaml`
+  carries Arazzo's native `arazzo: 1.1.0`. All are
   recognised, so `W_ARTIFACT_DIALECT` fires on none of them. An artifact that
   declares nothing still loads — read as the legacy dialect and warned on the
   entity, never broken — so this bullet is the one the checker cannot fail for
@@ -313,3 +423,18 @@ Note the compound `posting` node carrying its own `initial`, and the absolute
   not a contradiction.
 - An actor as a participant, and the NCA that follows from excluding it —
   `solutions/acme/product/billing/component/ledger/protocol/refund-request/index.md`.
+- **An `arazzo.yaml` whose steps name operations rather than channel pointers** —
+  `solutions/brass/protocol/game-transport/arazzo.yaml`. Its source description
+  is the only AsyncAPI transport in the catalog that declares `operations`, so
+  `operationId` is available there and is what Arazzo prefers; settlement's file
+  above has to use `channelPath` because its transport declares none. That file
+  also carries the trap the format sets over an AsyncAPI source: its transport is
+  written from the authority's side, Arazzo's `action` is the *executor's*
+  intent, and every `action` in the Arazzo file is therefore the mirror of the
+  one in the transport.
+- **An `arazzo.yaml` grounded in an `openapi.yaml`** —
+  `solutions/acme/product/fulfilment/protocol/carrier-booking/arazzo.yaml`, which
+  is where `successCriteria` and `onFailure` have something to read: an HTTP
+  status code the source document declares. Over a bus there is no status code
+  and usually no declared payload field, which is why settlement's file asserts
+  nothing.

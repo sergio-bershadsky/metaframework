@@ -1,12 +1,20 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { actorDiagnostics } from '../actor/actor'
+import { adrDiagnostics } from '../adr/adr'
+import { datamodelDiagnostics } from '../datamodel/datamodel'
 import { environmentDiagnostics } from '../environment/environment'
+import { journeyArtifactDiagnostics } from '../journey/artifacts'
 import { parseJourney } from '../journey/journey'
+import { requirementDiagnostics } from '../requirement/requirement'
+import { structureDiagnostics } from '../structure/structure'
 import { configContractDiagnostics, readConfigContracts } from '../schema/config-contract'
 import { buildSchemaBundle, buildSchemaRegistry, effectiveModel } from '../schema/registry'
+import { catalogListings } from './listings'
 import { loadCatalog } from './load'
+import { measurementDiagnostics } from './measurements'
 import type { Catalog } from './types'
 
 /**
@@ -32,9 +40,13 @@ import type { Catalog } from './types'
  *   forces its entry to be retired.
  * - **Emission** (dynamic, over the catalog pipeline). One hermetic fixture
  *   catalog carrying a deliberate violation per code, run through exactly what
- *   the portal runs — `loadCatalog`, then `buildSchemaRegistry` — plus the
- *   journey mini-spec parser. Each code gets its own assertion, so "specified
- *   but never emitted" fails with the code in the test name.
+ *   the portal runs — `loadCatalog`, the directory listings, the five kind-check
+ *   modules, the prose scan, `buildSchemaRegistry`, and the config/environment
+ *   join — plus the journey mini-spec parser. Each code gets its own assertion, so "specified
+ *   but never emitted" fails with the code in the test name. The order here is
+ *   the order in `./index.ts`'s `load()`, and it is not free: the datamodel
+ *   example check runs a schema's own instances through the registry's compiled
+ *   validator, so it cannot precede the registry.
  *
  * Why a temp fixture and not a checked-in one. The obvious alternative is a
  * corpus under `solutions/_diagnostics/`: the loader's walk and the catalog
@@ -97,29 +109,44 @@ async function codesIn(file: string): Promise<string[]> {
  * out of this map.
  */
 const UNIMPLEMENTED: Record<string, string> = {
-  // --- journey: specified for the loader, emitted by nothing -----------------
-  // journey.yaml is parsed by `parseJourney`, which the *entity page component*
-  // calls while rendering. Nothing calls it during `loadCatalog`, so no journey
-  // code reaches `catalog.diagnostics` at all — and these five are not emitted
-  // by `parseJourney` either, because each needs the resolved catalog, or the
-  // entity directory, that a pure parser is not given.
-  E_JRN_ARTIFACT_MISSING: 'JRN4: nothing checks a journey entity directory for journey.yaml',
-  // JRN11 and JRN12 are half-implemented and so are NOT listed here: parseJourney
-  // emits both on JRN16's clause (the reference carries an artifact suffix,
-  // decidable from the SRN and the role table alone). What still has no emitter
-  // is each rule's other clause — "the target resolves to the wrong kind" — which
-  // needs the resolved catalog a pure parser is not given. A register keyed by
-  // code cannot express half a rule, so the gap lives in the two `it.todo`s that
-  // name it, next to the tests for the clause that does fire.
-  W_JRN_PROTOCOL_UNRELATED: 'JRN15: needs the named protocol’s participants; parseJourney has no catalog',
-  W_JRN_ARTIFACT_UNKNOWN: 'JRN9: the loader reads every artifact extension it knows and judges none of them',
+  // --- journey ---------------------------------------------------------------
+  // Empty. JRN4, JRN9 and JRN15 were the three rows here, and all three named a
+  // missing *input* rather than a missing branch: `parseJourney` is handed a
+  // parsed document, so it can neither notice the document is absent, nor that
+  // something else sits beside it, nor look up a protocol's participants.
+  // `lib/journey/artifacts.ts` is given the entity directory listing and the
+  // resolved catalog, and emits all three.
+  //
+  // JRN11 and JRN12 are half-implemented and are still NOT listed here:
+  // parseJourney emits both on JRN16's clause (the reference carries an artifact
+  // suffix, decidable from the SRN and the role table alone). What still has no
+  // emitter is each rule's other clause — "the target resolves to the wrong
+  // kind". A register keyed by code cannot express half a rule, so the gap lives
+  // in the two `it.todo`s that name it, next to the tests for the clause that
+  // does fire.
 
-  // --- protocol: artifact rules protocol.md states and nothing runs ----------
-  E_PROTO_PARTICIPANTS: 'nothing reads `participants` frontmatter beyond its zod shape',
-  E_PROTO_ALIAS_DUP: 'nothing reads `participants` frontmatter beyond its zod shape',
-  E_PROTO_PARTICIPANT_KIND: 'needs the resolved catalog; participant refs are never kind-checked',
-  E_PROTO_PAYLOAD_KIND: 'parseWorkflow resolves payload refs syntactically and never kind-checks them',
-  E_PROTO_SPEC_FILE: 'nothing inspects a protocol entity directory for the files protocol.md pins',
+  // --- protocol: the rules protocol.md states and nothing runs ---------------
+  //
+  // The `participants` rows below no longer say "nothing reads `participants`",
+  // because three modules now do: `lib/structure` resolves the list to compute a
+  // protocol's nearest common ancestor, `lib/actor` reads it to answer "does any
+  // conversation name this actor", and `lib/journey/artifacts` reads it to judge
+  // whether a step's protocol documents that hop. Each of them treats a
+  // participant it cannot resolve as somebody else's finding and moves on —
+  // correctly, because none of them owns this surface. The gap is now precisely
+  // that: the list is read three ways and judged by none of them.
+  //
+  // `E_PROTO_PARTICIPANTS` is a different shape of gap again, and the same one
+  // `E_ADR_DATE` and `E_ADR_DECIDERS` were in until this run: the rule IS
+  // enforced — `KIND_FRONTMATTER.protocol` carries `.min(2)` — but everything a
+  // kind schema rejects is reported as `E_FM_SCHEMA`, so the class the spec names
+  // for it never appears. Fixing it is the `metric` manoeuvre: relax the schema,
+  // raise the class from a kind check.
+  E_PROTO_PARTICIPANTS: 'the rule is enforced by KIND_FRONTMATTER.protocol’s .min(2) and reported as E_FM_SCHEMA; the spec’s own class is never raised',
+  E_PROTO_ALIAS_DUP: 'the aliases are read (as a workflow’s address space) and never compared with each other',
+  E_PROTO_PARTICIPANT_KIND: 'three modules resolve participant refs and each skips what it cannot use; nothing owns the surface and kind-checks it',
+  E_PROTO_PAYLOAD_KIND: '`payloadReferences` (lib/datamodel) already collects exactly this set of refs; nothing kind-checks them',
+  E_PROTO_SPEC_FILE: 'nothing inspects a protocol entity directory for the files protocol.md pins — the listing that JRN4/JRN9 use (lib/catalog/listings.ts) is taken for journeys only',
   E_PROTO_TRANSPORT_SCHEMA: 'transport.yaml is parsed into artifact.data and never validated',
   E_PROTO_TRANSPORT_BINDING: 'transport.yaml is parsed into artifact.data and never validated',
   E_PROTO_TRANSPORT_SPEC_CONFLICT: 'transport.yaml is parsed into artifact.data and never validated',
@@ -132,9 +159,39 @@ const UNIMPLEMENTED: Record<string, string> = {
   E_PROTO_TRANSPORT_ASYNCAPI: 'the AsyncAPI dialect is detected and never read; nothing validates transport.yaml',
   W_PROTO_TRANSPORT_HOST: 'nothing reads `servers` out of an AsyncAPI transport.yaml',
   W_PROTO_SPEC_ASYNCAPI: 'needs transport.yaml validated first, which nothing does',
-  W_PROTO_ARTIFACT_UNKNOWN: 'nothing inspects a protocol entity directory for unrecognised files',
-  W_PROTO_PARTICIPANT_MISSING: 'needs the resolved catalog; participants are never resolved',
-  W_PROTO_PARTICIPANT_UNLINKED: 'needs the resolved catalog; participants are never resolved',
+  W_PROTO_ARTIFACT_UNKNOWN: 'nothing inspects a protocol entity directory for unrecognised files; JRN9 is the same rule on the journey kind and now has a reader to copy',
+  // The `arazzo` role of the protocol kind (ADR 0020). Half of what this row
+  // used to say has since been built and half has not, and the half that has not
+  // is the half the rule needs.
+  //
+  // `lib/protocol/arazzo.ts` now reads the document — enough to draw the step
+  // graph — so "nothing opens it" is no longer why this is unimplemented.
+  //
+  // The rule has two clauses and only one of them is blocked. Stating that
+  // precisely matters: this register is the project's account of its own debt,
+  // and an implementable gap listed as an unimplementable one is how a gap stops
+  // being worked on.
+  //
+  //  1. `sourceDescriptions[].url` MUST be a `./`-relative reference naming a
+  //     sibling artifact this entity carries. Decidable from `entity.artifacts`
+  //     alone, with nothing interpreted. `arazzoSourceHrefs()` in
+  //     `components/entity/entity-artifacts.tsx` already computes exactly this
+  //     join and drops the miss (no link) instead of reporting it. Not blocked —
+  //     unwritten.
+  //  2. Every operation, channel or workflow a step names MUST resolve in the
+  //     document the step's source points at. Genuinely blocked: it needs the
+  //     sibling `openapi.yaml` / `transport.yaml` *interpreted*, and — note the
+  //     word — both are already **parsed** into `artifact.data` by the loader,
+  //     as the three E_PROTO_TRANSPORT_* rows above say. What no module does is
+  //     read a field out of either. `W_PROTO_TRANSPORT_HOST` is the same
+  //     obstacle seen from its own end.
+  //
+  // Reading is deliberately not checking. The graph reports an unresolved
+  // `dependsOn` under the drawing, as a note on a picture; that is a different
+  // claim from a diagnostic on the catalog, and it is not this code.
+  W_PROTO_ARAZZO_UNGROUNDED: 'arazzo.yaml is read for its step graph but never checked: the sibling-url clause is decidable today and unwritten, and the step-reference clause needs the sibling openapi.yaml / transport.yaml interpreted, which nothing does',
+  W_PROTO_PARTICIPANT_MISSING: 'the `exposes`/`uses` back-edges and the participant list both resolve; nothing joins one against the other',
+  W_PROTO_PARTICIPANT_UNLINKED: 'the same join, read from its other end',
   W_PROTO_STYLE_MISMATCH: '`style` frontmatter is never compared with the workflows beneath it',
   W_PROTO_WF_CHANNEL_UNKNOWN: 'needs transport.yaml validated first, which nothing does',
 
@@ -145,37 +202,33 @@ const UNIMPLEMENTED: Record<string, string> = {
   // config-contract join (ENV12–ENV15) rather than only the v1 rules, so
   // ENV4–ENV15 are now all emitted. Nothing environment-shaped is outstanding.
 
-  // --- component ------------------------------------------------------------
-  E_COMP_LIBRARY_ENVIRONMENT: '`component-type: library` is never checked against its environment edges',
-  E_COMP_EXTERNAL_CHILD: 'external components are never checked for child entities',
-  E_COMP_SYMLINK: 'the loader follows readdir and never asks whether an entry is a symlink',
-  W_COMP_NO_ENVIRONMENT: 'nothing checks that a deployed component names an environment',
-  W_COMP_DEP_CYCLE: 'the `depends-on` graph is built and never searched for cycles',
-
-  // --- adr ------------------------------------------------------------------
-  E_ADR_DATE: 'the ADR `date` field is shape-checked by zod and never compared with anything',
-  E_ADR_DECIDERS: 'nothing validates `deciders`',
-  E_ADR_SECTIONS: 'nothing reads an ADR body for its required sections',
-  W_ADR_ORDINAL: 'nothing checks ADR directory ordinals for gaps or duplicates',
-  W_ADR_SUPERSESSION: 'nothing checks that a superseded ADR is marked superseded',
-
-  // --- requirement ----------------------------------------------------------
-  E_REQ_CRITERIA: 'nothing reads a requirement body for acceptance criteria',
-  W_REQ_UNIMPLEMENTED: 'the inbound `implements` index exists; nothing reads it for unimplemented musts',
-  W_REQ_WONT_IMPLEMENTED: 'the inbound `implements` index exists; nothing reads it for won’t-do requirements',
-
-  // --- actor, product, solution, structure ----------------------------------
-  W_ACTOR_ORPHAN: 'nothing checks an actor for inbound participation',
-  W_ACTOR_PARTICIPATION_EDGE: 'nothing checks the direction actors are wired in',
-  E_PROD_ACTOR_TARGET: 'no product-level actor edge check exists',
-  E_SOL_NO_ROOT: 'a solution directory with no index.md yields E_STRUCT_MISSING_INDEX, not this code',
-  W_STRUCT_PROTOCOL_NCA: 'no nearest-common-ancestor check on protocol placement',
+  // --- component, adr, requirement, actor, product, solution, structure ------
+  // All empty. Twenty-one rows lived here — the five component containment
+  // rules, the five ADR rules, the three requirement rules, the two actor rules,
+  // PD7, S1 and the protocol placement rule — and every one of them named the
+  // same missing thing in a different accent: a check that needs a *second*
+  // entity, or a directory listing, and so could not live in the loader's
+  // per-entity pass. `lib/{structure,adr,requirement,actor}` are those checks and
+  // `lib/catalog/index.ts`'s `withKindChecks` is where they join the pipeline.
 
   // --- datamodel ------------------------------------------------------------
-  E_DM_EXAMPLE_INVALID: 'the registry compiles validators but never runs a schema’s own `examples` through them',
-  E_DM_NOT_ADDITIVE: 'additive-only evolution is a git-history question; lib/history compares versions only',
-  W_DM_ABSTRACT_USE: '`x-abstract` is never read back when a schema is used',
-  W_DM_USAGE_MISMATCH: 'frontmatter `usage` is never compared with how the schema is referenced',
+  // One row left of four. `E_DM_EXAMPLE_INVALID`, `W_DM_ABSTRACT_USE` and
+  // `W_DM_USAGE_MISMATCH` are `lib/datamodel/datamodel.ts`.
+  //
+  // This one is not deferred for want of a branch — it is the only rule in the
+  // spec that cannot be answered from any input the load pipeline has. It
+  // compares version N read from **git** against N+1 on disk (kinds/datamodel.md,
+  // "What the portal checks mechanically"), and `loadCatalog` is the pure
+  // filesystem→graph step: `metaframework check` never spawns git. The working
+  // tree cannot substitute either — diffing the tree against the commit carrying
+  // the *current* version is `E_VER_UNBUMPED`'s question, not this one. What it
+  // needs is `resolveVersion` + `readFileAtRevision` (both already in
+  // lib/history/git.ts, both async, both spawning git), a new async fold after
+  // `withSchemaRegistry`, and `HistoryUnavailable` meaning silence. The
+  // decidable diff itself — the eight rows of datamodel.md's additive table — is
+  // pure once the two documents are in hand.
+  E_DM_NOT_ADDITIVE:
+    'the only rule needing git: it diffs schema.json at version N-1 against the working tree. lib/history can fetch both (resolveVersion + readFileAtRevision) but nothing in the load pipeline spawns git, and a hermetic temp fixture has no history to read',
 }
 
 /**
@@ -205,6 +258,22 @@ const PIPELINE_MODULES = [
   'src/lib/schema/config-contract.ts',
   'src/lib/environment/environment.ts',
   'src/lib/history/git.ts',
+  // The kind disciplines, folded in by `withKindChecks` and `withDatamodelChecks`.
+  // Listing them here is what puts them under the "accounts for every code"
+  // guard below: without it a rule added to one of these modules would never
+  // appear in PIPELINE_CODES and the fixture would keep passing while the new
+  // rule went unexercised.
+  'src/lib/adr/adr.ts',
+  'src/lib/requirement/requirement.ts',
+  'src/lib/actor/actor.ts',
+  'src/lib/structure/structure.ts',
+  'src/lib/journey/artifacts.ts',
+  'src/lib/datamodel/datamodel.ts',
+  // The prose discipline (ADR 0018), folded in by `withProseChecks`. Not a kind
+  // discipline — it reads sentences rather than the graph, and it applies to
+  // every kind — but it reaches catalog.diagnostics by the same route and so
+  // owes the same account of itself.
+  'src/lib/catalog/measurements.ts',
 ]
 
 let documented: Set<string>
@@ -439,6 +508,15 @@ beforeAll(async () => {
     base('twice-titled', 'component'),
     '# Twice titled\n\nProse.',
   )
+  // W_PROSE_MEASUREMENT — a number that was obtained by running a command,
+  // typed into a document that claims to describe the present. The second
+  // sentence is the control: a target is a decision, it was not measured, and it
+  // must not be reported.
+  await entity(
+    'acme/product/shop/component/tape-measure',
+    base('tape-measure', 'component'),
+    '`src/checkout.ts` is 1,178 lines, the largest module here.\n\nThe p99 budget is 250 ms over a 30d window.\n',
+  )
 
   // --- loader: capability, journey, metric ----------------------------------
   // W_CAP_UNREALIZED, and W_CAP_REALIZATION_EDGE for saying so downwards.
@@ -669,11 +747,228 @@ beforeAll(async () => {
     }),
   })
 
+  // --- structure: what a component may declare, contain, and be -------------
+  // E_COMP_LIBRARY_ENVIRONMENT — a library runs inside its consumers, so an
+  // environment edge from one is a category mistake rather than a stale fact.
+  await entity(
+    'acme/product/shop/component/toolkit',
+    base('toolkit', 'component', {
+      'component-type': 'library',
+      relations: { uses: ['/environment/production'] },
+    }),
+  )
+  // E_COMP_EXTERNAL_CHILD — we describe the boundary of a system we do not own,
+  // never its insides.
+  await entity('acme/product/shop/component/stripe', base('stripe', 'component', { 'component-type': 'external' }))
+  await entity('acme/product/shop/component/stripe/component/webhooks', base('webhooks', 'component'))
+  // W_COMP_NO_ENVIRONMENT — a `ui` that names nowhere it runs. `lifecycle` is
+  // deliberately `released`: the check exempts only `planned` and `retired`,
+  // where naming an environment would be the lie.
+  await entity('acme/product/shop/component/dashboard', base('dashboard', 'component', { 'component-type': 'ui' }))
+  // W_COMP_DEP_CYCLE — the smallest cycle there is, filed once on the
+  // lexicographically first member rather than once per participant.
+  await entity(
+    'acme/product/shop/component/yin',
+    base('yin', 'component', { relations: { 'depends-on': ['../yang'] } }),
+  )
+  await entity(
+    'acme/product/shop/component/yang',
+    base('yang', 'component', { relations: { 'depends-on': ['../yin'] } }),
+  )
+  // E_COMP_SYMLINK — the one arrangement no other rule in the portal can see:
+  // `readdir(…, { withFileTypes: true })` reports `isDirectory() === false` for a
+  // symlink, so the loader's walk never descends and no entity is ever created.
+  // Position decides what a directory is, so the bucket is the whole test.
+  await symlink('inventory', path.join(catalogDir, 'acme/product/shop/component/mirror'))
+
+  // E_PROD_ACTOR_TARGET — `primary-actors` is a kind field, never a relation, so
+  // `collectRelations` never saw it and a product could name anything at all.
+  // The ledger below is also the far end of the placement violation further down.
+  await entity(
+    'acme/product/billing',
+    base('billing', 'product', { 'primary-actors': ['/product/shop'] }),
+  )
+  await entity('acme/product/billing/component/ledger', base('ledger', 'component'))
+
+  // E_SOL_NO_ROOT — a directory directly under the catalog root is a solution,
+  // and a solution states itself. Deliberately EMPTY: with children this case
+  // produced one E_STRUCT_MISSING_INDEX per orphan, naming the children rather
+  // than the directory; with none it produced nothing whatsoever.
+  await mkdir(path.join(catalogDir, 'annex'), { recursive: true })
+
+  // W_STRUCT_PROTOCOL_NCA — participants in two different products, so their
+  // nearest common ancestor is the solution root and shop's bucket is below it.
+  await entity(
+    'acme/product/shop/protocol/cross-talk',
+    base('cross-talk', 'protocol', {
+      participants: [
+        { alias: 'checkout', ref: '/product/shop/component/checkout' },
+        { alias: 'ledger', ref: '/product/billing/component/ledger' },
+      ],
+    }),
+  )
+
+  // --- adr ------------------------------------------------------------------
+  // Every ADR here also carries E_ADR_SECTIONS: the default body is one
+  // paragraph, so all four canonical headings are missing and each is its own
+  // finding. That is the point of the class — "Alternatives considered is
+  // missing" is a fix, "sections are wrong" is a trip back to the kind document.
+  //
+  // E_ADR_DATE — the shape passes and the calendar does not. E_ADR_DECIDERS —
+  // accepted, with nobody accountable. Both reach their own class only because
+  // KIND_FRONTMATTER.adr stopped claiming them (lib/catalog/frontmatter.ts);
+  // under the old string-and-refine schema they were E_FM_SCHEMA twice over.
+  await entity(
+    'acme/adr/0001-pick-a-datastore',
+    base('0001-pick-a-datastore', 'adr', { 'decision-status': 'accepted', date: '2026-02-30' }),
+  )
+  // W_ADR_ORDINAL — one ordinal, one ADR, per bucket. Compared numerically, so
+  // `0002` and `002` would collide too; the finding lands on the later name.
+  await entity('acme/adr/0002-event-log', base('0002-event-log', 'adr', { deciders: ['sergio'] }))
+  await entity('acme/adr/0002-event-sourcing', base('0002-event-sourcing', 'adr', { deciders: ['sergio'] }))
+  // W_ADR_SUPERSESSION — the successor authors the `supersedes` edge, so a
+  // predecessor marked superseded with no incoming edge has no replacement on
+  // record. (The mirror case — an ADR superseded by an edge it never
+  // acknowledged — is the same class from its other end.)
+  await entity(
+    'acme/adr/0003-retired-idea',
+    base('0003-retired-idea', 'adr', { 'decision-status': 'superseded', deciders: ['sergio'] }),
+  )
+  // W_ADR_MEASUREMENT — the one bucket allowed to author a measured number, and
+  // it must say when. The frontmatter `date` deliberately does not count: it is
+  // the date the decision reached its current standing and it MOVES when the
+  // standing does, which would silently re-date every number in the body.
+  await entity(
+    'acme/adr/0004-drop-the-cache',
+    base('0004-drop-the-cache', 'adr', { deciders: ['sergio'] }),
+    '## Context\n\nThe cache layer is 1,240 lines and nobody has read it since March.\n',
+  )
+
+  // --- requirement ----------------------------------------------------------
+  // E_REQ_CRITERIA — no `## Acceptance criteria` section at all. `priority` is
+  // `should` so this entity carries exactly one violation.
+  await entity('acme/requirement/paginate-results', base('paginate-results', 'requirement', { priority: 'should' }))
+  // W_REQ_UNIMPLEMENTED — an obligation the catalog states and nobody claims.
+  // Given a well-formed criteria section, so the criteria class stays out of it.
+  await entity(
+    'acme/requirement/audit-everything',
+    base('audit-everything', 'requirement'),
+    '## Acceptance criteria\n\n- Every write records who made it.\n',
+  )
+  // W_REQ_WONT_IMPLEMENTED — a recorded non-goal that something claims to meet.
+  await entity(
+    'acme/requirement/rewrite-in-rust',
+    base('rewrite-in-rust', 'requirement', { priority: 'wont' }),
+    '## Acceptance criteria\n\n- Nothing. This is the point.\n',
+  )
+  await entity(
+    'acme/product/shop/component/oxidizer',
+    base('oxidizer', 'component', { relations: { implements: ['/requirement/rewrite-in-rust'] } }),
+  )
+
+  // --- actor ----------------------------------------------------------------
+  // W_ACTOR_PARTICIPATION_EDGE — participation is authored once, in the
+  // protocol's `participants` list; the edge back is a second list to keep in
+  // step. W_ACTOR_ORPHAN needs no entity of its own: `acme/actor/customer` above
+  // is named by no protocol and walks no journey, which is exactly the leftover
+  // the rule looks for.
+  await entity(
+    'acme/actor/courier',
+    base('courier', 'actor', { relations: { uses: ['/product/shop/protocol/order-events'] } }),
+  )
+
+  // --- datamodel: the three rules that read a model from the outside --------
+  // E_DM_EXAMPLE_INVALID — an example is the one artifact whose whole purpose is
+  // to be a true instance, and until this ran the build's claim to have
+  // validated it was unbacked.
+  await entity('acme/datamodel/coupon', base('coupon', 'datamodel'))
+  await artifact(
+    'acme/datamodel/coupon',
+    'schema.json',
+    schema('acme/datamodel/coupon', { properties: { code: { type: 'string' } }, required: ['code'] }),
+  )
+  await artifact('acme/datamodel/coupon', 'examples/wrong.json', { code: 42 })
+  // W_DM_ABSTRACT_USE — a base nobody instantiates, exposed as something there
+  // can be an instance of. `allOf` inheritance is the intended use and is never
+  // flagged; this is the other direction.
+  await entity('acme/datamodel/party', base('party', 'datamodel', { abstract: true }))
+  await artifact('acme/datamodel/party', 'schema.json', schema('acme/datamodel/party'))
+  await entity(
+    'acme/product/shop/component/registry',
+    base('registry', 'component', { relations: { exposes: ['/datamodel/party'] } }),
+  )
+  // W_DM_USAGE_MISMATCH — declared destination and observed one disagree. The
+  // payload reference is added to the transport document above rather than to a
+  // new protocol, so the same file keeps carrying W_ARTIFACT_DIALECT.
+  await entity('acme/product/shop/datamodel/ledger-entry', base('ledger-entry', 'datamodel', { usage: 'storage' }))
+  await artifact(
+    'acme/product/shop/datamodel/ledger-entry',
+    'schema.json',
+    schema('acme/product/shop/datamodel/ledger-entry'),
+  )
+  await artifact(
+    'acme/product/shop/protocol/order-events',
+    'transport.yaml',
+    ['kind: kafka', 'channels:', '  - name: order-placed', '    message: /product/shop/datamodel/ledger-entry', ''].join(
+      '\n',
+    ),
+  )
+
+  // --- journey: the rules about the directory, not the document -------------
+  // E_JRN_ARTIFACT_MISSING needs no entity of its own: `acme/journey/broken-path`
+  // above holds an index.md and nothing else, and a journey's frontmatter says
+  // nothing about the path — so an entity without its artifact asserts nothing.
+  //
+  // W_JRN_ARTIFACT_UNKNOWN — `steps.txt` is invisible to `entity.artifacts` by
+  // construction (the loader reads four extensions and drops the rest), which is
+  // precisely why JRN9 needs the listing rather than the artifact list.
+  //
+  // W_JRN_PROTOCOL_UNRELATED — `order-events` lists checkout and inventory, and
+  // this hop runs ledger → ledger, so the protocol documents neither end of it.
+  await entity('acme/journey/side-quest', base('side-quest', 'journey'))
+  await artifact(
+    'acme/journey/side-quest',
+    'journey.yaml',
+    [
+      `$schema: ${HOST}/metaframework/product/specification/datamodel/journey-document`,
+      'name: side-quest',
+      'steps:',
+      '  - actor: /actor/customer',
+      '    touches: /product/billing/component/ledger',
+      '  - actor: /actor/customer',
+      '    touches: /product/billing/component/ledger',
+      '    protocol: /product/shop/protocol/order-events',
+      '',
+    ].join('\n'),
+  )
+  await artifact('acme/journey/side-quest', 'steps.txt', 'Not a file this kind defines.\n')
+
   catalog = await loadCatalog({ catalogDir })
   const registry = buildSchemaRegistry(catalog)
 
   fired = new Set<string>()
   for (const diagnostic of [...catalog.diagnostics, ...registry.diagnostics]) fired.add(diagnostic.code)
+  // The kind disciplines, collected the way `lib/catalog/index.ts` collects them
+  // — `withKindChecks` over the resolved catalog plus the two directory
+  // listings, then `withDatamodelChecks` once the registry exists. The listings
+  // are the input three of these rules cannot be answered without: a symlinked
+  // directory, a solution root with no document, and a file the loader chose not
+  // to read are all absences from the entity graph.
+  const listings = await catalogListings(catalogDir, catalog)
+  for (const diagnostic of [
+    ...adrDiagnostics(catalog),
+    ...requirementDiagnostics(catalog),
+    ...actorDiagnostics(catalog),
+    ...structureDiagnostics(catalog, listings.directories),
+    ...journeyArtifactDiagnostics(catalog, listings.journeys),
+    ...datamodelDiagnostics(catalog, registry),
+    // Not a kind discipline, and folded in by its own step (`withProseChecks`):
+    // it reads the sentences of every kind and needs neither a second entity nor
+    // a listing.
+    ...measurementDiagnostics(catalog),
+  ]) {
+    fired.add(diagnostic.code)
+  }
   // The config contract and the environment artifacts are folded in after the
   // registry exists, because four of the environment rules read a datamodel's
   // flattened schema (lib/catalog/index.ts, `withEnvironmentChecks`). Collected
@@ -755,6 +1050,32 @@ const PIPELINE_CODES = [
   'W_ENV_CONFIG_ORPHAN',
   'W_ENV_CONFIG_MISSING',
   'W_ENV_CONFIG_UNDECLARED',
+  'E_COMP_LIBRARY_ENVIRONMENT',
+  'E_COMP_EXTERNAL_CHILD',
+  'E_COMP_SYMLINK',
+  'W_COMP_NO_ENVIRONMENT',
+  'W_COMP_DEP_CYCLE',
+  'E_PROD_ACTOR_TARGET',
+  'E_SOL_NO_ROOT',
+  'W_STRUCT_PROTOCOL_NCA',
+  'E_ADR_DATE',
+  'E_ADR_DECIDERS',
+  'E_ADR_SECTIONS',
+  'W_ADR_ORDINAL',
+  'W_ADR_SUPERSESSION',
+  'E_REQ_CRITERIA',
+  'W_REQ_UNIMPLEMENTED',
+  'W_REQ_WONT_IMPLEMENTED',
+  'W_ACTOR_ORPHAN',
+  'W_ACTOR_PARTICIPATION_EDGE',
+  'E_DM_EXAMPLE_INVALID',
+  'W_DM_ABSTRACT_USE',
+  'W_DM_USAGE_MISMATCH',
+  'E_JRN_ARTIFACT_MISSING',
+  'W_JRN_ARTIFACT_UNKNOWN',
+  'W_JRN_PROTOCOL_UNRELATED',
+  'W_PROSE_MEASUREMENT',
+  'W_ADR_MEASUREMENT',
 ] as const
 
 /**
@@ -931,15 +1252,20 @@ describe('diagnostic emission — the journey mini-spec', () => {
   })
 
   /*
-   * The codes kinds/journey.md specifies and nothing emits. They are not written
-   * as failing assertions because a permanently red suite stops being read; the
-   * inventory suite carries them instead, as UNIMPLEMENTED entries that go red
-   * the moment an emitter appears — the same ratchet without the standing
-   * failure. Each todo names the rule it waits on.
+   * Three todos left where there were five. JRN4, JRN9 and JRN15 are no longer
+   * waiting on a reader — `lib/journey/artifacts.ts` is that reader, and the
+   * three codes are asserted in the pipeline suite above, against the fixture's
+   * `side-quest` and `broken-path` journeys.
+   *
+   * What remains is the half-rule the register cannot express. JRN11 and JRN12
+   * each have two clauses, and `parseJourney` emits the class on the one that is
+   * decidable from the SRN and the role table alone (tested above). The other —
+   * "the target resolves to the wrong kind" — needs the resolved catalog, and
+   * `journeyArtifactDiagnostics` deliberately did not take it on: it re-parses
+   * the document for JRN15 and discards every issue, because `artifact-checks.ts`
+   * already runs the same parser and owns those findings. Moving the kind clause
+   * would mean one rule reported from two places.
    */
-  it.todo('fires E_JRN_ARTIFACT_MISSING — JRN4, needs a reader that looks for journey.yaml on disk')
-  it.todo('fires W_JRN_ARTIFACT_UNKNOWN — JRN9, needs a reader that judges the entity directory’s other files')
   it.todo('fires E_JRN_TOUCHES_KIND on a wrong-kind target — JRN11 needs the resolved catalog')
   it.todo('fires E_JRN_PROTOCOL_KIND on a wrong-kind target — JRN12 needs the resolved catalog')
-  it.todo('fires W_JRN_PROTOCOL_UNRELATED — JRN15, needs the named protocol’s participants')
 })

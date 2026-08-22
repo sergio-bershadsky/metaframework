@@ -1,6 +1,6 @@
 ---
 name: protocol-design
-description: This skill should be used when the user asks to "add a protocol", "describe how these components talk", "document this API in the catalog", "add an event bus between these services", "write transport.yaml", "add a workflow to a protocol", "draw a sequence diagram from the catalog", "add states.json", "write the XState machine for a conversation", "bind an OpenAPI or AsyncAPI file", "write the transport as an AsyncAPI document", "declare participants and aliases", "pick point-to-point vs bus vs request-response", or asks where a protocol directory belongs / what its nearest common ancestor is — in a metaframework solution catalog under `solutions/`. It owns the `protocol` kind only — use `add-entity` for a product, component, actor, environment, ADR or requirement, and `model-data` for the payload datamodels a protocol references. For changing an EXISTING published protocol, decide the mechanism with `evolve-entity` first.
+description: This skill should be used when the user asks to "add a protocol", "describe how these components talk", "document this API in the catalog", "add an event bus between these services", "write transport.yaml", "add a workflow to a protocol", "draw a sequence diagram from the catalog", "add states.json", "write the XState machine for a conversation", "bind an OpenAPI or AsyncAPI file", "write the transport as an AsyncAPI document", "add an Arazzo description", "write arazzo.yaml", "declare participants and aliases", "pick point-to-point vs bus vs request-response", or asks where a protocol directory belongs / what its nearest common ancestor is — in a metaframework solution catalog under `solutions/`. It owns the `protocol` kind only — use `add-entity` for a product, component, actor, environment, ADR or requirement, and `model-data` for the payload datamodels a protocol references. For changing an EXISTING published protocol, decide the mechanism with `evolve-entity` first.
 ---
 
 # Authoring a protocol
@@ -18,7 +18,8 @@ solutions/acme/protocol/settlement/
 ├── index.md              REQUIRED   frontmatter + prose
 ├── transport.yaml        OPTIONAL   the wire binding — one transport, in either of its two dialects
 ├── states.json           OPTIONAL   XState-subset conversation machine
-├── openapi.yaml          OPTIONAL   external spec, recognised by being linked from transport.yaml
+├── openapi.yaml          OPTIONAL   OpenAPI document — fixed bare name, bytes-only
+├── arazzo.yaml           OPTIONAL   Arazzo description — fixed bare name, unvalidated
 └── workflows/            OPTIONAL   asset dir, never an entity, no index.md at any depth
     └── settle-order.yaml            one workflow; name = filename stem
 ```
@@ -56,8 +57,10 @@ companion, anchored to the shipped fixtures.
    (§6-8); then one transport, and in the mini-spec an external spec link
    **XOR** a surface list. (`references/artifacts.md`)
 7. **Write `workflows/*.yaml`** — one file per named exchange. (same)
-8. **Write `states.json`** only if the conversation has states worth naming.
-   (same)
+8. **Write `states.json`** only if the conversation has states worth naming, and
+   **`arazzo.yaml`** only if a grounding document exists to resolve its steps
+   against — the sibling `openapi.yaml`, or a `transport.yaml` in its AsyncAPI
+   dialect. A `grpc` or `in-process` protocol can never carry one. (same)
 9. **Run the catalog check** and report the result. (§Finish)
 
 Steps 1–4 are decisions and step 2 is irreversible: a protocol at the wrong NCA
@@ -144,14 +147,20 @@ Two lints, both warnings: `style: bus` with any `kind: call` step, and
 `style: request-response` with no `call`/`return` pair anywhere, are each
 `W_PROTO_STYLE_MISMATCH`.
 
-## 6-8. The three artifacts
+## 6-8. The artifacts
 
 `transport.yaml` (one transport, `spec` XOR a surface list), `workflows/*.yaml`
-(one file per named exchange, fragments capped at depth 3), and `states.json`
-(an XState v5 subset describing the conversation, not a participant). The forms,
-the required fields per transport kind, the two `message` traps and the XState
-subset boundary are all in **`references/artifacts.md`** — read it before
-writing any of the three.
+(one file per named exchange, fragments capped at depth 3), `states.json`
+(an XState v5 subset describing the conversation, not a participant), and
+`arazzo.yaml` (one initiator's path across the exchange, unvalidated by this
+framework and only worth writing where its steps can be grounded). The forms,
+the required fields per transport kind, the two `message` traps, the XState
+subset boundary and the Arazzo rules are all in
+**`references/artifacts.md`** — read it before writing any of them.
+
+`arazzo.yaml` is a **sibling** of `workflows/`, never a replacement for it: the
+workflow files stay authoritative, keep the sequence diagram, and lose nothing
+when an Arazzo description is added beside them.
 
 Five things worth knowing before you get there:
 
@@ -198,13 +207,18 @@ Five things worth knowing before you get there:
   workflows/<name>.yaml       $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/workflow-document
   states.json                 "$schema": "https://schemas.metaframework.dev/metaframework/product/specification/datamodel/state-machine-document"
   openapi.yaml                openapi: 3.1.0
+  arazzo.yaml                 arazzo: 1.1.0
   ```
 
   In `states.json` it is a member of the root object, in the same position and
-  to the same effect. `openapi:` and `asyncapi:` are their own formats' keys and
-  the framework adds nothing beside them; `openapi:` is recognised across the
-  whole `3.1` line and `asyncapi:` across the whole of `3.x`, so a file tracking
-  a patch release is not warned. Paste `3.1.0` for either in a new file.
+  to the same effect. `openapi:`, `asyncapi:` and `arazzo:` are their own
+  formats' keys and the framework adds nothing beside them; `openapi:` is
+  recognised across the whole `3.1` line, `asyncapi:` across the whole of `3.x`
+  and `arazzo:` across the whole of `1.1` — so a file tracking a patch release
+  is not warned. Paste `3.1.0` for the first two in a new file, `1.1.0` for
+  Arazzo. Arazzo 1.0 is legal, shipped Arazzo and is deliberately *outside* the
+  band: its `sourceDescriptions` cannot name an AsyncAPI document. Such a file
+  is read and warned, never broken.
 
   A `transport.yaml` carrying **both** keys is an error, not a choice: `$schema`
   wins, the file is read as the mini-spec, and `asyncapi:` is then an unknown
@@ -272,9 +286,10 @@ entities are authored with `add-entity`.
 
 `references/worked-protocol.md` reproduces `srn://acme/protocol/settlement`
 verbatim — frontmatter, Kafka `transport.yaml`, a fan-out workflow, a compound
-state machine — followed by the six-point audit checklist to run against any
-protocol you write, and pointers to the shipped protocols that exercise the
-forms settlement does not.
+state machine, and an `arazzo.yaml` describing one participant's path across the
+bus — followed by the six-point audit checklist to run against any protocol you
+write, and pointers to the shipped protocols that exercise the forms settlement
+does not.
 
 ## Evolving a protocol
 

@@ -1,6 +1,6 @@
 # Directory structure — layout, artifacts, placement
 
-> Distilled from `framework/spec/structure.md` (version 7), the container rules
+> Distilled from `framework/spec/structure.md` (version 9), the container rules
 > in `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
 > "Sibling artifacts" / "Body template" sections of the other
 > `framework/spec/kinds/*.md`. **When `framework/spec/` is present in the
@@ -66,11 +66,49 @@ the owner has no entities of that kind; empty buckets should not be committed.
 - `index.md` — REQUIRED. Frontmatter plus prose. The prose carries **no
   level-1 heading**: `title` is already the page's h1, and a second one leaves
   the document with no outline (`E_STRUCT_BODY_H1`). Sections start at `##`.
+  It also carries **no measured number** — see below.
 - **Sibling artifacts** — kebab-case, **bare** filenames named by role, never
   prefixed with the entity name. `schema.json`, not `order.schema.json`.
 - **Asset subdirectories** — named for their role (`workflows/`, `examples/`),
   therefore never one of the eleven kinds, and containing **no `index.md` at any
   depth** (`E_STRUCT_NESTED_ENTITY`).
+
+## Measured numbers do not go in prose
+
+**A number you obtained by running a command MUST NOT be written as a digit in
+an entity's prose.** Violation is `W_PROSE_MEASUREMENT`. The `adr/` bucket is
+the single exception, and there the measurement MUST say when it was taken
+(`W_ADR_MEASUREMENT`).
+
+The test is whether you can write the command down: `wc -l`,
+`git rev-list --count HEAD`, `ls`, a test runner's tally. If you can, the number
+goes stale on the next commit and the document that carries it becomes wrong
+without anyone touching it. If you cannot — an SLO, a target, a design constant,
+a domain figure — it is a **decision**, it does not drift, and this rule does not
+touch it. `99.9%`, `four characters`, `eleven kinds`: all fine.
+
+| Do not write                                                     | Write instead                                       |
+|------------------------------------------------------------------|-----------------------------------------------------|
+| "`src/lib/history/git.ts`, 895 lines, the largest module here"   | "`src/lib/history/git.ts`, the largest module here" |
+| "instrumenting 23,277 lines of someone else's product"           | "instrumenting a product we do not own, by hand"    |
+| "**AC-2** The run reports 16 test files and 395 tests passing"   | "**AC-2** Every suite passes and the run exits zero"|
+| "the catalog knows all 197 entity names"                         | "the catalog knows every entity name"               |
+
+An **ordinal** claim (*largest*, *the only*, *more than any other*) is cheap to
+keep true; a **cardinal** one is the reverse. Where the count itself is the
+point and the count is over the catalog graph — entities beneath a container,
+artifacts beneath it — the portal derives and renders it beside the prose, so
+the sentence keeps the claim and the surface carries the number. Never
+interpolate a placeholder into the sentence: this framework has exactly one
+reference syntax, and a paragraph whose numbers are template calls reads to
+`grep` as a paragraph with no numbers in it.
+
+In an ADR, anchor the number to a **commit** rather than a date where you can —
+"brass landed as `ec0f4be`: 148 files, 10,768 insertions" is verifiable forever,
+while a working-tree measurement is only ever true for one afternoon. The anchor
+scopes the whole section it appears in, so state it once per section, not once
+per row. The frontmatter `date` does not count: it moves when
+`decision-status` does.
 
 ## Where each kind may live
 
@@ -168,7 +206,7 @@ commit or two during a swap).
 | `product`     | —                 | any (attachments)                                                                                             | —            | —                        |
 | `component`   | —                 | any (attachments)                                                                                             | —            | —                        |
 | `datamodel`   | `schema.json`     | —                                                                                                             | `examples/`  | —                        |
-| `protocol`    | —                 | `transport.yaml`, `states.json`, `openapi.yaml`; other formats bound via `transport.yaml` `spec.file`         | `workflows/` | —                        |
+| `protocol`    | —                 | `transport.yaml`, `states.json`, `openapi.yaml`, `arazzo.yaml`; others bound via `transport.yaml` `spec.file` | `workflows/` | —                        |
 | `actor`       | —                 | —                                                                                                             | —            | —                        |
 | `environment` | —                 | `topology.yaml`, `config.yaml`                                                                                | —            | —                        |
 | `adr`         | —                 | supporting material (linked, not interpreted)                                                                 | —            | four, see below          |
@@ -195,8 +233,10 @@ Rules that catch authors out:
   samples the system, and a `query.sql` would bind the description to one
   collection tool and rot silently.
 - Protocol sibling names are **fixed and bare**: `transport.yaml`,
-  `states.json`, `openapi.yaml` (recognised bytes-only, unparsed — which is
-  what makes it addressable as `.openapi`). An external spec in any *other*
+  `states.json`, `openapi.yaml` and `arazzo.yaml` (both recognised but neither
+  validated — the fixed name is what makes them addressable as `.openapi` and
+  `.arazzo`;
+  `arazzo.json` is **not** recognised). An external spec in any *other*
   format is still bound via `transport.yaml` `spec.file`; a free-named file is
   never addressable. Anything else unrecognised is `W_PROTO_ARTIFACT_UNKNOWN`.
   `workflows/` is the only recognised asset subdirectory: one `*.yaml` per
@@ -247,6 +287,7 @@ kinds: SRN→path conversion needs the spec, never a catalog read.
 | `protocol`    | `states`           | `states.json`           |
 | `protocol`    | `openapi`          | `openapi.yaml`          |
 | `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` |
+| `protocol`    | `arazzo`           | `arazzo.yaml`           |
 | `journey`     | `journey`          | `journey.yaml`          |
 | `environment` | `topology`         | `topology.yaml`         |
 | `environment` | `config`           | `config.yaml`           |
@@ -276,8 +317,10 @@ sharing a prefix of keys are indistinguishable under it right up until they are
 not.
 
 **Every addressable artifact declares its own dialect, in its own bytes**, under
-a key fixed per role — one key for eight of the nine roles, and two for
-`transport`, which recognises two dialects. Where the format discriminates itself
+a key fixed per role — one key for eight of the ten roles, two for `transport`,
+which recognises two dialects, and none at all for `examples.<name>`, which is
+an instance of its sibling schema and carries that schema's dialect rather than
+declaring one of its own. Where the format discriminates itself
 the native key does the work and the framework invents nothing; where it does
 not, the file carries `$schema` holding the canonical URL of the meta-schema that
 defines the dialect. Those meta-schemas are ordinary datamodel entities of the
@@ -297,6 +340,7 @@ schema URLs sharing one prefix:
 | `protocol`    | `states`           | `states.json`           | XState subset | `$schema`  | `{meta}/state-machine-document`  |
 | `protocol`    | `openapi`          | `openapi.yaml`          | OpenAPI       | `openapi`  | `3.1.x` (native)                 |
 | `protocol`    | `workflows.<name>` | `workflows/<name>.yaml` | the mini-spec | `$schema`  | `{meta}/workflow-document`       |
+| `protocol`    | `arazzo`           | `arazzo.yaml`           | Arazzo        | `arazzo`   | `1.1.x` (native)                 |
 | `journey`     | `journey`          | `journey.yaml`          | the mini-spec | `$schema`  | `{meta}/journey-document`        |
 | `environment` | `topology`         | `topology.yaml`         | the mini-spec | `$schema`  | `{meta}/topology-document`       |
 | `environment` | `config`           | `config.yaml`           | the mini-spec | `$schema`  | `{meta}/config-document`         |
@@ -306,10 +350,10 @@ is **total** over that one, `none` included. A role given a filename without a
 dialect ruling would be a role whose dialect nobody decided, which reads exactly
 like a role that carries none — so the two tables grow together or neither does.
 
-Total, but not one-to-one: **nine roles, ten rows**, because the `transport` role
-carries two. Where a role has several they are ordered **most canonical first**,
-and that order is read twice — it is the dialect a headerless file is told to
-add, and the dialect a file declaring two of the keys is read under. The
+Total, but not one-to-one: **ten roles, eleven rows**, because the `transport`
+role carries two. Where a role has several they are ordered **most canonical
+first**, and that order is read twice — it is the dialect a headerless file is
+told to add, and the dialect a file declaring two of the keys is read under. The
 mini-spec is first for `transport.yaml` because every wire can use it.
 
 **Which of the two a `transport.yaml` may use is decided by its wire, not by
@@ -423,6 +467,15 @@ Rules an author has to get right:
   reads this document yet: the dialect is *detected* and recorded, and the rules
   `protocols.md` states for it are specified ahead of any reader. Write the file
   as if they were enforced, because nothing will tell you when they are not.
+- **`arazzo:` reads as the whole `1.1` line**, and only that line. Arazzo's
+  Versions section is OpenAPI's verbatim — `major`.`minor` designates the feature
+  set, the patch is errata tooling should ignore — so `1.1.1` is the same dialect.
+  1.0 is legal, shipped Arazzo and is *not* in the band: its `sourceDescriptions`
+  cannot name an AsyncAPI document, which is where most groundable protocols in a
+  catalog like this one live. A 1.0 file is read, warned, and never broken. Paste
+  `arazzo: 1.1.0`. Unlike `openapi.yaml`, the portal does read further than that
+  key — it draws a step graph of each workflow — but nothing *validates* the
+  document, and no diagnostic is raised from its contents.
 
 **No header, or one unknown for the role, is the legacy dialect** — the format
 this bundle describes today. Recognition is against **every** row the role has,
@@ -469,8 +522,13 @@ additive-growth rule that governs every other row.
 
 ```text
 transport.yaml grows an AsyncAPI dialect   # no row moves, no address moves
-arazzo.yaml beside workflows/              # a new role — append a row first
+arazzo.yaml beside workflows/              # a new role — a row was appended
 ```
+
+The second line already happened. `arazzo.yaml` stood in this block as the
+hypothetical, came back for the amendment, and is a row of the role table above
+rather than a second dialect of `workflows/<name>.yaml` — which is the outcome
+the rule exists to force. The next new filename walks the same path.
 
 A new row mints addresses and obliges every SRN parser; a new dialect obliges
 only the reader of that one file. Collapsing the two would let a payload change
@@ -488,8 +546,14 @@ role from dialect exists to prevent.
   They appear only as bucket directories, at odd positions.
 - `index.md` is reserved for the entity document.
 - Sibling filenames are bare, kebab-case, with a standard extension. A file the
-  framework only *links* rather than parses (`openapi.yaml`, `pricing.proto`)
-  follows the external tool's convention instead.
+  framework only *links* rather than interprets — `pricing.proto`,
+  `schema.graphql` under a protocol's `spec.file` — follows the external tool's
+  convention instead, and is not addressable, because only fixed-name files are.
+  `openapi.yaml` and `arazzo.yaml` are **not** in that class, though
+  `openapi.yaml` was once its leading example: both are now fixed bare names
+  with their own rows in the role table, both are addressable, and both are
+  parsed as YAML into `artifact.data` like every other artifact. What the
+  framework declines to do with them is *judge* them.
 - Frontmatter `name` MUST equal the directory name; frontmatter `kind` MUST
   equal the bucket.
 
@@ -612,14 +676,19 @@ products.
 | `E_STRUCT_DUPLICATE_SRN` | Two directories resolve to the same SRN (symlink, case-insensitive filesystem).            |
 | `E_STRUCT_BODY_H1`       | An `index.md` body carries a level-1 heading; `title` is already the page's h1.            |
 | `W_STRUCT_PROTOCOL_NCA`  | Protocol not at the NCA of its component/product participants.                             |
+| `W_PROSE_MEASUREMENT`    | A measured number typed into the prose of a current-state entity.                          |
 | `E_JRN_ARTIFACT_MISSING` | A journey entity directory with no `journey.yaml` (`journeys.md`).                         |
 | `W_JRN_ARTIFACT_UNKNOWN` | Unrecognised file in a journey entity directory.                                           |
 
 `W_ARTIFACT_DIALECT` is this document's too, but it is defined beside the table
 it belongs to ("Artifact dialects", above) rather than here: it is about the
-bytes of a file rather than about where anything sits, and it is the one class
-here that is cross-kind by construction — the same warning on a protocol, a
-journey and an environment.
+bytes of a file rather than about where anything sits, and it is cross-kind by
+construction — the same warning on a protocol, a journey and an environment.
+
+`W_PROSE_MEASUREMENT` is cross-kind by **subtraction**: every kind except `adr`,
+where the same subject is `W_ADR_MEASUREMENT` and the question is whether the
+number says when it was taken ("Measured numbers do not go in prose", above). No
+entity raises both.
 
 `E_STRUCT_KIND_PLACEMENT` is **retired** — every placement violation is now
 `E_SRN_PLACEMENT` (`srn.md`, P1–P4). A directory without `index.md` and without

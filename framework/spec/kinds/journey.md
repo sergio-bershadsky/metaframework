@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: journey
-version: 5
+version: 6
 status: review
 title: Kind — Journey
 summary: Contract for journey entities — solution-level placement, the actor frontmatter field, the journey.yaml step mini-spec, its SRN address and dialect header, the no-branching rule and the step cap, the undocumented-integration check, validation, and derived views.
@@ -70,8 +70,8 @@ mechanism of `W_JRN_UNDOCUMENTED_INTEGRATION`
 run entirely on data that the standard's own tooling is obliged to ignore. In
 the other direction Arazzo requires what a journey does not have — a
 `sourceDescriptions` list with at least one entry, a `stepId` on every step,
-and on each step an `operationId`, `operationPath`, or `workflowId` naming the
-call it makes. `steps[4]` of the [worked example](#worked-example) below is a
+and on each step an `operationId`, `operationPath`, `channelPath`, or
+`workflowId` naming the call it makes. `steps[4]` of the [worked example](#worked-example) below is a
 customer clicking a tracking link in an email, `protocol: none`; writing it as
 an Arazzo step means fabricating a source description, an operation to call,
 and an identifier for it, for a hop whose entire content is that no system

@@ -19,7 +19,7 @@ migration never moves an address.
 |----------------------------|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
 | `states.json` → XState v5  | decided                   | already true — all 8 files load via `createMachine`                                                                                                       | **locked**, effort S     |
 | Stately.ai adoption        | "as much as possible"     | SaaS disqualified (offline + private catalogs); their schema is a CI conformance target, not our authority; their MIT flow stack has zero statechart code | **researched**, see lane |
-| workflows → Arazzo         | leaning yes               | ✋ Arazzo cannot carry multi-party choreography; add `.arazzo` as a sibling role instead                                                                   | **ruled: migrate**       |
+| workflows → Arazzo         | leaning yes               | ✋ Arazzo cannot carry multi-party choreography; add `.arazzo` as a sibling role instead                                                                   | **ruled — 0020, drawn**  |
 | journey → Arazzo           | suggested ("imho")        | ✋ actor/touches have no Arazzo home; keep mini-spec, record the rejection                                                                                 | **ruled — done**         |
 | config → JSON Schema model | decided                   | concrete design ready (`usage: config` datamodels)                                                                                                        | **locked**, effort M–L   |
 | topology                   | open to research          | defer the choice, lock the criteria in an ADR; two prototypes                                                                                             | **deferred by design**   |
@@ -161,7 +161,7 @@ file equally.
 styles and Monaco's workers): the item that turns "offline" from an accident
 into a guarantee.
 
-## Lane: workflows — Arazzo *(pushback — needs ruling)*
+## Lane: workflows — Arazzo *(ruled — ADR 0020)*
 
 The field-by-field mapping killed the direct migration. An Arazzo step
 **legally requires** one of `operationId`/`operationPath`/`workflowId` (1.1
@@ -181,6 +181,9 @@ and in-process protocols can never be grounded.
   `srn://…/{protocol}.arazzo`, OPTIONAL, bytes-only in 0.2.0 (portal renders
   an attachment card; `E_SRN_DANGLING` when absent). Sensible only where
   grounding documents exist (`openapi.yaml`, or a linked AsyncAPI spec).
+  **Superseded on the "bytes-only" half — see *Visualization* below.** What
+  shipped is *unvalidated*, not unread: the portal draws a step graph. The
+  validation half of this bullet stands exactly as written.
 - The mini-spec **stays the authoritative choreography source** — sequence
   diagrams keep rendering from it, unwarned. Arazzo is a *different artifact*
   (orchestration/test surface), not a new dialect of the same role, so no
@@ -194,6 +197,46 @@ and in-process protocols can never be grounded.
   rule (arazzo.yaml describes the initiator-facing surface only) plus a
   W-class tether — every `operationId` in `arazzo.yaml` resolves into
   `openapi.yaml`.
+
+**Ruled 2026-08-22 —
+[ADR 0020](../solutions/metaframework/adr/0020-arazzo-as-a-sibling-role/index.md).**
+Adopted as recommended, with three things the record had to settle that this
+lane left open. The recognition band is **`1.1.x`**, not `1.x`: Arazzo's Versions
+section is OpenAPI's verbatim so the band is one minor line, and 1.0 is excluded
+because its `sourceDescriptions` cannot name an AsyncAPI document. The tether is
+**not** "every `operationId` resolves into `openapi.yaml`" — a census of the
+catalog on 2026-08-22 found only 2 of the 13 groundable protocols OpenAPI-grounded
+and 10 of the other 11 declaring channels rather than operations, so the rule as
+worded would have checked almost nothing; the adopted `W_PROTO_ARAZZO_UNGROUNDED`
+covers operation, channel and nested-workflow references against whatever the
+entity carries, plus a relative-URL rule on `sourceDescriptions[].url`. And
+`arazzo.json` is explicitly refused, one document per file, `x-srn` as the
+extension prefix.
+
+**Authored 2026-08-22.** Twelve of the thirteen groundable protocols now ship an
+`arazzo.yaml`; every operation and channel reference in them resolves into the
+sibling the file names, checked mechanically rather than by reading. The
+thirteenth, `stackstorm/…/protocol/registration-events`, is groundable and stays
+unwritten on purpose: it carries no `workflows/` directory, so there is no
+documented choreography to re-describe and any sequence written for it would be
+invented. Two shapes came out of that pass and are worth knowing before writing
+the next one — over a bus most descriptions are one or two steps, because a
+single-executor format can only ever hold one participant's path; and over an
+AsyncAPI source written from the responder's side every step `action` is the
+mirror of the operation it names, because Arazzo's `action` is the executor's
+intent.
+
+**Drawn 2026-08-22.** The lane's recommended shape said "portal renders an
+attachment card"; the Visualization section of this same plan commissioned a
+React Flow step-graph, and that is what shipped — see
+[Cross-cutting: visualization](#cross-cutting-visualization). The card is not
+what a reader gets. Landing it forced one correction to the record: ADR 0020's
+decision 3 said the artifact "derives no diagram in this revision", and its
+"bytes-only" wording fused a claim about *validation* with a claim about
+*reading*. Only the first was ever the decision, and it is unchanged — nothing
+validates an Arazzo Description, no rule of `kinds/protocol.md` reaches its
+contents, and `W_PROTO_ARAZZO_UNGROUNDED` still has no emitter. The second
+moved, and the word is now **unvalidated** in all three trees.
 
 Effort: S for the role + spec; M with lint shell-out and the tether check.
 Open: a later `metaframework derive arazzo` generating initiator-perspective
@@ -322,16 +365,26 @@ Lane-independent, and 0.2.0 is shippable on this alone:
   `states.json`, description strings included, over `targetOrigin: '*'` to a
   page whose retention we cannot audit. All three rejected with reasons, the
   same way the topology ADR closes its survey.
-- **Arazzo**: render-it-ourselves is confirmed necessary (Redocly
-  visualization: not started; the only visualizer is a VS Code extension). A
-  React Flow step-graph behind the existing `navigable.tsx` code-split:
-  steps as nodes; implicit-order, `goto`, and `dependsOn` edges; criteria
-  labels; destructive token on `onFailure` edges; ELK layered layout;
-  navigation into referenced workflows/operations. **Zero new dependencies**
-  — React Flow 12 and elkjs already ship. (M)
+- **Arazzo — built 2026-08-22.** Render-it-ourselves was confirmed necessary
+  (Redocly visualization: not started; the only visualizer is a VS Code
+  extension), and it shipped as specified: a React Flow step-graph behind the
+  existing `navigable.tsx` code-split, steps as nodes, `goto` and `dependsOn`
+  edges, criteria as edge labels, the destructive token on `onFailure`, ELK
+  layered layout, navigation into a referenced workflow and into the sibling
+  artifact a source description names. **Zero new dependencies**, as planned.
+  Two things the plan did not anticipate, both worth carrying forward. The
+  implicit-order edge is drawn **only where the step declares no `dependsOn`**
+  and is dashed where a declared one is solid — a diagram that renders an
+  inference identically to a declaration asserts something its source never
+  said, and in this catalog 22 of 45 steps declare their order. And the spec
+  wording had to move with the code: "bytes-only / parsed by nothing" was one
+  phrase fusing two claims, and only the *validation* half was ever the
+  decision. It is now stated as **unvalidated**, everywhere it appears.
 - Open, later: mermaid-flowchart fallback, Arazzo try-it (Respect
-  territory), AsyncAPI send/receive styling, simulation-driven walkthrough of
-  Arazzo graphs.
+  territory), simulation-driven walkthrough of Arazzo graphs. AsyncAPI
+  send/receive styling landed inside the Arazzo graph only — the step box
+  carries the `action` as a direction chip — and is still open for
+  `transport.yaml` itself, which nothing reads.
 
 ## Migration surface (computed at ae7d355)
 
@@ -371,9 +424,10 @@ lane. 0.2.0 is shippable on steps 1 + 3 + 4 + 5 alone, with lanes riding
 
 ## Rulings needed from the owner
 
-1. **Workflows**: accept `.arazzo` as an additive sibling role with the
+1. ~~**Workflows**: accept `.arazzo` as an additive sibling role with the
    mini-spec staying authoritative — or insist on Arazzo as the workflow
-   dialect despite the multi-party mismatch documented above?
+   dialect despite the multi-party mismatch documented above?~~ **Ruled**: the
+   additive sibling role, ADR 0020.
 2. **Journey**: accept keep-and-record-rejection — or pursue the read-only
    Arazzo export despite no identified consumer?
 3. **Transport → AsyncAPI 3.1**: in or out of 0.2.0's scope? (Not in the

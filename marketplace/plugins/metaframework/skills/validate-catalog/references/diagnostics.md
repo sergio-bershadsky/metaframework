@@ -4,23 +4,29 @@
 > the specification **defines**. The gap between them is the part of the contract
 > no machine enforces, and it is where authored catalogs actually go wrong.
 >
-> Verified against `framework/portal/src/lib/` and `framework/spec/`. Neither is
-> needed to run the check — but if you happen to be working inside the
-> metaframework repository, re-derive rather than trust this file, since a code
-> can be implemented between releases of the plugin:
+> Verified against `framework/portal/src/lib/`, `framework/portal/bin/` and
+> `framework/spec/`. None of them is needed to run the check — but if you happen
+> to be working inside the metaframework repository, re-derive rather than trust
+> this file, since a code can be implemented between releases of the plugin:
 >
 > ```bash
-> cd framework/portal/src && \
->   grep -rhoaE "'[EW]_[A-Z0-9_]+'" --include='*.ts' --exclude='*.test.ts' lib/ | sort -u
+> cd framework/portal && \
+>   grep -rhoaE "'[EW]_[A-Z0-9_]+'" --include='*.ts' --include='*.mjs' \
+>     --exclude='*.test.ts' --exclude='*.test.mjs' src/lib bin | sort -u
 > ```
 >
-> Three details of that command are load-bearing, and the version printed here
+> Four details of that command are load-bearing, and the version printed here
 > before this release got two of them wrong. Many emitters hand the code to a
 > local helper — `error('E_JRN_BRANCH', …)`, `at('E_DM_CONFIG_SHAPE', …)` — rather
 > than writing `code:`, so matching the bare literal is the only total pattern;
 > `-a` is required because a source file carrying a raw NUL byte reads as *binary*
-> and **grep then skips it in silence**, dropping every code it emits; and
-> excluding `*.test.ts` keeps a fixture's expectations out of the inventory.
+> and **grep then skips it in silence**, dropping every code it emits; excluding
+> the test files keeps a fixture's expectations out of the inventory; and `bin`
+> belongs in the search path because the `--since` gate raises a class of its own
+> from there. Today that last one changes nothing — `bin/since.mjs` raises
+> `E_VER_UNBUMPED`, which `src/lib/history/git.ts` raises too, so both spellings
+> print the same 105 codes — but a class added only to the CLI would otherwise be
+> invisible to the command this file tells you to trust.
 >
 > Section 1 below carries a row for every code that command prints and no row
 > for anything else — one row each, with a single deliberate exception:
@@ -28,6 +34,41 @@
 > listed under each. Section 2 is its complement — documented by the spec,
 > emitted by nothing — so a code in neither section is a code this file has
 > fallen behind on.
+>
+> **Both claims are machine-checked, and neither is checked in this file.** Two
+> gates own it, and they answer different questions:
+>
+> - `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts` asks whether
+>   the **spec** and the **portal** agree. It reads the spec's own definition
+>   tables at run time, intersects them with the code literals in the shipped
+>   source, and fails on any documented code with no emitter that is not named in
+>   its `UNIMPLEMENTED` register. The register is a ratchet rather than an
+>   exemption list — a second assertion fails the moment an entry gains an emitter
+>   — so a rule cannot be implemented without its line coming out.
+> - `framework/portal/scripts/repo-hygiene.mjs` asks whether **this file** agrees
+>   with both, and it runs on every push. Four comparisons: every emitted code has
+>   a section 1 row; nothing section 2 calls a gap has an emitter; nothing section
+>   3 retires has an emitter; and section 2's gap set equals `UNIMPLEMENTED`
+>   exactly. This inventory desynced from the portal six times during 0.2.0, and
+>   every one of the six was one of those four.
+>
+> **Section 2 is that register, in prose.** It is much shorter than it was: the
+> kind disciplines under `lib/{adr,requirement,actor,structure,
+> datamodel}/` and `lib/journey/artifacts.ts` moved twenty-four classes into
+> section 1, and what is left is sixteen protocol classes, one datamodel class,
+> and two-and-a-half journey rules.
+>
+> **The drift test, if you are re-verifying this file by hand.** Intersect the
+> codes section 2 *names as gaps* with the codes that grep prints: it must be
+> empty. A whole-section regex prints five instead, and all five are expected —
+> `E_JRN_TOUCHES_KIND`, `E_JRN_PROTOCOL_KIND` and `E_JRN_ACTOR_KIND` are the
+> three **Half** rules, whose first clause genuinely fires, and `E_FM_SCHEMA` and
+> `E_VER_UNBUMPED` are cited only as the codes that fire *instead of* a gap. A
+> sixth is a defect. The gate draws that same line without keeping a list of
+> exceptions to rot: each of the five already has a **section 1 definition row**,
+> and a row is the claim "this code is emitted" where a mention in prose is only a
+> cross-reference. In the other direction the test is exact and has no exceptions:
+> **every code grep prints appears somewhere in section 1.**
 
 ## 1. Codes the portal emits
 
@@ -44,6 +85,12 @@ paths and on `relations` references) and the schema registry (on `$ref` URLs).
 | `E_SRN_RESERVED`       | A reserved kind used as the solution name or as an entity name.                                                                                                                                                                                                                                                                                                                                              |
 | `E_SRN_CROSS_SOLUTION` | A network-path reference (`//other/…`) that changes the solution.                                                                                                                                                                                                                                                                                                                                            |
 | `E_SRN_ARTIFACT`       | V5, the artifact role table: a dot suffix on a kind that owns no roles at all (`/actor/customer.profile`), a role that kind does not own, or a known role at the wrong depth (`….workflows` without a name, `….examples.a.b`). The vocabulary is static and this is decided without reading the catalog, which is why it precedes every surface class that also refuses a suffix.                            |
+
+The role table and its `assertArtifactRole` fence live one file over, in
+`lib/srn/artifacts.ts`; `srn.ts` declares the code and re-exports the error.
+Every reference surface in the framework calls that fence, which is why a suffix
+outside the table fails identically in `relations`, in `primary-actors`, in a
+journey step and in an environment file.
 
 ### `lib/catalog/load.ts` — the catalog loader
 
@@ -92,6 +139,7 @@ the declaration to add is:
 | `topology.yaml`         | `$schema`  | `{meta}/topology-document`      |
 | `config.yaml`           | `$schema`  | `{meta}/config-document`        |
 | `openapi.yaml`          | `openapi`  | `3.1.0`                         |
+| `arazzo.yaml`           | `arazzo`   | `1.1.0`                         |
 
 **`transport.yaml` is the one role with two live dialects, and it is not a
 migration window with an end** (ADR 0017): `in-process` and `grpc` transports
@@ -324,16 +372,17 @@ Run by the check via the same artifact composition as the protocol validators:
 a broken `journey.yaml` fails `metaframework check` and shows on
 `/diagnostics`. The loader still reads the file as a generic artifact first, so
 a YAML *syntax* error carries the loader's own complaint and the mini-spec
-parser is skipped for that file. What a green check still does not prove is
-that a journey entity *has* a `journey.yaml` — only artifacts that exist are
-parsed.
+parser is skipped for that file. A journey entity with **no** `journey.yaml` at
+all used to be the gap here; it is now `E_JRN_ARTIFACT_MISSING`, raised from the
+directory listing by `lib/journey/artifacts.ts` below.
 
 The module deliberately owns the rules checkable from the file alone, plus the
 three that need only the SRN *grammar* — `W_JRN_ACTOR_ABSENT` compares two
 resolved SRNs, `W_JRN_UNDOCUMENTED_INTEGRATION` needs each `touches` target's
 owning product, which is the `product/{name}` pair at the head of its pair chain,
 and the three kind fences below fire on the clause a pure parser can decide.
-Everything that needs the resolved catalog is left out (see section 2).
+What needs the resolved catalog is left out: `lib/journey/artifacts.ts` picks up
+three of those rules, and the kind clauses that remain are in section 2.
 
 | Code                             | Severity | Raised when                                                                                                                                                                                                    |
 |----------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -352,6 +401,283 @@ A step reference that fails to parse is re-raised as the SRN parser's own code
 outside the addressed kind's role table is `E_SRN_ARTIFACT`, which precedes the
 three surface classes above: an actor owns no roles at all, so
 `/actor/customer.profile` never reaches `E_JRN_ACTOR_KIND`.
+
+### The kind disciplines — `withKindChecks` and `withDatamodelChecks`
+
+Six modules that landed together, and they are grouped by **input** rather than
+by kind: every code below is answerable from the resolved catalog plus, for four
+of them, a directory listing the loader takes and throws away. None needs an
+artifact parser, a schema document, or git — and none could have lived in the
+loader's per-entity pass, because each asks about a *second* entity, a sibling,
+or a file the loader chose not to read. That is why all twenty-four spent a
+release in the debt register rather than in `load.ts`.
+
+They join the pipeline in `src/lib/catalog/index.ts`. `withKindChecks` folds the
+first five over the catalog and the two listings from
+`src/lib/catalog/listings.ts`; `withDatamodelChecks` folds the sixth *after*
+`withSchemaRegistry`, because validating an example is a call into the registry's
+own compiled ajv. Everything here reaches `metaframework check` and
+`/diagnostics` on every run.
+
+Three of the codes are rules about **what the loader chose not to read**, which
+is the whole reason the listings exist. A symlinked directory reports
+`isDirectory() === false` under `withFileTypes`, so the walk never descends and
+the subtree behind the link is invisible to every other rule in the portal
+(`E_COMP_SYMLINK`). A solution directory with no `index.md` yields one
+`E_STRUCT_MISSING_INDEX` per orphaned descendant — naming the children rather
+than the directory actually missing a document — and nothing at all when it is
+empty (`E_SOL_NO_ROOT`). And the loader reads four extensions and drops the rest,
+so a `steps.txt` is absent from `entity.artifacts` by construction
+(`W_JRN_ARTIFACT_UNKNOWN`).
+
+#### `lib/adr/adr.ts` — the ADR kind
+
+| Code                 | Severity | Raised when                                                                                                                                                                                                                                                                                                                                                                                                |
+|----------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_ADR_DATE`         | error    | `date` is not a calendar date: absent, not a bare `YYYY-MM-DD`, a month past 12, or a day the month has not (proleptic Gregorian, leap years included). Both spellings the kind document admits arrive here — YAML makes an unquoted `2026-03-11` a `Date` and a quoted one a string — and a `Date` is admitted only at exactly midnight UTC, so `2026-03-11T09:00:00Z` is the one timestamp form refused. |
+| `E_ADR_DECIDERS`     | error    | `decision-status` is `accepted` or `rejected` and `deciders` is absent or empty. `superseded` is deliberately **not** in the trigger set — that ADR was accepted once, and demanding the list retroactively is a rule the kind document does not state. A `deciders` of the wrong *shape* is still `E_FM_SCHEMA`: this class means "nobody is recorded", not "that field is mistyped".                     |
+| `E_ADR_SECTIONS`     | error    | The body is missing one of `## Context`, `## Decision`, `## Consequences`, `## Alternatives considered`. **One finding per missing section**, and the message names the near miss when there is one — the same text at level 3, or `## Alternatives Considered`. Order is not enforced (the portal renders the four in canonical order whatever the file does) and a repeated section is not a finding.    |
+| `W_ADR_ORDINAL`      | warning  | Two ADRs in one bucket claiming one ordinal. Compared as **numbers**, so `0002` and `002` collide; a name with no `NNNN-` prefix is skipped rather than flagged. The bucket is the owning container, so `acme/adr/0001` and `acme/product/shop/adr/0001` are two different ADR-0001s. The finding lands on the later name and cites the earlier.                                                           |
+| `W_ADR_SUPERSESSION` | warning  | The supersession bookkeeping disagrees with itself, in **either** direction: `decision-status: superseded` with no inbound `supersedes` edge, or an inbound edge on an ADR whose own status is anything else.                                                                                                                                                                                              |
+
+**Two of these are new classes rather than new checks, and knowing which matters
+when reading an older report.** A rule the kind schema already enforced was
+reported as `E_FM_SCHEMA` — the generic code — rather than under the class the
+kind document names for it, so the named class could never appear at all. That is
+the manoeuvre `metric` established, and it takes two steps: relax the schema,
+then raise the class from the kind check. `KIND_FRONTMATTER.adr` used to pin
+`date` to a regex and refine `deciders`; it now declares `date: z.unknown()` and
+`lib/adr/adr.ts` owns the date entirely, so a malformed date is reported **once**
+and an unquoted YAML date no longer fails at all (section 4). `deciders` keeps its
+array shape in the schema, which is the deliberate half-step: a *mistyped* one is
+still `E_FM_SCHEMA`, and only an absent or empty one is `E_ADR_DECIDERS`.
+`E_PROTO_PARTICIPANTS` is the one class still stuck at step zero — see section 2.
+
+The fix for the supersession warning is the second step of the swap, and the
+message is written to tell the two cases apart. The successor authors `supersedes` and is
+accepted; *then* the predecessor moves to `superseded` and bumps its `version`.
+Between those two commits the predecessor is legitimately a target that does not
+say so, which is why the message names the successor's own standing — a reader
+seeing `superseded by … (proposed)` can tell a decision in flight from a bump
+nobody made. Successors are read off the resolved inverse index, so a
+`supersedes` that dangles or crosses kinds was already refused as
+`E_SRN_DANGLING` or `E_FM_EDGE_TARGET` and cannot quietly satisfy the rule.
+
+#### `lib/requirement/requirement.ts` — the requirement kind
+
+| Code                     | Severity | Raised when                                                                                                                                                                                                                                                                                                            |
+|--------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_REQ_CRITERIA`         | error    | The `## Acceptance criteria` section is missing, appears more than once, is empty, does not **open** with a top-level unordered list, uses task-list syntax (`- [ ]`), or carries an item whose first line is over 200 characters. One class, several messages, because the kind document gives the section one class. |
+| `W_REQ_UNIMPLEMENTED`    | warning  | `priority: must` with no inbound `implements` edge. No exemption for `status: deprecated`: a superseded requirement whose implementers have all migrated is left holding `must` and no edges, and either the priority is stale or the migration is unfinished.                                                         |
+| `W_REQ_WONT_IMPLEMENTED` | warning  | `priority: wont` — a recorded non-goal — with at least one inbound `implements`. The message names every claimant.                                                                                                                                                                                                     |
+
+Two readings of the criteria rules are worth knowing before arguing with a
+finding. The parse **stops at the first structural failure** — no heading, two
+headings, or a section that does not open with a list — because everything after
+it is a guess at what the author meant; once the shape holds, every per-item
+violation is reported together. And the 200-character cap is on the item's first
+**physical line**, not its first paragraph: this repository wraps its prose, a
+two-line criterion is idiomatic, and the paragraph reading would fail a tenth of
+legal content. The violation the cap exists for — a whole argument as one bullet
+— can only be written on one line, which is exactly what it catches.
+
+The two joins read `catalog.inbound`, which holds only edges whose target
+resolved *and* whose source kind may author them, so a dangling or illegal
+`implements` cannot quietly satisfy `W_REQ_UNIMPLEMENTED`.
+
+#### `lib/actor/actor.ts` — participation, from both ends
+
+| Code                         | Severity | Raised when                                                                                                                |
+|------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------|
+| `W_ACTOR_ORPHAN`             | warning  | No protocol names this actor among its `participants`, and no journey step gives it a move.                                |
+| `W_ACTOR_PARTICIPATION_EDGE` | warning  | The actor authors a `uses` edge toward a protocol. Legal at the loader’s edge table, which is why nothing else catches it. |
+
+The two are one rule read from its two ends: participation is authored **once**,
+in the protocol's own `participants` list. The second catches an author saying it
+from the actor side as well — a second list to keep in step — and the fix is to
+delete the edge, not to add the participant. The first catches nobody saying it
+at all, and it is a warning because a newly described actor legitimately precedes
+its protocols.
+
+Journey steps count as participation deliberately, and that widening is what
+makes the rule usable: `journey.yaml` names actors by SRN, and an actor who is
+the protagonist of two journeys is not "an actor nobody talks to". Workflow steps
+are *not* scanned, and need not be — a step addresses a participant by alias, and
+an undeclared alias is already `E_PROTO_WF_ALIAS`, so every actor a workflow can
+reach is a participant already. What is deliberately not participation: an
+actor's own outbound `uses`, and a product's `primary-actors`. Both describe
+reach rather than a modelled conversation, and counting the first would make the
+rule unfireable on any actor that names a component.
+
+#### `lib/structure/structure.ts` — containment and placement
+
+| Code                         | Severity | Raised when                                                                                                                                                                                                                                                                                                      |
+|------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_SOL_NO_ROOT`              | error    | A directory directly under the catalog root with no `index.md`. Carries no `srn`, deliberately — there is no entity to link to, and that is the finding: a solution is the sealed universe every SRN beneath it is named against, so an unnamed one makes every path under it unaddressable.                     |
+| `E_COMP_SYMLINK`             | error    | A symlink sitting in a `component/` bucket. Position decides what a directory is, so the bucket is the whole test. Reuse is authored on the reusing side as a `depends-on` edge, never by linking the directory.                                                                                                 |
+| `E_COMP_LIBRARY_ENVIRONMENT` | error    | A `component-type: library` with a `uses` edge resolving to an `environment`. An error rather than a warning: a library runs inside its consumers, so the edge is not early or stale but a category mistake, and the reading it invites ("this library is deployed to production") is one the kind cannot have.  |
+| `E_COMP_EXTERNAL_CHILD`      | error    | A `component-type: external` owning a child **component**. Child datamodels and protocols are fine — that is how the seam gets documented at all; a decomposition of somebody else’s system is not.                                                                                                              |
+| `E_PROD_ACTOR_TARGET`        | error    | A `primary-actors` entry resolving to an entity that is not an `actor`, or addressing an **artifact** of one. The field is a kind field and never a relation — no edge type may target an actor — so `collectRelations` never saw it and until this module a product could name anything at all.                 |
+| `W_COMP_NO_ENVIRONMENT`      | warning  | A `service`, `ui`, `job`, `datastore` or `gateway` declaring no environment. Exempt at `lifecycle: planned` and `retired`, where naming one would be the lie; `in-development` and `sunset` are **not** exempt — built-but-unreleased is exactly when the edge starts carrying information.                      |
+| `W_COMP_DEP_CYCLE`           | warning  | A cycle in `depends-on` among **components**. A component→product→component loop is a different statement and is not one. One finding per cycle rather than per member, filed on the lexicographically first so the choice is stable across runs, with the shortest cycle through it spelled out in the message. |
+| `W_STRUCT_PROTOCOL_NCA`      | warning  | A protocol not filed at the nearest common ancestor of its `component` and `product` participants. Computed over whole `{kind}/{name}` **pairs**, never raw segments — `product/shop` and `product/shopfront` share no place, only a bucket name.                                                                |
+
+The eight live in one module because the grouping that matters is the input, not
+the kind — this is also why there is no `lib/component/`. Six read the resolved
+catalog; `E_SOL_NO_ROOT` and `E_COMP_SYMLINK` read the directory listing and
+cannot be answered from the catalog at all.
+
+Three behaviours to know before reading a report:
+
+- **`primary-actors` re-raises the parser's own codes** rather than swallowing
+  them, exactly as `relations` and the environment artifacts do: a well-formed
+  reference to nothing is `E_SRN_DANGLING`, one the grammar refuses is
+  `E_SRN_SYNTAX`, and a suffix outside the addressed kind's role table is
+  `E_SRN_ARTIFACT` — which is every suffix on an actor SRN, since actors own no
+  roles. A suffix that *survives* the role table, `….transport` on a protocol, is
+  `E_PROD_ACTOR_TARGET` with the suffix named as the problem.
+- **Actors are excluded from the NCA**, because they are solution-level and one
+  of them would collapse every placement to the root. A protocol whose only
+  participants are actors is therefore unconstrained and yields nothing.
+- **A protocol with any unresolvable participant is skipped whole**, not checked
+  against what is left. Dropping the broken reference shrinks the participant
+  set, and a smaller set has a *deeper* NCA — so the reward for one dangling ref
+  would be a second, invented finding about placement that is correct as
+  authored.
+
+Both directions of the NCA rule are violations and the message says which:
+**below** is the harmful one — some participant sits outside the protocol's
+owning subtree, so the contract is invisible from the side of the tree that
+speaks it — while **above** is over-general rather than unreachable, and costs
+the reader the one thing placement is for.
+
+#### `lib/journey/artifacts.ts` — the journey directory, not the document
+
+| Code                       | Severity | Raised when                                                                                                                                                                                                                         |
+|----------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_JRN_ARTIFACT_MISSING`   | error    | A `journey` entity directory holding no `journey.yaml`. Pathed at the **directory**: the finding is an absence and there is no line for it to sit on.                                                                               |
+| `W_JRN_ARTIFACT_UNKNOWN`   | warning  | Anything beside `index.md`, `journey.yaml` and `*.md` prose siblings — subdirectories of any name included, since the kind admits none. Dot- and underscore-prefixed entries are skipped.                                           |
+| `W_JRN_PROTOCOL_UNRELATED` | warning  | A step’s named `protocol` whose `participants` list holds neither end of the hop — this step’s `touches` or the previous step’s — where a participant matches if it **is** that entity, **contains** it, or **is contained by** it. |
+
+This is the module that closed the oldest hole in the journey kind, and each of
+its three rules had named a missing *input* rather than a missing branch:
+`parseJourney` is handed a parsed document, so it can neither notice the document
+is absent, nor that something else sits beside it, nor look up a protocol's
+participants. Given the entity directory listing and the resolved catalog, all
+three are decidable.
+
+- **`E_JRN_ARTIFACT_MISSING` changes what a green check proves.** A journey's
+  frontmatter says nothing about the path, so an entity without its artifact
+  asserts nothing at all; a path under design carries a short `journey.yaml` and
+  `status: draft`. A journey **absent from the listing map** — a directory that
+  could not be read — is skipped rather than assumed empty, so an unreadable
+  directory never reports the strictest code here about a file that is probably
+  there.
+- **`W_JRN_ARTIFACT_UNKNOWN` is a rule about the files that never became
+  artifacts**, which is why it needs the listing: `journey.yml` or
+  `place-an-order.yaml` is a path the portal will never read, silently, while the
+  author believes it is authored.
+- **`W_JRN_PROTOCOL_UNRELATED` is not restricted to product crossings** — that is
+  `W_JRN_UNDOCUMENTED_INTEGRATION`'s rule — and it fires only once the protocol
+  resolves to a protocol that exists, so a dangling or wrong-kind reference stays
+  `E_SRN_DANGLING`'s or `E_JRN_PROTOCOL_KIND`'s. Containment is decided on the SRN
+  path at pair boundaries rather than by a catalog lookup, so an end whose entity
+  failed to load still gets the right answer. Step 1 has no predecessor and is
+  judged on its own end alone.
+
+The document is re-parsed here for the last rule and **every issue that parse
+produces is discarded** — `artifact-checks.ts` already runs the same parser and
+owns those findings — so nothing in this module can put a `journey.yaml`
+complaint on `/diagnostics` twice.
+
+#### `lib/datamodel/datamodel.ts` — a model read from outside
+
+| Code                   | Severity | Raised when                                                                                                                                                                                                                                                    |
+|------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_DM_EXAMPLE_INVALID` | error    | A file under `examples/` that does not parse as JSON, or does not validate against the entity’s own `schema.json`. One finding per **file**, not per ajv error — a drifted instance usually fails in several places and the reader’s unit of work is the file. |
+| `W_DM_ABSTRACT_USE`    | warning  | An `abstract: true` datamodel carrying `examples/`, named as a protocol message payload, or the target of an `exposes` edge. All three are the same mistake: something outside the schema layer treating a base as a thing there can be an instance of.        |
+| `W_DM_USAGE_MISMATCH`  | warning  | A `usage: storage` or `usage: config` datamodel named as a protocol message payload. One finding per datamodel, listing every protocol that names it, because the fix is a single field.                                                                       |
+
+`lib/schema/registry.ts` reads every `schema.json` from the inside — dialect,
+identity, keywords, `$ref` graph. These three ask what the rest of the catalog
+*does* with the model, and each is a join.
+
+- **A schema the registry could not compile yields nothing here.** It has already
+  said why, in `E_DM_*` codes pathed at the schema, and "your example is invalid"
+  would be a misleading second complaint about a file that is fine.
+- **Payload references are found by key scan, not by parsing the transport
+  document** — `payload:` in a workflow step, and `request` / `response` /
+  `message` / `x-srn-payload` in a transport surface list. A key scan is
+  dialect-agnostic by construction, which is what lets these two warnings land
+  ahead of the transport reader the `E_PROTO_TRANSPORT_*` classes are still
+  waiting for (section 2). The split is load-bearing: in a workflow step
+  `message:` is the arrow *label* and the SRN lives in `payload:`, while in a
+  transport surface list `message:` **is** the SRN.
+- **A candidate counts only when it resolves to a datamodel that exists**, which
+  is what makes the key scan safe: a label that resolves to nothing is not a
+  payload, and a genuinely broken payload reference is already
+  `E_SRN_DANGLING`'s.
+- **A `relations.uses` edge toward an abstract model is deliberately not
+  flagged.** `allOf` inheritance is the intended use, and a `uses` edge is the
+  frontmatter spelling of the same thing — it is how a pinned review target is
+  carried, which a URL `$ref` cannot do. Flagging it would make correct authoring
+  red.
+
+`W_DM_USAGE_MISMATCH` is a warning because the protocol may legitimately be ahead
+of the datamodel's review, and the message differs by value for a reason: on
+`usage: config` it is rarely the protocol's fault, and reads as either the wrong
+model named or a process sending its own settings to somebody.
+
+### `lib/catalog/measurements.ts` — measured facts in prose
+
+The one check that reads **sentences**. Folded in by `withProseChecks`, before
+the kind disciplines and needing none of their inputs: no second entity, no
+listing, no registry, no git. It applies to every kind there is.
+
+The rule is ADR 0018's: *a measured fact in a current-state entity is derived and
+rendered by the portal, or it is not written as a number at all; only the `adr/`
+bucket authors a measured number, and there it MUST carry the date it was
+measured.* A **measured fact** is a number obtained by running a command — the
+test is that you can write the command down.
+
+| Code                    | Severity   | Raised when                                                                                                                                                                                                                                                                                                                           |
+|-------------------------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `W_PROSE_MEASUREMENT`   | warning    | Any kind except `adr` states a measured quantity as a digit. The fix is editorial: keep the claim and drop the digit ("the largest module in `src/lib`"), or let the portal derive it where the count is over the catalog graph.                                                                                                      |
+| `W_ADR_MEASUREMENT`     | warning    | An `adr` states one in a section that names neither an ISO date nor a backticked commit-ish. The anchor scopes the **section** — a heading of any level and everything under it — so a census states its commit once and its rows carry bare digits. The frontmatter `date` does not anchor: it moves when `decision-status` does.    |
+
+**What it deliberately does not chase**, because a check on English earns its
+place by its silences:
+
+- Two shapes fire and no others. A count of `lines`, `commits`, `insertions` or
+  `deletions` anywhere at all — nobody sets a target in lines or budgets a design
+  in commits — and a count of `files`, `modules`, `documents`, `directories`,
+  `entities`, `entries`, `instances`, `tests` or bytes **within one clause of a
+  backticked path**, where the path is the evidence a command was run over
+  something.
+- A bare digit beside a countable noun ("three components", "eleven kinds") is
+  overwhelmingly a *design statement* in a catalog and is never flagged.
+- A semantic version is not a count: "an AsyncAPI 3.1.0 document" ends in
+  `0 document` and means nothing of the kind, so a digit preceded by a dot is
+  skipped.
+- A **cap** is a decision that happens to be denominated in a measured unit:
+  "reads at most 200 commits" is skipped, and so are `up to`, `no more than`,
+  `the last` and `the first`.
+- A spelled number after *the* is **anaphora**, not a census: "the window between
+  the two commits" points back at two commits already named. Digits after *the*
+  still fire — "of the 3,440 lines under `src/`" is exactly as stale as the
+  measurement it points at.
+- The **hyphenated adjectival form** — "a 200-line schema with four `$ref`s", "a
+  two-line `note`" — is left to the author. It is where a document's
+  hypotheticals live, and stripping a number out of an illustration makes the
+  prose worse for no drift avoided.
+- Fenced blocks are blanked, not removed, so a finding's line number still
+  locates the sentence.
+- `one` is not a number word here: "one entry per host" and "on one line" are
+  ordinary English about structure.
+
+Both are warnings, for `W_ARTIFACT_DIALECT`'s reason — an existing catalog must
+be able to adopt the framework without its build turning red, and a stale digit
+is a document that is wrong, not one that is broken.
 
 ### `lib/history/git.ts` — version history
 
@@ -378,33 +704,41 @@ plain silence if a green check is read as coverage. Everything here is a real
 rule of the specification, and a catalog can violate all of it with a green
 check. Verify by reading.
 
+**Eighteen classes, and it used to be forty-one.** Seventeen belong to the
+protocol kind and one to datamodels; the two-and-a-half journey rules are the
+half-implemented remainder and carry no register line, because a register keyed
+by code cannot express half a rule. Four of the seven groups below are now empty,
+and each says where its classes went. The authority for the eighteen is
+`UNIMPLEMENTED` in `framework/portal/src/lib/catalog/diagnostic-coverage.test.ts`
+— re-read it rather than this prose if the two disagree.
+
 **Entity body and frontmatter**
 
-| Code                  | Rule that goes unchecked                                                                                                                                                         |
-|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `E_ADR_SECTIONS`      | An ADR body carries exactly `## Context`, `## Decision`, `## Consequences`, `## Alternatives considered`.                                                                        |
-| `E_ADR_DATE`          | `date` is a bare `YYYY-MM-DD`. *(Partially covered — the zod schema enforces the format and reports it as `E_FM_SCHEMA`.)*                                                       |
-| `E_ADR_DECIDERS`      | `deciders` non-empty once accepted/rejected/superseded. *(Same — surfaces as `E_FM_SCHEMA`.)*                                                                                    |
-| `E_REQ_CRITERIA`      | `## Acceptance criteria` appears exactly once, level 2, that casing, content beginning with a non-empty unordered list, no task-list syntax, each item's first line ≤ 200 chars. |
-| `E_PROD_ACTOR_TARGET` | Every `primary-actors` entry resolves to a solution-level `actor`.                                                                                                               |
-| `E_SOL_NO_ROOT`       | Every directory directly under `solutions/` contains an `index.md`.                                                                                                              |
+Nothing. The six classes that lived here — the ADR body and frontmatter rules,
+the requirement's acceptance-criteria section, the product's primary actors and
+the solution root — are `lib/adr/adr.ts`, `lib/requirement/requirement.ts` and
+`lib/structure/structure.ts`, and are listed under those headings in section 1.
+
+Two of the ADR classes changed **class** as well as coverage, by the manoeuvre
+`metric` established and `E_PROTO_PARTICIPANTS` below is still waiting for; the
+`lib/adr/adr.ts` entry in section 1 says how.
 
 **Structure and components**
 
-| Code                         | Rule that goes unchecked                                                                                        |
-|------------------------------|-----------------------------------------------------------------------------------------------------------------|
-| `W_STRUCT_PROTOCOL_NCA`      | A protocol sits at the nearest common ancestor of its component/product participants.                           |
-| `E_COMP_LIBRARY_ENVIRONMENT` | A `library` component does not declare `uses: /environment/…`.                                                  |
-| `E_COMP_EXTERNAL_CHILD`      | An `external` component contains no child component entities — its insides are not described.                   |
-| `E_COMP_SYMLINK`             | A component directory is a real directory, never a symlink (rule C5).                                           |
-| `W_COMP_NO_ENVIRONMENT`      | A runtime-bearing component (`service`, `ui`, `job`, `datastore`, `gateway`) declares at least one environment. |
-| `W_COMP_DEP_CYCLE`           | No cycle in `depends-on`.                                                                                       |
+Nothing. The protocol-placement rule and the five component containment rules are
+all `lib/structure/structure.ts` — one module rather than five, because the
+grouping that mattered was the *input* (the resolved catalog plus one directory
+listing) and not the kind. There is no `lib/component/`.
 
 **Protocols**
 
-`E_PROTO_PARTICIPANTS` (≥ 2 — *covered by the zod schema, surfaces as
-`E_FM_SCHEMA`*), `E_PROTO_ALIAS_DUP`, `E_PROTO_PARTICIPANT_KIND`,
-`E_PROTO_PAYLOAD_KIND`, `E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
+The whole of what is left, bar one datamodel rule: seventeen classes, and every
+one of them is a rule `framework/spec/kinds/protocol.md` states and nothing runs.
+
+`E_PROTO_PARTICIPANTS` (≥ 2 — *enforced by `KIND_FRONTMATTER.protocol`'s
+`.min(2)` and reported as `E_FM_SCHEMA`; the spec's own class is never raised*),
+`E_PROTO_ALIAS_DUP`, `E_PROTO_PARTICIPANT_KIND`, `E_PROTO_PAYLOAD_KIND`,
+`E_PROTO_TRANSPORT_SCHEMA`, `E_PROTO_TRANSPORT_BINDING`,
 `E_PROTO_TRANSPORT_SPEC_CONFLICT`, `E_PROTO_SPEC_FILE`,
 `W_PROTO_ARTIFACT_UNKNOWN`, `W_PROTO_PARTICIPANT_MISSING`,
 `W_PROTO_PARTICIPANT_UNLINKED`, `W_PROTO_STYLE_MISMATCH`,
@@ -418,50 +752,104 @@ so an AsyncAPI `transport.yaml` is **detected** — it loads, records its dialec
 and keeps its native key — but nothing *reads* the document. The profile rules
 have a dialect to fire on and no reader to fire them.
 
+One more arrived with the `arazzo` role (ADR 0020): `W_PROTO_ARAZZO_UNGROUNDED`.
+Most of what blocked it has since been built. `lib/protocol/arazzo.ts` reads the
+document — enough to draw the step graph — so "nothing opens it" is no longer
+the obstacle. The rule has two clauses and only one is still blocked:
+
+1. `sourceDescriptions[].url` MUST be a `./`-relative reference naming a sibling
+   artifact the entity carries. That is decidable from the entity's artifact
+   list alone, with nothing interpreted — the portal's own entity page already
+   computes this join to decide whether to link a source, and drops the miss
+   instead of reporting it. **Unwritten, not blocked.**
+2. Every operation, channel or workflow a step names MUST resolve in the
+   document its source points at. **Blocked**, behind the same missing reader as
+   the row above.
+
+Note the word in clause 2. The sibling `openapi.yaml` and `transport.yaml` are
+already *parsed* — every YAML artifact is, into `artifact.data`, which is why
+the three `E_PROTO_TRANSPORT_*` rows say "parsed and never validated". What no
+module does is read a field out of either.
+
+The `participants` gap sharpened this release rather than closing, and the new
+shape is worth knowing because it looks like coverage and is not. **Three modules
+now resolve that list** — `lib/structure` to compute a protocol's nearest common
+ancestor, `lib/actor` to answer "does any conversation name this actor",
+`lib/journey/artifacts` to judge whether a step's protocol documents that hop —
+and each treats a participant it cannot resolve as somebody else's finding and
+moves on, correctly, because none of them owns the surface. The list is read
+three ways and judged by nobody: an alias declared twice, a participant that is a
+datamodel, and a participant no `exposes`/`uses` edge backs are all still silent.
+
 **Environments**
 
-Nothing: this is the one group in the section that is empty. Every `E_ENV_*` and
-`W_ENV_*` class `kinds/environment.md` defines — ENV4–ENV15, the config-contract
-join included — is emitted by `lib/environment/environment.ts` and listed in
-section 1. What is still unenforced there is not an environment rule: ENV12–ENV15
-have nothing to join against for a component that publishes no `usage: config`
-contract, and no rule anywhere requires one.
+Nothing. Every `E_ENV_*` and `W_ENV_*` class `kinds/environment.md` defines —
+ENV4–ENV15, the config-contract join included — is emitted by
+`lib/environment/environment.ts` and listed in section 1. What is still
+unenforced there is not an environment rule: ENV12–ENV15 have nothing to join
+against for a component that publishes no `usage: config` contract, and no rule
+anywhere requires one.
 
 **Data models**
 
-`E_DM_EXAMPLE_INVALID` (every file in `examples/` validates against
-`schema.json`), `E_DM_NOT_ADDITIVE` (the change tightens the schema — needs a
-swap, not a version bump), `W_DM_ABSTRACT_USE`, `W_DM_USAGE_MISMATCH`.
-(`W_DM_UNPINNED_REF` is retired, not merely unimplemented — see section 3.)
+`E_DM_NOT_ADDITIVE` alone — the change tightens the schema and needs a swap
+rather than a version bump. It is not deferred for want of a branch: it is the
+only rule in the spec that cannot be answered from any input the load pipeline
+has, because it diffs `schema.json` at version N−1 read out of **git** against the
+document on disk. `lib/history/git.ts` can fetch both halves (`resolveVersion`
+plus `readFileAtRevision`), and nothing in the load pipeline spawns git —
+`loadCatalog` is the pure filesystem→graph step and `metaframework check` never
+shells out. The working tree cannot substitute either: diffing it against the
+commit carrying the *current* version is `E_VER_UNBUMPED`'s question, not this
+one. The decidable part — the additive-change table in
+`kinds/datamodel.md` — is pure once the two documents are in hand.
+
+The other three rows that lived here — the example-validity rule and the two
+warnings about how a model is used from outside — are `lib/datamodel/datamodel.ts`
+and are in section 1. (`W_DM_UNPINNED_REF` is retired, not merely unimplemented —
+see section 3.)
 
 **Journeys**
 
-| Code                       | Rule that goes unchecked                                                                                                                                          |
-|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `E_JRN_ARTIFACT_MISSING`   | A journey entity directory contains a `journey.yaml`. Nothing checks it: the loader does not look for the file, and the renderer only reports on a file it found. |
-| `W_JRN_ARTIFACT_UNKNOWN`   | No unrecognised file beside `index.md` and `journey.yaml`.                                                                                                        |
-| `E_JRN_TOUCHES_KIND`       | **Half.** The artifact clause fires in the parser (section 1); "resolves to a `component` or a `product`" needs the resolved catalog a pure parser is not given.  |
-| `E_JRN_PROTOCOL_KIND`      | **Half**, the same way: the artifact clause fires, "is the literal `none` or resolves to a `protocol`" does not.                                                  |
-| `W_JRN_PROTOCOL_UNRELATED` | A step's named protocol lists this or the previous step's `touches` among its `participants`.                                                                     |
+Three rows left this group whole: the missing artifact, the unrecognised file
+beside it, and the step protocol unrelated to the hop. All three are
+`lib/journey/artifacts.ts` and are in section 1 — each had named a missing
+*input* rather than a missing branch, and a directory listing plus the resolved
+catalog is that input. What is left is the half-rule:
+
+| Code                  | Rule that goes unchecked                                                                                                                                         |
+|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_JRN_TOUCHES_KIND`  | **Half.** The artifact clause fires in the parser (section 1); "resolves to a `component` or a `product`" needs the resolved catalog a pure parser is not given. |
+| `E_JRN_PROTOCOL_KIND` | **Half**, the same way: the artifact clause fires, "is the literal `none` or resolves to a `protocol`" does not.                                                 |
+
+Neither half moved this release, and `lib/journey/artifacts.ts` deliberately did
+not take the kind clause on: it re-parses the document for its own rule and
+discards every issue, because `artifact-checks.ts` already runs that parser and
+owns those findings. Moving the clause there would mean one rule reported from
+two places.
 
 `E_JRN_ACTOR_KIND` is the exception in this group, and it is split three ways:
 the **frontmatter** protagonist is checked in full by the loader's graph checks,
 a **step's** `actor` is checked for the artifact clause by the parser, and
 nothing anywhere asks whether a step's `actor` resolves to an entity of kind
-`actor`. That last one is the **Half** above, once more.
+`actor`. That last one is the **Half** above, once more — and it is now a rule
+whose input is present and unused, because `lib/actor/actor.ts` resolves every
+step `actor` to answer its own orphan rule and never asks what kind it found.
 
 **Graph-level warnings**
 
-`W_ACTOR_ORPHAN` (an actor in no protocol participant list and no workflow step),
-`W_ACTOR_PARTICIPATION_EDGE` (an actor authoring a `uses` edge to a protocol —
-participation belongs to the protocol's own artifacts, and this is the actor
-mistake authors make most), `W_ADR_ORDINAL` (a duplicate ordinal within one
-`adr/` bucket), `W_ADR_SUPERSESSION`, `W_REQ_UNIMPLEMENTED` (a `priority: must`
-requirement nothing `implements`), `W_REQ_WONT_IMPLEMENTED` (a `priority: wont`
-requirement something does implement).
+Nothing. All six — the two actor rules, the two ADR bookkeeping rules and the two
+requirement traceability rules — are `lib/actor/actor.ts`, `lib/adr/adr.ts` and
+`lib/requirement/requirement.ts`, and are listed in section 1. Several of them
+stand on the shipped exemplar catalogs, and that is the point of the severity
+rather than a defect in it: they describe a system still being built, not an
+error in its description.
 
-The `catalog-reviewer` agent covers most of this list by reading rather than by
-running — invoke it when the check is green but confidence is not.
+What is left in this section is almost entirely the protocol kind, and it stays
+author discipline until something reads `transport.yaml`. The `catalog-reviewer`
+agent covers it by reading rather than by running — invoke it when the check is
+green but confidence is not.
+
 
 ## 3. Retired codes
 
@@ -497,11 +885,18 @@ Never emit or cite these; a mention in older prose is stale.
   classed it a warning alongside `W_CAP_UNREALIZED`; that name is now gone from
   the spec and is emitted by nothing. If it turns up in an older checkout, the
   kind document wins.
-- **ADR `date`.** `framework/spec/kinds/adr.md` says both the quoted string and
-  the native YAML timestamp are accepted. The loader parses frontmatter with
-  gray-matter, so an unquoted `2026-02-03` arrives as a JS `Date` and the zod
-  schema — which wants a string matching `^\d{4}-\d{2}-\d{2}$` — rejects it as
-  `E_FM_SCHEMA`. Quote the date. Every ADR in `solutions/` does.
+- **ADR `date` — settled, no longer a discrepancy.**
+  `framework/spec/kinds/adr.md` says both the quoted string and the native YAML
+  timestamp are accepted, and the portal used to accept only the first: the
+  loader parses frontmatter with gray-matter, so an unquoted `2026-02-03` arrives
+  as a JS `Date`, and the zod schema wanted a string matching
+  `^\d{4}-\d{2}-\d{2}$` and rejected it as `E_FM_SCHEMA`. `KIND_FRONTMATTER.adr`
+  now declares `date: z.unknown()` and `lib/adr/adr.ts` normalizes both
+  spellings, so an unquoted date passes and a malformed one is `E_ADR_DATE`. One
+  timestamp form is still refused, and the kind document names it too: a `Date`
+  is admitted only at exactly midnight UTC, so `2026-02-03T09:00:00Z` carries a
+  time of day and fails. Quoting remains the habit worth keeping — every ADR in
+  `solutions/` does — but it is no longer load-bearing.
 - **Stale prose about the schema convention.** Nothing checks entity *prose*
   against the schema artifact beside it, so a paragraph describing the retired
   convention ("`schema.json` carries no `$id`", a `$ref` written as

@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: evolution
-version: 9
+version: 10
 status: review
 title: Evolution and history
 summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, artifact pins and the constancy theorem, dialect migration, and the status states.
@@ -364,9 +364,9 @@ filesystem; `worktree-lease.transport@3` is `E_SRN_VERSION`, exactly as
 
 A sibling artifact declares, in its own bytes, the grammar it is written in.
 Where the format already names itself the native key does that work — `openapi:`
-on an `openapi.yaml`, `asyncapi:` on a `transport.yaml` written in the AsyncAPI
-dialect that role admits beside the mini-spec, and a `schema.json`'s own
-`$schema`, which is REQUIRED to be 2020-12 whatever else moves. Where it does
+on an `openapi.yaml`, `arazzo:` on an `arazzo.yaml`, `asyncapi:` on a `transport.yaml` written in the
+AsyncAPI dialect that role admits beside the mini-spec, and a `schema.json`'s
+own `$schema`, which is REQUIRED to be 2020-12 whatever else moves. Where it does
 not, the file carries a top-level `$schema:` holding the canonical URL of the
 framework meta-schema that defines the dialect. Which key belongs to which role,
 which role has **two** live dialects and why that is a standing choice rather

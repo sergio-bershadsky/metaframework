@@ -86,29 +86,29 @@ names before writing anything up.
 
 ## Step 4 — verify each candidate, then judge
 
-| Code / symptom in the catalog                                                    | What it usually means                                              | Usual fix                                                        |
-|-----------------------------------------------------------------------------------|--------------------------------------------------------------------|------------------------------------------------------------------|
-| `R_ORPHAN` — no relation edges out, nothing points in                            | dead entity, or a real edge nobody authored                        | add the missing `uses`/`exposes`/`implements`; or deprecate it    |
-| `R_DEPRECATED_LIVE_REF` — deprecated entity still referenced structurally         | a swap was started and abandoned                                   | finish the migration, then re-deprecate (`evolve-entity`)         |
-| `R_SWAP_UNFINISHED` — `supersedes` target not marked                              | step 5 of the swap was skipped                                     | deprecate the predecessor (ADR: `decision-status: superseded`)    |
-| `R_DEPRECATED_NO_SUCCESSOR` — deprecated, nothing `supersedes` it                  | retired outright, or the successor forgot its edge                 | add `supersedes` on the successor; or confirm the retirement was intended |
-| `R_PROTOCOL_NCA` — protocol sits below the NCA of its participants                | a participant was added later and the directory never followed     | swap the protocol to the right owner, or correct the participant list |
-| `R_PRODUCT_ONE_COMPONENT` / `R_PRODUCT_NO_COMPONENT` — a product with one component or none | ceremony: a component wearing a product's clothes, or a product staked out early | usually leave the name and grow it; collapsing it is a whole-subtree swap |
-| `R_REQ_UNIMPLEMENTED` — `must`/`should` requirement nothing `implements`          | an obligation nobody owns, or a missing edge                       | add `implements` on the owning component, or downgrade the priority honestly |
-| `R_ENV_UNUSED` / `R_ACTOR_UNWIRED` — nothing runs there / no interaction reaches it | the description stops before the thing it describes                | add the `uses` edge, name the actor in a protocol, or retire it   |
-| `R_DM_UNDER_PROMOTED` — component-owned model referenced from other subtrees       | shared vocabulary trapped under one owner                          | promote it to the common ancestor's bucket — that is a swap        |
-| `R_DM_OVER_PROMOTED` — solution-level model only one owner touches                 | premature generalization                                           | usually leave it; flag only when the model encodes one owner's specifics |
-| `R_DM_NEAR_DUPLICATE` — two schemas with near-identical property sets              | copy-paste instead of a shared entity or a tagged union            | promote the shared shape to one datamodel; make the variants a `oneOf` with a `const` tag |
-| `R_ADR_ABSENT` — a multi-component product with no ADR anywhere                    | decisions were taken and never recorded                            | write the ADR now, dated when the decision was actually made      |
-| `R_DRAFT_DEPENDENCY` — approved entities rest on a `draft`                        | the dependency is more settled than the thing it depends on        | promote the draft, or mark the dependants honestly                |
-| `R_CAP_UNREALIZED` — no product or component `realizes` the capability             | aspiration, not architecture — or a realizer that never claimed it | add `realizes` on whatever actually does it; read it against `status` first |
-| `R_CAP_UNMEASURED` — no metric `measures` the capability                           | the claim is unfalsifiable; usually just early                     | usually none — report as coverage, not as a defect                |
-| `R_CAP_SPREAD` — one capability realized from four or more products                | the product boundaries cut across the business rather than along it | rarely a fix; report as a decomposition observation with the count |
-| `R_JRN_INTEGRATION_GAP` — a journey crosses products with no protocol at the seam   | an integration that exists in production and in no description     | write the protocol entity; or `protocol: none` if the actor carries it |
-| `R_MET_NO_SUBJECT` — a metric with no `measures` edge                              | a number with no subject, or a subject nobody authored             | add `measures`; the portal raises `E_MET_NO_SUBJECT` for the same thing |
-| `R_REQ_UNMEASURED` — a `must` with no metric                                       | a promise nobody can check                                         | add a metric that `measures` it, or admit the `must` is a `should` |
-| `R_LIFECYCLE_UNDOCUMENTED` — a `released` component whose whole surface is `draft`  | undocumented running software                                      | approve the descriptions, or say why shipped software is still in draft |
-| `R_LIFECYCLE_RISK` — a `planned` component that `released` ones already depend on   | a delivery risk stated in the catalog before it is stated in a plan | build it, or correct whichever of the two `lifecycle` values is wrong |
+| Code / symptom in the catalog                                                               | What it usually means                                                            | Usual fix                                                                                 |
+|---------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `R_ORPHAN` — no relation edges out, nothing points in                                       | dead entity, or a real edge nobody authored                                      | add the missing `uses`/`exposes`/`implements`; or deprecate it                            |
+| `R_DEPRECATED_LIVE_REF` — deprecated entity still referenced structurally                   | a swap was started and abandoned                                                 | finish the migration, then re-deprecate (`evolve-entity`)                                 |
+| `R_SWAP_UNFINISHED` — `supersedes` target not marked                                        | step 5 of the swap was skipped                                                   | deprecate the predecessor (ADR: `decision-status: superseded`)                            |
+| `R_DEPRECATED_NO_SUCCESSOR` — deprecated, nothing `supersedes` it                           | retired outright, or the successor forgot its edge                               | add `supersedes` on the successor; or confirm the retirement was intended                 |
+| `R_PROTOCOL_NCA` — protocol sits below the NCA of its participants                          | a participant was added later and the directory never followed                   | swap the protocol to the right owner, or correct the participant list                     |
+| `R_PRODUCT_ONE_COMPONENT` / `R_PRODUCT_NO_COMPONENT` — a product with one component or none | ceremony: a component wearing a product's clothes, or a product staked out early | usually leave the name and grow it; collapsing it is a whole-subtree swap                 |
+| `R_REQ_UNIMPLEMENTED` — `must`/`should` requirement nothing `implements`                    | an obligation nobody owns, or a missing edge                                     | add `implements` on the owning component, or downgrade the priority honestly              |
+| `R_ENV_UNUSED` / `R_ACTOR_UNWIRED` — nothing runs there / no interaction reaches it         | the description stops before the thing it describes                              | add the `uses` edge, name the actor in a protocol, or retire it                           |
+| `R_DM_UNDER_PROMOTED` — component-owned model referenced from other subtrees                | shared vocabulary trapped under one owner                                        | promote it to the common ancestor's bucket — that is a swap                               |
+| `R_DM_OVER_PROMOTED` — solution-level model only one owner touches                          | premature generalization                                                         | usually leave it; flag only when the model encodes one owner's specifics                  |
+| `R_DM_NEAR_DUPLICATE` — two schemas with near-identical property sets                       | copy-paste instead of a shared entity or a tagged union                          | promote the shared shape to one datamodel; make the variants a `oneOf` with a `const` tag |
+| `R_ADR_ABSENT` — a multi-component product with no ADR anywhere                             | decisions were taken and never recorded                                          | write the ADR now, dated when the decision was actually made                              |
+| `R_DRAFT_DEPENDENCY` — approved entities rest on a `draft`                                  | the dependency is more settled than the thing it depends on                      | promote the draft, or mark the dependants honestly                                        |
+| `R_CAP_UNREALIZED` — no product or component `realizes` the capability                      | aspiration, not architecture — or a realizer that never claimed it               | add `realizes` on whatever actually does it; read it against `status` first               |
+| `R_CAP_UNMEASURED` — no metric `measures` the capability                                    | the claim is unfalsifiable; usually just early                                   | usually none — report as coverage, not as a defect                                        |
+| `R_CAP_SPREAD` — one capability realized from four or more products                         | the product boundaries cut across the business rather than along it              | rarely a fix; report as a decomposition observation with the count                        |
+| `R_JRN_INTEGRATION_GAP` — a journey crosses products with no protocol at the seam           | an integration that exists in production and in no description                   | write the protocol entity; or `protocol: none` if the actor carries it                    |
+| `R_MET_NO_SUBJECT` — a metric with no `measures` edge                                       | a number with no subject, or a subject nobody authored                           | add `measures`; the portal raises `E_MET_NO_SUBJECT` for the same thing                   |
+| `R_REQ_UNMEASURED` — a `must` with no metric                                                | a promise nobody can check                                                       | add a metric that `measures` it, or admit the `must` is a `should`                        |
+| `R_LIFECYCLE_UNDOCUMENTED` — a `released` component whose whole surface is `draft`          | undocumented running software                                                    | approve the descriptions, or say why shipped software is still in draft                   |
+| `R_LIFECYCLE_RISK` — a `planned` component that `released` ones already depend on           | a delivery risk stated in the catalog before it is stated in a plan              | build it, or correct whichever of the two `lifecycle` values is wrong                     |
 
 For each candidate, confirm by reading the entity and its neighbours. The
 detailed treatment — how to tell a real finding from a false positive, and what
@@ -145,13 +145,13 @@ granularity band are in
 product's component tree against them. The smells, none of which any `R_*`
 code fires on:
 
-| Smell                                             | What it usually means                                                                                          |
-|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| Component count outside the band                  | Twenty+: cut by file layout or org chart. Exactly one: not decomposed, or a component wearing a product's clothes |
-| A component nothing references                    | No inbound edge from outside its own subtree — the boundary carries no edge, so the test fails even when `R_ORPHAN` stays quiet (outgoing edges silence it) |
-| Component-per-source-file                         | The catalog mirrors the source tree; git already stores that, and every refactor now demands a swap             |
-| Prose restating the parent                        | The `index.md` says nothing its parent does not — a feature or chapter filed as an entity; fold it into the parent's prose as a table, files as artifacts |
-| Density inconsistent across products              | "Component" no longer means one altitude; every cross-product comparison silently compares different things     |
+| Smell                                | What it usually means                                                                                                                                       |
+|--------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Component count outside the band     | Twenty+: cut by file layout or org chart. Exactly one: not decomposed, or a component wearing a product's clothes                                           |
+| A component nothing references       | No inbound edge from outside its own subtree — the boundary carries no edge, so the test fails even when `R_ORPHAN` stays quiet (outgoing edges silence it) |
+| Component-per-source-file            | The catalog mirrors the source tree; git already stores that, and every refactor now demands a swap                                                         |
+| Prose restating the parent           | The `index.md` says nothing its parent does not — a feature or chapter filed as an entity; fold it into the parent's prose as a table, files as artifacts   |
+| Density inconsistent across products | "Component" no longer means one altitude; every cross-product comparison silently compares different things                                                 |
 
 Each of these is a structural finding whose fix is a merge — a swap, priced in
 referrers — so confirm against the tests before proposing it, and remember the

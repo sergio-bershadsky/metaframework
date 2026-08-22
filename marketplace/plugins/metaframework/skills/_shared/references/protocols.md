@@ -1,6 +1,6 @@
 # Protocols — participants, transport, workflows, states
 
-> Distilled from `framework/spec/kinds/protocol.md` (version 7). **When
+> Distilled from `framework/spec/kinds/protocol.md` (version 8). **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
 > see the repo spec.
@@ -20,32 +20,37 @@ and feeds the most derived views.
 solutions/acme/product/shop/protocol/order-placement/
 ├── index.md                # REQUIRED  frontmatter + prose
 ├── transport.yaml          # OPTIONAL  wire binding — exactly one transport
-├── openapi.yaml            # OPTIONAL  OpenAPI document — fixed name, bytes-only in v1
+├── openapi.yaml            # OPTIONAL  OpenAPI document — fixed name, bytes-only
+├── arazzo.yaml             # OPTIONAL  Arazzo description — fixed name, unvalidated
 ├── states.json             # OPTIONAL  XState-subset conversation machine
 └── workflows/              # OPTIONAL  asset dir — never an entity
     ├── place-order.yaml    # one workflow; name = filename stem
     └── cancel-order.yaml
 ```
 
-- **All four artifacts are optional.** A protocol with only `index.md` is legal —
+- **All five artifacts are optional.** A protocol with only `index.md` is legal —
   an intent-level protocol under design. It simply derives no diagrams.
 - Sibling filenames are **bare and fixed**: `transport.yaml`, `openapi.yaml`,
-  `states.json`. An `order-placement.transport.yaml` or a `protocol.yaml` is
-  not recognised — `W_PROTO_ARTIFACT_UNKNOWN`. Extra `*.md` prose siblings are
-  fine and carry no machine semantics; anything else unrecognised warns.
+  `arazzo.yaml`, `states.json`. An `order-placement.transport.yaml` or a
+  `protocol.yaml` is not recognised — `W_PROTO_ARTIFACT_UNKNOWN`. Nor is
+  `arazzo.json`, which the Arazzo Specification recommends equally: a role's
+  file may not vary its extension, so the YAML spelling is pinned. Extra `*.md`
+  prose siblings are fine and carry no machine semantics; anything else
+  unrecognised warns.
 - `workflows/` is the only recognised asset subdirectory: one `*.yaml` per
   workflow, kebab-case, no nesting below it, no `index.md` at any depth.
 - A file linked from `transport.yaml` `spec.file` (`pricing.proto`,
   `schema.graphql`) sits next to `index.md` and is recognised *by virtue of
   being linked*. It follows the external tool's naming convention, not the
   framework's bare-filename rule. `openapi.yaml` is deliberately not on that
-  list: it is a fixed-name artifact, recognised link or no link. Nor is an
-  AsyncAPI document — on the wires AsyncAPI covers it goes *inside*
-  `transport.yaml`, as that file's second dialect (below).
+  list: it is a fixed-name artifact, recognised link or no link, and
+  `arazzo.yaml` is one too — it is never linked by `spec` at all, because it
+  describes no wire. Nor is an AsyncAPI document — on the wires AsyncAPI covers
+  it goes *inside* `transport.yaml`, as that file's second dialect (below).
 - Every fixed-name artifact is **SRN-addressable** by a dot suffix on the
-  entity (`srn.md` reference): `….transport`, `.states`, `.openapi`, and
-  `.workflows.<name>` for `workflows/<name>.yaml`. A `spec.file` attachment is
-  never addressable — only fixed names join the role table.
+  entity (`srn.md` reference): `….transport`, `.states`, `.openapi`, `.arazzo`,
+  and `.workflows.<name>` for `workflows/<name>.yaml`. A `spec.file` attachment
+  is never addressable — only fixed names join the role table.
 - **Artifacts carry no version of their own.** A top-level `version:` key in
   `transport.yaml` or a workflow file is a shape violation; the entity's
   frontmatter `version` is a snapshot of the whole directory.
@@ -80,7 +85,7 @@ solutions/acme/product/shop/protocol/order-placement/
 A role names a **file, never a format**, so each artifact says in its own bytes
 which grammar it is written in. The contract is cross-kind and `structure.md`
 states it once — every role's key, the warning class, the strip rule, the
-`version` bump. What follows is the five rows that are this kind's — four
+`version` bump. What follows is the six rows that are this kind's — five
 artifacts, and one of them with two dialects — and where each meets a rule stated
 in this file. Writing `{meta}` for
 `https://schemas.metaframework.dev/metaframework/product/specification/datamodel`:
@@ -92,15 +97,16 @@ in this file. Writing `{meta}` for
 | `states.json`           | XState subset | `$schema`  | `{meta}/state-machine-document` | the framework             |
 | `workflows/<name>.yaml` | the mini-spec | `$schema`  | `{meta}/workflow-document`      | the framework             |
 | `openapi.yaml`          | OpenAPI       | `openapi`  | `3.1.x`                         | OpenAPI itself, natively  |
+| `arazzo.yaml`           | Arazzo        | `arazzo`   | `1.1.x`                         | Arazzo itself, natively   |
 
-Four roles, five dialects — the transport role has two, and they are not a
+Five roles, six dialects — the transport role has two, and they are not a
 migration window with an end: `http`, `grpc` and `in-process` transports have no
 AsyncAPI form, so the mini-spec is permanent. The mini-spec row is listed first
 and that order is load-bearing: it is what a headerless `transport.yaml` is told
 to add.
 
-Spelled out, at the root of each file — three framework headers and two native
-keys:
+Spelled out, at the root of each file — three framework headers and three
+native keys:
 
 ```yaml
 # transport.yaml — first line of the file, mini-spec dialect
@@ -129,6 +135,11 @@ name: place-order
 openapi: 3.1.0
 ```
 
+```yaml
+# arazzo.yaml — likewise; `arazzo:` is REQUIRED at the root by Arazzo itself
+arazzo: 1.1.0
+```
+
 - The URL carries **no `@version`**: it names the grammar the file is written
   in, not a revision of the file. The entity's `version` is the only clock. It
   is the canonical schema URL of an ordinary meta-schema datamodel entity
@@ -140,9 +151,9 @@ openapi: 3.1.0
 - The loader **reads it once and deletes it** from the parsed document, so every
   validator underneath stays strict and nothing is carved out of it. That applies
   only to the framework's `$schema`. A **native** discriminator — `openapi:`,
-  `asyncapi:` — belongs to its own format and is never stripped, for the same
-  reason `openapi:` is not: a document that arrived without its own version key
-  would be the poorer document, and neither key is the framework's to remove.
+  `asyncapi:`, `arazzo:` — belongs to its own format and is never stripped: a
+  document that arrived without its own version key would be the poorer
+  document, and none of the three is the framework's to remove.
   That is a statement about ownership, not about what the portal reads — no
   transport document is parsed in either dialect today (below). Raw bytes are
   untouched in every case.
@@ -552,6 +563,7 @@ dialect; `E_PROTO_TRANSPORT_ASYNCAPI`, `W_PROTO_TRANSPORT_HOST` and
 Write the file as if every rule here were enforced, because none of them is:
 nothing will tell you when you get it wrong.
 
+<!-- verbatim-excerpt: solutions/acme/protocol/settlement/transport.yaml -->
 ```yaml
 # solutions/acme/protocol/settlement/transport.yaml — verbatim through the first channel
 asyncapi: 3.1.0
@@ -789,6 +801,68 @@ It is skipped entirely only when there is nothing to match against:
 listing a surface — a linked OpenAPI file is not parsed in v1, and the absence of
 a check is not a warning. The AsyncAPI dialect is never in that position, because
 profile rule 5 requires a non-empty `channels`.
+
+## `arazzo.yaml` — the orchestration surface
+
+An **Arazzo Description** (the OpenAPI Initiative's format for a deterministic
+sequence of API calls), under that fixed bare name, OPTIONAL, addressable as
+`.arazzo`, **unvalidated**: snapshotted, served as authored, and judged by
+nothing — `protocol.md` states no field table for it, so no rule can be broken in
+one. Dialect key `arazzo: 1.1.0`.
+
+Unvalidated is not unread: the portal draws a step graph of each workflow, which
+asserts nothing about the grammar. A renderer that meets a field it does not know
+draws less; a validator would have to call the document wrong, and there is no
+published JSON Schema for Arazzo 1.1 to be right against.
+
+**It is a sibling of `workflows/`, not a dialect of it.** The mini-spec above
+stays the authoritative choreography source; sequence diagrams derive from
+`workflows/*.yaml` and from nothing else. A protocol carrying both deprecates
+neither and warns on neither. They describe different things: the mini-spec has
+N participants with `from`/`to`, actor and `in-process` participants, self-calls,
+event fan-out, paired `call`/`return` arrows and `alt`/`opt`/`loop` fragments —
+none of which has an Arazzo carrier outside `x-` extensions. Arazzo has one
+executor chaining operations. Writing choreography as Arazzo rebuilds the
+mini-spec inside a goto-graph, and the step graph it would draw is a worse
+picture of a multi-party exchange than the sequence diagram it cost.
+
+**It MUST be grounded in this entity's own artifacts.**
+
+- `sourceDescriptions[].url` MUST be a relative URI-reference to a sibling
+  artifact — `./openapi.yaml` or `./transport.yaml`. Arazzo permits an absolute
+  URL; this framework does not: a catalog is described offline, and a URL
+  pointing outside the entity is a claim nothing here can check.
+- Every operation, channel or workflow a step names MUST resolve into a document
+  `sourceDescriptions` names, or into a workflow of the same file.
+
+Both are `W_PROTO_ARAZZO_UNGROUNDED`. So the artifact only makes sense where a
+grounding document exists: an `openapi.yaml`, or a `transport.yaml` in the
+AsyncAPI dialect. `sourceDescriptions[].type` is closed to `openapi`, `asyncapi`
+and `arazzo`, so `grpc` and `in-process` protocols can never carry one — do not
+write the file there, and do not write it for an `http` protocol that has no
+`openapi.yaml` yet.
+
+```yaml
+# arazzo.yaml — the two lines the framework reads, and the rule it adds
+arazzo: 1.1.0
+sourceDescriptions:
+  - name: orders
+    type: openapi
+    url: ./openapi.yaml               # a sibling artifact — always relative
+```
+
+Everything else in the file is Arazzo's own; the framework adds no key to it and
+validates none of it.
+
+**The rest of the ruling, in four lines.** Scope is the *initiator-facing*
+surface only — never a second description of the wire or of the choreography.
+`arazzo.json` is **not** recognised (`W_PROTO_ARTIFACT_UNKNOWN`), though the
+Specification recommends both spellings, because a role's file may not vary its
+extension. Write **one self-contained document**: there is no asset subdirectory
+for the non-entry parts of a split Arazzo Description, and such a file would be
+unaddressable. Should the framework ever need a key inside the file it will be
+`x-srn` / `x-srn-*` — never `x-arazzo`, `x-oai-*` or `x-oas-*`, which the OAI
+reserves.
 
 ## `states.json` — the XState subset
 
@@ -1028,6 +1102,7 @@ on a datamodel page is a **derived inverse**, never authored on the datamodel.
 | `W_PROTO_WF_ORPHAN_RETURN`        | `return`/`error` with no preceding counterpart `call`.                                                         |
 | `W_PROTO_STATES_EVENT_UNKNOWN`    | State event has no corresponding workflow message name.                                                        |
 | `W_PROTO_STATES_UNREACHABLE`      | A state no transition can reach.                                                                               |
+| `W_PROTO_ARAZZO_UNGROUNDED`       | An `arazzo.yaml` names a source document, operation or channel this protocol does not carry.                   |
 | `W_PROTO_ARTIFACT_UNKNOWN`        | Unrecognised file in the protocol entity directory.                                                            |
 
 Codes from `srn.md`, `structure.md`, `frontmatter.md` and `evolution.md` apply

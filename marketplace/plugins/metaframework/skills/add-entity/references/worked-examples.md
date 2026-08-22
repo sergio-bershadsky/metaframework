@@ -12,6 +12,13 @@
 > `capability` note, which says so in its own first comment line. Anything else
 > you find here can be copied and it will be what is on disk.
 >
+> That last sentence is a promise a machine keeps. Each block carries an HTML
+> comment naming its source — `<!-- verbatim: solutions/acme/… -->`, or
+> `verbatim-excerpt` for a slice, or `verbatim-exempt` for the one fragment —
+> and `framework/portal/scripts/repo-hygiene.mjs` byte-compares every one of them
+> against the catalog on every push. A block added here without a marker fails
+> the same gate, so a copy cannot be added without being wired to its original.
+>
 > Ten kinds, one section each. `journey` is the only one that carries a second
 > file: its `journey.yaml` is REQUIRED and is reproduced with it — including the
 > `$schema` dialect header on its first line, which is part of the file and part
@@ -27,6 +34,7 @@ present, which wins).
 
 `solutions/acme/index.md`
 
+<!-- verbatim: solutions/acme/index.md -->
 ````markdown
 ---
 name: acme
@@ -145,6 +153,7 @@ its children plus this prose.
 
 `solutions/acme/product/shop/index.md`
 
+<!-- verbatim: solutions/acme/product/shop/index.md -->
 ````markdown
 ---
 name: shop
@@ -237,6 +246,7 @@ local field the framework ignores.
 
 `solutions/acme/product/shop/component/checkout/component/tax-engine/index.md`
 
+<!-- verbatim: solutions/acme/product/shop/component/checkout/component/tax-engine/index.md -->
 ````markdown
 ---
 name: tax-engine
@@ -312,6 +322,7 @@ than a built thing.
 
 `solutions/acme/actor/customer/index.md`
 
+<!-- verbatim: solutions/acme/actor/customer/index.md -->
 ````markdown
 ---
 name: customer
@@ -378,6 +389,7 @@ toward the component the customer actually touches.
 
 `solutions/acme/environment/production/index.md`
 
+<!-- verbatim: solutions/acme/environment/production/index.md -->
 ````markdown
 ---
 name: production
@@ -446,11 +458,12 @@ their own — the entity's frontmatter `version` covers the whole directory.
 
 `solutions/acme/product/shop/component/checkout/requirement/idem-cap/index.md`
 
+<!-- verbatim: solutions/acme/product/shop/component/checkout/requirement/idem-cap/index.md -->
 ````markdown
 ---
 name: idem-cap
 kind: requirement
-version: 2
+version: 3
 title: Idempotent payment capture
 summary: A payment capture replayed with the same idempotency key must charge the customer exactly once.
 status: approved
@@ -460,7 +473,7 @@ priority: must
 relations:
   uses:
     - /product/shop/protocol/order-placement
-    - /product/shop/component/checkout/component/payment/datamodel/order@3
+    - /product/shop/component/checkout/component/payment/datamodel/order@4
 tags:
   - payments
   - reliability
@@ -530,6 +543,7 @@ points *at* a requirement, from the component or product taking it on.
 
 `solutions/acme/adr/0001-single-currency/index.md`
 
+<!-- verbatim: solutions/acme/adr/0001-single-currency/index.md -->
 ````markdown
 ---
 name: 0001-single-currency
@@ -635,6 +649,7 @@ For a superseding ADR, the `supersedes` edge goes on the **successor** and the
 
 `solutions/acme/capability/order-fulfilment/index.md`
 
+<!-- verbatim: solutions/acme/capability/order-fulfilment/index.md -->
 ````markdown
 ---
 name: order-fulfilment
@@ -751,6 +766,7 @@ says whether it holds).
 The entity authors **no realization edge**. Realizers point at it from their own
 side, and any number of them may — this is `checkout`, which carries two:
 
+<!-- verbatim-exempt: an edited `relations` fragment, not a file — the block says so in its own first comment -->
 ````yaml
 # EXCERPT, not a whole file — solutions/acme/product/shop/component/checkout/index.md
 # `relations` there also carries `uses`, `exposes` and `depends-on`, and two
@@ -775,6 +791,7 @@ product's bucket, making one product's reorganization break the other's page.
 `shop` and two components in `growth`. Count the realizers with a single grep,
 which is also the migration checklist for a capability swap:
 
+<!-- verbatim-exempt: a shell command, not a reproduction -->
 ```bash
 grep -rn "capability/order-fulfilment" solutions/ --include=index.md
 ```
@@ -783,6 +800,7 @@ grep -rn "capability/order-fulfilment" solutions/ --include=index.md
 
 `solutions/acme/journey/first-purchase/index.md`
 
+<!-- verbatim: solutions/acme/journey/first-purchase/index.md -->
 ````markdown
 ---
 name: first-purchase
@@ -872,6 +890,7 @@ nothing the customer does waits for it.
 
 `solutions/acme/journey/first-purchase/journey.yaml`
 
+<!-- verbatim: solutions/acme/journey/first-purchase/journey.yaml -->
 ````yaml
 $schema: https://schemas.metaframework.dev/metaframework/product/specification/datamodel/journey-document
 name: first-purchase
@@ -993,6 +1012,7 @@ the signal that anchors moved.
 
 `solutions/acme/product/shop/metric/checkout-conversion/index.md`
 
+<!-- verbatim: solutions/acme/product/shop/metric/checkout-conversion/index.md -->
 ````markdown
 ---
 name: checkout-conversion

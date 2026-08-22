@@ -29,10 +29,15 @@ export interface ArtifactRole {
 }
 
 /**
- * The nine rows, verbatim from structure.md. A kind absent from the table —
+ * The ten rows, verbatim from structure.md. A kind absent from the table —
  * solution, product, component, actor, adr, requirement, capability, metric —
  * defines no roles at all. Growth is additive, and additive only: renaming or
  * removing a row breaks every SRN written against it.
+ *
+ * `arazzo` is the newest row ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role))
+ * and it is **appended**, not filed beside the other depth-1 protocol roles:
+ * structure.md's growth discipline is to append, and the order of this array is
+ * asserted against that table verbatim.
  */
 export const ARTIFACT_ROLES: readonly ArtifactRole[] = [
   { kind: 'datamodel', role: 'schema', file: 'schema.json', depth: 1 },
@@ -41,6 +46,7 @@ export const ARTIFACT_ROLES: readonly ArtifactRole[] = [
   { kind: 'protocol', role: 'states', file: 'states.json', depth: 1 },
   { kind: 'protocol', role: 'openapi', file: 'openapi.yaml', depth: 1 },
   { kind: 'protocol', role: 'workflows.<name>', file: 'workflows/<name>.yaml', depth: 2 },
+  { kind: 'protocol', role: 'arazzo', file: 'arazzo.yaml', depth: 1 },
   { kind: 'journey', role: 'journey', file: 'journey.yaml', depth: 1 },
   { kind: 'environment', role: 'topology', file: 'topology.yaml', depth: 1 },
   { kind: 'environment', role: 'config', file: 'config.yaml', depth: 1 },

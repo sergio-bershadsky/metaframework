@@ -15,7 +15,8 @@ import type { Artifact } from './types'
  * grammar it is written in.
  *
  * Where the format already names itself the native key is used and the framework
- * invents nothing (`openapi:`, `asyncapi:`, and `schema.json`'s own `$schema`).
+ * invents nothing (`openapi:`, `asyncapi:`, `arazzo:`, and `schema.json`'s own
+ * `$schema`).
  * Where it does not, the file carries `$schema:` holding the canonical URL of the
  * framework meta-schema that defines the dialect — the same URL
  * {@link metaSchemaUrl} builds for any other datamodel, because that is exactly
@@ -129,6 +130,40 @@ const DIALECTS: Record<string, RoleDialects | null> = {
     warns: true,
   },
   'protocol:workflows.<name>': { dialects: [meta('workflow-document')], warns: true },
+  // The `arazzo` role ([0020](srn://metaframework/adr/0020-arazzo-as-a-sibling-role)).
+  // `arazzo:` is REQUIRED at the root of every Arazzo Description by Arazzo's own
+  // fixed-field table, so the discriminator was already there to be read and the
+  // framework adds nothing — the third native key, and the third artifact whose
+  // key is never stripped.
+  //
+  // The band is `1.1.x` — one minor line, like `openapi` above and unlike
+  // `transport`'s `3.x`, and for `openapi`'s exact reason: Arazzo's Versions
+  // section repeats OpenAPI's verbatim, so `major`.`minor` designates the feature
+  // set and the patch position holds errata that tooling SHOULD NOT consider.
+  // `1.1.1` is therefore the same dialect and warning on it would report this
+  // reader's narrowness as the file's fault.
+  //
+  // The line is `1.1` rather than `1.0` because 1.0's `sourceDescriptions[].type`
+  // admits only `openapi` and `arazzo` and has no channel-level step reference:
+  // against this catalog, where the AsyncAPI transports outnumber the OpenAPI
+  // documents, that leaves most of the groundable set unreachable. A correct 1.0
+  // file is still read and never broken — it takes `W_ARTIFACT_DIALECT`, exactly
+  // as an OpenAPI 3.0 document does one row up.
+  //
+  // This row is the whole of the portal's Arazzo *validation*, and deliberately
+  // — but it is not the whole of its Arazzo support, and the two must not be
+  // confused. `kinds/protocol.md` ("`arazzo.yaml` — the orchestration surface")
+  // calls the artifact **unvalidated**, not bytes-only, and says in the next
+  // breath that "unvalidated is not unread": `lib/protocol/arazzo.ts` reads the
+  // document and `components/diagrams/arazzo-graph.tsx` draws a step graph from
+  // it. What stops here is judgement. There is no published JSON Schema for
+  // Arazzo 1.1, so this framework has no grammar to enforce; no rule reaches the
+  // contents and no diagnostic is ever raised from them. `openapi.yaml` one row
+  // up is the artifact that really is bytes-only — nothing opens it at all.
+  'protocol:arazzo': {
+    dialects: [{ key: 'arazzo', value: '1.1.0', owned: false, recognises: (v) => /^1\.1\.\d+$/.test(v) }],
+    warns: true,
+  },
   'journey:journey': { dialects: [meta('journey-document')], warns: true },
   'environment:topology': { dialects: [meta('topology-document')], warns: true },
   'environment:config': { dialects: [meta('config-document')], warns: true },
