@@ -1,7 +1,7 @@
 {
   "name": "@bershadsky/metaframework",
   "version": "0.2.0",
-  "description": "Serve a metaframework solution catalog — a reviewable file tree of markdown entities — as a live portal, with reload on change",
+  "description": "Serve a metaframework solution catalog \u2014 a reviewable file tree of markdown entities \u2014 as a live portal, with reload on change",
   "keywords": [
     "architecture",
     "architecture-as-code",
@@ -43,7 +43,7 @@
     "start": "next start",
     "test": "vitest run",
     "lint": "eslint",
-    "package": "npm run build && node scripts/assemble-standalone.mjs",
+    "package": "node scripts/build-embedded-schemas.mjs --check && npm run build && node scripts/assemble-standalone.mjs",
     "prepack": "npm run package",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

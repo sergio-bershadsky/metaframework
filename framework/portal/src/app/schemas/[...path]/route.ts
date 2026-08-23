@@ -3,6 +3,7 @@ import { readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { catalogDir } from '@/lib/catalog'
 import { safeCatalogPath } from '@/lib/history/git'
+import { EMBEDDED_META_SCHEMAS } from '@/lib/schema/embedded'
 import { dirToSrn } from '@/lib/srn/srn'
 
 /**
@@ -29,6 +30,18 @@ import { dirToSrn } from '@/lib/srn/srn'
  * validated catalog-relative path, an SRN grammar check that only a datamodel
  * address can pass, and a post-`realpath` containment re-check that catches the
  * one escape a validated path still allows — a symlink inside the catalog.
+ *
+ * ## The framework's own eight answer here too
+ *
+ * Every artifact the framework tells an author to write declares a `$schema` on
+ * the canonical host, and the only bytes behind those URLs live in *this*
+ * repository's `metaframework` solution. A catalog that is not this repository
+ * does not have it, so its portal answered the framework's first authoring
+ * instruction with a 404. It now falls back to a copy compiled into the bundle
+ * (`lib/schema/embedded.ts`) — identity is still global and singular, and it is
+ * only retrieval that becomes local everywhere rather than local here and global
+ * on a host that has to be deployed for anyone to read a header they were told
+ * to write.
  */
 
 // Filesystem reads rule out the edge runtime; say so rather than rely on a default.
@@ -96,7 +109,7 @@ export async function GET(request: Request, context: Params): Promise<Response> 
   const root = catalogDir()
   const file = path.join(root, relDir, ARTIFACT)
 
-  let body: string
+  let body: string | undefined
   try {
     // Containment is re-checked after resolving symlinks: safeCatalogPath proves
     // the *string* stays inside the catalog, but a symlink in the tree is the one
@@ -104,12 +117,35 @@ export async function GET(request: Request, context: Params): Promise<Response> 
     const real = await realpath(file)
     const realRoot = await realpath(root)
     if (real !== realRoot && !real.startsWith(realRoot + path.sep)) {
+      // Not a miss — a refusal, so it must not reach the fallback below. A
+      // request that left the catalog gets an answer about that and nothing else.
       return fail('path escapes the catalog through a symlink', 400)
     }
     body = await readFile(real, 'utf8')
-  } catch {
-    return fail(`no ${ARTIFACT} for ${srn}`, 404)
+  } catch (error) {
+    // "Not there" and "could not be read" are different answers, and only the
+    // first is a miss the embedded copy may serve. A `schema.json` that exists
+    // and cannot be read is this catalog's own fault to see; answering it with a
+    // copy that may say something else is how a portal reports a document it
+    // never opened. The same distinction `catalogRoot` draws one directory up.
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') return fail(`no ${ARTIFACT} for ${srn}`, 404)
+
+    // The catalog first, the embedded copy only when it has nothing. This
+    // repository *is* a catalog holding the eight, and editing one of them here
+    // must show on the next request rather than after a regeneration — while a
+    // foreign catalog, which cannot hold them, still gets an answer. Precedence
+    // this way round also means the fallback can never shadow a real entity.
+    //
+    // The three gates above have already run, so nothing reaches this line that
+    // could not have reached the catalog read. The key is the request's own path
+    // and never a literal: these documents exist only as literals in a compiled
+    // chunk, and a constant key is a proof that the other seven are unreachable
+    // — one Turbopack does not act on today, which is why `npm run package`
+    // greps the built chunks rather than trusting this line.
+    body = EMBEDDED_META_SCHEMAS[relDir]
   }
+  if (body === undefined) return fail(`no ${ARTIFACT} for ${srn}`, 404)
 
   // Strong validator over the exact bytes served — a redeploy that does not
   // change a schema costs one 304 instead of a re-download.

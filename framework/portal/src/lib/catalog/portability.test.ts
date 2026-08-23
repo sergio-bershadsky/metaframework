@@ -15,7 +15,8 @@ import {
   resolveVersion,
   unbumpedChanges,
 } from '../history/git'
-import { srnToSchemaUrl } from '../schema/url'
+import { EMBEDDED_META_SCHEMAS } from '../schema/embedded'
+import { CANONICAL_SCHEMA_HOST, srnToSchemaUrl } from '../schema/url'
 import {
   withArtifactChecks,
   withDatamodelChecks,
@@ -940,5 +941,117 @@ describe('the status a foreign catalog reports about itself', () => {
     expect(body.catalogRoot).toEqual({ readable: false, reason: 'does not exist' })
     expect(body.entities).toBe(0)
     expect(body.diagnostics.errors).toBe(0)
+  })
+})
+
+/* ------------------------------------- the framework's own, in any catalog */
+
+/**
+ * **The one document set a foreign catalog cannot supply for itself.**
+ *
+ * Every artifact the framework tells an author to write opens with a `$schema`
+ * naming a datamodel of the framework's *own* solution. That solution lives in
+ * this repository and nowhere else, so a portal pointed at somebody else's
+ * catalog had no bytes to answer with and returned 404 to the very first
+ * instruction the framework gives — while `metaframework check` passed the file
+ * clean, because a dialect header is compared as a string and a string cannot
+ * tell "correct" from "retrievable". The portal now carries the documents
+ * (`lib/schema/embedded.ts`) and serves them under its own base.
+ *
+ * Nothing here names a solution or a document: every path comes from the
+ * embedded table, which is the same rule the rest of this file follows.
+ */
+describe('the meta-schemas a foreign catalog cannot hold', () => {
+  const saved = process.env.CATALOG_DIR
+  const served = Object.keys(EMBEDDED_META_SCHEMAS).sort()
+
+  afterAll(() => {
+    if (saved === undefined) delete process.env.CATALOG_DIR
+    else process.env.CATALOG_DIR = saved
+  })
+
+  /** The `/schemas` route, against a given catalog, at a given entity path. */
+  async function serve(catalog: string, relDir: string): Promise<Response> {
+    process.env.CATALOG_DIR = catalog
+    const { GET } = await import('../../app/schemas/[...path]/route')
+    return GET(new Request(`http://localhost:3000/schemas/${relDir}`), {
+      params: Promise.resolve({ path: relDir.split('/') }),
+    })
+  }
+
+  it('has documents to serve at all', () => {
+    // The floor under every loop below: an empty table would pass all of them.
+    expect(served.length).toBeGreaterThan(0)
+  })
+
+  it('answers for every one of them from a catalog that has no such solution', async () => {
+    const fixture = await writeSolution('meta-foreign', 'tidewater')
+
+    for (const relDir of served) {
+      const response = await serve(fixture.dir, relDir)
+      expect(response.status, relDir).toBe(200)
+      expect(response.headers.get('content-type'), relDir).toContain('application/schema+json')
+
+      const body = await response.text()
+      expect(body, relDir).toBe(EMBEDDED_META_SCHEMAS[relDir])
+      // Retrieval moved; identity did not. The document a foreign portal hands
+      // over still calls itself by the canonical URL its author was told to
+      // write, which is the only reason serving it locally is honest.
+      expect((JSON.parse(body) as { $id: string }).$id, relDir).toBe(`${CANONICAL_SCHEMA_HOST}/${relDir}`)
+    }
+  })
+
+  it('still has nothing to say about a datamodel the catalog does not have', async () => {
+    // The control for the test above. A fallback that answered *any* legal
+    // datamodel address would pass it while making the route a liar about
+    // every entity in the catalog it was pointed at.
+    const fixture = await writeSolution('meta-foreign-miss', 'tidewater')
+    const response = await serve(fixture.dir, 'tidewater/product/dispatch/datamodel/nonesuch')
+
+    expect(response.status).toBe(404)
+  })
+
+  it('prefers the catalog copy when the catalog is the one that owns them', async () => {
+    // This repository *is* a catalog holding these eight, and an edit to one of
+    // them has to show on the next request rather than after a regeneration —
+    // otherwise the framework's own portal is the one place the documents go
+    // stale. Precedence this way round also means the fallback can never shadow
+    // a real entity.
+    const [relDir] = served
+    const edited = `${JSON.stringify(
+      { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: `${CANONICAL_SCHEMA_HOST}/${relDir}`, title: 'edited in the catalog' },
+      null,
+      2,
+    )}\n`
+    // Without this the assertion below could pass on the embedded bytes.
+    expect(edited).not.toBe(EMBEDDED_META_SCHEMAS[relDir])
+
+    const fixture = await writeCatalog(
+      'meta-catalog-first',
+      { tidewater: frontmatter('tidewater', 'solution') },
+      { [`${relDir}/schema.json`]: edited },
+    )
+    const response = await serve(fixture.dir, relDir)
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe(edited)
+  })
+
+  it('does not let the embedded copy answer a request that left the catalog', async () => {
+    // The gate the fallback is most able to weaken: a symlink at the document's
+    // own path, pointing outside the root, is the one escape a validated path
+    // still allows. It must be answered as the refusal it is — reading it as a
+    // miss would turn a 400 into a 200 and excuse the thing the check exists to
+    // catch, in the one case where the route happens to hold plausible bytes.
+    const [relDir] = served
+    const fixture = await writeSolution('meta-symlink', 'tidewater')
+    const outside = path.join(path.dirname(fixture.dir), 'outside-the-catalog.json')
+    await writeFile(outside, '{}\n')
+    await mkdir(path.join(fixture.dir, relDir), { recursive: true })
+    await symlink(outside, path.join(fixture.dir, relDir, 'schema.json'))
+
+    const response = await serve(fixture.dir, relDir)
+
+    expect(response.status).toBe(400)
   })
 })

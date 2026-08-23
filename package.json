@@ -16,6 +16,7 @@
     "typecheck": "npm --prefix framework/portal run typecheck",
     "lint": "npm --prefix framework/portal run lint",
     "install:portal": "npm --prefix framework/portal install",
-    "schemas:build": "node framework/portal/scripts/build-schema-site.mjs"
+    "schemas:build": "node framework/portal/scripts/build-schema-site.mjs",
+    "schemas:embed": "node framework/portal/scripts/build-embedded-schemas.mjs"
   }
 }

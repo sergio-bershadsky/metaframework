@@ -1,19 +1,28 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { loadCatalog } from '../catalog/load'
 import type { Catalog, Entity } from '../catalog/types'
 import { bundleSchema } from './dereference'
+import { srnToSchemaUrl } from './url'
 
 /**
  * Bundling runs against the *shipped* catalog, because the property under test
  * is exactly the one a hermetic fixture would hide: every cross-entity `$ref` is
  * a canonical `https://schemas.metaframework.dev/…` URL, and the bundler must
  * satisfy it from disk. If the catalog resolver ever stops matching, these tests
- * do not fail with a wrong shape — they fail by trying to reach the network,
- * which is the point.
+ * fail on a document that is not there — never on a download, which is the last
+ * test in this file.
  */
 
 const CATALOG = path.resolve(process.cwd(), '../../solutions')
+
+const scratch: string[] = []
+
+afterAll(async () => {
+  await Promise.all(scratch.map((dir) => rm(dir, { recursive: true, force: true })))
+})
 
 let catalog: Catalog
 
@@ -166,5 +175,86 @@ describe('bundleSchema', () => {
 
     expect(schema).toBeNull()
     expect(error).toBeTruthy()
+  })
+
+  /**
+   * A `$ref` to a genuinely foreign document still resolves.
+   *
+   * This guards a capability, which is the kind of thing that disappears
+   * quietly: the fix for the test below was first written as `http: false`, and
+   * every test in this file stayed green — because all 125 cross-document refs
+   * in `solutions/` are on the canonical host, so no assertion here could tell
+   * a narrowed resolver from a deleted one. Somebody else's catalog can `$ref` a
+   * public OpenAPI or GeoJSON document, or an internal registry, and no ruling
+   * asked for that to stop working.
+   *
+   * What is asserted is that the reference *reaches* the `http` resolver, not
+   * that a document comes back. The suite must not depend on the network, and a
+   * loopback server is not a substitute: json-schema-ref-parser carries its own
+   * SSRF guard and refuses a private address outright. So the two states are
+   * told apart by which failure arrives — `Error downloading …` means `http`
+   * accepted the reference and tried, while `http: false` leaves no plugin able
+   * to read it at all and the parser says so in different words. Only one of
+   * those is a resolver that still exists.
+   */
+  it('hands a $ref on another host to the http resolver rather than refusing it', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'metaframework-foreign-ref-'))
+    scratch.push(dir)
+    const foreign = 'http://127.0.0.1:9/units.json'
+    await writeFile(
+      path.join(dir, 'schema.json'),
+      JSON.stringify({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: srnToSchemaUrl('srn://acme/datamodel/money'),
+        type: 'object',
+        properties: { unit: { $ref: foreign } },
+      }),
+    )
+
+    const money = entity('srn://acme/datamodel/money')
+    const { error } = await bundleSchema({ ...money, dir }, CATALOG)
+
+    // It got as far as trying, which is the capability. Under `http: false`
+    // this reads "Unable to resolve $ref pointer" and the assertion fails.
+    expect(error).toMatch(/Error downloading/i)
+    expect(error).toContain(foreign)
+  })
+
+  /**
+   * A `$ref` the catalog cannot satisfy must fail *here*, not on the network.
+   *
+   * Winning `canRead` does not consume a reference: when the catalog resolver's
+   * `read` rejects, the parser calls the next plugin, and the next plugin was
+   * `http`. So a typo, or a `$ref` to an entity nobody has written yet, turned
+   * an entity page render into an outbound request for a document this process
+   * was supposed to own — measured, on the page: `Error downloading … getaddrinfo
+   * ENOTFOUND schemas.metaframework.dev`. It looks harmless only because that
+   * host does not answer yet; the day it does, a dangling reference silently
+   * pulls bytes off the network at build and SSR time and renders them as the
+   * catalog's own.
+   */
+  it('refuses a $ref it cannot read instead of going to the network for it', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'metaframework-dangling-'))
+    scratch.push(dir)
+    const dangling = srnToSchemaUrl('srn://acme/datamodel/not-written-yet')
+    await writeFile(
+      path.join(dir, 'schema.json'),
+      JSON.stringify({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: srnToSchemaUrl('srn://acme/datamodel/money'),
+        type: 'object',
+        properties: { base: { $ref: dangling } },
+      }),
+    )
+
+    const money = entity('srn://acme/datamodel/money')
+    const { schema, error } = await bundleSchema({ ...money, dir }, CATALOG)
+
+    expect(schema).toBeNull()
+    expect(error).toContain(dangling)
+    // The whole assertion: a read that failed, not a download that failed. With
+    // the `http` resolver back in place this line reads "Error downloading …
+    // getaddrinfo ENOTFOUND", which is the same red for the opposite reason.
+    expect(error).not.toMatch(/download|ENOTFOUND|getaddrinfo/i)
   })
 })

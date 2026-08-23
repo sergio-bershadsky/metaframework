@@ -21,6 +21,26 @@ import { isSchemaUrl, schemaUrlToPath, schemaUrlToSrn } from './url'
  * the artifact, retrieval is the resolver's problem — and the document an
  * outside consumer gets is byte-identical.
  *
+ * Ordering alone does not achieve that. A plugin that wins `canRead` does not
+ * *consume* the reference: when its `read` rejects, the parser moves to the next
+ * plugin (`json-schema-ref-parser/dist/lib/util/plugins.js` — "if the promise
+ * rejects … then the next plugin is called"), so every `$ref` this resolver
+ * could not satisfy — a typo, an entity not written yet — fell through to `http`
+ * and turned an entity page render into an outbound request. Measured: the page
+ * reported `Error downloading … getaddrinfo ENOTFOUND schemas.metaframework.dev`.
+ * It fails fast today only because nothing answers on that host; the day one
+ * does, a dangling `$ref` would quietly pull bytes off the network at build and
+ * SSR time and render them as if they were the catalog's. A missing document is
+ * a diagnostic the author must see, never a fetch.
+ *
+ * So `http` is narrowed rather than switched off: it refuses the canonical host
+ * and keeps everything else. Switching it off outright would also have removed
+ * the ability to `$ref` a genuinely external document — a public OpenAPI or
+ * GeoJSON schema, an internal registry — which no ruling here asked for. This
+ * repository's own 125 canonical `$ref`s make that removal invisible in these
+ * tests and in no way safe for somebody else's catalog, which is the whole
+ * population this file's neighbours exist to serve.
+ *
  * `bundle` (rather than `dereference`) keeps shared and recursive shapes as
  * internal `#/` pointers, so a self-referential model cannot expand forever.
  * `metaframework/…/datamodel/schema-document` is exactly that shape — its
@@ -54,10 +74,13 @@ export async function bundleSchema(entity: Entity, catalogDir: string): Promise<
   const file = path.join(entity.dir, SCHEMA_ARTIFACT)
 
   /**
-   * A resolver in json-schema-ref-parser's plugin shape. `order: 1` puts it
-   * ahead of the bundled `http` resolver, and `canRead` claims only canonical
-   * schema URLs — anything else still falls through to the defaults, so a
-   * genuinely foreign `$ref` fails loudly instead of being silently mis-read.
+   * A resolver in json-schema-ref-parser's plugin shape. `order: 1` runs it
+   * first and `canRead` claims only canonical schema URLs; a relative `$ref`
+   * still reaches the built-in `file` resolver, and a `$ref` on another host
+   * still reaches `http`. What no longer happens is the fall-through: a
+   * canonical URL this resolver could not satisfy is refused by both and fails
+   * loudly, which is the correct answer for a document the catalog was supposed
+   * to hold.
    */
   const catalogResolver = {
     order: 1,
@@ -73,7 +96,17 @@ export async function bundleSchema(entity: Entity, catalogDir: string): Promise<
 
   try {
     const parser = new $RefParser()
-    const schema = flatten(await parser.bundle(file, { resolve: { catalog: catalogResolver } }))
+    const schema = flatten(
+      await parser.bundle(file, {
+        resolve: {
+          catalog: catalogResolver,
+          // Not `http: false`. This closes the fall-through and nothing else:
+          // the canonical host is the catalog resolver's alone, and a `$ref` it
+          // could not satisfy must fail rather than become a download.
+          http: { canRead: (candidate: { url: string }) => !isSchemaUrl(candidate.url) },
+        },
+      }),
+    )
 
     // Provenance: every document that was pulled in, named the way the catalog
     // names things. Paths arrive as URLs (resolved by the catalog resolver) or
