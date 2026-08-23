@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { EMBEDDED_META_SCHEMAS } from '@/lib/schema/embedded'
-import { EMBEDDED_MODULE, renderEmbeddedModule } from './build-embedded-schemas.mjs'
+import { EMBEDDED_MODULE, embeddedUrls, renderEmbeddedModule } from './build-embedded-schemas.mjs'
 import { CANONICAL_SCHEMA_HOST, REPO_ROOT, SERVED_DIR, collect } from './build-schema-site.mjs'
 
 /**
@@ -107,5 +107,37 @@ describe('the drift the comparison has to catch', () => {
       mutate: { name, body: body.replace(`${SERVED_DIR}/${name}`, `${SERVED_DIR}/somewhere-else`) },
     })
     expect(() => renderEmbeddedModule(root)).toThrow(/would be served at .* but its \$id says/)
+  })
+})
+
+/**
+ * `embeddedUrls` reads the module rather than the catalog, and the distinction
+ * is load-bearing rather than stylistic.
+ *
+ * `assemble-standalone.mjs` asks whether the documents it embedded reached a
+ * compiled chunk. That is a question about the module and the build. It first
+ * asked the *catalog* instead, which made `npm run package` require
+ * `solutions/` — and the container image builds from a context whose
+ * `.dockerignore` excludes it, on purpose, because that image runs against a
+ * catalog somebody mounts. The image stopped building the moment the audit
+ * landed, and every gate here stayed green, because nothing in this suite
+ * builds without a catalog.
+ */
+describe('the URLs the bundle audit checks for', () => {
+  it('come from the module, so the audit needs no catalog', () => {
+    const urls = embeddedUrls()
+    expect(urls).toHaveLength(Object.keys(EMBEDDED_META_SCHEMAS).length)
+    for (const url of urls) expect(url.startsWith(`${CANONICAL_SCHEMA_HOST}/`)).toBe(true)
+    // The same set the catalog would have given, reached without reading it.
+    expect([...urls].sort()).toEqual(collect(REPO_ROOT).map(({ url }) => url).sort())
+  })
+
+  it('refuses a module it could not read rather than reporting none missing', () => {
+    // The failure that matters: an empty list makes `missingFromBundle` return
+    // nothing missing, so a reader that silently stopped matching would print
+    // "all 0 meta-schemas are inside the compiled server" and pass.
+    expect(() => embeddedUrls('export const EMBEDDED_META_SCHEMAS = {}\n')).toThrow(
+      /carries no schemas/,
+    )
   })
 })

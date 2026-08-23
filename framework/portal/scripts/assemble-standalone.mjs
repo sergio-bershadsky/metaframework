@@ -16,7 +16,7 @@
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { collect } from './build-schema-site.mjs'
+import { embeddedUrls } from './build-embedded-schemas.mjs'
 
 const portal = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const standalone = path.join(portal, '.next', 'standalone')
@@ -220,7 +220,7 @@ async function main() {
    * build stays green, `npm test` stays green, and the 404 appears in somebody
    * else's install.
    */
-  const metaSchemaUrls = collect().map(({ url }) => url)
+  const metaSchemaUrls = embeddedUrls()
   const missing = missingFromBundle(serverText, metaSchemaUrls)
   if (missing.length > 0) {
     await fail(

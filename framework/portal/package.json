@@ -43,8 +43,8 @@
     "start": "next start",
     "test": "vitest run",
     "lint": "eslint",
-    "package": "node scripts/build-embedded-schemas.mjs --check && npm run build && node scripts/assemble-standalone.mjs",
-    "prepack": "npm run package",
+    "package": "npm run build && node scripts/assemble-standalone.mjs",
+    "prepack": "node scripts/build-embedded-schemas.mjs --check && npm run package",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },

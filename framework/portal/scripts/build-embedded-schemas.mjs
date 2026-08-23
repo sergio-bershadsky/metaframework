@@ -41,13 +41,23 @@
  * the reason written into that script: a policy that can be widened by a
  * command-line flag is not one.
  *
- * ## Run it by hand
+ * ## Run it by hand; `--check` runs in `prepack`
  *
- * Not from `prepack`. Generating at publish time would let the bytes that ship
- * differ from the bytes that were reviewed, with nobody seeing a diff. What
- * makes "by hand" safe is `build-embedded-schemas.test.mjs`, which re-renders
- * this module on every `npm test` and fails on any difference — the same
- * arrangement `src/lib/protocol/state-machine-document.schema.json` already has.
+ * Generating from `prepack` would let the bytes that ship differ from the bytes
+ * that were reviewed, with nobody seeing a diff, so generation stays manual.
+ * What makes "by hand" safe is `build-embedded-schemas.test.mjs`, which
+ * re-renders this module on every `npm test` and fails on any difference — the
+ * same arrangement `src/lib/protocol/state-machine-document.schema.json` has.
+ *
+ * `--check` is a different thing and does belong in the publish path: it reads
+ * and compares, writes nothing, and refuses to let a stale copy reach the
+ * registry. It sits on `prepack` rather than on `package` because the two mean
+ * different things. `package` builds the artifact, and the container image
+ * builds it too — from a context whose `.dockerignore` excludes `solutions/`,
+ * because that image runs against a catalog someone mounts. There is no catalog
+ * to compare against there and there does not need to be: the image is built
+ * from a tree where this module is already committed. `prepack` is the one that
+ * means *build this for publication*, and freshness is a publishing question.
  *
  * Usage:  node framework/portal/scripts/build-embedded-schemas.mjs [--check]
  */
@@ -118,6 +128,32 @@ const HEADER = `/**
  */
 export const EMBEDDED_META_SCHEMAS: Readonly<Record<string, string | undefined>> =
   Object.assign(Object.create(null), {`
+
+/**
+ * The URLs the generated module actually carries, read back out of the module.
+ *
+ * This is deliberately not `collect().map(({ url }) => url)`. The two answer
+ * different questions: the catalog says what *should* be embedded, and only this
+ * says what *is*. The bundle audit in `assemble-standalone.mjs` wants the
+ * second — it is asking whether the documents in the module reached a compiled
+ * chunk, which is a question about the module and the build, with no catalog in
+ * it. Asking the catalog instead made `npm run package` require `solutions/`,
+ * and the container image builds from a context whose `.dockerignore` excludes
+ * it, so the image stopped building the moment the audit was added.
+ *
+ * Freshness is the catalog's question and is answered elsewhere, twice: by
+ * `--check` on `prepack` and by this script's test on every `npm test`.
+ */
+export function embeddedUrls(moduleText = readFileSync(EMBEDDED_MODULE, 'utf8')) {
+  const keys = [...moduleText.matchAll(/^ {4}'([^']+)': `/gm)].map(([, key]) => key)
+  if (keys.length === 0) {
+    throw new Error(
+      `${path.relative(REPO_ROOT, EMBEDDED_MODULE)} carries no schemas — either it was emptied ` +
+        'or this reader no longer matches what the generator emits.',
+    )
+  }
+  return keys.map((key) => `${CANONICAL_SCHEMA_HOST}/${key}`)
+}
 
 /**
  * The whole module as text. Pure — it reads the catalog and returns a string,
