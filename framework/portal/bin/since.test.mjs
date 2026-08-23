@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { repositoryRoot, unbumpedSince } from './since.mjs'
+import { repositoryContext, unbumpedSince } from './since.mjs'
 
 /**
  * The gate answers one question — "did the net change to this entity come with
@@ -161,10 +161,14 @@ describe('unbumpedSince', () => {
 
   it('finds the repository root, and answers null outside one', async () => {
     const repo = await makeRepo()
-    expect(await repositoryRoot(repo.root)).toBe(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo.root, encoding: 'utf8' }).trim())
+    const { context } = await repositoryContext(repo.root)
+    expect(context.root).toBe(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo.root, encoding: 'utf8' }).trim())
+    expect(context.prefix).toBe('')
 
     const loose = await mkdtemp(path.join(tmpdir(), 'metaframework-norepo-'))
     scratch.push(loose)
-    expect(await repositoryRoot(loose)).toBeNull()
+    const outside = await repositoryContext(loose)
+    expect(outside.context).toBeNull()
+    expect(outside.failure).toBeTruthy()
   })
 })

@@ -22,10 +22,17 @@ export const CATALOG_DIR_NAME = 'solutions'
 const ENTITY_DOCUMENT = 'index.md'
 
 /**
- * @typedef {'missing' | 'empty' | 'catalog'} Shape
- *   `missing` — nothing at this path, or it is not a directory.
- *   `empty`   — a directory, but the loader would find no solution in it.
- *   `catalog` — holds at least one solution: a subdirectory with an index.md.
+ * @typedef {'missing' | 'unreadable' | 'empty' | 'catalog'} Shape
+ *   `missing`    — nothing at this path, or it is not a directory.
+ *   `unreadable` — a directory this process may not list.
+ *   `empty`      — a directory, but the loader would find no solution in it.
+ *   `catalog`    — holds at least one solution: a subdirectory with an index.md.
+ *
+ * `unreadable` is separate from `missing` because collapsing them made the CLI
+ * tell a reader that a directory sitting in their own file tree "is not a
+ * directory". Both stop the launcher and both are walked past during discovery,
+ * so nothing branches on the difference except the sentence — which is the whole
+ * point: `mkdir` and `chmod` are different fixes.
  */
 
 /**
@@ -52,9 +59,11 @@ export function catalogShape(dir) {
   try {
     children = readdirSync(dir, { withFileTypes: true })
   } catch {
-    // Exists but cannot be read (permissions, a dead mount). Not a catalog we
-    // can serve, and the caller's "no catalog here" message is the right one.
-    return 'missing'
+    // Exists, is a directory, and cannot be listed (permissions, a dead mount).
+    // Not a catalog we can serve — but saying so as `missing` made the launcher
+    // print "which is not a directory" about a directory, which is the same
+    // truth-shaped lie `readWorktreeFile` used to tell about a path on disk.
+    return 'unreadable'
   }
 
   for (const child of children) {

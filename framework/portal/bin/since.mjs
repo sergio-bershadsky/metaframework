@@ -48,9 +48,15 @@ const MAX_BUFFER = 32 * 1024 * 1024
  * @typedef {object} SinceResult
  * @property {boolean} ok
  * @property {string | null} failure why the check could not run, when it could not
+ * @property {string | null} skipped why there was nothing to compare against — a
+ *   repository with no commits. Distinct from `failure`: the gate did not run
+ *   and nothing is wrong, exactly as when the catalog is in no repository at all
  * @property {UnbumpedEntity[]} unbumped
  * @property {number} entitiesTouched
  */
+
+/** The failure string {@link git} returns when the binary is not on PATH. */
+export const GIT_MISSING = 'git is not installed'
 
 async function git(cwd, args) {
   try {
@@ -63,7 +69,7 @@ async function git(cwd, args) {
     return { stdout, failure: null }
   } catch (error) {
     const stderr = typeof error?.stderr === 'string' ? error.stderr.trim() : ''
-    if (error?.code === 'ENOENT') return { stdout: '', failure: 'git is not installed' }
+    if (error?.code === 'ENOENT') return { stdout: '', failure: GIT_MISSING }
     return { stdout: '', failure: stderr || String(error?.message ?? error) }
   }
 }
@@ -110,10 +116,20 @@ async function show(cwd, ref, file) {
  * @returns {Promise<SinceResult>}
  */
 export async function unbumpedSince({ repoRoot, ref, inCatalog }) {
-  const empty = { ok: true, failure: null, unbumped: [], entitiesTouched: 0 }
+  const empty = { ok: true, failure: null, skipped: null, unbumped: [], entitiesTouched: 0 }
 
   const resolved = await git(repoRoot, ['rev-parse', '--verify', `${ref}^{commit}`])
   if (resolved.failure) {
+    // A repository with no commits is the state of a catalog on the day it is
+    // created, and no ref resolves in one — not HEAD, not a tag, not a branch.
+    // That is "nothing to compare against", which is the same answer the CLI
+    // already gives for a catalog in no repository at all; it is not a broken
+    // invocation. A ref that fails to resolve in a repository that *does* have
+    // commits still fails hard, because that one is a typo and passing it
+    // silently is how a gate stops checking anything.
+    if (await hasNoCommits(repoRoot)) {
+      return { ...empty, skipped: 'the repository has no commits yet' }
+    }
     return { ...empty, ok: false, failure: `cannot resolve "${ref}" — ${resolved.failure}` }
   }
 
@@ -162,7 +178,7 @@ export async function unbumpedSince({ repoRoot, ref, inCatalog }) {
     unbumped.push({ dir, version: wasVersion, changed: files.sort() })
   }
 
-  return { ok: true, failure: null, unbumped, entitiesTouched: byEntity.size }
+  return { ok: true, failure: null, skipped: null, unbumped, entitiesTouched: byEntity.size }
 }
 
 /**
@@ -194,8 +210,61 @@ async function readWorktree(repoRoot, file) {
   }
 }
 
-/** The repository root containing a path, or null when it is not in one. */
-export async function repositoryRoot(from) {
-  const run = await git(from, ['rev-parse', '--show-toplevel'])
-  return run.failure ? null : run.stdout.trim() || null
+/** True when the repository has no commits on any ref — an unborn HEAD. */
+async function hasNoCommits(repoRoot) {
+  const run = await git(repoRoot, ['rev-list', '-n', '1', '--all'])
+  return !run.failure && run.stdout.trim() === ''
+}
+
+/**
+ * @typedef {object} RepositoryContext
+ * @property {string} root repository top level, as git reports it
+ * @property {string} prefix the catalog directory relative to that top level —
+ *   `''` or e.g. `solutions/`, always with a trailing slash when non-empty
+ */
+
+/**
+ * Where the repository is, and where inside it the catalog sits.
+ *
+ * **`--show-prefix`, never `path.relative`.** The two agree only while every
+ * component of the catalog path is real: git answers from its own working tree,
+ * which is the physical path, and a user hands over the logical one. Every macOS
+ * temp directory is a symlink, so are plenty of home directories and mounts, and
+ * for those `path.relative(root, catalogDir)` returns something beginning
+ * `../../..` — which matches no file in any diff, which makes the version gate
+ * report "no catalog entity changed" over an unbumped edit and exit 0. A gate
+ * that fails open is worse than no gate, because it is quoted.
+ *
+ * `lib/history/git.ts` learned this first and says so at its own `resolveContext`;
+ * this is the same fix on the half of the codebase that never got it.
+ *
+ * The failure is returned rather than collapsed into null, because "git is not
+ * installed" and "this is not a repository" are different sentences and the
+ * caller prints one of them.
+ *
+ * @param {string} from a directory inside the repository — the catalog root
+ * @returns {Promise<{context: RepositoryContext | null, failure: string | null}>}
+ */
+export async function repositoryContext(from) {
+  const run = await git(from, ['rev-parse', '--show-toplevel', '--show-prefix'])
+  if (run.failure) return { context: null, failure: run.failure }
+
+  // Line-split rather than trimmed, the same way lib/history/git.ts reads the
+  // same two values: a directory name may legally end in a space, and trimming
+  // would silently rewrite the prefix for it.
+  const [root = '', prefix = ''] = run.stdout.split('\n')
+  if (!root) return { context: null, failure: 'git reported no working tree' }
+  return { context: { root, prefix }, failure: null }
+}
+
+/**
+ * "Is this repository-relative path part of the catalog?", for a prefix
+ * {@link repositoryContext} produced. An empty prefix means the catalog *is* the
+ * repository root, where every path qualifies.
+ *
+ * @param {string} prefix
+ * @returns {(file: string) => boolean}
+ */
+export function inCatalogFilter(prefix) {
+  return prefix ? (file) => file.startsWith(prefix) : () => true
 }

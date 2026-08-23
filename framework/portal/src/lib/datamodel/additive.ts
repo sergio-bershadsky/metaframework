@@ -1,4 +1,4 @@
-import type { Catalog, Diagnostic } from '../catalog/types'
+import type { Catalog, Diagnostic, Entity } from '../catalog/types'
 import { type HistoryOptions, readFileAtRevision, resolveVersion } from '../history/git'
 import { schemaUrlToSrn } from '../schema/url'
 
@@ -449,6 +449,30 @@ export function additiveDiagnostics(
 const SCHEMA_FILE = 'schema.json'
 
 /**
+ * The datamodels this check has to reach into git for: version N on disk is
+ * compared against N−1 in a commit, so a v1 has no predecessor to fetch and
+ * costs git nothing.
+ *
+ * Exported because it is also the answer to a question the verdict surfaces
+ * ask — *what did an unreadable history actually cost this catalog?* A portal
+ * with no git binary, in a shallow clone, or in a repository with no commits
+ * skips exactly these entities and no others, so this is the number
+ * `/api/status` reports and `metaframework check` prints. One predicate rather
+ * than two, because a count that could disagree with the check it describes is
+ * worse than no count.
+ */
+export function historyDependentDatamodels(catalog: Catalog): { entity: Entity; currentVersion: number }[] {
+  const found: { entity: Entity; currentVersion: number }[] = []
+  for (const entity of catalog.entities.values()) {
+    if (entity.kind !== 'datamodel') continue
+    const version = entity.frontmatter.version
+    if (typeof version !== 'number' || !Number.isInteger(version) || version < 2) continue
+    found.push({ entity, currentVersion: version })
+  }
+  return found
+}
+
+/**
  * Every datamodel in the catalog, compared against its own previous version.
  *
  * The one check in the framework that cannot be answered from the working tree,
@@ -485,15 +509,8 @@ export async function datamodelEvolutionDiagnostics(
   catalog: Catalog,
   options: HistoryOptions = {},
 ): Promise<Diagnostic[]> {
-  const datamodels = [...catalog.entities.values()].filter(
-    (entity) => entity.kind === 'datamodel' && typeof entity.frontmatter.version === 'number',
-  )
-
   const perEntity = await Promise.all(
-    datamodels.map(async (entity) => {
-      const currentVersion = entity.frontmatter.version
-      if (!Number.isInteger(currentVersion) || currentVersion < 2) return []
-
+    historyDependentDatamodels(catalog).map(async ({ entity, currentVersion }) => {
       const current = entity.artifacts.find((artifact) => artifact.file === SCHEMA_FILE)
       // No schema on disk is `E_DM_SCHEMA_MISSING`, and an unparseable one is
       // `E_DM_SCHEMA_INVALID`. Neither is restated here.

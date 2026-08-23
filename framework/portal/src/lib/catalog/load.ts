@@ -29,6 +29,58 @@ export interface LoadOptions {
   catalogDir: string
 }
 
+/** Whether the catalog root could be read at all, and how it failed if not. */
+export interface CatalogRootStatus {
+  /** The directory that was asked for. */
+  dir: string
+  /** True when it is a directory this process can list. */
+  readable: boolean
+  /** One clause naming the failure, or null when there was none. */
+  reason: string | null
+}
+
+/**
+ * Could the catalog root be read?
+ *
+ * The loader is fail-soft by design — every `readdir` here answers a failure
+ * with an empty listing, so a wrong path, a failed mount or a relative
+ * `CATALOG_DIR` resolved against the wrong working directory produces a
+ * catalog with no solutions, no entities and no diagnostics. That posture is
+ * right: a misconfigured path must not crash a running portal, and the image
+ * says so out loud (docker/Dockerfile — "rather than a crash loop that hides
+ * the typo").
+ *
+ * What was wrong was the *report*. "No solutions in the catalog" and "Catalog
+ * is valid" are both claims about a directory that was read, and neither can
+ * honestly be said about one that was not. A green container serving an empty
+ * valid portal over a mount that never happened is the exact shape of failure
+ * this codebase calls failing open.
+ *
+ * So the shape stays fail-soft and the *question* becomes answerable
+ * separately: this is the one call that distinguishes "there is nothing here"
+ * from "I could not look". `bin/discover.mjs` answers a related question —
+ * "would the portal have anything to show?" — for the CLI, before any build
+ * exists; the two are deliberately not shared, because that file must run under
+ * plain `node` with nothing compiled.
+ */
+export async function catalogRoot(dir: string): Promise<CatalogRootStatus> {
+  try {
+    await readdir(dir)
+    return { dir, readable: true, reason: null }
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    const reason =
+      code === 'ENOENT'
+        ? 'does not exist'
+        : code === 'ENOTDIR'
+          ? 'is not a directory'
+          : code === 'EACCES' || code === 'EPERM'
+            ? 'is not readable by this process'
+            : `could not be read (${code ?? 'unknown error'})`
+    return { dir, readable: false, reason }
+  }
+}
+
 /**
  * Walk the catalog and build the entity graph.
  *

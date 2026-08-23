@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { parse as parseYaml } from 'yaml'
 import { catalogDir as defaultCatalogDir } from '../catalog'
+import { servingWorkingTree } from '../catalog/mode'
 import type { Diagnostic } from '../catalog/types'
 import { RESERVED_KINDS } from '../srn/srn'
 
@@ -69,15 +70,45 @@ const ENTITY_DOCUMENT = 'index.md'
 // --- public types ------------------------------------------------------------
 
 /**
- * Why history is not available. Shallowness is deliberately absent: a shallow
- * clone still has *some* history, so it is a flag on the result rather than a
- * failure to report.
+ * Why history is not available *for one read*. Shallowness is deliberately
+ * absent: a shallow clone still has *some* history, so for a page asking to
+ * render one revision it is a flag on the result rather than a failure to
+ * report. A caller asking whether a rule that walks the past could run wants
+ * {@link HistoryLimit} instead, which is that same question widened to the
+ * repository.
  */
 export type HistoryReason = 'no-git-binary' | 'not-a-repository' | 'not-committed' | 'git-error'
 
 export interface HistoryUnavailable {
   reason: HistoryReason
   message: string
+  /** What the reader can do about it, when anything can be done. */
+  hint?: string
+}
+
+/**
+ * Why the rules that read commits cannot be trusted to have run in full.
+ *
+ * Deliberately *not* {@link HistoryReason}. That type answers "why can this page
+ * not show the past", and for it a shallow clone is a flag on a result rather
+ * than a failure, because the commits it does hold are real. This one answers a
+ * different question — "could a rule that walks history reach everything it
+ * needed" — and there the two states that look most like success are the ones
+ * that matter: a shallow clone and a repository with no commits both answer
+ * every `rev-parse` this module makes, and then hand every walk an empty list
+ * that is indistinguishable from "nothing to report".
+ */
+export type HistoryLimit = 'no-git-binary' | 'not-a-repository' | 'git-error' | 'no-commits' | 'shallow-clone'
+
+/** What a caller asking "could the git-backed rules run?" gets back. */
+export interface HistoryStatus {
+  /** Is any commit reachable at all? */
+  available: boolean
+  /** …and does the repository hold the whole past? False for a shallow clone. */
+  complete: boolean
+  /** null exactly when `available && complete`. */
+  limit: HistoryLimit | null
+  message: string | null
   /** What the reader can do about it, when anything can be done. */
   hint?: string
 }
@@ -307,10 +338,37 @@ function classify(error: unknown): HistoryUnavailable {
   return unavailable('git-error', (stderr || err.message || 'git failed').trim().split('\n')[0])
 }
 
+/**
+ * The catalog directory itself is unusable — said with the path where the reader
+ * can act on it, and without it where they cannot.
+ *
+ * The path is the whole diagnostic for whoever mistyped `--dir` or pointed
+ * `CATALOG_DIR` at an index.md. It is also the one thing a deployment does not
+ * publish: /api/status withholds `catalogDir` there, and withholds a history
+ * *message* for exactly this reason — "a history message can quote the directory
+ * it failed on". This message travels further than that route does. It is
+ * rendered verbatim by the entity page's history panel, which is not
+ * mode-gated, and it is reachable in a deployment: the catalog is read once at
+ * boot, so a mount that goes away underneath a running container leaves entity
+ * pages rendering from memory while every git call lands here.
+ */
+function unreadableCatalogDir(fault: string, cwd: string): HistoryUnavailable {
+  return unavailable(
+    'not-a-repository',
+    servingWorkingTree() ? `catalog directory ${cwd} ${fault}` : `the catalog directory ${fault}`,
+  )
+}
+
 async function runGit(cwd: string, args: string[]): Promise<GitRun> {
-  if (!existsSync(cwd)) {
-    return { stdout: '', failure: unavailable('not-a-repository', `catalog directory ${cwd} does not exist`) }
-  }
+  // One stat rather than an `existsSync` and a spawn. The second case is why:
+  // a path that exists and is a *file* passes `existsSync`, and spawning with
+  // it as `cwd` then fails inside libuv rather than in git, which reached the
+  // reader as the bare string "spawn ENOTDIR". A `CATALOG_DIR` aimed at an
+  // index.md is a configuration mistake, and it is named here in the vocabulary
+  // the rest of this module speaks.
+  const stats = statSync(cwd, { throwIfNoEntry: false })
+  if (!stats) return { stdout: '', failure: unreadableCatalogDir('does not exist', cwd) }
+  if (!stats.isDirectory()) return { stdout: '', failure: unreadableCatalogDir('is not a directory', cwd) }
   try {
     const { stdout } = await runFile('git', [...GIT_BASE_ARGS, ...args], {
       cwd,
@@ -332,7 +390,6 @@ interface GitContext {
   root: string
   /** Catalog directory relative to the top level: '' or e.g. 'solutions/'. */
   prefix: string
-  shallow: boolean
 }
 
 interface ContextResult {
@@ -345,6 +402,13 @@ interface ContextResult {
  * forever. `--show-prefix` rather than path.relative: the catalog is commonly
  * reached through a symlink (every macOS temp dir is one), and only git can say
  * where its own working tree considers us to be.
+ *
+ * Layout, and nothing else. Shallowness used to ride along on this rev-parse
+ * for the price of one flag, and inherited a cache policy that was never argued
+ * for it: `git fetch --unshallow` is a thing a reader does *because this file
+ * told them to*, and a forever cache meant the portal went on printing the hint
+ * until somebody restarted it. It is {@link isShallow} now — same question, a
+ * cache that expires. See that function for why the split is worth a spawn.
  */
 const contextCache = new Map<string, Promise<ContextResult>>()
 
@@ -353,19 +417,14 @@ function resolveContext(root: string): Promise<ContextResult> {
   if (cached) return cached
 
   const pending = (async (): Promise<ContextResult> => {
-    const { stdout, failure } = await runGit(root, [
-      'rev-parse',
-      '--show-toplevel',
-      '--show-prefix',
-      '--is-shallow-repository',
-    ])
+    const { stdout, failure } = await runGit(root, ['rev-parse', '--show-toplevel', '--show-prefix'])
     if (failure) return { context: null, failure }
 
-    const [top = '', prefix = '', shallow = 'false'] = stdout.split('\n')
+    const [top = '', prefix = ''] = stdout.split('\n')
     if (!top) {
       return { context: null, failure: unavailable('not-a-repository', 'git reported no working tree') }
     }
-    return { context: { root: top, prefix, shallow: shallow.trim() === 'true' }, failure: null }
+    return { context: { root: top, prefix }, failure: null }
   })()
 
   contextCache.set(root, pending)
@@ -377,17 +436,150 @@ function gitPath(context: GitContext, relative: string): string {
   return `${context.prefix}${relative}`
 }
 
+/**
+ * Can this process read the catalog's past at all — and if not, why not.
+ *
+ * Every history call already degrades with a named reason, but each of them
+ * degrades *privately*: the entity page says "History unavailable" while
+ * /api/status and `metaframework check` report a verdict computed without the
+ * git-backed rules and say nothing about the ones that could not run. The same
+ * catalog then prints "1 error" on a laptop and "catalog is valid" in an image
+ * with no git binary, which is the failing-open shape this codebase refuses
+ * everywhere else.
+ *
+ * This is the one question those two surfaces need, asked once. Repository
+ * layout comes from the same {@link resolveContext} every other call uses, so it
+ * costs nothing beyond the `rev-parse` a page would have run anyway; the two
+ * probes on top of it — {@link hasNoCommits}, {@link isShallow} — are on the
+ * listing TTL, which is what lets an answer change while the server runs. Both
+ * of the states it names are states the reader is expected to leave: commit
+ * something, or unshallow the clone.
+ *
+ * ## Why a `rev-parse` that succeeds is not the answer
+ *
+ * It was, and that made this function report a readable history for the two
+ * repositories where the git-backed rules provably cannot run:
+ *
+ *  - **A shallow clone** — `actions/checkout`'s default, so the common case in
+ *    CI rather than an exotic one. `git rev-parse` answers, `git log` answers,
+ *    and the answer stops at the graft point: `resolveVersion` cannot find the
+ *    commit carrying v(N−1), `datamodelEvolutionDiagnostics` returns an empty
+ *    list, and a catalog that prints `E_DM_NOT_ADDITIVE` and exits 1 on a laptop
+ *    prints a clean verdict and exits 0 in CI.
+ *  - **A repository with no commits**, which is where a catalog is on the day it
+ *    is created. Every rev-parse below succeeds; nothing any of them points at
+ *    exists yet.
+ *
+ * Both are the failing-open shape this file's header refuses, and neither is
+ * expressible as a {@link HistoryUnavailable} — hence {@link HistoryStatus},
+ * which separates "no commit is reachable" from "not all of them are".
+ *
+ * @returns the state of the past as far as this process can see it.
+ */
+export async function historyAvailability(options: HistoryOptions = {}): Promise<HistoryStatus> {
+  const root = options.catalogDir ?? defaultCatalogDir()
+  const { context, failure } = await resolveContext(root)
+
+  if (failure) {
+    // `not-committed` is a statement about one path and cannot come from the
+    // repository-wide rev-parse above; mapping it defensively keeps this union
+    // honest rather than asserting the case away.
+    const limit: HistoryLimit = failure.reason === 'not-committed' ? 'git-error' : failure.reason
+    return { available: false, complete: false, limit, message: failure.message, ...(failure.hint ? { hint: failure.hint } : {}) }
+  }
+  if (!context) {
+    return { available: false, complete: false, limit: 'git-error', message: 'git reported no working tree' }
+  }
+
+  if (await hasNoCommits(root)) {
+    return {
+      available: false,
+      complete: false,
+      limit: 'no-commits',
+      message: 'the repository has no commits yet',
+    }
+  }
+
+  if (await isShallow(root)) {
+    return {
+      available: true,
+      complete: false,
+      limit: 'shallow-clone',
+      message: 'the repository is a shallow clone, so commits before its graft point are absent',
+      hint: SHALLOW_HINT,
+    }
+  }
+
+  return { available: true, complete: true, limit: null, message: null }
+}
+
+/**
+ * True when no commit exists on any ref — an unborn HEAD.
+ *
+ * Deliberately not on {@link resolveContext}'s cache, which is forever: that one
+ * is forever because repository *layout* cannot change under a running process,
+ * and a commit count plainly can. It goes on the listing TTL instead — infinite
+ * in a deployment, two seconds against a working tree — which is the same policy
+ * every other "this may move while the server runs" read here already uses, and
+ * it keeps the first commit of a catalog visible to the server that is watching
+ * for it. Measured at ~6ms on a 109-commit repository, which is worth caching on
+ * a route the container healthcheck polls.
+ */
+async function hasNoCommits(root: string): Promise<boolean> {
+  return listed(`no-commits\u0000${root}`, async () => {
+    const { stdout, failure } = await runGit(root, ['rev-list', '-n', '1', '--all'])
+    return !failure && stdout.trim() === ''
+  })
+}
+
+/**
+ * True when the repository stops at a graft point rather than at its own first
+ * commit.
+ *
+ * On the listing TTL for {@link hasNoCommits}'s reason, and one more: this is
+ * the single limit the reader is actively *told to go fix* — {@link
+ * SHALLOW_HINT} says `git fetch --unshallow`, on every surface this answer
+ * feeds. That takes seconds, and while it rode {@link resolveContext}'s forever
+ * cache the portal went on reporting `shallow-clone` afterwards until the
+ * process was restarted, which teaches a reader to stop believing the verdict.
+ * Layout cannot change under a running process; shallowness is a thing we ask
+ * people to change.
+ *
+ * The price is one `rev-parse` per root per TTL window, where it used to be a
+ * free extra flag on the layout call. A failure reads as "not shallow": this
+ * only ever *adds* a limitation to an answer, and a git that will not answer
+ * this has already failed the caller's own git call with a reason of its own.
+ */
+function isShallow(root: string): Promise<boolean> {
+  return listed(`shallow\u0000${root}`, async () => {
+    const { stdout, failure } = await runGit(root, ['rev-parse', '--is-shallow-repository'])
+    return !failure && stdout.trim() === 'true'
+  })
+}
+
 const SHALLOW_HINT = 'shallow clone — run `git fetch --unshallow` to restore full history'
 
 // --- caches ------------------------------------------------------------------
 
 /**
  * Blobs and commit-to-commit diffs are immutable, so they are cached for the
- * life of the process. The listing caches carry a TTL that is effectively
- * infinite in production and short in development, where a commit made while
- * the dev server runs should show up on the next reload.
+ * life of the process. The listing caches carry a TTL instead: infinite where
+ * the catalog is fixed input to a build, and short where somebody is editing it
+ * while the server runs and a commit made now should show up on the next reload.
+ *
+ * That question is {@link servingWorkingTree}, not `NODE_ENV`. The two agreed
+ * only while the portal was a website: the CLI serves a production build over a
+ * directory the user is committing to *right now*, so `NODE_ENV === 'production'`
+ * gave `metaframework serve` a cache no commit could ever expire — the exact
+ * conflation `lib/catalog/mode.ts` exists to abolish, quietly re-introduced
+ * here. Read per call, and never hoisted into a module-scope const: the bundler
+ * resolves a static `process.env.NODE_ENV` at build time and would freeze the
+ * answer into the standalone server.
  */
-const LISTING_TTL_MS = process.env.NODE_ENV === 'production' ? Number.POSITIVE_INFINITY : 2_000
+function listingTtlMs(): number {
+  return servingWorkingTree() ? 2_000 : Number.POSITIVE_INFINITY
+}
+
 const CACHE_LIMIT = 512
 
 const blobCache = new Map<string, Promise<FileRevision>>()
@@ -401,7 +593,7 @@ function cap(map: Map<string, unknown>): void {
 
 function listed<T>(key: string, produce: () => Promise<T>): Promise<T> {
   const hit = listingCache.get(key)
-  if (hit && Date.now() - hit.at < LISTING_TTL_MS) return hit.value as Promise<T>
+  if (hit && Date.now() - hit.at < listingTtlMs()) return hit.value as Promise<T>
   const value = produce()
   cap(listingCache)
   listingCache.set(key, { at: Date.now(), value })
@@ -443,6 +635,7 @@ export async function listCommits(relPath: string, options: HistoryOptions = {})
   return listed(`log\u0000${root}\u0000${safe}\u0000${limit}`, async () => {
     const { context, failure } = await resolveContext(root)
     if (!context) return { ...empty, unavailable: failure }
+    const shallow = await isShallow(root)
 
     // One extra commit tells us whether the cap actually truncated anything.
     const run = await runGit(context.root, [
@@ -452,7 +645,7 @@ export async function listCommits(relPath: string, options: HistoryOptions = {})
       '--',
       gitPath(context, safe),
     ])
-    if (run.failure) return { ...empty, shallow: context.shallow, unavailable: run.failure }
+    if (run.failure) return { ...empty, shallow, unavailable: run.failure }
 
     const commits = run.stdout
       .split(RECORD)
@@ -467,14 +660,14 @@ export async function listCommits(relPath: string, options: HistoryOptions = {})
     const truncated = commits.length > limit
     return {
       commits: truncated ? commits.slice(0, limit) : commits,
-      shallow: context.shallow,
+      shallow,
       truncated,
       unavailable:
         commits.length === 0
           ? unavailable(
               'not-committed',
               `no commit touches ${safe}`,
-              context.shallow ? SHALLOW_HINT : undefined,
+              shallow ? SHALLOW_HINT : undefined,
             )
           : null,
     }
@@ -519,7 +712,7 @@ export async function readFileAtRevision(
     const run = await runGit(context.root, ['show', `${commit}:${gitPath(context, safe)}`])
     if (run.failure) {
       const reason =
-        run.failure.reason === 'not-committed' && context.shallow
+        run.failure.reason === 'not-committed' && (await isShallow(root))
           ? { ...run.failure, hint: SHALLOW_HINT }
           : run.failure
       return { path: safe, commit, content: null, unavailable: reason }
@@ -551,14 +744,30 @@ async function readWorktreeFile(root: string, safe: string): Promise<FileRevisio
       }
     }
     return { path: safe, commit: null, content: await readFile(real, 'utf8'), unavailable: null }
-  } catch {
-    return {
-      path: safe,
-      commit: null,
-      content: null,
-      unavailable: unavailable('not-committed', `${safe} is not on disk`),
-    }
+  } catch (error) {
+    return { path: safe, commit: null, content: null, unavailable: worktreeFailure(safe, error) }
   }
+}
+
+/**
+ * Why a working-tree read failed, in words that are true of the path.
+ *
+ * Every failure used to be reported as `not-committed — "<path> is not on
+ * disk"`, and the commonest one is a path that is emphatically on disk: `?op=show`
+ * with no commit reads the entity *directory*, which fails EISDIR. A reader
+ * looking at that directory in their own file tree was told it was not there.
+ *
+ * The reasons are the module's existing vocabulary and no wider: `not-committed`
+ * keeps its meaning — the path is not in this tree — and everything else is the
+ * generic bucket, which `safeCatalogPath`'s rejection already uses for failures
+ * git was never asked about.
+ */
+function worktreeFailure(safe: string, error: unknown): HistoryUnavailable {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  if (code === 'ENOENT' || code === 'ENOTDIR') return unavailable('not-committed', `${safe} is not on disk`)
+  if (code === 'EISDIR') return unavailable('git-error', `${safe} is a directory, not a file`)
+  if (code === 'EACCES' || code === 'EPERM') return unavailable('git-error', `${safe} is not readable`)
+  return unavailable('git-error', `${safe} could not be read (${code ?? 'unknown error'})`)
 }
 
 /** Files of an entity directory as they existed at a commit, relative to it. */

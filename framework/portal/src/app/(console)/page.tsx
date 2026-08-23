@@ -1,10 +1,12 @@
-import { ArrowRight, FolderOpen } from 'lucide-react'
+import { ArrowRight, FolderOpen, FolderX } from 'lucide-react'
 import Link from 'next/link'
 import { AuthoringGuide } from '@/components/entity/authoring-guide'
 import { TypeLegend } from '@/components/entity/type-legend'
 import { StatusBadge, VersionBadge } from '@/components/kind-badge'
 import { SrnAddress } from '@/components/srn-address'
-import { type Entity, entitiesOfSolution, entityHref, getCatalog } from '@/lib/catalog'
+import { catalogDir, type Entity, entitiesOfSolution, entityHref, getCatalog } from '@/lib/catalog'
+import { type CatalogRootStatus, catalogRoot } from '@/lib/catalog/load'
+import { servingWorkingTree } from '@/lib/catalog/mode'
 import { KIND_ORDER } from '@/lib/catalog/tree'
 import { kindStyle } from '@/lib/ui/kind'
 
@@ -13,6 +15,10 @@ export default async function HomePage() {
   const solutions = catalog.solutions
     .map((srn) => catalog.entities.get(srn))
     .filter((entity): entity is Entity => Boolean(entity))
+
+  // Asked only when there is nothing to show, because that is the only state
+  // the two answers differ in: an authored catalog was plainly readable.
+  const root = solutions.length === 0 ? await catalogRoot(catalogDir()) : null
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-10">
@@ -27,7 +33,7 @@ export default async function HomePage() {
 
       <div className="rule-fade my-8" />
 
-      {solutions.length === 0 ? <EmptyState /> : (
+      {solutions.length === 0 ? <EmptyState root={root} /> : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {solutions.map((solution, index) => (
             <SolutionCard
@@ -115,7 +121,40 @@ function SolutionCard({
   )
 }
 
-function EmptyState() {
+/**
+ * Nothing to show — which is two different situations, and saying the wrong one
+ * costs an afternoon.
+ *
+ * "No solutions in the catalog" is a statement about a directory that was read.
+ * A directory that could not be read supports no such statement, and the
+ * likeliest causes — a volume that never mounted, a typo in CATALOG_DIR, a
+ * relative path resolved against a working directory the launcher had already
+ * changed — are all invisible from the sentence above. The path is shown only
+ * when this process is serving somebody's own working tree, on the same grounds
+ * /api/status withholds it from a deployment.
+ */
+function EmptyState({ root }: { root: CatalogRootStatus | null }) {
+  if (root && !root.readable) {
+    return (
+      <div className="panel flex flex-col items-center gap-3 px-6 py-16 text-center">
+        <FolderX className="size-7 text-destructive" aria-hidden />
+        <h2 className="text-base font-medium">The catalog directory could not be read</h2>
+        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+          {servingWorkingTree() ? (
+            <>
+              <code className="font-mono text-foreground/80">{root.dir}</code> {root.reason}.
+            </>
+          ) : (
+            <>The directory this portal was pointed at {root.reason}.</>
+          )}{' '}
+          Nothing was loaded, so nothing below has been validated — point the portal at a catalog with the{' '}
+          <code className="font-mono text-foreground/80">CATALOG_DIR</code> environment variable, or check
+          that the directory is mounted where it is expected.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="panel flex flex-col items-center gap-3 px-6 py-16 text-center">
       <FolderOpen className="size-7 text-muted-foreground" aria-hidden />

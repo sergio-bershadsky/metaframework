@@ -1,8 +1,10 @@
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FolderX, XCircle } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getCatalog } from '@/lib/catalog'
+import { catalogDir, getCatalog } from '@/lib/catalog'
 import { entityHref } from '@/lib/catalog/href'
+import { catalogRoot } from '@/lib/catalog/load'
+import { servingWorkingTree } from '@/lib/catalog/mode'
 
 export const metadata: Metadata = { title: 'Diagnostics' }
 
@@ -18,6 +20,11 @@ export default async function DiagnosticsPage() {
   const catalog = await getCatalog()
   const errors = catalog.diagnostics.filter((d) => d.severity === 'error')
   const warnings = catalog.diagnostics.filter((d) => d.severity === 'warning')
+  // An empty diagnostics list means one of two things, and only one of them is
+  // "valid": the other is a directory this process could not read, which
+  // validates to nothing at all. Asked only in the empty case — see the same
+  // question, for the same reason, on the home page.
+  const root = catalog.diagnostics.length === 0 ? await catalogRoot(catalogDir()) : null
 
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
@@ -33,7 +40,23 @@ export default async function DiagnosticsPage() {
 
       <div className="rule-fade my-8" />
 
-      {catalog.diagnostics.length === 0 ? (
+      {root && !root.readable ? (
+        <div className="panel flex flex-col items-center gap-3 px-6 py-16 text-center">
+          <FolderX className="size-7 text-destructive" aria-hidden />
+          <h2 className="text-base font-medium">Nothing was validated</h2>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            {servingWorkingTree() ? (
+              <>
+                <code className="font-mono text-foreground/80">{catalogDir()}</code> {root.reason}.
+              </>
+            ) : (
+              <>The directory this portal was pointed at {root.reason}.</>
+            )}{' '}
+            An empty report over a directory nobody could read is not a clean catalog — check the path or
+            the mount before trusting this page.
+          </p>
+        </div>
+      ) : catalog.diagnostics.length === 0 ? (
         <div className="panel flex flex-col items-center gap-3 px-6 py-16 text-center">
           <CheckCircle2 className="size-7 text-kind-environment" aria-hidden />
           <h2 className="text-base font-medium">Catalog is valid</h2>

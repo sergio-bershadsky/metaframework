@@ -6,7 +6,7 @@ import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEFAULT_PORT, helpText, parseCli } from './args.mjs'
 import { CATALOG_DIR_NAME, catalogShape, resolveCatalogDir } from './discover.mjs'
-import { repositoryRoot, unbumpedSince } from './since.mjs'
+import { GIT_MISSING, inCatalogFilter, repositoryContext, unbumpedSince } from './since.mjs'
 
 /**
  * `metaframework` — the shell around the portal.
@@ -137,8 +137,19 @@ function catalogOrExit(invocation) {
     )
   }
 
+  const named = resolution.source === 'flag' ? '--dir' : 'CATALOG_DIR'
+
   if (resolution.shape === 'missing') {
-    fail(`${resolution.source === 'flag' ? '--dir' : 'CATALOG_DIR'} names ${resolution.dir}, which is not a directory.`)
+    fail(`${named} names ${resolution.dir}, which is not a directory.`)
+  }
+
+  // A directory that is there and cannot be listed. Reported apart from
+  // `missing` because the two have different fixes and the reader can see which
+  // one they are in: `mkdir` for a path that is not there, `chmod` for one that
+  // is. Telling somebody a directory they are looking at "is not a directory"
+  // sends them to check the wrong thing.
+  if (resolution.shape === 'unreadable') {
+    fail(`${named} names ${resolution.dir}, which is a directory this process may not read.`)
   }
 
   if (resolution.shape === 'empty') {
@@ -430,6 +441,38 @@ async function check({ catalogDir, port, since }) {
 
   process.stdout.write(`${out.join('\n')}\n`)
 
+  // What could not be checked, said out loud. Every rule but one is decidable
+  // from the files on disk; the additive-schema rule reads commits, and where
+  // the past cannot be reached it contributes nothing — so the same catalog
+  // prints "1 error" on a laptop and "catalog is valid" in an environment
+  // without the history it needs. The published image is one such environment;
+  // a shallow CI clone is the other, and the more dangerous of the two, because
+  // git answers there and the gap looks exactly like a clean bill of health.
+  //
+  // The verdict above stays what it is — that rule found nothing *because it
+  // did not run*, which is not a finding either way. This names the gap so
+  // nobody quotes a verdict that was never taken, and it names it in entities
+  // rather than in the abstract: `uncheckedDatamodels` is how many this catalog
+  // actually lost, so a day-one catalog with nothing to compare prints nothing
+  // and the line keeps its meaning for the day it appears.
+  const history = status.history
+  if (history && (history.available === false || history.complete === false) && history.uncheckedDatamodels > 0) {
+    const headline = history.available === false ? 'not readable' : 'incomplete'
+    const lines = [
+      '',
+      `${dim('history')}  ${headline} — ${history.message ?? history.reason}.`,
+      `         ${dim(
+        `The additive-schema rule compares each schema against its predecessor in git; ${count(
+          history.uncheckedDatamodels,
+          'datamodel',
+        )} went unchecked.`,
+      )}`,
+    ]
+    if (history.hint) lines.push(`         ${dim(history.hint)}`)
+    lines.push('')
+    process.stdout.write(lines.join('\n'))
+  }
+
   // The version gate, when asked for. Reported after the loader's verdict and
   // before the exit, because it answers a different question — the loader says
   // whether the catalog is legal NOW, this says whether the change getting it
@@ -452,23 +495,36 @@ async function check({ catalogDir, port, since }) {
  * clearly-labelled verdict.
  */
 async function versionGate({ catalogDir, since }) {
-  const repoRoot = await repositoryRoot(catalogDir)
-  if (!repoRoot) {
-    // Not fatal: a catalog outside a repository cannot break a rule about
-    // commits, and failing CI for that would be a false accusation.
-    warn(`--since ${since} needs a git repository; ${catalogDir} is not in one, so the version gate did not run.`)
+  // The prefix comes from git rather than from the two paths, because they
+  // disagree the moment the catalog is reached through a symlink — see
+  // `repositoryContext`. Computing it here with `path.relative` is what made
+  // this gate pass silently over an unbumped edit for every user whose checkout
+  // sits under one.
+  const { context, failure } = await repositoryContext(catalogDir)
+  if (!context) {
+    // Not fatal: a catalog whose history git will not read cannot break a rule
+    // about commits, and failing CI for that would be a false accusation. Which
+    // reason it is matters to whoever has to fix it.
+    warn(gateUnreachable({ since, catalogDir, failure }))
     return { failed: false }
   }
 
-  const prefix = path.relative(repoRoot, catalogDir).split(path.sep).filter(Boolean).join('/')
   const result = await unbumpedSince({
-    repoRoot,
+    repoRoot: context.root,
     ref: since,
-    inCatalog: (file) => (prefix ? file.startsWith(`${prefix}/`) : true),
+    inCatalog: inCatalogFilter(context.prefix),
   })
 
   if (!result.ok) {
     fail(`--since ${since}: ${result.failure}`)
+  }
+
+  if (result.skipped) {
+    // The neighbouring "nothing to compare against" state. A repository with no
+    // commits used to be a fatal raw git message while a directory with no
+    // repository at all warned and passed; they are the same situation.
+    warn(`--since ${since}: ${result.skipped}, so the version gate did not run.`)
+    return { failed: false }
   }
 
   if (result.unbumped.length === 0) {
@@ -495,6 +551,39 @@ async function versionGate({ catalogDir, since }) {
   )
   process.stdout.write(`${lines.join('\n')}\n`)
   return { failed: true }
+}
+
+/**
+ * Why `--since` never reached a repository, in the sentence that names the fix.
+ *
+ * The classification is `lib/history/git.ts`'s `classify`, in its words: the two
+ * halves of this codebase must not call the same git failure by two different
+ * names. `repositoryContext` returns the failure instead of collapsing it to
+ * null for exactly this, and until now the caller used half of it.
+ *
+ * The arm worth having is dubious ownership — a checkout bind-mounted into a
+ * container owned by another uid, where `rev-parse` exits 128 and so will every
+ * other git command. Reported as "is not in a git repository" it accuses the
+ * user of something untrue about a directory that plainly holds a `.git`, and
+ * `git config --global --add safe.directory` is not a remedy anybody guesses
+ * from that sentence. The last arm quotes git rather than paraphrasing it,
+ * because a git that fails some other way knows more about it than we do.
+ *
+ * Every arm still warns and passes. Git has refused to read the repository, so
+ * no wording makes the gate runnable, and a gate that could not run must not
+ * fail CI.
+ */
+function gateUnreachable({ since, catalogDir, failure }) {
+  const stopped = (reason, remedy) =>
+    `--since ${since} ${reason}, so the version gate did not run.${remedy ? ` ${remedy}` : ''}`
+
+  const stderr = failure ?? ''
+  if (failure === GIT_MISSING) return stopped('needs git, which is not installed')
+  if (/detected dubious ownership/i.test(stderr)) {
+    return stopped(`needs a git repository; git refused ${catalogDir} as unowned`, 'Add it to safe.directory.')
+  }
+  if (/not a git repository/i.test(stderr)) return stopped(`needs a git repository; ${catalogDir} is not in one`)
+  return stopped(`needs a git repository; git failed in ${catalogDir} — ${stderr.split('\n')[0] || 'no reason given'}`)
 }
 
 /* ------------------------------------------------------------------ process */
