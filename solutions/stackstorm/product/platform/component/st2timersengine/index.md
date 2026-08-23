@@ -1,7 +1,7 @@
 ---
 name: st2timersengine
 kind: component
-version: 1
+version: 2
 title: st2timersengine
 summary: Fires the platform's clock triggers — and is the one component here whose replica count is a correctness constraint the contract cannot hold.
 status: review
@@ -14,6 +14,7 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+    - /product/platform/protocol/registration-events
   exposes:
     - /product/platform/protocol/trigger-dispatch
   depends-on:

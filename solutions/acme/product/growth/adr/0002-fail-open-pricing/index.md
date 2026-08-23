@@ -1,7 +1,7 @@
 ---
 name: 0002-fail-open-pricing
 kind: adr
-version: 2
+version: 3
 title: Promotion evaluation is advisory and fails open
 summary: An unavailable growth never blocks an order — checkout prices undiscounted and the customer sees no offer.
 status: approved
@@ -83,24 +83,29 @@ Concretely:
   being applied, which is why
   [promotion-evaluation-budget](srn://acme/product/growth/requirement/promotion-evaluation-budget)
   carries AC-5: a ceiling on the fallback rate, breached means incident.
-- Checkout owns the `uses` edge toward this protocol and has not yet authored
-  it. Until it does, growth's inbound reuse list is empty and this catalog
-  understates the coupling — the edge belongs to the reusing side and this
-  product will not author it from the wrong end.
+- Checkout owns the `uses` edge toward this protocol. Version 2 of this ADR
+  recorded that it had not yet authored it: until it did, growth's inbound reuse
+  list was empty and this catalog understated the coupling, because the edge
+  belongs to the reusing side and this product would not author it from the
+  wrong end. **Checkout has since authored it.** The inbound list is populated
+  by an inverse, the coupling is stated where it is true, and the graduation
+  checklist below describes open work rather than a future condition.
 
 ## Graduation checklist
 
 This decision holds while growth is `incubating` and shop is a client that can
-be switched off. When checkout authors its `uses` edge the two products co-own
-the surface, and three things become due at once:
+be switched off. Version 2 of this ADR stated the three items below as a future
+condition, to fire when checkout authored its `uses` edge. Checkout has authored
+it, so the two products co-own the surface and all three are due at once. None
+of them has been performed:
 
 1. [promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation)
    is swapped for a successor at `srn://acme/protocol/promotion-evaluation`. Its
    component participants span two products, so the nearest-common-ancestor rule
-   already places it at the solution root; it sits in growth's bucket only
-   because growth still owns the contract unilaterally, and `/diagnostics`
-   reports that as `W_STRUCT_PROTOCOL_NCA` in the meantime. Version 1 of this
-   ADR said the entity "moves", which is not an operation this framework has:
+   already places it at the solution root; it sits in growth's bucket because
+   nobody has performed the swap, and `/diagnostics` reports that as
+   `W_STRUCT_PROTOCOL_NCA` until somebody does. Version 1 of this ADR said the
+   entity "moves", which is not an operation this framework has:
    the SRN is the path, so the successor is authored at the root with a
    `supersedes` edge and this one is deprecated in place and kept.
 2. The fallback ceiling in AC-5 becomes a shared alert rather than a growth one.

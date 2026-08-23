@@ -1,7 +1,7 @@
 ---
 name: growth
 kind: product
-version: 1
+version: 2
 title: Growth
 summary: Campaigns, promotions, and coupons — everything acme runs that changes what a customer is asked to pay.
 status: review
@@ -86,10 +86,12 @@ described without it.
 Shop's call *into* growth is the other direction, and it is deliberately not
 declared here. Edges belong to the reusing side, so the `uses` edge toward
 [promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation)
-is [checkout](srn://acme/product/shop/component/checkout)'s to author, and the
-portal will show it as an inverse on this page once it does. Until then this
-product's inbound list is honestly empty, which is a truer statement than a
-convenient edge authored from the wrong end.
+is [checkout](srn://acme/product/shop/component/checkout)'s to author — which it
+now does, so this product's inbound list is populated by an inverse rather than
+by a convenient edge authored from the wrong end. That edge also has a cost this
+page does not pay: the two products now co-own the surface, which is the
+condition [promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation)
+names as making its relocation due.
 
 The second boundary edge is [identity](srn://acme/product/identity). Growth
 stores an opaque account identifier on a

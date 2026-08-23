@@ -1,7 +1,7 @@
 ---
 name: checkout
 kind: component
-version: 9
+version: 10
 title: Checkout
 summary: Converts a cart into a paid order — pricing, tax, stock reservation, and payment orchestration.
 status: approved
@@ -14,6 +14,7 @@ relations:
     - /environment/staging
     - /datamodel/money@1
     - /product/shop/component/checkout/protocol/tax-quoting
+    - /product/growth/protocol/promotion-evaluation
   exposes:
     - /product/shop/protocol/order-placement
     - /product/shop/component/checkout/datamodel/cart@2
@@ -45,9 +46,12 @@ The `uses` list mixes three target kinds on purpose, and the portal partitions
 them by resolved kind rather than by a field:
 [production](srn://acme/environment/production) and
 [staging](srn://acme/environment/staging) are environments, so they read as
-"this component runs here"; [money](srn://acme/datamodel/money@1) and
-[tax-quoting](srn://acme/product/shop/component/checkout/protocol/tax-quoting) are contracts it
-consumes.
+"this component runs here"; [money](srn://acme/datamodel/money@1),
+[tax-quoting](srn://acme/product/shop/component/checkout/protocol/tax-quoting) and
+[promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation) are contracts it
+consumes. The last of those is the only one that leaves this product: checkout is
+the sole initiator of growth's pricing conversation, and the edge is authored here
+because edges belong to the reusing side.
 
 `depends-on` says something coarser and structural: checkout requires
 [inventory](srn://acme/product/shop/component/inventory) and

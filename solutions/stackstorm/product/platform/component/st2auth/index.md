@@ -1,7 +1,7 @@
 ---
 name: st2auth
 kind: component
-version: 1
+version: 2
 title: st2auth
 summary: The authentication endpoint — trades a credential for a time-limited token, with the backend that checks the credential left pluggable.
 status: review
@@ -14,6 +14,8 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+  exposes:
+    - /protocol/auth-api
   depends-on:
     - ../st2common
     - ../mongodb

@@ -1,7 +1,7 @@
 ---
 name: st2sensorcontainer
 kind: component
-version: 1
+version: 2
 title: st2sensorcontainer
 summary: Supervises the sensors installed packs bring — third-party processes it starts, restarts and feeds — and is the job whose real character the type set cannot say.
 status: review
@@ -14,6 +14,7 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+    - /product/platform/protocol/registration-events
   exposes:
     - /product/platform/protocol/trigger-dispatch
   depends-on:

@@ -1,7 +1,7 @@
 ---
 name: web-client
 kind: component
-version: 3
+version: 4
 title: Web client
 summary: The React SPA served by nginx — routing, lobby, board, HUD and interaction; the human's whole interface.
 status: review
@@ -12,7 +12,6 @@ relations:
   uses:
     - /environment/production
     - /environment/local
-    - /protocol/lobby-api
     - /protocol/game-transport
   depends-on:
     - /product/play/component/rules
@@ -72,6 +71,17 @@ surface across a wire format that would then need its own versioning.
 
 Nesting here is composition. All six are *part of* this client and none is reusable
 elsewhere except by reference.
+
+A protocol edge belongs to the sub-component that actually speaks it, not to this
+page. [action-flow](srn://brass/product/play/component/web-client/component/action-flow)
+owns the [legal-move-api](srn://brass/protocol/legal-move-api) edge and
+[lobby-ui](srn://brass/product/play/component/web-client/component/lobby-ui) owns the
+[lobby-api](srn://brass/protocol/lobby-api) one, because the calls are in their files
+— `Home.tsx`, `PlayPage.tsx`, `Lobby.tsx` for the lobby — and in no file of this
+component. What this page does carry is
+[game-transport](srn://brass/protocol/game-transport), where the socket is
+`BrassClient`'s and the whole client is the seat: that protocol names this component
+as a participant, and the other two name the sub-components.
 
 ## What it promises the player
 

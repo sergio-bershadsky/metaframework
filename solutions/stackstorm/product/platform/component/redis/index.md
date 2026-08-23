@@ -1,7 +1,7 @@
 ---
 name: redis
 kind: component
-version: 1
+version: 2
 title: Redis
 summary: The coordination backend — distributed locks and a service registry for the processes whose correctness depends on there being one of something.
 status: review
@@ -14,6 +14,8 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+  exposes:
+    - /product/platform/protocol/coordination
 tags:
   - coordination
   - locking
@@ -63,6 +65,14 @@ coordination backend when, and only when, more than one of me runs". The
 and [st2notifier](srn://stackstorm/product/platform/component/st2notifier) state
 the dependency unconditionally, which over-claims on a single host and is the
 only expressible reading.
+
+The `exposes` edge toward
+[coordination](srn://stackstorm/product/platform/protocol/coordination) on this
+page, and the five `uses` edges answering it, inherit that same shape. They
+state the contract — who calls, who answers — and the contract is real. What
+they cannot state is that the shipped single-box default answers it with a
+driver that grants every lock, so a deployment can satisfy every edge on this
+page and still provide none of the guarantee.
 
 ## Criticality 3
 

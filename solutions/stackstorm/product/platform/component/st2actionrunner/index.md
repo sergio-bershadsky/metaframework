@@ -1,7 +1,7 @@
 ---
 name: st2actionrunner
 kind: component
-version: 1
+version: 2
 title: st2actionrunner
 summary: Runs the actions — locally, or on another machine over SSH or WinRM — and is where every automation this platform performs actually happens.
 status: review
@@ -15,8 +15,14 @@ relations:
     - /environment/ha-cluster
     - /environment/dev-compose
     - /product/platform/protocol/execution-lifecycle
+    - protocol/remote-execution
+    - protocol/windows-execution
+    - /product/platform/protocol/coordination
   exposes:
     - /product/platform/protocol/trigger-dispatch
+    - /product/platform/protocol/announcements
+    - /product/platform/protocol/execution-updates
+    - /product/platform/protocol/workflow-dispatch
   depends-on:
     - ../st2common
     - ../mongodb

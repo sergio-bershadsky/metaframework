@@ -1,7 +1,7 @@
 ---
 name: st2api
 kind: component
-version: 1
+version: 2
 title: st2api
 summary: The REST API â€” every read and write an operator, a client or a webhook sender performs, and the process that turns a request into a message on the bus.
 status: review
@@ -14,9 +14,14 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+    - /product/platform/protocol/coordination
   exposes:
     - /product/platform/protocol/trigger-dispatch
     - /product/platform/protocol/execution-lifecycle
+    - /product/platform/protocol/execution-updates
+    - /product/platform/protocol/registration-events
+    - /product/platform/protocol/webhook-ingress
+    - /protocol/rest-api
   depends-on:
     - ../st2common
     - ../mongodb
@@ -47,7 +52,11 @@ That is why the component is `criticality: 1` while owning almost no behaviour â
 if it stops, every surface stops, and nothing that was already running is
 affected at all.
 
-## The two protocols it exposes and why they are separate entities
+## Why `rest-api` and `webhook-ingress` are separate entities
+
+Of the six protocols in `exposes` above, those two share a listener, a port and
+a proxy location, which is what makes a reader ask whether they should be one
+entity.
 
 `rest-api` is the operator-facing surface: a large, versioned, documented HTTP
 API with an OpenAPI-role document beside it, spoken by clients that read every

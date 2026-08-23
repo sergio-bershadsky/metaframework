@@ -1,7 +1,7 @@
 ---
 name: st2stream
 kind: component
-version: 1
+version: 2
 title: st2stream
 summary: The server-sent-events endpoint — an open HTTP response that keeps emitting bus traffic as it happens, and the surface the ontology has no shape for.
 status: review
@@ -15,6 +15,11 @@ relations:
     - /environment/ha-cluster
     - /environment/dev-compose
     - /product/platform/protocol/execution-lifecycle
+    - /product/platform/protocol/announcements
+    - /product/platform/protocol/execution-updates
+    - /product/platform/protocol/registration-events
+  exposes:
+    - /protocol/event-stream
   depends-on:
     - ../st2common
     - ../mongodb

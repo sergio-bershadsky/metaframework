@@ -1,7 +1,7 @@
 ---
 name: st2scheduler
 kind: component
-version: 1
+version: 2
 title: st2scheduler
 summary: Takes requested executions, applies the policies that may delay or refuse them, and marks the survivors ready for a runner to pick up.
 status: review
@@ -15,6 +15,7 @@ relations:
     - /environment/ha-cluster
     - /environment/dev-compose
     - /product/platform/protocol/execution-lifecycle
+    - /product/platform/protocol/coordination
   depends-on:
     - ../st2common
     - ../mongodb

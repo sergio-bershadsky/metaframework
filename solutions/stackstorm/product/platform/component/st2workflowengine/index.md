@@ -1,7 +1,7 @@
 ---
 name: st2workflowengine
 kind: component
-version: 1
+version: 2
 title: st2workflowengine
 summary: Drives multi-step workflows — advances the graph when a task finishes, and requests the next tasks as ordinary executions.
 status: review
@@ -14,6 +14,9 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+    - /product/platform/protocol/coordination
+    - /product/platform/protocol/execution-updates
+    - /product/platform/protocol/workflow-dispatch
   exposes:
     - /product/platform/protocol/execution-lifecycle
   depends-on:

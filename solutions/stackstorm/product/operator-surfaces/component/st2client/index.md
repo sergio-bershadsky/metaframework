@@ -1,7 +1,7 @@
 ---
 name: st2client
 kind: component
-version: 1
+version: 2
 title: st2client
 summary: One published distribution that is two things — the command-line tool an operator runs, and the Python bindings other people's code imports.
 status: review
@@ -13,6 +13,9 @@ relations:
   uses:
     - /environment/single-box
     - /environment/dev-compose
+    - /protocol/auth-api
+    - /protocol/event-stream
+    - /protocol/rest-api
   depends-on:
     - /product/platform/component/st2api
     - /product/platform/component/st2auth

@@ -1,7 +1,7 @@
 ---
 name: rabbitmq
 kind: component
-version: 1
+version: 2
 title: RabbitMQ
 summary: The bus every process here talks over — topic exchanges, durable worker queues, broker-named stream queues — and the component that settles why the store types are not interchangeable.
 status: review
@@ -17,6 +17,10 @@ relations:
   exposes:
     - /product/platform/protocol/trigger-dispatch
     - /product/platform/protocol/execution-lifecycle
+    - /product/platform/protocol/announcements
+    - /product/platform/protocol/execution-updates
+    - /product/platform/protocol/registration-events
+    - /product/platform/protocol/workflow-dispatch
 tags:
   - messaging
   - amqp

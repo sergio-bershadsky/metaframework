@@ -1,7 +1,7 @@
 ---
 name: nginx
 kind: component
-version: 1
+version: 2
 title: nginx
 summary: The edge of the reference deployment — terminates TLS, serves the web UI's static assets, and reverse-proxies the three HTTP services behind one origin.
 status: review
@@ -12,6 +12,11 @@ criticality: 2
 relations:
   uses:
     - /environment/single-box
+  exposes:
+    - /product/platform/protocol/webhook-ingress
+    - /protocol/auth-api
+    - /protocol/event-stream
+    - /protocol/rest-api
   depends-on:
     - ../st2api
     - ../st2auth

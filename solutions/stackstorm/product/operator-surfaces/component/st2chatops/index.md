@@ -1,7 +1,7 @@
 ---
 name: st2chatops
 kind: component
-version: 1
+version: 2
 title: st2chatops
 summary: The ChatOps bridge — a packaged third-party chat robot runtime that turns an aliased phrase in a room into an execution, holding its own credential.
 status: review
@@ -13,6 +13,8 @@ relations:
   uses:
     - /environment/single-box
     - /environment/dev-compose
+    - /protocol/event-stream
+    - /protocol/rest-api
   depends-on:
     - /product/platform/component/st2api
 tags:

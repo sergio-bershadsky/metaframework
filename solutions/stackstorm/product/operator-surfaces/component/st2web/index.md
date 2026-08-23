@@ -1,7 +1,7 @@
 ---
 name: st2web
 kind: component
-version: 1
+version: 2
 title: st2web
 summary: The browser interface — history, rules, packs and a live execution view, built as a single-page application in its own repository.
 status: review
@@ -14,6 +14,9 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+    - /protocol/auth-api
+    - /protocol/event-stream
+    - /protocol/rest-api
   depends-on:
     - /product/platform/component/st2api
     - /product/platform/component/st2auth
@@ -38,9 +41,17 @@ never as a server of its own.
 It authenticates against one service, reads and writes everything through
 another, and subscribes to a third for live updates. The third edge is the one
 worth naming: without it the interface would be a page a human reloads, and with
-it an execution's output appears as it is produced. That is the only consumer in
-this catalog of the server-sent-events surface, and it is the reason that
-surface exists.
+it an execution's output appears as it is produced.
+
+It is not the only consumer of the server-sent-events surface, and never was.
+Version 1 of this page said it was, and
+[event-stream](srn://stackstorm/protocol/event-stream) contradicted that on the
+day both were written: the protocol names three clients — this component,
+[st2client](srn://stackstorm/product/operator-surfaces/component/st2client),
+which tails an execution's output over the same stream, and
+[st2chatops](srn://stackstorm/product/operator-surfaces/component/st2chatops),
+which holds a connection open for one fixed event name. The `uses` edge above is
+this component's half of that participant list.
 
 ## Why it is `ui` and owns nothing
 

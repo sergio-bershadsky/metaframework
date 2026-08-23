@@ -1,7 +1,7 @@
 ---
 name: audience
 kind: component
-version: 2
+version: 3
 title: Audience
 summary: Materialized segment membership — rebuilt nightly, read on the checkout path, never enumerable by a human.
 status: draft
@@ -12,6 +12,8 @@ relations:
   uses:
     - /environment/staging
     - /product/growth/protocol/redemption-events
+  exposes:
+    - /product/growth/protocol/promotion-evaluation
   implements:
     - /requirement/gdpr-erasure
 tags:

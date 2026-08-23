@@ -1,9 +1,9 @@
 ---
 name: coordination
 kind: protocol
-version: 1
+version: 2
 title: Coordination
-summary: Distributed locks and group membership over a pluggable backend — a real protocol between four processes and a store, and one the transport enum has no value for at all.
+summary: Distributed locks and group membership over a pluggable backend — a real protocol between five processes and a store, and one the transport enum has no value for at all.
 status: review
 owner: sergio-bershadsky
 style: request-response

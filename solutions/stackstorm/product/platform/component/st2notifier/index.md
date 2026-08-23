@@ -1,7 +1,7 @@
 ---
 name: st2notifier
 kind: component
-version: 1
+version: 2
 title: st2notifier
 summary: Emits the notification triggers a finished execution asked for — and doubles as a backup scheduler for executions that got stuck.
 status: review
@@ -14,6 +14,8 @@ relations:
     - /environment/single-box
     - /environment/ha-cluster
     - /environment/dev-compose
+    - /product/platform/protocol/coordination
+    - /product/platform/protocol/execution-updates
   exposes:
     - /product/platform/protocol/trigger-dispatch
   depends-on:

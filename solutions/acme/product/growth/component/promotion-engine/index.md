@@ -1,7 +1,7 @@
 ---
 name: promotion-engine
 kind: component
-version: 6
+version: 7
 title: Promotion engine
 summary: Stateless evaluator on the checkout hot path — decides what a cart is worth and answers within a budget.
 status: review
@@ -16,6 +16,7 @@ relations:
     - /product/growth/datamodel/campaign@2
     - /product/growth/datamodel/promo@1
     - /product/shop/component/checkout/datamodel/cart@2
+    - /product/growth/protocol/redemption-events
   exposes:
     - /product/growth/protocol/promotion-evaluation
     - /product/growth/datamodel/promotion-quote@1
@@ -119,8 +120,8 @@ speak the same vocabulary as the thing it is pricing, and inventing a parallel
 That edge is the concrete form of growth's product-level `depends-on` toward
 [shop](srn://acme/product/shop). The inverse edge — checkout's `uses` of
 [promotion-evaluation](srn://acme/product/growth/protocol/promotion-evaluation) —
-is checkout's to author, and the portal will show it here as an inverse once it
-exists.
+was always checkout's to author, and checkout has now authored it, so the portal
+shows it here as an inverse rather than as a gap this page had to explain.
 
 ## Both request-path dependencies are allowed to fail
 

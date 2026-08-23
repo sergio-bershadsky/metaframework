@@ -343,11 +343,30 @@ describe('the catalog under solutions/', () => {
     expect(shipped.filter((d) => d.severity === 'error').map((d) => `${d.code} ${d.path} — ${d.message}`)).toEqual([])
   })
 
-  it('finds the back-edge drift the two warnings were written for', () => {
-    // Not a count: the catalog is authored content and the number moves. What
-    // must hold is that the join is live on real input rather than only on the
-    // temp fixture above.
-    expect(shipped.filter((d) => d.code === 'W_PROTO_PARTICIPANT_UNLINKED').length).toBeGreaterThan(0)
+  it('leaves no participant in the shipped catalog without a directed back-edge', () => {
+    // This assertion used to read `toBeGreaterThan(0)` on both codes, to prove
+    // the join was live on real input and not only on the temp fixture above.
+    // That proof now lives where it belongs and is stronger: the fixture
+    // catalog in `catalog/diagnostic-coverage.test.ts` drives both codes
+    // through the real loader, so emitter liveness no longer depends on the
+    // shipped catalog containing drift. Once every participant was linked, the
+    // old form asserted the catalog must stay broken.
+    //
+    // What is asserted instead is the state that was reached: every
+    // component/product participant carries `exposes` or `uses`, so no lifeline
+    // is drawn undirected and dimmed. This is a regression guard — dropping a
+    // back-edge fails here, by name.
+    const unlinked = shipped.filter((d) => d.code === 'W_PROTO_PARTICIPANT_UNLINKED')
+    expect(unlinked.map((d) => `${d.path} — ${d.message}`)).toEqual([])
+  })
+
+  it('still reports the edges the participant lists deliberately do not carry', () => {
+    // The other half of the join is not clean, and is not meant to be. Four
+    // product-level `exposes` edges and two on `boardgame-io` state ownership
+    // and definition rather than a lifeline, and their protocols' participant
+    // lists omit them on purpose — brass's `product/play` says so in as many
+    // words. The rule has no clause for that, so the warning stands. Asserting
+    // it fires keeps the second join live on real input.
     expect(shipped.filter((d) => d.code === 'W_PROTO_PARTICIPANT_MISSING').length).toBeGreaterThan(0)
     expect(shipped.every((d) => d.severity === 'warning')).toBe(true)
   })

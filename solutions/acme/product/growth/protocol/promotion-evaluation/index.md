@@ -1,7 +1,7 @@
 ---
 name: promotion-evaluation
 kind: protocol
-version: 6
+version: 7
 title: Promotion evaluation
 summary: Synchronous pricing conversation — checkout asks the engine what a cart is worth and gets a short-lived quote.
 status: review
@@ -60,6 +60,13 @@ Relocating is the first item on the graduation checklist in
 [0002-fail-open-pricing](srn://acme/product/growth/adr/0002-fail-open-pricing),
 and it becomes due the moment checkout authors its `uses` edge — at that point
 the two products co-own the surface and the rule stops being a formality.
+
+**Checkout has now authored that edge.** The checklist item is therefore open
+work rather than a future condition, and none of it is done here: the swap
+described below is a procedure with several steps and a successor entity, and
+`W_STRUCT_PROTOCOL_NCA` stays raised against this page until somebody performs
+it. The section above still explains why the protocol sits where it does; what
+changed is that the explanation is now a debt rather than a reason.
 
 Relocating means a **swap, not a move**. An earlier version of this section said
 the directory "moves" to `srn://acme/protocol/promotion-evaluation`, and no
