@@ -190,6 +190,8 @@ npm install
 npm run dev      # next dev against ../../solutions
 npm test         # vitest — catalog loader, schema registry, watcher, mode
 npm run package  # next build (output: 'standalone') + assemble the shipped layout
+                 # `npm publish` runs prepack, which adds a freshness check on the
+                 # embedded meta-schemas first and can fail before the build starts
 npm pack         # runs `package` first through prepack, so a stale bundle cannot ship
 ```
 

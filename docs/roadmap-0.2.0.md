@@ -453,6 +453,12 @@ exists — it does not gate dialect machinery) and every individual format
 lane. 0.2.0 is shippable on steps 1 + 3 + 4 + 5 alone, with lanes riding
 0.2.x releases.
 
+> **Overtaken, and the non-gate held.** The devops build shipped in 0.2.0 anyway:
+> `product/devops` is `lifecycle: incubating` and `docker/` builds an image. It
+> was never a gate and it did not become one — it landed because there was room,
+> not because anything waited on it. This document is a plan computed at
+> `ae7d355` on 2026-08-21 and is left as one; `release-0.2.0.md` is what shipped.
+
 ## Rulings needed from the owner
 
 1. ~~**Workflows**: accept `.arazzo` as an additive sibling role with the
