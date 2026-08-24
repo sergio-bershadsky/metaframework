@@ -9,6 +9,7 @@ import {
   REPO_ROOT,
   checkDiagnosticSync,
   checkDistilledFrom,
+  checkManifestIdentity,
   checkMarkdownTables,
   checkNulBytes,
   checkStrayFiles,
@@ -522,6 +523,103 @@ describe('diagnostic-sync', () => {
       keys: ['E_PROTO_ALIAS_DUP'],
     })
     expect(checkDiagnosticSync({ root })).toEqual([])
+  })
+})
+
+/* ------------------------------------------------- (h) manifest identity */
+
+describe('manifest-identity', () => {
+  /**
+   * The defect this reproduces shipped in 0.2.0 and no gate could see it: the
+   * npm package is PolyForm Noncommercial, and the plugin manifest beside it
+   * granted MIT. Three more manifests still read `0.1.0` while npm served
+   * `0.2.0`. Every one of those is a claim about the published package made in
+   * a file nothing compares to the published package.
+   */
+  const manifests = async ({
+    version = '0.2.1',
+    license = 'PolyForm-Noncommercial-1.0.0',
+    lockVersion = version,
+    marketVersion = version,
+    pluginVersion = version,
+    pluginLicense = license,
+  } = {}) => {
+    await put('framework/portal/package.json', JSON.stringify({ version, license }))
+    await put(
+      'framework/portal/package-lock.json',
+      JSON.stringify({ version: lockVersion, packages: { '': { version: lockVersion } } }),
+    )
+    await put(
+      '.claude-plugin/marketplace.json',
+      JSON.stringify({ version: marketVersion, plugins: [{ version: marketVersion }] }),
+    )
+    await put(
+      'marketplace/plugins/metaframework/.claude-plugin/plugin.json',
+      JSON.stringify({ version: pluginVersion, license: pluginLicense }),
+    )
+    await put('framework/portal/README.md', `\`\`\`text\n  metaframework ${version}\n\`\`\`\n`)
+  }
+
+  it('goes RED when the plugin manifest grants a licence the package does not', async () => {
+    await manifests({ pluginLicense: 'MIT' })
+    expect(codes(checkManifestIdentity({ root }))).toEqual(
+      expect.arrayContaining([expect.stringContaining('MIT')]),
+    )
+  })
+
+  it('goes RED when a manifest version lags the package', async () => {
+    await manifests({ pluginVersion: '0.1.0' })
+    expect(codes(checkManifestIdentity({ root }))).toEqual(
+      expect.arrayContaining([expect.stringContaining('0.1.0')]),
+    )
+  })
+
+  it('names every stale pointer, not just the first', async () => {
+    await manifests({ marketVersion: '0.1.0' })
+    expect(checkManifestIdentity({ root })).toHaveLength(2)
+  })
+
+  it('sees the lockfile the published manifest is packed beside', async () => {
+    await manifests({ lockVersion: '0.1.1' })
+    expect(codes(checkManifestIdentity({ root }))).toEqual(
+      expect.arrayContaining([expect.stringContaining('0.1.1')]),
+    )
+  })
+
+  /**
+   * The README's sample banner is a version claim too — it just is not JSON.
+   * It is the fifth restatement, and the one a reader meets first.
+   */
+  it('goes RED when the README banner still prints the previous version', async () => {
+    await manifests()
+    await put('framework/portal/README.md', '```text\n  metaframework 0.1.0\n```\n')
+    expect(codes(checkManifestIdentity({ root }))).toEqual(
+      expect.arrayContaining([expect.stringContaining('0.1.0')]),
+    )
+  })
+
+  it('is green when every manifest agrees', async () => {
+    await manifests()
+    await put('framework/portal/README.md', '```text\n  metaframework 0.2.1\n```\n')
+    expect(checkManifestIdentity({ root })).toEqual([])
+  })
+
+  /**
+   * An absent manifest must not read as agreement. This is the `embeddedUrls`
+   * lesson: the empty answer is the dangerous one, because it reports nothing
+   * wrong and exits 0.
+   */
+  it('goes RED on a manifest it cannot read rather than reporting agreement', async () => {
+    await put('framework/portal/package.json', JSON.stringify({ version: '0.2.1', license: 'x' }))
+    expect(checkManifestIdentity({ root }).length).toBeGreaterThan(0)
+  })
+
+  it('goes RED when the published manifest itself is unparseable', async () => {
+    await manifests()
+    await put('framework/portal/package.json', '{ not json')
+    const findings = checkManifestIdentity({ root })
+    expect(findings.map((f) => f.file)).toEqual(['framework/portal/package.json'])
+    expect(findings[0].message).toMatch(/not parseable/)
   })
 })
 

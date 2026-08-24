@@ -8,13 +8,20 @@
  * missed it. None of them needs judgement: each is a property of the bytes on
  * disk that a program decides in milliseconds and a tired reader decides badly
  * at the end of a long diff. Converting them is not a nicety — a reviewer who
- * has to hold seven mechanical invariants in mind has that much less attention
+ * has to hold eight mechanical invariants in mind has that much less attention
  * left for the one thing only a reviewer can do.
  *
  * Replayed against `51d2c53` — the commit where the worst of it was on disk at
- * once — these seven checks report 131 findings, among them the `.pyc`, both raw
+ * once — these eight checks report 139 findings, among them the `.pyc`, both raw
  * NUL bytes, and seven bundle/portal diagnostic desyncs. Every one of those was
  * eventually found by a human, one at a time, over several passes.
+ *
+ * `manifest-identity` is the exception, and it is why the eighth check exists.
+ * Its five findings at `51d2c53` were never found by a reader at all: the plugin
+ * manifest granting MIT over a PolyForm Noncommercial codebase survived that
+ * commit, 0.1.0 and 0.2.0, and was caught while checking links for an
+ * announcement. A defect no reviewer has ever caught is the strongest case for a
+ * machine, not the weakest.
  *
  * ## Why this lives here and not in `metaframework check`
  *
@@ -818,6 +825,120 @@ export function checkDiagnosticSync({ root = REPO_ROOT } = {}) {
   return findings
 }
 
+/* ------------------------------------------ (h) manifest version + licence */
+
+/** The manifest npm actually serves. Every other manifest is measured against it. */
+export const PACKAGE_MANIFEST = 'framework/portal/package.json'
+
+/**
+ * Every place this repository restates the published package's version or
+ * licence, as `[what, pointer-label, reader]`.
+ *
+ * The list is the extension point: a new manifest that repeats either fact is
+ * one row here. What may *not* happen is a manifest repeating the fact and not
+ * appearing — that is precisely the state 0.2.0 shipped in.
+ */
+export const IDENTITY_CLAIMS = [
+  {
+    file: 'framework/portal/package-lock.json',
+    claims: [
+      ['version', 'version', (j) => j.version],
+      ['version', "packages[''].version", (j) => j.packages?.['']?.version],
+    ],
+  },
+  {
+    file: '.claude-plugin/marketplace.json',
+    claims: [
+      ['version', 'version', (j) => j.version],
+      ['version', 'plugins[0].version', (j) => j.plugins?.[0]?.version],
+    ],
+  },
+  {
+    file: 'marketplace/plugins/metaframework/.claude-plugin/plugin.json',
+    claims: [
+      ['version', 'version', (j) => j.version],
+      ['license', 'license', (j) => j.license],
+    ],
+  },
+]
+
+/**
+ * The README's sample banner restates the version in prose. It is not JSON and
+ * it is the first version a reader meets, so it gets the same treatment.
+ */
+export const README_BANNER = {
+  file: 'framework/portal/README.md',
+  pattern: /^\s*metaframework (\d+\.\d+\.\d+)\s*$/m,
+}
+
+/** Parse a tracked JSON manifest. Unreadable and unparseable are both findings, never `{}`. */
+function readManifest(root, file, check) {
+  if (!existsSync(path.join(root, file))) {
+    return { error: finding(check, file, 'is missing — nothing can be checked against it') }
+  }
+  try {
+    return { json: JSON.parse(readText(root, file)) }
+  } catch (error) {
+    return { error: finding(check, file, `is not parseable JSON: ${error.message}`) }
+  }
+}
+
+/**
+ * The npm package is PolyForm Noncommercial and the plugin manifest beside it
+ * granted MIT; three manifests read `0.1.0` while the registry served `0.2.0`.
+ * Both survived typecheck, eslint, 1,582 tests, `metaframework check` and six
+ * hygiene checks, because a licence string is a claim about the *published
+ * package* and nothing here compared the two.
+ *
+ * A wrong licence is not a stale number. A reader who takes MIT from the plugin
+ * manifest has been told they may do something the LICENSE forbids, and they
+ * have no reason to look further.
+ */
+export function checkManifestIdentity({ root = REPO_ROOT } = {}) {
+  const check = 'manifest-identity'
+  const truth = readManifest(root, PACKAGE_MANIFEST, check)
+  if (truth.error) return [truth.error]
+
+  const findings = []
+  for (const { file, claims } of IDENTITY_CLAIMS) {
+    const parsed = readManifest(root, file, check)
+    if (parsed.error) {
+      findings.push(parsed.error)
+      continue
+    }
+    for (const [what, label, read] of claims) {
+      const want = truth.json[what]
+      if (want === undefined) {
+        findings.push(finding(check, PACKAGE_MANIFEST, `declares no \`${what}\``))
+        continue
+      }
+      const found = read(parsed.json)
+      if (found === undefined) {
+        findings.push(finding(check, file, `declares no \`${label}\`, so it cannot agree`))
+      } else if (found !== want) {
+        findings.push(
+          finding(check, file, `\`${label}\` is ${found}; ${PACKAGE_MANIFEST} says ${want}`),
+        )
+      }
+    }
+  }
+
+  const { file, pattern } = README_BANNER
+  if (!existsSync(path.join(root, file))) {
+    findings.push(finding(check, file, 'is missing — nothing can be checked against it'))
+  } else {
+    const shown = pattern.exec(readText(root, file))?.[1]
+    if (shown === undefined) {
+      findings.push(finding(check, file, 'shows no `metaframework <version>` banner to check'))
+    } else if (shown !== truth.json.version) {
+      findings.push(
+        finding(check, file, `the banner prints ${shown}; ${PACKAGE_MANIFEST} says ${truth.json.version}`),
+      )
+    }
+  }
+  return findings
+}
+
 /* ------------------------------------------------------------------ runner */
 
 export const CHECKS = [
@@ -839,6 +960,11 @@ export const CHECKS = [
     id: 'diagnostic-sync',
     title: 'the bundle inventory agrees with the portal',
     run: checkDiagnosticSync,
+  },
+  {
+    id: 'manifest-identity',
+    title: 'every manifest agrees on version and licence',
+    run: checkManifestIdentity,
   },
 ]
 
