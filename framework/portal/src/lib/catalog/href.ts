@@ -7,9 +7,25 @@ import { SCHEMA_ROUTE } from '../schema/url'
 import { artifactFile } from '../srn/artifacts'
 import type { Srn } from '../srn/srn'
 
-/** Convert an SRN to the portal route that renders it. */
+/**
+ * Convert an SRN to the portal route that renders it.
+ *
+ * The `@version` pin is dropped, because the route is the entity's identity and
+ * carries no version: `/catalog/…/shard-bundle@1` is a 404 where
+ * `/catalog/…/shard-bundle` is the page. Most callers pass an entity's own
+ * `srn`, which never carries a pin — but the diagrams pass *references*, and a
+ * reference is where a pin is written. `workflows/*.yaml` says a `payload`
+ * SHOULD pin `@version`, so a correctly-authored workflow was the reliable way
+ * to produce a dead payload chip.
+ *
+ * Stripped by pattern rather than by {@link parseSrn}: this runs during render
+ * at nineteen call sites, none of which handle a throw, so a malformed SRN must
+ * still yield a (dead) link rather than take out the page. The pattern is the
+ * one `splitVersion` enforces — `@` plus a positive integer, at the very end,
+ * after any `.artifact` suffix.
+ */
 export function entityHref(srn: string): string {
-  return `/catalog/${srn.replace('srn://', '')}`
+  return `/catalog/${srn.replace('srn://', '').replace(/@[1-9][0-9]*$/, '')}`
 }
 
 /**
