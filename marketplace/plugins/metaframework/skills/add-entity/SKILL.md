@@ -5,8 +5,9 @@ description: This skill should be used when the user asks to "add a product", "a
 
 # Add an entity to a metaframework catalog
 
-One procedure, ten kinds. `product`, `component`, `actor`, `environment`, `adr`,
-`requirement`, `capability`, `journey`, `metric` and the `solution` root differ
+One procedure, eleven kinds. `product`, `component`, `actor`, `environment`,
+`adr`, `requirement`, `capability`, `journey`, `metric`, `assumption` and the
+`solution` root differ
 only in which frontmatter fields they require and what their prose must say — the
 ordering of decisions, the placement grammar, the relation rules and the
 validation step are identical. `datamodel` and `protocol` are excluded because
@@ -183,7 +184,7 @@ version history does not follow the move. A relocation later is a full swap
 
 ### 4. Name it
 
-Kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`, 1–64 chars. Never one of the eleven
+Kebab-case, `^[a-z0-9]+(-[a-z0-9]+)*$`, 1–64 chars. Never one of the twelve
 reserved kinds — `product`, `component`, `datamodel`, `protocol`, `actor`,
 `environment`, `adr`, `requirement`, `capability`, `journey`, `metric` are
 bucket names only.

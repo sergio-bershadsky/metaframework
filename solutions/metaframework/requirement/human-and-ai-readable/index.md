@@ -1,7 +1,7 @@
 ---
 name: human-and-ai-readable
 kind: requirement
-version: 4
+version: 5
 title: The catalog is readable by a human and by an agent, with grep alone
 summary: A person or a model with no tooling must be able to navigate, cite and correctly modify the catalog using a text editor and grep.
 status: review
@@ -11,6 +11,8 @@ priority: must
 relations:
   uses:
     - /product/specification/component/core-contracts
+  assumes:
+    - /assumption/a-model-can-author-from-prose
 tags:
   - readability
   - founding

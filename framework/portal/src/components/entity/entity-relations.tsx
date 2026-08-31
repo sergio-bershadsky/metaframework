@@ -18,6 +18,9 @@ const EDGE_LABELS: Record<EdgeType, { out: string; in: string }> = {
   supersedes: { out: 'Supersedes', in: 'Superseded by' },
   realizes: { out: 'Realizes', in: 'Realized by' },
   measures: { out: 'Measures', in: 'Measured by' },
+  // The inverse is the reverse index ADR 0022 exists for: an assumption's page
+  // shows what would break if it turned out false.
+  assumes: { out: 'Assumes', in: 'Assumed by' },
 }
 
 export function EntityRelations({

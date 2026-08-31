@@ -1,13 +1,15 @@
 ---
 name: 0022-assumptions-are-an-entity-not-a-heading
 kind: adr
-version: 1
+version: 2
 title: Assumptions are an entity, not a heading
 summary: A twelfth kind — assumption — with an assumes edge, because the only reason to record an assumption is to find what breaks when it turns out false, and prose cannot answer that.
-status: draft
+status: approved
 owner: sergio-bershadsky
-decision-status: proposed
-date: "2026-08-30"
+decision-status: accepted
+date: "2026-08-31"
+deciders:
+  - sergio
 relations:
   uses:
     - /product/specification/component/kind-contracts
@@ -52,6 +54,21 @@ axis, about the *subject* rather than about the document, exactly as
 
 The bucket may sit in the solution, a product or a component — the same row as
 `adr`, `requirement` and `metric`.
+
+The body pins **two** level-2 sections, `E_ASM_SECTIONS`:
+
+```markdown
+## Basis
+## If this is false
+```
+
+This is the same move `kinds/adr.md` makes when it pins four, and for the same
+stated reason: a decision with no cost and no competitors is an announcement
+rather than a record, and a belief with no stated consequence is a note rather
+than an assumption. `## If this is false` is the section that makes the reverse
+index worth traversing — a dependent list is only useful if each entry says what
+its own breakage costs. The price is that writing one is no longer a one-liner,
+and that price is accepted.
 
 The `assumes` edge is authored by the dependent, never by the assumption:
 source any kind, target `assumption`. This is the direction the rest of the
@@ -119,9 +136,23 @@ without any entity having to maintain a list of its own dependents.
 
 ## Open questions
 
-- Whether `review-by` should be REQUIRED or conditional on
-  `standing: unverified`. Required is stated above because an assumption nobody
-  has dated is the one that rots silently, but a `retired` assumption carrying a
-  future review date reads oddly.
-- Whether `supersedes` should be legal between assumptions, for a belief
-  restated more precisely rather than broken.
+Both questions this ADR opened were ruled on at acceptance, and are recorded
+here rather than deleted so the reasoning survives:
+
+- **`review-by` is REQUIRED on every assumption, `retired` included.** One rule
+  with no exception to guess at. An assumption nobody dated is the one that rots
+  silently, and a `retired` belief carrying a date nobody will act on is a
+  smaller oddity than a conditional rule authors get wrong — `deciders` on ADRs
+  is already the conditional case, and it is the field most often missed.
+- **`supersedes` is NOT legal between assumptions.** A belief restated more
+  precisely is a different thing from one that broke, and the swap procedure is
+  built for the second. Deferred rather than refused: the edge table is closed
+  and grows by appending, so this can be added if restatement turns out to be
+  common.
+
+One question is opened by the decision and left open deliberately:
+
+- Whether `assumes` should eventually be legal from an assumption, letting
+  beliefs chain. It is refused for now because a chain makes the reverse-index
+  query recursive, and that is a commitment better made against real usage than
+  in advance.

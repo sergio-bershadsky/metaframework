@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: index
-version: 9
+version: 10
 status: review
 title: Specification overview
 summary: Entry point of the metaframework specification — purpose, core principles, the twelve kinds, document map, and reading order.
@@ -80,9 +80,9 @@ example. A rule without an example is an incomplete rule and a spec defect.
    A file that declares nothing is read as the legacy dialect and warned, never
    broken.
 
-   The eleven kind buckets are `product`, `component`, `datamodel`, `protocol`,
-   `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`, and
-   `metric`; they are reserved words and may never be an entity's name. `ls` of
+   The twelve kind buckets are `product`, `component`, `datamodel`, `protocol`,
+   `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`,
+   `metric`, and `assumption`; they are reserved words and may never be an entity's name. `ls` of
    any catalog directory therefore lists buckets only, and parsing is a pair
    walk with no lookahead. Which pair may follow which is part of the grammar —
    a `product` pair only at solution level, a `component` pair only under a
@@ -198,7 +198,7 @@ An **owner-scoped** kind hangs under whatever it belongs to, from the solution
 down to the deepest component — `metric` exactly as `requirement`.
 
 Every kind except `solution` is also a bucket name in the path grammar, which is
-why the reserved word list and the kind list are the same eleven words
+why the reserved word list and the kind list are the same twelve words
 ([srn.md](srn.md)).
 
 **The set was opened, and it grows by appending.** The founding decision record

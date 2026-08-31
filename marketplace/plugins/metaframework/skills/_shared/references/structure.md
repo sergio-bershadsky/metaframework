@@ -1,6 +1,6 @@
 # Directory structure — layout, artifacts, placement
 
-> Distilled from `framework/spec/structure.md` (version 11), the container rules
+> Distilled from `framework/spec/structure.md` (version 12), the container rules
 > in `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
 > "Sibling artifacts" / "Body template" sections of the other
 > `framework/spec/kinds/*.md`. **When `framework/spec/` is present in the
@@ -39,7 +39,7 @@ The portal reads `solutions/` and `.git/` only.
 solutions/{solution}( /{kind}/{name} )*
 ```
 
-- A **kind bucket** is a directory named exactly after one of the eleven reserved
+- A **kind bucket** is a directory named exactly after one of the twelve reserved
   kinds. It is not an entity, has no `index.md`, and has no SRN.
 - An **entity directory** is a directory inside a bucket. It holds `index.md`
   and — if its kind is a container — further kind buckets.
@@ -70,7 +70,7 @@ the owner has no entities of that kind; empty buckets should not be committed.
 - **Sibling artifacts** — kebab-case, **bare** filenames named by role, never
   prefixed with the entity name. `schema.json`, not `order.schema.json`.
 - **Asset subdirectories** — named for their role (`workflows/`, `examples/`),
-  therefore never one of the eleven kinds, and containing **no `index.md` at any
+  therefore never one of the twelve kinds, and containing **no `index.md` at any
   depth** (`E_STRUCT_NESTED_ENTITY`).
 
 ## Inline icons in prose
@@ -108,7 +108,7 @@ The test is whether you can write the command down: `wc -l`,
 goes stale on the next commit and the document that carries it becomes wrong
 without anyone touching it. If you cannot — an SLO, a target, a design constant,
 a domain figure — it is a **decision**, it does not drift, and this rule does not
-touch it. `99.9%`, `four characters`, `eleven kinds`: all fine.
+touch it. `99.9%`, `four characters`, `twelve kinds`: all fine.
 
 | Do not write                                                     | Write instead                                       |
 |------------------------------------------------------------------|-----------------------------------------------------|
@@ -150,6 +150,7 @@ path is parsed, not a later loader check.
 | `adr`         | the solution, a product, or a component         | `solutions/acme/product/shop/adr/0001-event-sourcing/`                 |
 | `requirement` | the solution, a product, or a component         | `solutions/acme/product/shop/component/checkout/requirement/idem-cap/` |
 | `metric`      | the solution, a product, or a component         | `solutions/acme/product/shop/metric/checkout-conversion/`              |
+| `assumption`  | the solution, a product, or a component         | `solutions/acme/product/shop/assumption/nightly-reconciliation/`       |
 | `protocol`    | the nearest common ancestor of its participants | `solutions/acme/product/shop/protocol/order-placement/`                |
 
 Datamodels, ADRs, requirements and metrics are **owner-scoped**: they live in the
@@ -223,20 +224,21 @@ commit or two during a swap).
 
 ## Artifacts each kind defines
 
-| Kind          | Required siblings | Optional siblings                                                                                             | Asset dirs   | Enforced body sections   |
-|---------------|-------------------|---------------------------------------------------------------------------------------------------------------|--------------|--------------------------|
-| `solution`    | —                 | any (attachments; portal previews, attaches no semantics)                                                     | —            | —                        |
-| `product`     | —                 | any (attachments)                                                                                             | —            | —                        |
-| `component`   | —                 | any (attachments)                                                                                             | —            | —                        |
-| `datamodel`   | `schema.json`     | —                                                                                                             | `examples/`  | —                        |
-| `protocol`    | —                 | `transport.yaml`, `states.json`, `openapi.yaml`, `arazzo.yaml`; others bound via `transport.yaml` `spec.file` | `workflows/` | —                        |
-| `actor`       | —                 | —                                                                                                             | —            | —                        |
-| `environment` | —                 | `topology.yaml`, `config.yaml`                                                                                | —            | —                        |
-| `adr`         | —                 | supporting material (linked, not interpreted)                                                                 | —            | four, see below          |
-| `requirement` | —                 | supporting material (linked, not interpreted)                                                                 | —            | `## Acceptance criteria` |
-| `capability`  | —                 | supporting material (linked, not interpreted)                                                                 | —            | —                        |
-| `journey`     | **`journey.yaml`**| extra `*.md` prose siblings                                                                                   | —            | —                        |
-| `metric`      | —                 | supporting material (linked, not interpreted)                                                                 | —            | —                        |
+| Kind          | Required siblings  | Optional siblings                                                                                             | Asset dirs   | Enforced body sections            |
+|---------------|--------------------|---------------------------------------------------------------------------------------------------------------|--------------|-----------------------------------|
+| `solution`    | —                  | any (attachments; portal previews, attaches no semantics)                                                     | —            | —                                 |
+| `product`     | —                  | any (attachments)                                                                                             | —            | —                                 |
+| `component`   | —                  | any (attachments)                                                                                             | —            | —                                 |
+| `datamodel`   | `schema.json`      | —                                                                                                             | `examples/`  | —                                 |
+| `protocol`    | —                  | `transport.yaml`, `states.json`, `openapi.yaml`, `arazzo.yaml`; others bound via `transport.yaml` `spec.file` | `workflows/` | —                                 |
+| `actor`       | —                  | —                                                                                                             | —            | —                                 |
+| `environment` | —                  | `topology.yaml`, `config.yaml`                                                                                | —            | —                                 |
+| `adr`         | —                  | supporting material (linked, not interpreted)                                                                 | —            | four, see below                   |
+| `requirement` | —                  | supporting material (linked, not interpreted)                                                                 | —            | `## Acceptance criteria`          |
+| `capability`  | —                  | supporting material (linked, not interpreted)                                                                 | —            | —                                 |
+| `journey`     | **`journey.yaml`** | extra `*.md` prose siblings                                                                                   | —            | —                                 |
+| `metric`      | —                  | supporting material (linked, not interpreted)                                                                 | —            | —                                 |
+| `assumption`  | —                  | supporting material (linked, not interpreted)                                                                 | —            | `## Basis`, `## If this is false` |
 
 Rules that catch authors out:
 
@@ -566,7 +568,7 @@ role from dialect exists to prevent.
 - Every path segment under `solutions/` — solution names, buckets, entity names
   alike — MUST match `^[a-z0-9]+(-[a-z0-9]+)*$`, 1–64 chars. `Shop`,
   `order_placement`, `-cart`, `café` are all `E_SRN_SYNTAX`.
-- The eleven reserved kinds — `product`, `component`, `datamodel`, `protocol`,
+- The twelve reserved kinds — `product`, `component`, `datamodel`, `protocol`,
   `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`,
   `metric` — MUST NOT be used as a solution or entity name (`E_SRN_RESERVED`).
   They appear only as bucket directories, at odd positions.

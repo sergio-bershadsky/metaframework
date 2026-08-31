@@ -619,6 +619,28 @@ so a `steps.txt` is absent from `entity.artifacts` by construction
 | `W_ADR_ORDINAL`      | warning  | Two ADRs in one bucket claiming one ordinal. Compared as **numbers**, so `0002` and `002` collide; a name with no `NNNN-` prefix is skipped rather than flagged. The bucket is the owning container, so `acme/adr/0001` and `acme/product/shop/adr/0001` are two different ADR-0001s. The finding lands on the later name and cites the earlier.                                                           |
 | `W_ADR_SUPERSESSION` | warning  | The supersession bookkeeping disagrees with itself, in **either** direction: `decision-status: superseded` with no inbound `supersedes` edge, or an inbound edge on an ADR whose own status is anything else.                                                                                                                                                                                              |
 
+#### `lib/assumption/diagnostics.ts` — the assumption kind
+
+Composed beside `adrDiagnostics` in `src/lib/catalog/index.ts` and pure in the
+same way: the entity graph is the only input. The reverse index — which entities
+rest on which belief — is built **once per catalog** rather than per assumption,
+because rescanning every entity for each belief is quadratic in exactly the
+catalogs where the query matters.
+
+Three rules the module deliberately does not own: `standing`'s closed enum is
+`KIND_FRONTMATTER`'s (`E_FM_SCHEMA`), and the edge's legal source and target are
+the edge table's (`E_FM_EDGE_SOURCE`, `E_FM_EDGE_TARGET`). A rule enforced twice
+is a rule that can disagree with itself.
+
+| Code                     | Severity | Raised when                                                                                                                                                                                                                                                                                     |
+|--------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `E_ASM_REVIEW_DATE`      | error    | `review-by` is absent or not a bare `YYYY-MM-DD` calendar date. The digits must survive the parse, so `2026-13-01` is refused rather than rolled into the next year — the same trap `E_ADR_DATE` avoids. Required at every `standing`, `retired` included; the rule has no exception to guess.  |
+| `E_ASM_SECTIONS`         | error    | The body is missing `## Basis` or `## If this is false`. **One finding per missing section**, and the message names the near miss when the same text appears at another level. Order is not enforced.                                                                                           |
+| `W_ASM_BROKEN_DEPENDENT` | warning  | An entity authors `assumes` at a belief whose `standing` is `broken`. Raised against the **dependent**, not the assumption: that is the entity which has to act. A warning, not an error — whether the world has contradicted a belief is a judgement, and a judgement should not fail a build. |
+| `W_ASM_STALE`            | warning  | `review-by` has passed while `standing` is `unverified` or `holding`. A `broken` or `retired` belief is never stale: it has already been resolved.                                                                                                                                              |
+| `W_ASM_ORPHAN`           | warning  | Nothing assumes the belief. A warning because the two causes are opposite — dead weight, or an edge nobody wired — and only a reader can say which.                                                                                                                                             |
+
+
 **Two of these are new classes rather than new checks, and knowing which matters
 when reading an older report.** A rule the kind schema already enforced was
 reported as `E_FM_SCHEMA` — the generic code — rather than under the class the

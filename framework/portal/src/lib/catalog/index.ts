@@ -2,6 +2,7 @@ import path from 'node:path'
 import { cache } from 'react'
 import { actorDiagnostics } from '../actor/actor'
 import { adrDiagnostics } from '../adr/adr'
+import { assumptionDiagnostics } from '../assumption/diagnostics'
 import { datamodelEvolutionDiagnostics } from '../datamodel/additive'
 import { datamodelDiagnostics } from '../datamodel/datamodel'
 import { environmentDiagnostics } from '../environment/environment'
@@ -152,6 +153,7 @@ export function withProseChecks(catalog: Catalog): Catalog {
 export function withKindChecks(catalog: Catalog, listings: CatalogListings): Catalog {
   const diagnostics = [
     ...adrDiagnostics(catalog),
+    ...assumptionDiagnostics(catalog),
     ...requirementDiagnostics(catalog),
     ...actorDiagnostics(catalog),
     ...structureDiagnostics(catalog, listings.directories),

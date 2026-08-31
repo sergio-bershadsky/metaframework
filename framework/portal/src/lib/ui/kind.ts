@@ -1,4 +1,5 @@
 import {
+  Anchor,
   Boxes,
   CircleUser,
   FileText,
@@ -165,6 +166,16 @@ export const KIND_STYLES: Record<EntityKind, KindStyle> = {
     icon: Gauge,
     blurb: 'How the entity that owns it is measured — a number with a target.',
     detail: 'Sits on a solution, a product or a component. How the thing that owns it is known to be working.',
+  },
+  assumption: {
+    label: 'Assumption',
+    cssVar: '--kind-assumption',
+    text: 'text-kind-assumption',
+    bg: 'bg-kind-assumption/10',
+    border: 'border-kind-assumption/30',
+    icon: Anchor,
+    blurb: 'Something taken as true without proof, and what rests on it.',
+    detail: 'Sits on a solution, a product or a component. Carries a standing and a review date; the entities that assume it author the edge, so what breaks when it turns out false is derived.',
   },
 }
 

@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: frontmatter
-version: 8
+version: 9
 status: review
 title: Common frontmatter
-summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges over the eleven kinds, the status-versus-lifecycle split, and validation.
+summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges over the twelve kinds, the status-versus-lifecycle split, and validation.
 ---
 
 # Common frontmatter
@@ -60,7 +60,7 @@ error class is named.
 | `relations` | map of edge type → list of SRN refs         | no       | Typed outgoing edges; see below.                                                                                                                                       |
 | `tags`      | list of kebab-case strings                  | no       | Free navigation facets; no semantics attached.                                                                                                                         |
 
-`kind` enum — the twelve kinds (eleven of them also bucket words; `solution` has
+`kind` enum — the thirteen kinds (twelve of them also bucket words; `solution` has
 no bucket because it is the root):
 
 ```text
@@ -180,9 +180,11 @@ closed; extending it is an additive spec change:
 | `realizes`   | component, product | capability                                   | Source is part of how the business does that thing.                |
 | `measures`   | metric             | capability, component, protocol, requirement | Source is a number about the target.                               |
 | `supersedes` | any                | same kind as source                          | Swap edge: successor → predecessor ([evolution.md](evolution.md)). |
+| `assumes`    | any but assumption | assumption                                   | Source's validity rests on the belief.                             |
 
-The last two are the later arrivals; the set grows by appending, and no existing
-edge changed source kinds, target kinds, or meaning when they landed. Only the
+`realizes`, `measures` and `assumes` are the later arrivals; the set grows by
+appending, and no existing edge changed source kinds, target kinds, or meaning
+when they landed. Only the
 `implements` wording moved — it read "source realizes the requirement" before
 `realizes` was an edge name, and now reads "satisfies" so the two cannot be
 confused. The meaning is unchanged.
@@ -296,12 +298,14 @@ Rules:
   as the rest — the forward name plus `-by`, computed at load, never written in
   a file:
 
-  | Forward      | Authored on            | Derived inverse   | Shown on                                     |
-  | ------------ | ---------------------- | ----------------- | -------------------------------------------- |
-  | `realizes`   | the product/component  | `realized-by`     | the capability page: everything realizing it |
-  | `measures`   | the metric             | `measured-by`     | the measured entity's page: its numbers      |
+  | Forward    | Authored on           | Derived inverse | Shown on                                     |
+  | ---------- | --------------------- | --------------- | -------------------------------------------- |
+  | `realizes` | the product/component | `realized-by`   | the capability page: everything realizing it |
+  | `measures` | the metric            | `measured-by`   | the measured entity's page: its numbers      |
+  | `assumes`  | the dependent         | `assumed-by`    | the assumption page: what rests on it        |
 
-  A `realized-by:` or `measured-by:` key in frontmatter is `E_FM_SCHEMA`, like
+  A `realized-by:`, `measured-by:` or `assumed-by:` key in frontmatter is
+  `E_FM_SCHEMA`, like
   every other authored inverse.
 - Relations are the semantic graph the portal draws (component graphs, etc.).
   Prose markdown links are navigational only and never create edges.

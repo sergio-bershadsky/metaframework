@@ -332,7 +332,7 @@ table and a question in the interview, not an alarm.
 
 - Every segment matches `^[a-z0-9]+(-[a-z0-9]+)*$`, 1–64 characters. `Shop`,
   `order_placement`, `-cart` are `E_SRN_SYNTAX`.
-- The eleven reserved kinds — `product`, `component`, `datamodel`, `protocol`,
+- The twelve reserved kinds — `product`, `component`, `datamodel`, `protocol`,
   `actor`, `environment`, `adr`, `requirement`, `capability`, `journey`,
   `metric` — may never be a solution or entity name. They appear only as bucket
   directories.

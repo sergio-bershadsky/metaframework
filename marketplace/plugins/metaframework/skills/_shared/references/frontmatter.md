@@ -37,7 +37,7 @@ other stray key.
 | `relations` | map of edge type → list of SRN refs               | no       | Typed **outgoing** edges; see below.                                              |
 | `tags`      | list of kebab-case strings                        | no       | Free navigation facets; no semantics attached.                                    |
 
-`kind` enum — twelve kinds, eleven of which are also bucket words:
+`kind` enum — thirteen kinds, twelve of which are also bucket words:
 
 ```text
 solution | product | component | datamodel | protocol | actor | environment | adr | requirement |
@@ -71,6 +71,7 @@ fields above, and never overrides them.
 | `capability`  | — **none at all**                                                       | —                            |
 | `journey`     | `actor`                                                                 | —                            |
 | `metric`      | `metric-type`, `target`, `window`, `direction`                          | —                            |
+| `assumption`  | `standing`, `review-by`                                                 | —                            |
 
 `criticality` is the one kind field that is not an enum: an OPTIONAL integer
 `1`..`4` on a component, `1` being highest. It has **no default** — absent means
@@ -258,9 +259,10 @@ closed:
 | `implements` | component, product | requirement                                  | Source **satisfies** the requirement.               |
 | `realizes`   | component, product | capability                                   | Source is part of how the business does that thing. |
 | `measures`   | metric             | capability, component, protocol, requirement | Source is a number about the target.                |
+| `assumes`    | any but assumption | assumption                                   | Source's validity rests on the belief.              |
 | `supersedes` | any                | same kind as source                          | Swap edge: successor → predecessor.                 |
 
-`realizes` and `measures` are the later arrivals; the set grew by appending and
+`realizes`, `measures` and `assumes` are the later arrivals; the set grew by appending and
 no existing edge changed source kinds, target kinds, or meaning. Only the
 `implements` wording moved — it read "source realizes the requirement" before
 `realizes` was an edge name, and now reads "satisfies" so the two cannot be

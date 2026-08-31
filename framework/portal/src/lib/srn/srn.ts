@@ -39,6 +39,7 @@ export const RESERVED_KINDS = [
   'capability',
   'journey',
   'metric',
+  'assumption',
 ] as const
 
 export type ReservedKind = (typeof RESERVED_KINDS)[number]

@@ -110,6 +110,7 @@
   --color-kind-capability: var(--kind-capability);
   --color-kind-journey: var(--kind-journey);
   --color-kind-metric: var(--kind-metric);
+  --color-kind-assumption: var(--kind-assumption);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -203,6 +204,7 @@
   --kind-capability: oklch(0.8 0.08 12);
   --kind-journey: oklch(0.8 0.08 115);
   --kind-metric: oklch(0.8 0.08 315);
+  --kind-assumption: oklch(0.8 0.08 85);
 
   /*
    * The COMPONENT-TYPE register — a third tier, and the first hues in this

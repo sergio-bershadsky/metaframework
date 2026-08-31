@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: srn
-version: 10
+version: 11
 status: review
 title: SRN — Solution Resource Name
-summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over eleven reserved kinds, the pair-walk parsing algorithm, placement as grammar, artifact addresses over the closed per-kind role table, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
+summary: The complete SRN grammar — the consolidating principle binding SRN, canonical schema URL and disk path, bucketed syntax over twelve reserved kinds, the pair-walk parsing algorithm, placement as grammar, artifact addresses over the closed per-kind role table, disk resolution, version semantics, relative references, usage contexts including the schema-URL projection and its x-srn counterpart, and validation rules.
 ---
 
 # SRN — Solution Resource Name
@@ -91,7 +91,7 @@ the bend is stated here so it is counted rather than discovered.
 role maps **through a table** to `transport.yaml`, so this one conversion
 consults something beyond prefix surgery. What it consults is a **spec
 constant** — the closed per-kind role table, exactly the class of table the
-eleven reserved kinds are — never catalog data, so SRN→path stays computable
+twelve reserved kinds are — never catalog data, so SRN→path stays computable
 from this document alone and the principle keeps its real content: no lookup
 into anything that varies. The projection view, meanwhile, narrows rather than
 bends: of all the roles only `.schema` projects to a URL, and even that one
@@ -187,7 +187,7 @@ Constraints beyond the ABNF:
 
 - A reserved kind keyword MUST NOT be used as a `solution` or a `name`
   (`E_SRN_RESERVED`, [below](#reserved-kinds)). ABNF cannot express "any
-  segment except these eleven literals" without unreadable noise, so the rule is
+  segment except these twelve literals" without unreadable noise, so the rule is
   stated rather than encoded.
 - The `@version` suffix MAY appear only on the **final** segment.
   `srn://acme/product/shop@2/component/checkout` is `E_SRN_SYNTAX`.
@@ -223,12 +223,12 @@ A reference that does not match is classified by **where** it fails, because one
 
 ## Reserved kinds
 
-There are **eleven** kind buckets, and they are the only words that may stand in
+There are **twelve** kind buckets, and they are the only words that may stand in
 a `kind` position:
 
 ```text
 product  component  datamodel  protocol  actor  environment  adr  requirement
-capability  journey  metric
+capability  journey  metric  assumption
 ```
 
 They MUST NOT be used as a solution or entity **name** (`E_SRN_RESERVED`) — they
@@ -265,7 +265,7 @@ ever written. The difference from a word adoption is that this one re-reads
 nothing — a name containing a dot never parsed, so no existing path changes
 meaning.
 
-Two of the eleven are **containers** — they may own further entities:
+Two of the twelve are **containers** — they may own further entities:
 
 ```text
 product  component
@@ -579,7 +579,7 @@ Three rules govern it, each with its class:
   address whose resolution dangles, exactly as an entity SRN with no directory
   does.
 
-The table is a **spec constant**, exactly the class of table the eleven
+The table is a **spec constant**, exactly the class of table the twelve
 reserved kinds are: it grows by appending — a new role, or a new kind's rows,
 is an additive change — and SRN→path conversion needs the spec, never a
 catalog read. Its normative home is
@@ -1085,7 +1085,7 @@ V7–V9 require the resolved catalog.
 | #   | Rule                                                                                     | Error class            |
 | --- | ---------------------------------------------------------------------------------------- | ---------------------- |
 | V1  | Reference parses under the ABNF + constraints (incl. lexing order and `..` depth).       | `E_SRN_SYNTAX`         |
-| V2  | Path alternates `{kind}/{name}`: every kind is one of the eleven, every pair complete.   | `E_SRN_SYNTAX`         |
+| V2  | Path alternates `{kind}/{name}`: every kind is one of the twelve, every pair complete.   | `E_SRN_SYNTAX`         |
 | V3  | No reserved kind keyword as a solution or entity **name**.                               | `E_SRN_RESERVED`       |
 | V4  | Placement is legal — rules P1–P4 above.                                                  | `E_SRN_PLACEMENT`      |
 | V5  | Artifact suffix names a role the addressed kind defines, at that role's depth.           | `E_SRN_ARTIFACT`       |

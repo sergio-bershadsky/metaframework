@@ -1,10 +1,10 @@
 ---
 kind: spec
 name: structure
-version: 11
+version: 12
 status: review
 title: Directory structure
-summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, what an index.md body may state, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
+summary: The full directory layout contract — monorepo layout, the twelve kind buckets at every level, the entity-directory convention, what an index.md body may state, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
 ---
 
 # Directory structure
@@ -39,13 +39,13 @@ Below a solution directory, the tree strictly alternates **kind bucket** and
 solutions/{solution}( /{kind}/{name} )*
 ```
 
-- A **kind bucket** is a directory named exactly after one of the eleven
+- A **kind bucket** is a directory named exactly after one of the twelve
   reserved kinds. It is not an entity, has no `index.md`, and has no SRN.
 - An **entity directory** is a directory inside a bucket. It holds `index.md`,
   and — if its kind is a container — further kind buckets.
 
 The consequence is that a directory listing anywhere in the catalog answers
-"what is in here?" without knowing any vocabulary beyond the eleven kinds:
+"what is in here?" without knowing any vocabulary beyond the twelve kinds:
 
 ```bash
 $ ls -d solutions/acme/*/                       # a solution holds buckets only
@@ -116,7 +116,7 @@ journey, metric) alike — is a directory holding:
   subdirectories to organize its artifacts (e.g. `workflows/`, `examples/` —
   the depth-2 rows of the role table, [below](#the-artifact-role-table)). An
   asset subdirectory is named for its role and is therefore never one of the
-  eleven kinds; it MUST NOT contain an `index.md` at any depth, otherwise it
+  twelve kinds; it MUST NOT contain an `index.md` at any depth, otherwise it
   would itself parse as an entity.
 
 ```text
@@ -240,7 +240,7 @@ repository and then typed into a sentence. The test is that the command can be
 written down — `wc -l framework/spec/structure.md`, `git rev-list --count HEAD`,
 `ls solutions/acme/actor`, a test runner's tally. It is not an SLO, not a target,
 not a design constant and not a domain figure: `99.9%` on an environment,
-`four characters` on a coupon code and the `eleven kinds` of this ontology are
+`four characters` on a coupon code and the `twelve kinds` of this ontology are
 **decisions**, and a decision does not go stale on somebody else's commit. A
 measurement does, on every commit, and no amount of care at authoring time
 reaches that: the number is correct when it is typed and wrong by the afternoon.
@@ -328,6 +328,7 @@ entity in the fixture under `solutions/`.
 | `adr`         | the solution, a product, or a component         | `solutions/acme/product/shop/adr/0001-event-sourcing/`                 |
 | `requirement` | the solution, a product, or a component         | `solutions/acme/product/shop/component/checkout/requirement/idem-cap/` |
 | `metric`      | the solution, a product, or a component         | `solutions/acme/product/shop/metric/checkout-conversion/`              |
+| `assumption`  | the solution, a product, or a component         | `solutions/acme/product/shop/assumption/nightly-reconciliation/`       |
 | `protocol`    | the nearest common ancestor of its participants | `solutions/acme/product/shop/protocol/order-placement/`                |
 
 Rules:
@@ -448,17 +449,17 @@ Rules:
   The absence of `.` from this alphabet is normative, not an accident of the
   regex: the dot is the artifact-suffix separator (`{name}.{role}`,
   [below](#the-artifact-role-table)), and its exclusion from names is a
-  one-way reservation exactly like the eleven kind keywords. Were a name ever
+  one-way reservation exactly like the twelve kind keywords. Were a name ever
   allowed to contain a dot, `settlement.transport` could no longer be told
   apart from an entity named `settlement.transport`, and the final-segment
   split that artifact addressing rests on ([srn.md](srn.md)) would be
   ambiguous. The dot never returns to the name alphabet.
 
-- The eleven reserved kind keywords —
+- The twelve reserved kind keywords —
 
   ```text
   product  component  datamodel  protocol  actor  environment  adr  requirement
-  capability  journey  metric
+  capability  journey  metric  assumption
   ```
 
   — MUST NOT be used as a solution or entity name. They may appear only as
@@ -475,7 +476,7 @@ Rules:
   solutions/acme/product/component/index.md    # ILLEGAL — E_SRN_RESERVED: a product named
                                                #   "component"
   solutions/acme/actor-portal/index.md         # ILLEGAL — E_SRN_SYNTAX: a solution's child is
-                                               #   a bucket, and this is not one of the eleven
+                                               #   a bucket, and this is not one of the twelve
   ```
 
   Note the last line: bucketing tightened this rule. Previously a solution's
@@ -555,7 +556,7 @@ suffix on an SRN of such a kind is `E_SRN_ARTIFACT` ([srn.md](srn.md)).
 
 Rules:
 
-- **The table is a spec constant.** Like the list of eleven reserved kinds, it
+- **The table is a spec constant.** Like the list of twelve reserved kinds, it
   is part of the grammar, not of any catalog: converting
   `…/settlement.transport` to a path takes this table and nothing else — never
   a directory listing, never a frontmatter read. That is what keeps the
@@ -622,7 +623,7 @@ Rules:
 
 - **Growth is additive, and additive only.** A new role is an additive spec
   change to the owning kind's document plus this table — the same appending
-  discipline the eleven-kind list follows. Renaming or removing a row breaks
+  discipline the twelve-kind list follows. Renaming or removing a row breaks
   every SRN written against it and is a breaking change to this specification.
 
 - **This is the one licensed bend in SRN ≡ path.** For entities the identity is

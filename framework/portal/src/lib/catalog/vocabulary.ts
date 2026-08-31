@@ -69,6 +69,7 @@ export const EDGE_TYPES = [
   'supersedes',
   'realizes',
   'measures',
+  'assumes',
 ] as const
 export type EdgeType = (typeof EDGE_TYPES)[number]
 

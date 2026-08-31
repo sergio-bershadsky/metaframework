@@ -137,6 +137,9 @@ const EDGE_STYLES = {
   // a butt cap and a full circle under a round one.
   measures: { label: RELATION_VERB.measures, width: 1, dash: '0.01 4.5', cap: 'round', marker: MarkerType.Arrow },
   supersedes: { label: RELATION_VERB.supersedes, width: 1.25, dash: '11 4', cap: undefined, marker: MarkerType.Arrow },
+  // Finely dotted and thin: a dependency on a belief is the weakest claim in the
+  // vocabulary, and it should not read as heavily as a structural edge.
+  assumes: { label: RELATION_VERB.assumes, width: 1, dash: '1 3', cap: 'round', marker: MarkerType.Arrow },
 } satisfies Record<
   EdgeType,
   { label: string; width: number; dash: string | undefined; cap: 'round' | undefined; marker: MarkerType }

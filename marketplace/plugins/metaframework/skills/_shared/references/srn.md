@@ -79,11 +79,11 @@ In RFC 3986 terms the **solution occupies the authority position**; everything
 after it is path. That is why a relative reference can never leave the solution:
 sealed universes fall out of the URI grammar.
 
-## The eleven reserved kinds
+## The twelve reserved kinds
 
 ```text
 product  component  datamodel  protocol  actor  environment  adr  requirement
-capability  journey  metric
+capability  journey  metric  assumption
 ```
 
 They may stand only in a **kind** position. Using one as a solution name or an
@@ -123,7 +123,7 @@ time**: first is the kind, second is the name. No lookahead, no backtracking.
 
 - An odd tail is `E_SRN_SYNTAX` — a bucket on its own is a directory, not an
   entity. `srn://acme/product/shop/datamodel` and `srn://acme/product` both fail.
-- A first-of-pair that is not one of the eleven is `E_SRN_SYNTAX`
+- A first-of-pair that is not one of the twelve is `E_SRN_SYNTAX`
   (`srn://acme/shop/checkout` → `"shop" is not a kind bucket`). The pre-bucket
   flat form does not parse; there is no compatibility mode.
 - The SRN's kind is the kind of the last pair. `srn://acme` has no pairs and no

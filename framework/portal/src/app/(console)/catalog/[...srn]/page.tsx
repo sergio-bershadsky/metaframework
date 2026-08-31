@@ -484,6 +484,7 @@ const OUTGOING_LABELS: Record<EdgeType, string> = {
   supersedes: 'Supersedes',
   realizes: 'Realizes',
   measures: 'Measures',
+  assumes: 'Assumes',
 }
 
 /**

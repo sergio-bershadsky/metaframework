@@ -41,6 +41,7 @@ export const RELATION_VERB = {
   implements: 'implements',
   realizes: 'realizes',
   measures: 'measures',
+  assumes: 'assumes',
   supersedes: 'supersedes',
 } satisfies Record<EdgeType | 'contains', string>
 

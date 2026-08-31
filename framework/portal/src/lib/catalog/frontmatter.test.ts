@@ -40,7 +40,7 @@ describe('ENTITY_KINDS', () => {
 describe('edge table', () => {
   it('grows by appending — an earlier edge never moves for a later one', () => {
     expect(EDGE_TYPES.slice(0, 5)).toEqual(['uses', 'exposes', 'depends-on', 'implements', 'supersedes'])
-    expect(EDGE_TYPES.slice(5)).toEqual(['realizes', 'measures'])
+    expect(EDGE_TYPES.slice(5)).toEqual(['realizes', 'measures', 'assumes'])
     expect(new Set(EDGE_TYPES).size).toBe(EDGE_TYPES.length)
   })
 

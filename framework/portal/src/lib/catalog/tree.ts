@@ -70,6 +70,7 @@ export const KIND_ORDER: readonly EntityKind[] = [
   'product',
   'component',
   'adr',
+  'assumption',
   'protocol',
   'datamodel',
   'actor',

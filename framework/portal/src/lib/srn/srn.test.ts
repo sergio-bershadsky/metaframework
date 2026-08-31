@@ -37,10 +37,11 @@ function codeOf(run: () => unknown): string {
 }
 
 describe('reserved kinds', () => {
-  it('is the closed set of eleven buckets, product and component included', () => {
+  it('is the closed set of twelve buckets, product and component included', () => {
     expect([...RESERVED_KINDS].sort()).toEqual([
       'actor',
       'adr',
+      'assumption',
       'capability',
       'component',
       'datamodel',
@@ -53,7 +54,7 @@ describe('reserved kinds', () => {
     ])
   })
 
-  it('grows by appending — the three additions sit after the original eight', () => {
+  it('grows by appending — every later kind sits after the original eight', () => {
     // Additive-only evolution: a kind adopted later never displaces one adopted
     // earlier, so the head of the list is frozen and only the tail moves.
     expect([...RESERVED_KINDS].slice(0, 8)).toEqual([
@@ -66,7 +67,7 @@ describe('reserved kinds', () => {
       'adr',
       'requirement',
     ])
-    expect([...RESERVED_KINDS].slice(8)).toEqual(['capability', 'journey', 'metric'])
+    expect([...RESERVED_KINDS].slice(8)).toEqual(['capability', 'journey', 'metric', 'assumption'])
   })
 
   it('names only products and components as containers', () => {

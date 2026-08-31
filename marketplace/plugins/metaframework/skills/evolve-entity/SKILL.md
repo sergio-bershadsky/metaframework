@@ -111,7 +111,7 @@ breaks: both entities are live and referrers move one at a time.
 1. **Name the successor.** A real name for what it now is — `payment-intent`,
    not `charge-v2`. A `-v2` suffix is a last resort and reads as a defect
    forever, because the name is the address. Check the name is kebab-case and
-   not one of the eleven reserved kinds.
+   not one of the twelve reserved kinds.
 2. **Create the successor entity** in the correct bucket (placement is grammar:
    `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md`), `version: 1`,
    `status: draft`, with the edge on the **successor**:
