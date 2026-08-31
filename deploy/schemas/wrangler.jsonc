@@ -16,9 +16,17 @@
     "not_found_handling": "none"
   },
 
-  "routes": [
-    { "pattern": "schemas.metaframework.dev", "custom_domain": true }
-  ],
+  // Hostnames are NOT declared here, and that is deliberate. A `custom_domain`
+  // route needs account-level `workers/domains`, which neither available token
+  // carries: CF_TOKEN has the metaframework.dev zone but no account Workers
+  // access, and CF_SOCKET0_TOKEN has account Workers but is zone-scoped to
+  // socket0.com. Declaring a route wrangler cannot create would fail every
+  // deploy.
+  //
+  // Instead the hostname is attached once, out of band, as a zone Workers route
+  // plus a proxied DNS record — see deploy/README.md. A deploy then only
+  // replaces content, which is the part that changes.
+  "workers_dev": true,
 
   "observability": { "enabled": true }
 }
