@@ -27,3 +27,4 @@ dist/
 # The published catalog is a crawl of the local portal — generated on every
 # publish, never reviewed, and large.  rebuilds it.
 deploy/public/
+deploy/schemas/public/

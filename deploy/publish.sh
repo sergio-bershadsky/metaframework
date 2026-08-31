@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Publish the catalog to https://metaframework.dev.
+# Publish the catalog to https://metaframework.dev and the schema documents to
+# https://schemas.metaframework.dev.
 #
 # Validate, crawl the local portal to static HTML, deploy the asset store. The
 # published site is a snapshot: running this is what makes a catalog change
@@ -29,9 +30,13 @@ for _ in $(seq 1 45); do
   curl -sf -o /dev/null -m 2 "http://127.0.0.1:$PORT/" && break || sleep 2
 done
 
-echo "==> crawling to ./public"
+echo "==> crawling the catalog to ./public"
 rm -rf "$HERE/public"
 python3 "$HERE/crawl.py" "http://127.0.0.1:$PORT"
+
+echo "==> crawling the schemas to ./schemas/public"
+rm -rf "$HERE/schemas/public"
+python3 "$HERE/crawl-schemas.py" "http://127.0.0.1:$PORT"
 
 # The crawl captures HTML only; the chunks it references are built assets.
 mkdir -p "$HERE/public/_next"
@@ -49,7 +54,12 @@ fi
 : "${CF_ACCOUNT:?CF_ACCOUNT is not set — see .env.example}"
 export CLOUDFLARE_API_TOKEN="$CF_TOKEN"
 export CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT"
-cd "$HERE"
-npx --yes wrangler@4 deploy "$@"
+# Two Workers, deployed in this order on purpose: a catalog page is readable
+# whether or not its schemas resolve, but a schema host that lags the catalog
+# hands tooling a stale document. Schemas last means they are never ahead.
+( cd "$HERE" && npx --yes wrangler@4 deploy "$@" )
+( cd "$HERE/schemas" && npx --yes wrangler@4 deploy "$@" )
 
-echo "==> done — https://metaframework.dev"
+echo "==> done"
+echo "    https://metaframework.dev"
+echo "    https://schemas.metaframework.dev   (every \$id in the catalog)"

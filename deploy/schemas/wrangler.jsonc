@@ -1,0 +1,24 @@
+{
+  "$schema": "../../framework/portal/node_modules/wrangler/config-schema.json",
+  "name": "metaframework-schemas",
+  "compatibility_date": "2026-08-31",
+
+  // A second Worker rather than a second route on the catalog's, because the two
+  // sites have different roots: the catalog serves `/catalog/…`, and a schema is
+  // addressed by its `$id` — host plus the SRN path, no prefix. One asset store
+  // cannot be rooted two ways, and a script that branched on Host would be code
+  // where a directory will do.
+  "assets": {
+    "directory": "./public",
+    // Extensionless documents, so nothing here is an HTML route. Without this a
+    // request for `/acme/datamodel/money` would be treated as a page lookup.
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+
+  "routes": [
+    { "pattern": "schemas.metaframework.dev", "custom_domain": true }
+  ],
+
+  "observability": { "enabled": true }
+}
