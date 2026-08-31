@@ -50,15 +50,22 @@ def main() -> None:
     # Every replacement is computed and validated before a single byte is
     # written. A half-bumped tree is worse than an unbumped one: it passes some
     # greps, fails the check, and the next reader cannot tell how far it got.
-    planned = []
+    # Accumulated PER FILE, not per claim. Planning each claim from the original
+    # text was a bug: two claims in one file each produced a whole-file copy
+    # carrying only their own edit, and the second write silently clobbered the
+    # first. `marketplace.json` has exactly that shape — a top-level `version`
+    # and `plugins[0].version` — so it shipped half-bumped, and only
+    # `manifest-identity` caught it.
+    planned: dict = {}
     for relative, pattern, label in CLAIMS:
         path = REPO / relative
-        text = path.read_text()
+        text = planned.get(relative, (None, None))[1] or path.read_text()
         replacement = rf"\g<1>{version}" if label == "README banner" else rf"\g<1>{version}\g<2>"
         updated, count = pattern.subn(replacement, text)
         if count != 1:
             fail(f"{relative}: {label} matched {count} times, expected exactly 1 — nothing written")
-        planned.append((path, relative, label, updated))
+        planned[relative] = (path, updated)
+        print(f"  {relative} :: {label} -> {version}", file=sys.stderr)
 
     # npm owns package.json and the lockfile together; running it with an
     # explicit cwd is what makes this script immune to where it was invoked.
@@ -68,9 +75,9 @@ def main() -> None:
     )
     print(f"  package.json + package-lock.json -> {version}")
 
-    for path, relative, label, updated in planned:
+    for relative, (path, updated) in planned.items():
         path.write_text(updated)
-        print(f"  {relative} :: {label} -> {version}")
+        print(f"  {relative} -> {version}")
 
     print("\nverifying with the check that owns the rule...")
     result = subprocess.run(["npm", "run", "hygiene"], cwd=REPO, capture_output=True, text=True)

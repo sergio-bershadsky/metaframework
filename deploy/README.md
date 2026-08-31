@@ -9,9 +9,9 @@ Two sites, two Workers, one command:
 It validates the catalog, rebuilds the portal, crawls both sites and deploys.
 The published sites are **snapshots** — they do not track edits to `solutions/`.
 
-| Site                                | Serves                                    |
-|-------------------------------------|-------------------------------------------|
-| `https://metaframework.dev`         | the catalog, 490 pages                    |
+| Site                                | Serves                                     |
+|-------------------------------------|--------------------------------------------|
+| `https://metaframework.dev`         | the catalog, 490 pages                     |
 | `https://schemas.metaframework.dev` | 104 schema documents, at their `$id` paths |
 
 ## Why the crawl exists
@@ -26,10 +26,10 @@ get static HTML is to ask a running portal for it.
 A `custom_domain` route needs account-level `workers/domains`. Neither token has
 the whole job:
 
-| | `CF_TOKEN` (repo `.env`) | `CF_SOCKET0_TOKEN` |
-|---|---|---|
-| account → `workers/scripts` | 403 | **200** |
-| zone `metaframework.dev` → routes, DNS | **200 (rw)** | 403 |
+|                                        | `CF_TOKEN` (repo `.env`) | `CF_SOCKET0_TOKEN` |
+|----------------------------------------|--------------------------|--------------------|
+| account → `workers/scripts`            | 403                      | **200**            |
+| zone `metaframework.dev` → routes, DNS | **200 (rw)**             | 403                |
 
 So `publish.sh` deploys **content** with the account token, and the hostname was
 attached **once** with the zone token as a Workers route plus a proxied DNS
