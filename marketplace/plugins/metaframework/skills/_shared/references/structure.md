@@ -1,6 +1,6 @@
 # Directory structure — layout, artifacts, placement
 
-> Distilled from `framework/spec/structure.md` (version 10), the container rules
+> Distilled from `framework/spec/structure.md` (version 11), the container rules
 > in `framework/spec/kinds/solution.md`, and the "Entity directory shape" /
 > "Sibling artifacts" / "Body template" sections of the other
 > `framework/spec/kinds/*.md`. **When `framework/spec/` is present in the
@@ -72,6 +72,29 @@ the owner has no entities of that kind; empty buckets should not be committed.
 - **Asset subdirectories** — named for their role (`workflows/`, `examples/`),
   therefore never one of the eleven kinds, and containing **no `index.md` at any
   depth** (`E_STRUCT_NESTED_ENTITY`).
+
+## Inline icons in prose
+
+**`:name:` renders as an icon when `name` is in the closed vocabulary; every
+other colon pair is left exactly as written.** Catalog markdown admits no raw
+HTML, and this is the one glyph escape hatch — chiefly for table cells.
+
+```markdown
+| `approved` | :check: |
+| `draft`    | :x:     |
+```
+
+- **Unknown name → literal text.** There is no diagnostic; a typo shows up as
+  `:chekc:` on the page, which is the review signal.
+- **Narrow pattern.** Lowercase letters and digits, single hyphens, never
+  starting with a digit — so `10:30` and other existing colon pairs cannot
+  match.
+- **Code is exempt.** A colon pair in a code span or fenced block is untouched,
+  so the syntax can be documented in prose that uses it.
+
+The vocabulary grows by appending and a name is never repurposed. Do not invent
+names: if the one you want is absent, the answer is a spec change, not a
+different spelling.
 
 ## Measured numbers do not go in prose
 

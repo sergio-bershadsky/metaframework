@@ -1,6 +1,8 @@
 import { isValidElement } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { PROSE_ICONS } from '@/lib/catalog/prose-icons'
+import { remarkProseIcons } from '@/lib/catalog/remark-prose-icons'
 import { CodeBlock } from '@/components/code/code-block'
 import { EntityLink } from '@/components/entity-link'
 import type { ResolvedMention } from '@/lib/catalog/mentions'
@@ -43,9 +45,30 @@ export function Markdown({
                  [&_td]:border [&_td]:border-border [&_td]:px-2.5 [&_td]:py-1.5 [&_td]:align-top"
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkProseIcons]}
         urlTransform={allowSrnUrls}
-        components={{
+        components={
+          {
+          // `:icon-name:` from remarkProseIcons. Sized in `em` and coloured by
+          // `currentColor`, so a glyph inherits whatever it sits inside —
+          // a table cell, a heading, a bold run — instead of needing a variant
+          // per context.
+          // react-markdown types `components` against known HTML element
+          // names, so a custom element needs the cast. The plugin is the only
+          // producer of this node, and its `name` is safelisted before the node
+          // is emitted, so the cast narrows nothing the renderer relies on.
+          proseicon: (({ name }: { name?: string }) => {
+            const Glyph = name ? PROSE_ICONS[name] : undefined
+            if (!Glyph) return null
+            return (
+              <Glyph
+                aria-label={name}
+                role="img"
+                className="inline-block size-[1.05em] shrink-0 translate-y-[0.12em] text-current"
+                strokeWidth={2.25}
+              />
+            )
+          }) as never,
           a({ href, children: label }) {
             if (href?.startsWith('srn://')) {
               const mention = mentions[href]
@@ -123,7 +146,8 @@ export function Markdown({
               </pre>
             )
           },
-        }}
+          } as Components
+        }
       >
         {children}
       </ReactMarkdown>

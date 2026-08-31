@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: structure
-version: 10
+version: 11
 status: review
 title: Directory structure
 summary: The full directory layout contract — monorepo layout, the eleven kind buckets at every level, the entity-directory convention, what an index.md body may state, placement, naming rules, the artifact role table, and the dialects each role's file may declare.
@@ -186,6 +186,45 @@ else.
 - A kind bucket MAY be absent when the owner has no entities of that kind.
   Empty kind buckets SHOULD NOT be committed (git does not track empty
   directories anyway).
+
+### Inline icons in prose
+
+**Rule:** `:name:` in prose renders as an icon when `name` is in the framework's
+closed vocabulary. Any other colon pair is left exactly as the author wrote it.
+
+Catalog markdown is rendered without raw HTML, so an author cannot place an
+`<svg>` or an `<i>` in a document — the pipeline escapes it and the reader sees
+the tag as text. That default is deliberate: prose here is reviewed content, and
+admitting arbitrary HTML would make every document a place markup can hide. The
+`:name:` form gives authors the one thing raw HTML was wanted for — a glyph in a
+table cell — without opening the rest of it.
+
+```markdown
+| State       | Reviewed  |
+|-------------|-----------|
+| `approved`  | :check:   |
+| `draft`     | :x:       |
+```
+
+Three properties, and each is load-bearing:
+
+- **The vocabulary is closed.** A name that is not in it renders as the literal
+  text the author typed. A typo is therefore visible in review rather than
+  silently disappearing, and an icon whose meaning varies by author cannot enter
+  the catalog — a fixed set keeps documents comparable, which is the difference
+  between notation and decoration. There is no diagnostic: the literal text is
+  the signal.
+- **The pattern is narrow.** A name is lowercase letters and digits with single
+  hyphens, and it may not begin with a digit. A clock time (`10:30`), a ratio, or
+  a symbol in prose therefore cannot match, so adding this feature could not
+  change the meaning of a document written before it existed.
+- **Code is exempt.** A colon pair inside a code span or a fenced block is
+  untouched, because an author writing `` `:check:` `` is documenting the syntax
+  rather than using it. This document's own examples above rely on that.
+
+The vocabulary is a spec constant in the same sense as the reserved kinds: it
+grows by appending, and a name is never repurposed. The portal holds it in
+`framework/portal/src/lib/catalog/prose-icons.ts`.
 
 ### Measured facts in the prose
 
