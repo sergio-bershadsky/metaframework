@@ -26,7 +26,7 @@ it stays in this procedure. Its format is in
 bundled with this plugin, which is the only copy an installed plugin can see:
 
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/srn.md` — the consolidating principle (SRN / schema URL / disk path), identity, placement, relative-reference traps
-- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md` — layout, artifacts, enforced body sections
+- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/structure.md` — layout, artifacts, enforced body sections, prose rules (no h1, no measured numbers, `:icon:` vocabulary)
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/frontmatter.md` — common contract, per-kind fields, edge legality
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/environments.md` — `environment`, `actor`, `adr` and `requirement` in detail: `topology.yaml`, `config.yaml`, the enum rationales, the acceptance-criteria and ADR-section rules
 - `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/journeys.md` — the `journey.yaml` mini-spec: step nodes, the no-branching rule, the 2–12 cap, the product-crossing check
