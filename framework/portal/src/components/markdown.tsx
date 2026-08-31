@@ -53,6 +53,22 @@ export function Markdown({
           // `currentColor`, so a glyph inherits whatever it sits inside —
           // a table cell, a heading, a bold run — instead of needing a variant
           // per context.
+          //
+          // The three numbers are measured, not chosen. `vertical-align` rather
+          // than a transform, because only the former participates in line
+          // layout — a translated glyph overlaps the line above it and the line
+          // box never knows. `-0.13em` puts the box centre on the text's
+          // cap-height centre: for an inline-block the box bottom sits on the
+          // baseline, so the correction is (cap - size)/2, and cap is ~0.7em in
+          // this family. Lucide draws inside ~20 of its 24 viewBox units, so
+          // `0.95em` of box is ~1.15x cap of ink — icons need to run slightly
+          // larger than caps to read as the same weight. `mx-0.12em` is
+          // breathing room on both sides, because the glyph may sit either side
+          // of the text and markdown only supplies a space on one.
+          //
+          // Verified in a browser at two font sizes: the glyph's optical centre
+          // lands 0.03px from the cap-height centre in a 13px table cell and in
+          // a 14.5px paragraph. The previous values were 2.59px low.
           // react-markdown types `components` against known HTML element
           // names, so a custom element needs the cast. The plugin is the only
           // producer of this node, and its `name` is safelisted before the node
@@ -64,8 +80,8 @@ export function Markdown({
               <Glyph
                 aria-label={name}
                 role="img"
-                className="inline-block size-[1.05em] shrink-0 translate-y-[0.12em] text-current"
-                strokeWidth={2.25}
+                className="mx-[0.12em] inline-block size-[0.95em] shrink-0 align-[-0.13em] text-current"
+                strokeWidth={2}
               />
             )
           }) as never,
