@@ -23,3 +23,7 @@ __pycache__/
 # Cloudflare Pages builds it on deploy; a committed copy would be a second,
 # staler answer to a URL that must have exactly one.
 dist/
+
+# The published catalog is a crawl of the local portal — generated on every
+# publish, never reviewed, and large.  rebuilds it.
+deploy/public/

@@ -1,0 +1,25 @@
+{
+  "$schema": "../framework/portal/node_modules/wrangler/config-schema.json",
+  "name": "metaframework-catalog",
+  "compatibility_date": "2026-08-31",
+
+  // No `main`. The published catalog is a static crawl and nothing here needs to
+  // run per request, so the asset store serves it directly and there is no Worker
+  // script to keep correct. socket0's equivalent carries one only because it puts
+  // Basic auth in front of a private catalog; this catalog is public — the repo,
+  // the npm package and the specification all are — so a gate would guard nothing.
+  "assets": {
+    "directory": "./public",
+    // Every route was crawled to `<route>/index.html`, so a bare path resolves by
+    // directory. An unknown path gets the portal's own 404 page rather than a bare
+    // Cloudflare error.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+
+  "routes": [
+    { "pattern": "metaframework.dev", "custom_domain": true }
+  ],
+
+  "observability": { "enabled": true }
+}

@@ -81,6 +81,7 @@ export const ALLOWED_TREES = [
   '.github', // CI
   '.claude-plugin', // marketplace manifest
   'docker', // the compose file, the Dockerfiles, the chart and the env templates
+  'deploy', // the Cloudflare Worker that serves the published catalog at metaframework.dev
 ]
 
 /** Tracked files allowed at the repository root, exhaustively. */
