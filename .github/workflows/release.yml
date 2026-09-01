@@ -12,6 +12,13 @@
 # it was wrong, which is the worse way round: the tarball is immutable and the
 # tag is what everyone reads afterwards.
 #
+# npm is published through TRUSTED PUBLISHING — OIDC, no token. The trusted
+# publisher on npmjs.com must name this repository and this file by name:
+# `release.yml`, case-sensitive. Renaming this file breaks publishing, and the
+# error will be an authentication failure rather than a missing file.
+#
+# Cloudflare still needs a secret; it has no OIDC equivalent here.
+#
 # No step interpolates event-controlled text into a shell. The tag name reaches
 # `run:` through the environment, never through `${{ }}` inside a command.
 name: release
@@ -20,8 +27,9 @@ on:
   push:
     tags: ['v*']
 
-# Least privilege: nothing here writes to the repository. The npm and Cloudflare
-# credentials are secrets, and neither needs a GitHub token.
+# Least privilege at the top; the npm job widens it to `id-token: write` for
+# itself alone, because that permission IS the npm credential under trusted
+# publishing and no other job should be able to mint one.
 permissions:
   contents: read
 
@@ -105,33 +113,62 @@ jobs:
   npm:
     needs: verify
     runs-on: ubuntu-latest
+    # TRUSTED PUBLISHING. There is no npm token here and there is not meant to
+    # be: the OIDC token GitHub mints for this job is the credential, and npm
+    # trades it for a short-lived one after checking the claim against the
+    # trusted publisher configured on npmjs.com. A leaked long-lived token is
+    # the failure this removes rather than mitigates.
+    #
+    # `id-token: write` is scoped to this job. Granting it at the top of the
+    # file would let the site job mint a publish credential it has no use for.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Node 24, not the 22 the gates run on. Trusted publishing needs npm
+      # >= 11.5.1 and Node >= 22.14.0, and Node 22 still ships npm 10.9.8 —
+      # which fails by falling back to looking for a token that is not there,
+      # so the error names authentication rather than the version. Node 24
+      # bundles npm 11.19.0 and satisfies both bounds at once.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: framework/portal/package-lock.json
           registry-url: https://registry.npmjs.org
 
+      # Assert the bound rather than trust the runner image, which moves.
+      - name: npm is new enough for OIDC
+        run: |
+          v=$(npm -v)
+          node -e '
+            const [have] = process.argv.slice(1)
+            const need = "11.5.1"
+            const cmp = (a, b) => a.split(".").map(Number).reduce((r, n, i) => r || n - b.split(".").map(Number)[i], 0)
+            if (cmp(have, need) < 0) {
+              console.error(`npm ${have} cannot use trusted publishing; ${need} or newer is required`)
+              process.exit(1)
+            }
+            console.log(`npm ${have} >= ${need}`)
+          ' "$v"
+
       - run: npm ci
         working-directory: framework/portal
 
+      # No NODE_AUTH_TOKEN, and no `--provenance`: under trusted publishing npm
+      # generates and publishes provenance attestations by default, so passing
+      # the flag would only restate what OIDC already guarantees.
+      #
       # `npm publish` runs prepack, which checks the embedded meta-schemas are
       # fresh and then builds — so this one command is the full build, assemble
       # and pack, and it can fail before any of it starts.
-      #
-      # NPM_TOKEN must be an npm **Automation** token: the account has
-      # auth-and-writes 2FA with a security key, and only Automation carries the
-      # bypass. A Publish token will demand a second factor that no CI runner can
-      # present, which is the same reason scripts/release.sh exists locally.
       - name: publish to npm
         working-directory: framework/portal
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: npm publish --access public
 
   site:
     needs: verify
