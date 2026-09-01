@@ -16,6 +16,36 @@ REPO="$(cd "$HERE/.." && pwd)"
 PORT="${PORT:-6390}"
 CLI="$REPO/framework/portal/bin/metaframework.mjs"
 
+# The deploy needs ACCOUNT-level Workers:Edit. It does NOT need zone access: the
+# hostnames are attached once as zone Workers routes (see README.md), so a
+# content update never touches DNS. `CF_TOKEN` in this repo's .env holds the
+# zone half and not the account half, which is why an explicitly exported
+# CLOUDFLARE_API_TOKEN wins over it.
+if [ -f "$REPO/.env" ]; then
+  set -a; . "$REPO/.env"; set +a
+fi
+export CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-${CF_DEPLOY_TOKEN:-${CF_TOKEN:-}}}"
+export CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-${CF_ACCOUNT:-}}"
+: "${CLOUDFLARE_API_TOKEN:?no token — set CF_DEPLOY_TOKEN in .env, or export CLOUDFLARE_API_TOKEN}"
+: "${CLOUDFLARE_ACCOUNT_ID:?no account — set CF_ACCOUNT in .env}"
+
+echo "==> checking the credential before spending a build on it"
+code=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts")
+if [ "$code" != "200" ]; then
+  cat >&2 <<MSG
+publish: the token cannot reach Workers on this account (HTTP $code).
+
+  A content deploy needs one grant:  Account -> Workers Scripts -> Edit
+  It needs nothing at zone level; the hostnames are already routed.
+
+  Set CF_DEPLOY_TOKEN in .env to a token that has it, or export
+  CLOUDFLARE_API_TOKEN before running this.
+MSG
+  exit 1
+fi
+
 echo "==> validating — never publish a catalog that does not check"
 node "$CLI" check --dir "$REPO/solutions"
 
@@ -47,13 +77,6 @@ done
 echo "    $(find "$HERE/public" -type f | wc -l | tr -d ' ') files, $(du -sh "$HERE/public" | cut -f1)"
 
 echo "==> deploying"
-if [ -f "$REPO/.env" ]; then
-  set -a; . "$REPO/.env"; set +a
-fi
-: "${CF_TOKEN:?CF_TOKEN is not set — see .env.example}"
-: "${CF_ACCOUNT:?CF_ACCOUNT is not set — see .env.example}"
-export CLOUDFLARE_API_TOKEN="$CF_TOKEN"
-export CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT"
 # Two Workers, deployed in this order on purpose: a catalog page is readable
 # whether or not its schemas resolve, but a schema host that lags the catalog
 # hands tooling a stale document. Schemas last means they are never ahead.

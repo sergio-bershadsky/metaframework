@@ -1,0 +1,164 @@
+# Publishing, on a tag.
+#
+# `git push origin v0.4.0` is the whole trigger. Everything a release needs to be
+# true is asserted here rather than remembered: that the tag names the version
+# the tree declares, that the gates are green at that commit, that the tarball
+# carries no sources, and that the published site and the published package
+# describe the same ontology.
+#
+# THE FIRST JOB EXISTS BECAUSE THE OPPOSITE HAPPENED. v0.4.0 was first pushed at
+# a commit whose package.json still said 0.3.0, because the version bump was
+# uncommitted when the publish ran. npm was right and the repository's record of
+# it was wrong, which is the worse way round: the tarball is immutable and the
+# tag is what everyone reads afterwards.
+#
+# No step interpolates event-controlled text into a shell. The tag name reaches
+# `run:` through the environment, never through `${{ }}` inside a command.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+# Least privilege: nothing here writes to the repository. The npm and Cloudflare
+# credentials are secrets, and neither needs a GitHub token.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: framework/portal/package-lock.json
+
+      # `manifest-identity` already holds the five in-tree claims to each other.
+      # What it cannot see is the tag, which lives outside the tree — so that
+      # comparison is made here, and it is the one this job was added for.
+      - name: the tag names the version the tree declares
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          declared=$(node -p "require('./framework/portal/package.json').version")
+          expected="v$declared"
+          if [ "$TAG" != "$expected" ]; then
+            echo "tag $TAG points at a tree declaring $declared (expected $expected)" >&2
+            echo "move the tag to the commit that bumps the version, or bump it here" >&2
+            exit 1
+          fi
+          echo "$TAG == $expected"
+
+      - name: repo hygiene
+        run: node framework/portal/scripts/repo-hygiene.mjs
+
+      - run: npm ci
+        working-directory: framework/portal
+
+      - run: npx next typegen
+        working-directory: framework/portal
+
+      - run: npm run typecheck
+        working-directory: framework/portal
+
+      - run: npx eslint src bin scripts
+        working-directory: framework/portal
+
+      - run: npm test
+        working-directory: framework/portal
+
+      - name: build and assemble the CLI package
+        run: npm run package
+        working-directory: framework/portal
+
+      - name: metaframework check
+        run: node framework/portal/bin/metaframework.mjs check
+
+      # Same audit as ci.yml. A release is the one run where a leak actually
+      # reaches users, so it is repeated rather than assumed from the push build.
+      - name: pack audit
+        working-directory: framework/portal
+        run: |
+          npm pack --dry-run --ignore-scripts --json > /tmp/pack.json
+          node -e '
+            const files = require("/tmp/pack.json")[0].files.map((f) => f.path)
+            const leaks = files.filter((p) =>
+              p.startsWith("src/") || p.includes(".test.") ||
+              p.startsWith("solutions/") || p.startsWith("framework/spec/"))
+            if (leaks.length) {
+              console.error("tarball leaks:", leaks.join(", "))
+              process.exit(1)
+            }
+            console.log(files.length, "files, no leaks")
+          '
+
+  npm:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: framework/portal/package-lock.json
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+        working-directory: framework/portal
+
+      # `npm publish` runs prepack, which checks the embedded meta-schemas are
+      # fresh and then builds — so this one command is the full build, assemble
+      # and pack, and it can fail before any of it starts.
+      #
+      # NPM_TOKEN must be an npm **Automation** token: the account has
+      # auth-and-writes 2FA with a security key, and only Automation carries the
+      # bypass. A Publish token will demand a second factor that no CI runner can
+      # present, which is the same reason scripts/release.sh exists locally.
+      - name: publish to npm
+        working-directory: framework/portal
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+  site:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: framework/portal/package-lock.json
+
+      - run: npm ci
+        working-directory: framework/portal
+
+      # publish.sh validates, builds, serves, crawls both sites and deploys. It
+      # preflights the credential before spending the build, so a missing grant
+      # fails in seconds rather than after a 490-page crawl.
+      #
+      # CLOUDFLARE_API_TOKEN needs exactly one grant: Account -> Workers Scripts
+      # -> Edit. It needs nothing at zone level, because the two hostnames are
+      # attached once as zone Workers routes (deploy/README.md) and a content
+      # deploy never touches DNS.
+      - name: publish the catalog and the schemas
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: ./deploy/publish.sh
