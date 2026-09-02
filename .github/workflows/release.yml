@@ -26,6 +26,12 @@ name: release
 on:
   push:
     tags: ['v*']
+  # The published site is a SNAPSHOT of the catalog, and catalog edits land
+  # between releases — so it needs a way to be refreshed without inventing a
+  # version to hang it on. A dispatch runs verify and the site; npm is skipped,
+  # because republishing a version that already exists is not a thing npm
+  # permits and not a thing anyone wants.
+  workflow_dispatch:
 
 # Least privilege at the top; the npm job widens it to `id-token: write` for
 # itself alone, because that permission IS the npm credential under trusted
@@ -55,6 +61,7 @@ jobs:
       # What it cannot see is the tag, which lives outside the tree — so that
       # comparison is made here, and it is the one this job was added for.
       - name: the tag names the version the tree declares
+        if: github.event_name == 'push'
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -112,6 +119,8 @@ jobs:
 
   npm:
     needs: verify
+    # Tag pushes only. A manual dispatch is for redeploying the site.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # TRUSTED PUBLISHING. There is no npm token here and there is not meant to
     # be: the OIDC token GitHub mints for this job is the credential, and npm

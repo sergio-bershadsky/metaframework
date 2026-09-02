@@ -46,11 +46,15 @@ MSG
   exit 1
 fi
 
-echo "==> validating — never publish a catalog that does not check"
-node "$CLI" check --dir "$REPO/solutions"
-
+# BUILD FIRST, then validate. `metaframework check` runs the assembled
+# standalone server, so on a clean checkout — which is what CI always is — the
+# check cannot run until the build has produced one. Validating first read
+# correctly and only ever worked on a machine that had built before.
 echo "==> building the portal so the crawl serves current code"
 npm --prefix "$REPO/framework/portal" run package >/dev/null
+
+echo "==> validating — never publish a catalog that does not check"
+node "$CLI" check --dir "$REPO/solutions"
 
 echo "==> serving the catalog on :$PORT"
 node "$CLI" --dir "$REPO/solutions" --port "$PORT" --no-watch >/tmp/metaframework-publish.log 2>&1 &
