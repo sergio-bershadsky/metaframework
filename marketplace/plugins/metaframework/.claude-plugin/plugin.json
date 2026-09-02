@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "metaframework",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Author and evolve metaframework solution catalogs — SRN identity and placement, kind-bucketed directory layout, per-kind frontmatter contracts, JSON Schema 2020-12 data models served over HTTP, forward-only relations, and additive-only evolution with the swap procedure. Ships the distilled specification so the rules travel with the plugin.",
   "author": {
     "name": "Sergio Bershadsky",

@@ -68,6 +68,17 @@ jobs:
         run: node framework/portal/scripts/repo-hygiene.mjs
         working-directory: .
 
+      # npm 11, pinned rather than inherited. `actions/setup-node` with
+      # `node-version: 22` brings npm 10.9.8, and this lockfile is written by
+      # npm 11 — which knows the transitive deps of wasm32 fallback packages
+      # (@emnapi/*) are unreachable when a native binary exists and omits them.
+      # npm 10 still demands them, so `npm ci` fails EUSAGE with "Missing:
+      # @emnapi/runtime from lock file" against a lockfile that is correct.
+      #
+      # Pinning npm rather than raising Node keeps the toolchain Node version an
+      # independent decision — ci.yml's comment above explains why 22 — and
+      # fixes the variable that actually differed.
+      - run: npm i -g npm@^11
       - run: npm ci
 
       # Next 16 generates the route types (`PageProps<'/route'>`,
