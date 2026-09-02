@@ -27,7 +27,13 @@ const OPTIONS = {
   since: { type: 'string' },
   port: { type: 'string', short: 'p' },
   host: { type: 'string' },
+  // Opening a window is the default, so the two flags that matter are the ones
+  // that turn it down: `--no-open` serves silently, `--browser` opens an
+  // ordinary tab. `--open` is kept because it was documented and now says what
+  // already happens, which is friendlier than an "unknown option".
   open: { type: 'boolean' },
+  'no-open': { type: 'boolean' },
+  browser: { type: 'boolean' },
   // parseArgs has no notion of a negated flag, so the negative form is the
   // option. There is no `--watch`: watching is the default and always was.
   'no-watch': { type: 'boolean' },
@@ -46,6 +52,8 @@ const COMMANDS = new Set(['serve', 'check'])
  * @property {number} port
  * @property {string} host
  * @property {boolean} open
+ * @property {boolean} app open a chromeless app window rather than a browser tab
+ * @property {boolean} portPinned the caller named a port, so it must not be stepped past
  * @property {boolean} watch push live-reload events to the browser
  */
 
@@ -94,8 +102,12 @@ export function parseCli(argv) {
   const host = values.host ?? DEFAULT_HOST
   if (host.trim() === '') return refuse('--host needs a hostname or address.')
 
+  if (values['no-open'] && values.browser) {
+    return refuse('--no-open and --browser disagree: one opens nothing, the other opens a tab.')
+  }
+
   if (command === 'check') {
-    for (const flag of ['open', 'no-watch']) {
+    for (const flag of ['open', 'no-open', 'browser', 'no-watch']) {
       if (values[flag]) return refuse(`--${flag} means nothing to \`metaframework check\`, which serves nobody.`)
     }
   }
@@ -106,8 +118,12 @@ export function parseCli(argv) {
     dir: values.dir,
     since: values.since,
     port,
+    // A named port is a demand; the default is a preference the server may step
+    // past when something already holds it.
+    portPinned: values.port !== undefined,
     host,
-    open: Boolean(values.open),
+    open: !values['no-open'],
+    app: !values['no-open'] && !values.browser,
     watch: !values['no-watch'],
   }
 }
@@ -118,7 +134,16 @@ function refuse(message) {
 }
 
 function defaults() {
-  return { dir: undefined, since: undefined, port: DEFAULT_PORT, host: DEFAULT_HOST, open: false, watch: true }
+  return {
+    dir: undefined,
+    since: undefined,
+    port: DEFAULT_PORT,
+    portPinned: false,
+    host: DEFAULT_HOST,
+    open: true,
+    app: true,
+    watch: true,
+  }
 }
 
 /**
@@ -139,9 +164,11 @@ OPTIONS
   -d, --dir <path>   catalog directory to serve (skips discovery)
       --since <ref>  check only: also require a version bump for every entity
                      whose files changed since <ref> (e.g. --since origin/main)
-  -p, --port <n>     port to listen on (default ${DEFAULT_PORT})
+  -p, --port <n>     port to listen on (default ${DEFAULT_PORT}, stepped past if taken)
       --host <addr>  address to bind (default ${DEFAULT_HOST}; use 0.0.0.0 to share)
-      --open         open the portal in your browser once it is ready
+      --open         open a window once ready (the default; kept for habit)
+      --browser      open an ordinary browser tab instead of an app window
+      --no-open      start the portal without opening anything
       --no-watch     stop pushing reloads to the browser; edits still show on refresh
   -v, --version      print the version
   -h, --help         print this

@@ -5,6 +5,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEFAULT_PORT, helpText, parseCli } from './args.mjs'
+import { chromiumFor, launchCommand } from './window.mjs'
 import { CATALOG_DIR_NAME, catalogShape, resolveCatalogDir } from './discover.mjs'
 import { GIT_MISSING, inCatalogFilter, repositoryContext, unbumpedSince } from './since.mjs'
 
@@ -185,8 +186,8 @@ function catalogOrExit(invocation) {
 
 /* -------------------------------------------------------------------- serve */
 
-async function serve({ catalogDir, port, host, open, watch }) {
-  await claimPortOrExit(host, port)
+async function serve({ catalogDir, port, host, portPinned, open, app, watch }) {
+  port = await resolvePort(host, port, portPinned)
 
   const muffled = startServer({ catalogDir, port, host, watch })
   handleSignals()
@@ -196,7 +197,7 @@ async function serve({ catalogDir, port, host, open, watch }) {
 
   const url = `http://${displayHost(host)}:${port}`
   printBanner({ status, url, catalogDir, watch })
-  if (open) openBrowser(url)
+  if (open) openWindow(url, app)
 }
 
 /**
@@ -272,11 +273,45 @@ function serverEntryOrExit() {
  * into a sentence. The gap between this bind and the server's is a race nobody
  * will lose in practice, and losing it is survivable: the server still errors.
  */
-async function claimPortOrExit(host, port) {
-  const error = await tryBind(host, port)
-  if (!error) return
+/**
+ * The port to actually listen on.
+ *
+ * A NAMED port is a demand: someone who passes `--port` has a reason — a proxy
+ * in front, a bookmark, a firewall rule — and quietly moving them somewhere
+ * else would break it silently. So a pinned port that is taken is still fatal.
+ *
+ * The DEFAULT port is a preference. Running a second portal used to fail with
+ * "port 6363 is already in use", which is a true statement and a useless one:
+ * nothing about a second catalog wants the first one's port. It now steps to
+ * the next free port and says so, because two portals at once is a normal thing
+ * to want and was only ever refused by an accident of implementation.
+ */
+async function resolvePort(host, preferred, pinned) {
+  const error = await tryBind(host, preferred)
+  if (!error) return preferred
 
-  const elsewhere = port === DEFAULT_PORT ? '' : `, or drop --port to use ${DEFAULT_PORT}`
+  if (pinned) refusePort(host, preferred, error)
+  // Anything other than "taken" is a real problem at any port — a bad host, a
+  // privileged range — so stepping sideways would only hide it.
+  if (error.code !== 'EADDRINUSE') refusePort(host, preferred, error)
+
+  // A short walk, then the kernel. Sixteen is enough for a person opening
+  // portals by hand, and past that a contiguous scan is the wrong instrument.
+  for (let candidate = preferred + 1; candidate <= preferred + 16 && candidate <= 65535; candidate += 1) {
+    if (!(await tryBind(host, candidate))) {
+      warn(`port ${preferred} is in use — serving on ${candidate} instead.`)
+      return candidate
+    }
+  }
+
+  const chosen = await freePort(host).catch(() => null)
+  if (chosen === null) refusePort(host, preferred, error)
+  warn(`port ${preferred} is in use — serving on ${chosen} instead.`)
+  return chosen
+}
+
+function refusePort(host, port, error) {
+  const elsewhere = port === DEFAULT_PORT ? '' : `, or drop --port to let one be chosen`
   if (error.code === 'EADDRINUSE') {
     fail(`port ${port} is already in use on ${host}.\nPass \`--port <n>\` to use another one${elsewhere}.`)
   }
@@ -651,18 +686,14 @@ function probeHost(host) {
   return host === '0.0.0.0' ? '127.0.0.1' : host === '::' ? '[::1]' : host
 }
 
-/** Best effort, never fatal: failing to open a browser is not failing to serve. */
-function openBrowser(url) {
-  const [command, args] =
-    process.platform === 'darwin'
-      ? ['open', [url]]
-      : process.platform === 'win32'
-        ? ['cmd', ['/c', 'start', '', url]]
-        : ['xdg-open', [url]]
+/** Best effort, never fatal: failing to open a window is not failing to serve. */
+function openWindow(url, app) {
+  const chromium = app ? chromiumFor(process.platform) : null
+  const [command, args] = launchCommand({ platform: process.platform, url, app, chromium })
 
   import('node:child_process').then(({ spawn }) => {
     const opener = spawn(command, args, { stdio: 'ignore', detached: true })
-    opener.on('error', () => warn(`could not open a browser — visit ${url}.`))
+    opener.on('error', () => warn(`could not open a window — visit ${url}.`))
     opener.unref()
   })
 }

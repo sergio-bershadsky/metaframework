@@ -121,15 +121,15 @@ metaframework [options]          start the portal and watch the catalog
 metaframework check [options]    validate the catalog and exit non-zero on errors
 ```
 
-| Flag                 | Does                                                                      |
-|----------------------|---------------------------------------------------------------------------|
-| `-d`, `--dir <path>` | Catalog directory to serve, skipping discovery. Point it at `solutions/`. |
-| `-p`, `--port <n>`   | Port to listen on. Default `6363`.                                        |
-| `--host <addr>`      | Address to bind. Default `127.0.0.1`; `0.0.0.0` to share.                 |
-| `--open`             | Open the portal in your browser once it is ready.                         |
-| `--no-watch`         | Stop pushing reloads; edits still show on refresh.                        |
-| `-v`, `--version`    | Print the version.                                                        |
-| `-h`, `--help`       | Print usage.                                                              |
+| Flag                 | Does                                                                          |
+|----------------------|-------------------------------------------------------------------------------|
+| `-d`, `--dir <path>` | Catalog directory to serve, skipping discovery. Point it at `solutions/`.     |
+| `-p`, `--port <n>`   | Port to listen on. Default `6363`, stepped past if taken; naming one pins it. |
+| `--host <addr>`      | Address to bind. Default `127.0.0.1`; `0.0.0.0` to share.                     |
+| `--open`             | Open the portal in your browser once it is ready.                             |
+| `--no-watch`         | Stop pushing reloads; edits still show on refresh.                            |
+| `-v`, `--version`    | Print the version.                                                            |
+| `-h`, `--help`       | Print usage.                                                                  |
 
 It binds loopback by default. This serves a directory off your laptop with no
 authentication in front of it; putting that on every interface without being

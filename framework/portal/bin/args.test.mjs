@@ -15,7 +15,9 @@ describe('parseCli', () => {
       dir: undefined,
       port: DEFAULT_PORT,
       host: DEFAULT_HOST,
-      open: false,
+      open: true,
+      app: true,
+      portPinned: false,
       watch: true,
     })
   })
@@ -98,5 +100,58 @@ describe('helpText', () => {
       expect(help).toContain(flag)
     }
     expect(help).toContain(String(DEFAULT_PORT))
+  })
+})
+
+/**
+ * Opening a window is now the default, and the window is a chromeless one.
+ * `--app=` is Chrome's own flag: it gives a dock entry and no address bar,
+ * which is the whole of what a desktop wrapper was wanted for — without a
+ * second runtime to ship.
+ */
+describe('opening a window', () => {
+  it('opens an app window by default, with no flag at all', () => {
+    expect(parseCli([])).toMatchObject({ open: true, app: true })
+  })
+
+  it('--no-open serves without opening anything', () => {
+    expect(parseCli(['--no-open'])).toMatchObject({ open: false, app: false })
+  })
+
+  it('--browser opens an ordinary tab instead of an app window', () => {
+    expect(parseCli(['--browser'])).toMatchObject({ open: true, app: false })
+  })
+
+  it('--open is still accepted, and still means the default', () => {
+    expect(parseCli(['--open'])).toMatchObject({ open: true, app: true })
+  })
+
+  it('refuses --no-open and --browser together, which disagree', () => {
+    expect(parseCli(['--no-open', '--browser'])).toMatchObject({ ok: false })
+  })
+
+  for (const flag of ['--browser', '--no-open']) {
+    it(`refuses ${flag} on \`check\`, which serves nobody`, () => {
+      expect(parseCli(['check', flag])).toMatchObject({ ok: false })
+    })
+  }
+})
+
+/**
+ * Two portals at once used to be an error. The default port is now a
+ * PREFERENCE — taken when free, stepped past when not — while an explicit
+ * `--port` stays a demand, because someone who names a port has a reason.
+ */
+describe('port', () => {
+  it('does not pin the default port', () => {
+    expect(parseCli([])).toMatchObject({ port: DEFAULT_PORT, portPinned: false })
+  })
+
+  it('pins a port the caller named', () => {
+    expect(parseCli(['--port', '7000'])).toMatchObject({ port: 7000, portPinned: true })
+  })
+
+  it('pins it even when the caller names the default', () => {
+    expect(parseCli(['--port', String(DEFAULT_PORT)])).toMatchObject({ portPinned: true })
   })
 })
