@@ -3,6 +3,11 @@ import Link from 'next/link'
 import { SectionHeading } from '@/components/entity/section-heading'
 import { type Catalog, entityHref } from '@/lib/catalog'
 import { schemaUrlPrefix, srnToSchemaUrl } from '@/lib/schema/url'
+import {
+  COMPONENT_LIFECYCLE,
+  PRODUCT_LIFECYCLE,
+  STATUSES,
+} from '@/lib/catalog/vocabulary'
 import { ARTIFACT_ROLES, type ArtifactRole } from '@/lib/srn/artifacts'
 import { KIND_STYLES } from '@/lib/ui/kind'
 import { cn } from '@/lib/utils'
@@ -221,6 +226,33 @@ function realExamples(catalog: Catalog) {
   return found
 }
 
+/**
+ * The two `lifecycle` vocabularies, as the kind documents define them.
+ *
+ * Read from the shared arrays rather than typed out, so a value added to the
+ * spec cannot silently go unexplained here: the table below renders one row per
+ * array entry and says so when a note is missing.
+ */
+const LIFECYCLES = [
+  { kind: 'product', values: PRODUCT_LIFECYCLE },
+  { kind: 'component', values: COMPONENT_LIFECYCLE },
+] as const
+
+const LIFECYCLE_MEANING: Record<string, string> = {
+  // product — kinds/product.md
+  concept: 'Described before it is built; nothing runs yet.',
+  incubating: 'Being built; contracts still moving.',
+  active: 'In production and invested in.',
+  maintenance: 'In production, no new features; fixes and compliance only.',
+  // component — kinds/component.md
+  planned: 'Described and agreed; not being built yet. No code exists.',
+  'in-development': 'Being built; nothing has shipped. No consumer can call it for real.',
+  released: 'Shipped at least once. Someone outside the building team depends on it now.',
+  // shared tail
+  sunset: 'Still running, but being replaced; no new consumers are accepted.',
+  retired: 'No longer running. The description is kept — nothing is ever deleted.',
+}
+
 export function AuthoringGuide({ catalog, className }: { catalog: Catalog; className?: string }) {
   const examples = realExamples(catalog)
   const firstSchema = examples.get('schema')
@@ -320,6 +352,92 @@ export function AuthoringGuide({ catalog, className }: { catalog: Catalog; class
             </li>
           ))}
         </ul>
+
+        <div className="rule-fade my-6" />
+
+        {/* ------------------------------------------------------- lifecycle */}
+        <SectionHeading level={3} className="text-[11px]">
+          Status and lifecycle are different questions
+        </SectionHeading>
+        <p className={cn(PROSE, 'mt-1.5 max-w-3xl')}>
+          Every entity carries a <code className="font-mono">status</code>, and it is about{' '}
+          <strong className="text-foreground/85">the document</strong> — has this description been
+          written and reviewed. Products and components additionally carry a{' '}
+          <code className="font-mono">lifecycle</code>, and it is about{' '}
+          <strong className="text-foreground/85">the thing being described</strong> — where it stands
+          in the world. They move independently: an <code className="font-mono">approved</code>{' '}
+          description of a <code className="font-mono">concept</code> product is a normal, useful
+          state, and so is a <code className="font-mono">draft</code> description of something that
+          has been in production for years.
+        </p>
+
+        <div className="mt-3.5 grid gap-3 lg:grid-cols-2">
+          <div className={CARD}>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileCode2 className="size-3 shrink-0" aria-hidden />
+              status &mdash; every kind
+            </p>
+            <p className={cn(PROSE, 'mt-2.5')}>
+              <code className="font-mono">{STATUSES.join(' · ')}</code>
+            </p>
+            <p className={cn(PROSE, 'mt-2')}>
+              The review state of this <code className="font-mono">index.md</code>. A{' '}
+              <code className="font-mono">deprecated</code> document is one that should no longer be
+              relied on, which is not the same as a retired system.
+            </p>
+          </div>
+
+          <div className={CARD}>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Bot className="size-3 shrink-0" aria-hidden />
+              why two enums, not one
+            </p>
+            <p className={cn(PROSE, 'mt-2.5')}>
+              A product is a funded position in a portfolio; a component is a thing that gets built
+              and shipped. The words are not interchangeable — a component is never{' '}
+              <code className="font-mono">active</code>, a product is never{' '}
+              <code className="font-mono">released</code> — so each kind closes its own list. They
+              meet only at the end, where <code className="font-mono">sunset</code> and{' '}
+              <code className="font-mono">retired</code> mean the same to both.
+            </p>
+          </div>
+        </div>
+
+        {LIFECYCLES.map(({ kind, values }) => {
+          const style = KIND_STYLES[kind as keyof typeof KIND_STYLES]
+          const Icon = style?.icon
+          return (
+            <div key={kind} className="mt-5">
+              <p className="flex items-center gap-2">
+                {Icon && <Icon className={cn('size-4 shrink-0', style.text)} aria-hidden />}
+                <code className={cn('font-mono text-[12px] font-medium', style?.text)}>
+                  lifecycle on a {kind}
+                </code>
+                <span className="font-mono text-[11px] text-muted-foreground/70">
+                  required &middot; {values.length} values, in order
+                </span>
+              </p>
+              <ol className="mt-2 flex flex-col gap-1.5">
+                {values.map((value) => (
+                  <li key={value} className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+                    <code className="w-36 shrink-0 font-mono text-[11.5px] text-foreground/85">
+                      {value}
+                    </code>
+                    <span className={cn(PROSE, 'min-w-0')}>
+                      {LIFECYCLE_MEANING[value] ?? (
+                        // A value the spec grew and this guide has not been taught.
+                        // Saying so beats dropping the row.
+                        <span className="text-muted-foreground/70">
+                          No note yet — added to the spec after this guide was written.
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )
+        })}
 
         <div className="rule-fade my-6" />
 

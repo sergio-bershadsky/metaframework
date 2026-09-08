@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import {
+  COMPONENT_LIFECYCLE,
   COMPONENT_TYPES,
+  PRODUCT_LIFECYCLE,
   EDGE_TYPES,
   ENTITY_KINDS,
   STATUSES,
@@ -143,7 +145,7 @@ export const KIND_FRONTMATTER = {
   }),
 
   product: z.object({
-    lifecycle: z.enum(['concept', 'incubating', 'active', 'maintenance', 'sunset', 'retired']),
+    lifecycle: z.enum(PRODUCT_LIFECYCLE),
     'primary-actors': z.array(z.string().min(1)).optional(),
   }),
 
@@ -182,7 +184,7 @@ export const KIND_FRONTMATTER = {
     // per-environment fact and stays in environment declarations and
     // topology.yaml. Folding environments in here would make the field
     // unanswerable for any component that ships to more than one.
-    lifecycle: z.enum(['planned', 'in-development', 'released', 'sunset', 'retired']),
+    lifecycle: z.enum(COMPONENT_LIFECYCLE),
   }),
 
   datamodel: z.object({

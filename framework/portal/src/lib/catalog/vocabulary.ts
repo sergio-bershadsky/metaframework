@@ -102,3 +102,23 @@ export const COMPONENT_TYPES = [
   'specification',
 ] as const
 export type ComponentType = (typeof COMPONENT_TYPES)[number]
+
+/**
+ * The two `lifecycle` enums, which are deliberately NOT one enum.
+ *
+ * A product is a funded position in a portfolio; a component is a thing that
+ * gets built and shipped. They pass through different states and the words are
+ * not interchangeable — a component is never `active`, a product is never
+ * `released` — so `kinds/product.md` and `kinds/component.md` each close their
+ * own list. They meet only at the end, where `sunset` and `retired` mean the
+ * same thing to both.
+ *
+ * Here rather than in ./frontmatter for the reason the module note gives: the
+ * console explains these values to a reader, and nothing that reaches the
+ * browser may pull zod in behind it.
+ */
+export const PRODUCT_LIFECYCLE = ['concept', 'incubating', 'active', 'maintenance', 'sunset', 'retired'] as const
+export type ProductLifecycle = (typeof PRODUCT_LIFECYCLE)[number]
+
+export const COMPONENT_LIFECYCLE = ['planned', 'in-development', 'released', 'sunset', 'retired'] as const
+export type ComponentLifecycle = (typeof COMPONENT_LIFECYCLE)[number]
