@@ -28,3 +28,6 @@ dist/
 # publish, never reviewed, and large.  rebuilds it.
 deploy/public/
 deploy/schemas/public/
+
+# A local scratch note, not part of the repository.
+.claude/RESUME.md

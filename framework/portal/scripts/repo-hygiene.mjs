@@ -79,6 +79,7 @@ export const ALLOWED_TREES = [
   'docs', // roadmap, decision record, screenshots
   'scripts', // release and migration tooling
   '.github', // CI
+  '.claude', // the entity-version hook, shared with anyone who clones
   '.claude-plugin', // marketplace manifest
   'docker', // the compose file, the Dockerfiles, the chart and the env templates
   'deploy', // the Cloudflare Worker that serves the published catalog at metaframework.dev
