@@ -86,6 +86,7 @@ export const ALLOWED_TREES = [
 
 /** Tracked files allowed at the repository root, exhaustively. */
 export const ALLOWED_ROOT_FILES = [
+  'CLAUDE.md', // the authoring rules, chiefly the self-description one nothing can check
   '.env.example',
   '.gitignore',
   'LICENSE',
