@@ -241,15 +241,17 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
           )}
         </div>
 
-        {/* Three deliberate rows rather than a wrap: what the rail SHOWS (which
-            scope, in which shape), then what the reader ASKS OF IT (kind,
-            status), then the one standing preference. Left to flex-wrap, a
-            control lands alone on a line by accident — and at 288px the third
-            row is not optional, the row above is already full.
+        {/* Two deliberate rows rather than a wrap: what the rail SHOWS (which
+            scope, in which shape) above what it HIDES (kind, status). Left to
+            flex-wrap, the fourth control lands alone on a line by accident.
 
-            The split is also honest about kind: the two above are questions
-            asked and dropped, this one is how the catalog looks until it is
-            turned off. */}
+            `Hide deprecated` lives INSIDE the status menu and not beside it.
+            Measured at the 288px rail: the row has 124px left and the pill
+            wants 126. The two labels that do fit — "Deprecated", "No
+            deprecated" — both read as a facet in a row of facets, and a CHECKED
+            "Deprecated" beside a "show only" Kind and Status says the opposite
+            of what it does. Two pixels are not worth a control that lies about
+            its polarity, and the menu is where the label can stay a verb. */}
         <div className="mt-2 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <LensPicker lens={lens} onChange={setLens} />
@@ -257,13 +259,11 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
           </div>
           <div className="flex items-center gap-1.5">
             <KindFilter kinds={kinds} onChange={setKinds} />
-            <StatusFilter statuses={statuses} onChange={setStatuses} />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <HideDeprecated
-              on={hideDeprecated}
-              overridden={statuses.includes('deprecated')}
-              onChange={setHideDeprecated}
+            <StatusFilter
+              statuses={statuses}
+              onChange={setStatuses}
+              hideDeprecated={hideDeprecated}
+              onHideDeprecatedChange={setHideDeprecated}
             />
           </div>
         </div>
@@ -297,6 +297,13 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
               <>
                 Nothing matches. Try a different term
                 {(kinds.length > 0 || statuses.length > 0) && ', or relax the kind and status filters'}.
+                {/* Hiding is ON before the reader chooses anything and now lives
+                    inside a menu, so a search that comes back empty has a cause
+                    nothing on screen states. This is where that gets said — the
+                    one place the absence is actually being felt. */}
+                {hideDeprecated && !statuses.includes('deprecated') && (
+                  <> Deprecated entities are hidden — see the status filter.</>
+                )}
               </>
             ) : (
               <>
@@ -426,63 +433,6 @@ function KindFilter({ kinds, onChange }: { kinds: EntityKind[]; onChange: (kinds
 }
 
 /**
- * The one control in this rail that is ON before the reader touches anything.
- *
- * It is a checkbox and not another dropdown pill because it has one state to
- * show, and because the reader has to be able to see — without opening
- * anything — that the tree in front of them is already holding something back.
- * An unexplained absence is the failure mode this whole control has to avoid.
- *
- * `overridden` is the Status filter explicitly asking for `deprecated`. The
- * explicit ask wins (see `filterTree`), so rather than silently doing nothing,
- * the box says so: it renders unchecked and dimmed with the reason in its
- * title, and stays clickable so the reader can turn the preference off for good
- * while the override happens to be in force.
- */
-function HideDeprecated({
-  on,
-  overridden,
-  onChange,
-}: {
-  on: boolean
-  overridden: boolean
-  onChange: (on: boolean) => void
-}) {
-  const effective = on && !overridden
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={effective}
-      title={
-        overridden
-          ? 'The Status filter is asking for deprecated entities, so they are shown.'
-          : 'Deprecated entities are hidden. Their non-deprecated children still appear.'
-      }
-      onClick={() => onChange(!on)}
-      className={cn(
-        'focusable inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border px-2 text-[11.5px] transition',
-        effective
-          ? 'border-primary/40 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:text-foreground',
-        overridden && 'opacity-50',
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          'grid size-3 place-items-center rounded-[3px] border',
-          effective ? 'border-primary/60 bg-primary/20' : 'border-border',
-        )}
-      >
-        {effective && <Check className="size-2.5" />}
-      </span>
-      Hide deprecated
-    </button>
-  )
-}
-
-/**
  * The status filter doubles as the legend for the line treatments: each option
  * is typeset the way rows carrying that status are, so the encoding is learned
  * in the one place you are already thinking about status.
@@ -490,10 +440,17 @@ function HideDeprecated({
 function StatusFilter({
   statuses,
   onChange,
+  hideDeprecated,
+  onHideDeprecatedChange,
 }: {
   statuses: Status[]
   onChange: (statuses: Status[]) => void
+  hideDeprecated: boolean
+  onHideDeprecatedChange: (on: boolean) => void
 }) {
+  // Asking for `deprecated` explicitly beats the standing preference, so the
+  // item reports what is actually happening rather than what is stored.
+  const overridden = statuses.includes('deprecated')
   const toggle = (status: Status) =>
     onChange(statuses.includes(status) ? statuses.filter((s) => s !== status) : [...statuses, status])
 
@@ -512,6 +469,23 @@ function StatusFilter({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-56">
+        {/* Above the facets and separated from them, because it is not one: the
+            list below is an allowlist the reader builds, this is a standing
+            preference that is ON before anything is touched. */}
+        <DropdownMenuCheckboxItem
+          checked={hideDeprecated && !overridden}
+          onCheckedChange={() => onHideDeprecatedChange(!hideDeprecated)}
+          onSelect={(event) => event.preventDefault()}
+          className="text-[12.5px]"
+        >
+          Hide deprecated
+        </DropdownMenuCheckboxItem>
+        <p className="px-2 pb-1.5 text-[11px] leading-snug text-muted-foreground/70">
+          {overridden
+            ? 'Shown, because the filter below asks for them.'
+            : 'Their non-deprecated children still appear.'}
+        </p>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-[11px] uppercase tracking-wider">Show only</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {STATUSES.map((status) => (

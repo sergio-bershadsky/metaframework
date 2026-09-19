@@ -1,7 +1,7 @@
 ---
 name: catalog-tree
 kind: component
-version: 4
+version: 5
 title: Catalog tree
 summary: The navigation rail — four lenses over the same tree, text and facet filters, focus, and preferences read through an external store.
 status: review
@@ -65,11 +65,26 @@ Taking the subtree down instead would hide an `approved` component behind a
 retired container, and nothing here is ever deleted — deprecating a container is
 how it retires.
 
+It lives INSIDE the status menu, above the facets and separated from them,
+rather than beside it as a fourth pill. That is a measurement, not a taste: at
+the 288px rail the pill row has 124px left and the pill wants 126. The two
+labels that do fit — "Deprecated", "No deprecated" — read as a facet in a row of
+facets, and a *checked* "Deprecated" next to a "show only" Kind and Status says
+the opposite of what it does. Two pixels are not worth a control that lies about
+its polarity.
+
 Selecting `deprecated` in the status facet turns the hiding off for that render:
 the explicit ask beats the standing preference, because the alternative is an
-empty tree whose cause is a control elsewhere on the page. The checkbox says so
-rather than going quiet — it renders unchecked and dimmed with the reason in its
-title.
+empty tree whose cause is a control elsewhere on the page. The item reports what
+is actually happening rather than what is stored — it shows unchecked, and its
+note changes to say the filter below is asking for them.
+
+The cost of the menu is that a default-ON hiding is no longer visible without
+opening something, and the place that is felt is a search that finds nothing.
+So the empty state names it: "Deprecated entities are hidden — see the status
+filter." That is the one screen where the absence is actually being experienced,
+and it is cheaper than a permanently lit pill that would make the default state
+look filtered.
 
 The match counter runs on the pruned tree for the same reason. Counted on the
 whole one it said "2 matches" over a single visible row, which is precisely the
