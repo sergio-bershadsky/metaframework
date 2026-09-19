@@ -5,6 +5,8 @@ import {
   countMatches,
   filterSignature,
   filterTree,
+  isFiltering,
+  isTransforming,
   isTreeLens,
   KIND_ORDER,
   type LensGroupNode,
@@ -138,6 +140,73 @@ describe('filterTree', () => {
 
   it('returns the input untouched when nothing is filtering', () => {
     expect(filterTree(roots, NO_FILTERS)).toBe(roots)
+  })
+})
+
+describe('filterTree — hiding deprecated', () => {
+  /* A deprecated container with live children under it: the case the elision
+     exists for, and the one a plain drop would get wrong. */
+  const deprecatedParent = n('billing', 'product', { status: 'deprecated' }, [
+    n('ledger', 'component', { status: 'approved' }),
+    n('audit-trail', 'component', { status: 'deprecated' }),
+  ])
+  const tree = [n('acme', 'solution', {}, [deprecatedParent, n('shop', 'product')])]
+  const hiding = filters({ hideDeprecated: true })
+
+  it('hides the node and RE-PARENTS its living children', () => {
+    const kept = filterTree(tree, hiding)
+    const acme = kept[0]
+    // `billing` is gone; `ledger` took its place under acme. `audit-trail`
+    // was deprecated too and left with it.
+    expect(acme.children.map((node) => node.name)).toEqual(['ledger', 'shop'])
+  })
+
+  it('never takes a live entity down with its deprecated container', () => {
+    const names = (nodes: typeof tree): string[] =>
+      nodes.flatMap((node) => [node.name, ...names(node.children)])
+    expect(names(filterTree(tree, hiding))).toContain('ledger')
+    expect(names(filterTree(tree, hiding))).not.toContain('billing')
+  })
+
+  it('hides a deprecated leaf outright', () => {
+    const kept = filterTree([n('root', 'solution', {}, [n('gone', 'adr', { status: 'deprecated' })])], hiding)
+    expect(kept[0].children).toEqual([])
+  })
+
+  /* The clash the design had to resolve: an explicit ask beats the default,
+     because the alternative is an empty tree with no visible cause. */
+  it('yields to an explicit Status request for deprecated', () => {
+    const asked = filters({ hideDeprecated: true, statuses: ['deprecated'] })
+    const kept = filterTree(tree, asked)
+    const names = kept[0].children.map((node) => node.name)
+    expect(names).toContain('billing')
+  })
+
+  it('is not "filtering", so the rail keeps its normal reading posture', () => {
+    expect(isFiltering(hiding)).toBe(false)
+    expect(isTransforming(hiding)).toBe(true)
+    // ...but a search still is.
+    expect(isFiltering(filters({ query: 'x' }))).toBe(true)
+  })
+
+  it('changes the signature, so fold overrides are dropped when it toggles', () => {
+    expect(filterSignature(hiding)).not.toBe(filterSignature(NO_FILTERS))
+  })
+
+  /* The rail counts matches on the PRUNED tree. Counting the whole one made it
+     say "2 matches" over a single visible row, because a deprecated hit that
+     had been elided was still counted — the unexplained absence the control
+     exists to prevent, produced by the control itself. */
+  it('a hidden hit is not counted as a match', () => {
+    const tree = [
+      n('brass', 'solution', {}, [
+        n('fly-vercel', 'environment', { status: 'deprecated' }),
+        n('adr-fly-vercel', 'adr', { status: 'approved' }),
+      ]),
+    ]
+    const searching = filters({ query: 'fly-vercel', hideDeprecated: true })
+    expect(countMatches(tree, searching)).toBe(2)
+    expect(countMatches(filterTree(tree, searching), searching)).toBe(1)
   })
 })
 

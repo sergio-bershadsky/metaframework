@@ -28,11 +28,23 @@ export interface RailSettings {
   /** SRN of the focused solution, or '' for the whole catalog. */
   focus: string
   lens: TreeLens
+  /**
+   * Hide `status: deprecated` rows. ON by default — including for a reader
+   * whose stored preferences predate the key, which is why the parse below
+   * tests for `=== false` rather than trusting a falsy absent value.
+   */
+  hideDeprecated: boolean
 }
 
 const STORAGE_KEY = 'metaframework.tree'
 
-export const DEFAULT_SETTINGS: RailSettings = { kinds: [], statuses: [], focus: '', lens: 'hierarchy' }
+export const DEFAULT_SETTINGS: RailSettings = {
+  kinds: [],
+  statuses: [],
+  focus: '',
+  lens: 'hierarchy',
+  hideDeprecated: true,
+}
 
 const listeners = new Set<() => void>()
 /** The last raw string parsed, so a snapshot keeps its identity between writes. */
@@ -56,6 +68,10 @@ function parseSettings(raw: string | null): RailSettings {
         : [],
       focus: typeof parsed.focus === 'string' ? parsed.focus : '',
       lens: isTreeLens(parsed.lens) ? parsed.lens : 'hierarchy',
+      // Absent means "never chose", which takes the default (on). Only an
+      // explicit `false` turns it off, so the new default reaches readers who
+      // already have a stored preference.
+      hideDeprecated: parsed.hideDeprecated !== false,
     }
   } catch {
     /* a corrupt preference must never break navigation */

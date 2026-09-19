@@ -1,7 +1,7 @@
 ---
 name: catalog-tree
 kind: component
-version: 3
+version: 4
 title: Catalog tree
 summary: The navigation rail — four lenses over the same tree, text and facet filters, focus, and preferences read through an external store.
 status: review
@@ -47,6 +47,34 @@ highlighted with `<mark>` in the row), a kind facet, and a status facet. A
 switches from per-node `useState` to an override map keyed by a `filterSignature`
 — everything opens by default, and a manual collapse survives only until the
 filter changes.
+
+**Hide deprecated is a fourth control and not a fourth filter.** It is ON before
+the reader touches anything, and it is the only control here that is. The three
+above are questions asked and dropped; this one is what the catalog looks like
+until it is turned off, so `isFiltering` deliberately excludes it and
+`isTransforming` is the predicate `filterTree` actually guards on. Counting it
+as filtering would leave the rail in searching posture forever: every branch
+re-expanding under the reader, their own collapse state never surviving.
+
+It is also the one filter with the opposite polarity. The others are RETENTIVE —
+a node survives on its children's behalf — so a deprecated container would be
+kept alive by a live child. A deprecated node is therefore ELIDED rather than
+dropped: it returns its surviving children in its own place and they are spliced
+into its parent, which falls out of the walk returning a list instead of a node.
+Taking the subtree down instead would hide an `approved` component behind a
+retired container, and nothing here is ever deleted — deprecating a container is
+how it retires.
+
+Selecting `deprecated` in the status facet turns the hiding off for that render:
+the explicit ask beats the standing preference, because the alternative is an
+empty tree whose cause is a control elsewhere on the page. The checkbox says so
+rather than going quiet — it renders unchecked and dimmed with the reason in its
+title.
+
+The match counter runs on the pruned tree for the same reason. Counted on the
+whole one it said "2 matches" over a single visible row, which is precisely the
+unexplained absence this control exists to prevent, produced by the control
+itself.
 
 ## Preferences are an external store, not state plus an effect
 

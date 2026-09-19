@@ -155,12 +155,37 @@ export interface TreeFilters {
   query: string
   kinds: EntityKind[]
   statuses: Status[]
+  /**
+   * Drop `status: deprecated` rows from the tree. ON by default, and NOT a
+   * filter — see {@link isFiltering}.
+   */
+  hideDeprecated: boolean
 }
 
-export const NO_FILTERS: TreeFilters = { query: '', kinds: [], statuses: [] }
+export const NO_FILTERS: TreeFilters = { query: '', kinds: [], statuses: [], hideDeprecated: false }
 
+/**
+ * Is the reader LOOKING for something?
+ *
+ * `hideDeprecated` is deliberately not counted, and the asymmetry is the whole
+ * reason this predicate and {@link isTransforming} are two functions.
+ * `isFiltering` drives two behaviours in the rail: every retained branch
+ * auto-expands so a hit is never hidden inside a collapsed one, and the empty
+ * state offers to relax the filters. Both are right for a search and wrong for
+ * a baseline — and `hideDeprecated` is a baseline, on from the first paint. If
+ * it counted, the tree would sit in filtering posture forever: branches would
+ * re-expand under the reader, and their own collapse state would never survive.
+ *
+ * A reader hiding deprecated rows has not asked a question. They have said what
+ * the catalog normally looks like to them.
+ */
 export function isFiltering(filters: TreeFilters): boolean {
   return filters.query.length > 0 || filters.kinds.length > 0 || filters.statuses.length > 0
+}
+
+/** Does {@link filterTree} have any work to do — searching or hiding? */
+export function isTransforming(filters: TreeFilters): boolean {
+  return isFiltering(filters) || filters.hideDeprecated
 }
 
 /**
@@ -187,17 +212,43 @@ export function matchesText(node: TreeNode, query: string): boolean {
  * Keep a node when it matches, or when any descendant does. Retaining
  * non-matching ancestors is what lets a match stay findable: a bare list of hits
  * loses the one thing the tree is for, which is where a thing sits.
+ *
+ * ## Two polarities, and why the walk returns a list
+ *
+ * Filtering is RETENTIVE — a node survives on its children's behalf. Hiding is
+ * SUBTRACTIVE, and it cannot be another clause in `matchesFilters`, because a
+ * deprecated node would still be kept alive by a live child.
+ *
+ * So a deprecated node is ELIDED rather than dropped: it returns its surviving
+ * children in its own place, and they are spliced into its parent's list. The
+ * walk returning `TreeNode[]` instead of `TreeNode | null` is the whole
+ * mechanism — re-parenting falls out of a `flatMap`.
+ *
+ * Dropping the subtree instead was rejected. Nothing in this framework is ever
+ * deleted, so deprecating a container is how it retires; taking its live
+ * children down with it would make an `approved` component unreachable from the
+ * tree with nothing to say it exists.
+ *
+ * ## The explicit ask wins
+ *
+ * Selecting `deprecated` in the Status filter is a reader asking for exactly
+ * what the checkbox hides. The ask wins: hiding switches off for that render,
+ * because the alternative is an empty tree whose cause is a control somewhere
+ * else on the page.
  */
 export function filterTree(nodes: TreeNode[], filters: TreeFilters): TreeNode[] {
-  if (!isFiltering(filters)) return nodes
+  if (!isTransforming(filters)) return nodes
 
-  const walk = (node: TreeNode): TreeNode | null => {
-    const children = node.children.map(walk).filter((child): child is TreeNode => child !== null)
-    if (!matchesFilters(node, filters) && children.length === 0) return null
-    return { ...node, children }
+  const hiding = filters.hideDeprecated && !filters.statuses.includes('deprecated')
+
+  const walk = (node: TreeNode): TreeNode[] => {
+    const children = node.children.flatMap(walk)
+    if (hiding && node.status === 'deprecated') return children
+    if (!matchesFilters(node, filters) && children.length === 0) return []
+    return [{ ...node, children }]
   }
 
-  return nodes.map(walk).filter((node): node is TreeNode => node !== null)
+  return nodes.flatMap(walk)
 }
 
 /* --------------------------------------------------------- the rail's nodes */
@@ -335,6 +386,9 @@ export function filterSignature(filters: TreeFilters): string {
     filters.query,
     [...filters.kinds].sort().join(','),
     [...filters.statuses].sort().join(','),
+    // Included even though it is not a filter: toggling it changes which rows
+    // exist, so the fold overrides keyed by this signature must be dropped.
+    filters.hideDeprecated ? 'hide-deprecated' : '',
   ].join('\n')
 }
 

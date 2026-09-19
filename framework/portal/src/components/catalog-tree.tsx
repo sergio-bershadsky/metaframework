@@ -103,11 +103,13 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
   // The text filter is genuinely page state: unlike a lens or a focus, a search
   // term you typed a day ago is noise when you come back.
   const [query, setQuery] = useState('')
-  const { kinds, statuses, focus, lens } = useRailSettings()
+  const { kinds, statuses, focus, lens, hideDeprecated } = useRailSettings()
   const setKinds = (next: EntityKind[]) => writeSettings({ ...settingsSnapshot(), kinds: next })
   const setStatuses = (next: Status[]) => writeSettings({ ...settingsSnapshot(), statuses: next })
   const setFocus = (next: string) => writeSettings({ ...settingsSnapshot(), focus: next })
   const setLens = (next: TreeLens) => writeSettings({ ...settingsSnapshot(), lens: next })
+  const setHideDeprecated = (next: boolean) =>
+    writeSettings({ ...settingsSnapshot(), hideDeprecated: next })
 
   const activeSrn = useMemo(() => {
     if (!pathname.startsWith('/catalog/')) return null
@@ -158,8 +160,8 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
   }, [roots, focus])
 
   const filters = useMemo<TreeFilters>(
-    () => ({ query: query.trim().toLowerCase(), kinds, statuses }),
-    [query, kinds, statuses],
+    () => ({ query: query.trim().toLowerCase(), kinds, statuses, hideDeprecated }),
+    [query, kinds, statuses, hideDeprecated],
   )
 
   const filtering = isFiltering(filters)
@@ -196,13 +198,16 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
 
   // Filter first, then group: `filterTree` keeps the ancestors of every hit, and
   // those ancestors are ordinary members of their own level's buckets.
-  const view = useMemo(
-    () => applyLens(filterTree(focused, filters), lens),
-    [focused, filters, lens],
-  )
+  const pruned = useMemo(() => filterTree(focused, filters), [focused, filters])
+  const view = useMemo(() => applyLens(pruned, lens), [pruned, lens])
   // Real matches only — the ancestors kept for context are not hits, and saying
   // otherwise once made the rail claim more than it had found.
-  const matches = useMemo(() => countMatches(focused, filters), [focused, filters])
+  //
+  // Counted on the PRUNED tree, not the whole one. A deprecated hit that
+  // `hideDeprecated` elided is not on screen, and counting it made the rail say
+  // "2 matches" over a single visible row — the unexplained absence that
+  // control exists to prevent, produced by the control itself.
+  const matches = useMemo(() => countMatches(pruned, filters), [pruned, filters])
 
   const empty = view.length === 0
 
@@ -236,9 +241,15 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
           )}
         </div>
 
-        {/* Two deliberate rows rather than a wrap: what the rail SHOWS (which
-            scope, in which shape) above what it HIDES (kind, status). Left to
-            flex-wrap, the fourth control lands alone on a line by accident. */}
+        {/* Three deliberate rows rather than a wrap: what the rail SHOWS (which
+            scope, in which shape), then what the reader ASKS OF IT (kind,
+            status), then the one standing preference. Left to flex-wrap, a
+            control lands alone on a line by accident — and at 288px the third
+            row is not optional, the row above is already full.
+
+            The split is also honest about kind: the two above are questions
+            asked and dropped, this one is how the catalog looks until it is
+            turned off. */}
         <div className="mt-2 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <LensPicker lens={lens} onChange={setLens} />
@@ -247,6 +258,13 @@ export function CatalogTree({ roots }: { roots: TreeNode[] }) {
           <div className="flex items-center gap-1.5">
             <KindFilter kinds={kinds} onChange={setKinds} />
             <StatusFilter statuses={statuses} onChange={setStatuses} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <HideDeprecated
+              on={hideDeprecated}
+              overridden={statuses.includes('deprecated')}
+              onChange={setHideDeprecated}
+            />
           </div>
         </div>
 
@@ -404,6 +422,63 @@ function KindFilter({ kinds, onChange }: { kinds: EntityKind[]; onChange: (kinds
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/**
+ * The one control in this rail that is ON before the reader touches anything.
+ *
+ * It is a checkbox and not another dropdown pill because it has one state to
+ * show, and because the reader has to be able to see — without opening
+ * anything — that the tree in front of them is already holding something back.
+ * An unexplained absence is the failure mode this whole control has to avoid.
+ *
+ * `overridden` is the Status filter explicitly asking for `deprecated`. The
+ * explicit ask wins (see `filterTree`), so rather than silently doing nothing,
+ * the box says so: it renders unchecked and dimmed with the reason in its
+ * title, and stays clickable so the reader can turn the preference off for good
+ * while the override happens to be in force.
+ */
+function HideDeprecated({
+  on,
+  overridden,
+  onChange,
+}: {
+  on: boolean
+  overridden: boolean
+  onChange: (on: boolean) => void
+}) {
+  const effective = on && !overridden
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={effective}
+      title={
+        overridden
+          ? 'The Status filter is asking for deprecated entities, so they are shown.'
+          : 'Deprecated entities are hidden. Their non-deprecated children still appear.'
+      }
+      onClick={() => onChange(!on)}
+      className={cn(
+        'focusable inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border px-2 text-[11.5px] transition',
+        effective
+          ? 'border-primary/40 bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:text-foreground',
+        overridden && 'opacity-50',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'grid size-3 place-items-center rounded-[3px] border',
+          effective ? 'border-primary/60 bg-primary/20' : 'border-border',
+        )}
+      >
+        {effective && <Check className="size-2.5" />}
+      </span>
+      Hide deprecated
+    </button>
   )
 }
 
