@@ -1,7 +1,7 @@
 ---
 name: authoring-kit
 kind: product
-version: 4
+version: 5
 title: Authoring kit
 summary: A Claude Code plugin distributed through a Claude marketplace — seven skills, three commands, one agent and a distilled copy of the spec, teaching a model to author and evolve a catalog.
 status: review
@@ -39,9 +39,9 @@ agnostic authoring tool it is not.
 
 Three axes, and it diverges on all three. **Distribution:** it is installed
 (`/plugin marketplace add …` then `/plugin install metaframework@metaframework`),
-carries its own manifest and its own version — `plugin.json` and
-`marketplace.json` both say `0.1.0` — and moves when neither the portal nor the
-spec has. **Audience:** the reader it is written for is
+carries its own manifest — `plugin.json`, plus an entry in the
+repository-root `.claude-plugin/marketplace.json` — and is installed by a
+reader who never clones the portal. **Audience:** the reader it is written for is
 [ai-author](srn://metaframework/actor/ai-author), a model runtime the portal has
 no surface for at all; the portal is a read-only renderer aimed at a human
 opening a page. **Form:** it is markdown that becomes part of a model's context,
@@ -109,14 +109,20 @@ records the obligation and the fact that nothing enforces it.
 
 ## What does not exist
 
-No release. Zero git tags, no changelog, no publish step, no registry entry;
-the documented install path in `marketplace/README.md` is an absolute local
-filesystem path on the author's machine, with "from a git remote, point
-`marketplace add` at the repository instead" offered untested.
-`marketplace/.claude-plugin/marketplace.json` lists this one plugin with
-`source: "./plugins/metaframework"` — a relative path inside this repository,
-not a remote anyone else can reach. `lifecycle: incubating` is that fact, not a
-hedge.
+No independent release. The plugin ships on the repository's tag and at the
+repository's version: `manifest-identity` holds `plugin.json` and both
+`.claude-plugin/marketplace.json` claims equal to
+`framework/portal/package.json`, so the kit cannot move a version without the
+portal moving one too. That is a deliberate single-tag release, not an
+oversight — but it does mean this product has no cadence of its own, and a
+plugin-only fix still costs a portal version.
+
+There is no registry entry and no changelog. `marketplace/README.md` documents
+`/plugin marketplace add sergio-bershadsky/metaframework`, which resolves
+because `.claude-plugin/marketplace.json` sits at the repository root and
+points at `./marketplace/plugins/metaframework`; the absolute local path beside
+it is the development path, not the published one. `lifecycle: incubating` is
+that picture, not a hedge.
 
 No runtime but Claude, either. Portability to other agent runtimes is
 aspiration, and this catalog does not model aspiration.
