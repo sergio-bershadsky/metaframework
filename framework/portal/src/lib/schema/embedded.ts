@@ -437,7 +437,7 @@ export const EMBEDDED_META_SCHEMAS: Readonly<Record<string, string | undefined>>
     },
     "relations": {
       "type": "object",
-      "description": "Typed outgoing edges only. The seven inverses — used-by, exposed-by, depended-on-by, implemented-by, realized-by, measured-by, superseded-by — are derived by the portal and authoring one is E_FM_SCHEMA. The edge set is closed and grows by appending: \`realizes\` and \`measures\` arrived with the capability/journey/metric kinds and nothing existing moved.",
+      "description": "Typed outgoing edges only. The eight inverses — used-by, exposed-by, depended-on-by, implemented-by, realized-by, measured-by, superseded-by, assumed-by — are derived by the portal and authoring one is E_FM_SCHEMA. The edge set is closed and grows by appending: \`realizes\` and \`measures\` arrived with the capability/journey/metric kinds, \`assumes\` with the assumption kind, and nothing existing moved.",
       "properties": {
         "uses": {
           "type": "array",

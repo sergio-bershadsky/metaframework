@@ -1,7 +1,7 @@
 ---
 name: console
 kind: component
-version: 4
+version: 5
 title: Console
 summary: The console chrome and the design tokens every other surface reads — shell, masthead, ontology hues, and the one hex mirror of the palette.
 status: review
@@ -104,6 +104,39 @@ asserts the simulator's model without a DOM, and
 `src/app/artifacts/[...path]/route.test.ts`, and neither is in this subtree.
 Everything below — the shell, the rail, the entity page, the editors, what the
 four diagrams actually paint — is verified by looking at it.
+
+## The front page
+
+Two orientation panels sit above the tree on `/`, and they answer different
+questions in the order a reader has them. `type-legend.tsx` teaches the
+vocabulary — *what am I looking at*. `authoring-guide.tsx` teaches the act —
+*how do I add to it*, which is not guessable from the catalog itself.
+
+The guide has four sections: the plugin and its commands, the basics, the two
+enums, and the edges.
+
+- **Status and lifecycle are different questions.** `status` is the document's
+  review state, `lifecycle` is the described thing's stage in the world, and the
+  panel exists because reading one as the other is the common mistake.
+- **Relations point one way.** The eight authored edges with both ends named —
+  which kinds may author each and which it may point at — and, beside them, the
+  eight derived inverses with the statement that authoring one is
+  `E_FM_SCHEMA`. That pairing is the section's whole point: the inverses are the
+  most common first-try mistake, and a reader who has seen them listed as
+  *derived* does not type one.
+
+Every value on this page is read from `lib/catalog/vocabulary.ts`, never
+retyped: `STATUSES`, the two lifecycle arrays, `EDGE_TYPES`, `EDGE_SOURCE_KINDS`,
+`EDGE_TARGET_KINDS` and `EDGE_INVERSES`. That module exists so a client surface
+can name the contract without dragging zod into the browser — 272.7 KB of it,
+measured — and `lib/client-bundle.test.ts` holds the rule. `relations.test.ts`
+holds the rest: every edge must declare a source set, a target set, an inverse
+and a sentence, so an edge the spec grows cannot reach this page as a row with
+no ends.
+
+What is NOT enforced is that the sentences stay true. The arrays are pinned to
+the schemas built over them; the prose beside each edge is prose, and it drifts
+the way the rest of this catalog's prose drifts — by hand, or not at all.
 
 ## Sub-components
 

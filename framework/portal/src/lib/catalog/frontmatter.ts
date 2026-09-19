@@ -6,7 +6,6 @@ import {
   EDGE_TYPES,
   ENTITY_KINDS,
   STATUSES,
-  type EdgeType,
   type EntityKind,
 } from './vocabulary'
 
@@ -32,6 +31,9 @@ import {
 export {
   CONTAINER_KINDS,
   COMPONENT_TYPES,
+  EDGE_INVERSES,
+  EDGE_SOURCE_KINDS,
+  EDGE_TARGET_KINDS,
   EDGE_TYPES,
   ENTITY_KINDS,
   STATUSES,
@@ -40,44 +42,6 @@ export {
   type EntityKind,
   type Status,
 } from './vocabulary'
-
-/** Which target kinds each edge type may point at (frontmatter.md). */
-export const EDGE_TARGET_KINDS: Record<EdgeType, readonly EntityKind[] | 'same-as-source'> = {
-  uses: ['datamodel', 'protocol', 'environment', 'component'],
-  exposes: ['protocol', 'datamodel'],
-  'depends-on': ['component', 'product'],
-  implements: ['requirement'],
-  supersedes: 'same-as-source',
-  // A capability is the only thing that can be realized: it is the statement of
-  // what the business can do, and building something is what turns it true.
-  realizes: ['capability'],
-  // A metric points at whatever it puts a number on. Deliberately the widest
-  // target set in the table — measuring is orthogonal to the thing measured —
-  // but not universal: measuring an actor, an environment or an ADR would be
-  // measuring a person, a place or a past decision rather than the system.
-  measures: ['capability', 'component', 'protocol', 'requirement'],
-  assumes: ['assumption'],
-}
-
-/** Which source kinds may author each edge type (frontmatter.md). */
-export const EDGE_SOURCE_KINDS: Record<EdgeType, readonly EntityKind[] | 'any'> = {
-  uses: 'any',
-  exposes: ['component', 'product'],
-  'depends-on': ['component', 'product'],
-  implements: ['component', 'product'],
-  supersedes: 'any',
-  // Only a built thing realizes a capability — the same two kinds that may
-  // `implements` a requirement, and for the same reason: a claim to deliver is
-  // only meaningful from something that ships.
-  realizes: ['product', 'component'],
-  // `measures` is the metric's own edge and nothing else's. The inverse
-  // (`measured-by`) is what a capability or component page shows, derived.
-  measures: ['metric'],
-  // Anything may rest on a belief — except another belief. ADR 0022 refuses
-  // chains for now: they make the reverse index recursive, and that is a
-  // commitment better made against real usage. Additive later if it is wanted.
-  assumes: ENTITY_KINDS.filter((kind) => kind !== 'assumption'),
-}
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
 

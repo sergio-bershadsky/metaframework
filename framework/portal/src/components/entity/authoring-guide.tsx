@@ -1,10 +1,14 @@
-import { Bot, FileCode2, Terminal } from 'lucide-react'
+import { ArrowRight, Bot, FileCode2, Terminal } from 'lucide-react'
 import Link from 'next/link'
 import { SectionHeading } from '@/components/entity/section-heading'
 import { type Catalog, entityHref } from '@/lib/catalog'
 import { schemaUrlPrefix, srnToSchemaUrl } from '@/lib/schema/url'
 import {
   COMPONENT_LIFECYCLE,
+  EDGE_INVERSES,
+  EDGE_SOURCE_KINDS,
+  EDGE_TARGET_KINDS,
+  EDGE_TYPES,
   PRODUCT_LIFECYCLE,
   STATUSES,
 } from '@/lib/catalog/vocabulary'
@@ -253,6 +257,28 @@ const LIFECYCLE_MEANING: Record<string, string> = {
   retired: 'No longer running. The description is kept — nothing is ever deleted.',
 }
 
+/**
+ * What each edge ASSERTS, in the author's words.
+ *
+ * Keyed by edge rather than listed, so a `EDGE_TYPES` that grows produces a row
+ * with an honest gap instead of a silently short table — the same contract the
+ * lifecycle rows keep. `relations.test.ts` fails if a key is missing.
+ */
+export const EDGE_MEANING: Record<string, string> = {
+  uses: 'I consume this contract. Pointed at an environment it is the deployment declaration — “I run here” — which is why environments never keep a roster.',
+  exposes: 'This is my public surface. Only a component or a product has one.',
+  'depends-on': 'Coarser and structural: that thing must exist and function. Both this and `uses` between the same pair is normal and means two different things.',
+  implements: 'I claim this obligation. Without it a requirement is written down but nobody has promised it.',
+  supersedes: 'I replace that. Authored on the successor only, and only in a swap — never on the entity being replaced.',
+  realizes: 'I am part of how the business does that. Not `implements` in different clothes: a requirement can be met, a capability is never “done”.',
+  measures: 'I put a number on that. Required on a metric — a number with no subject is a figure, not an observation.',
+  assumes: 'I rest on this belief. Anything may, except another assumption: ADR 0022 refuses chains.',
+}
+
+/** `any`, `same-as-source`, or the closed list — printed the way the spec says it. */
+const kindList = (value: readonly string[] | 'any' | 'same-as-source') =>
+  typeof value === 'string' ? value : value.join(' · ')
+
 export function AuthoringGuide({ catalog, className }: { catalog: Catalog; className?: string }) {
   const examples = realExamples(catalog)
   const firstSchema = examples.get('schema')
@@ -438,6 +464,86 @@ export function AuthoringGuide({ catalog, className }: { catalog: Catalog; class
             </div>
           )
         })}
+
+        <div className="rule-fade my-6" />
+
+        {/* ------------------------------------------------------- relations */}
+        <SectionHeading level={3} className="text-[11px]">
+          Relations point one way
+        </SectionHeading>
+        <p className={cn(PROSE, 'mt-1.5 max-w-3xl')}>
+          <code className="font-mono">relations</code> carries{' '}
+          <strong className="text-foreground/85">outgoing edges only</strong>. You write what this
+          entity does to the rest of the catalog; everything pointing back is{' '}
+          <strong className="text-foreground/85">derived</strong> by the portal and never typed by
+          hand. The practical consequence is the one that surprises people: adding an entity edits
+          no other file.
+        </p>
+
+        <div className="mt-3.5 grid gap-3 lg:grid-cols-2">
+          <div className={CARD}>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <ArrowRight className="size-3 shrink-0" aria-hidden />
+              the {EDGE_TYPES.length} edges you author
+            </p>
+            <p className={cn(PROSE, 'mt-2.5')}>
+              <code className="font-mono">{EDGE_TYPES.join(' · ')}</code>
+            </p>
+            <p className={cn(PROSE, 'mt-2')}>
+              The set is closed and grows only by appending — <code className="font-mono">realizes</code>{' '}
+              and <code className="font-mono">measures</code> arrived with the capability and metric
+              kinds, <code className="font-mono">assumes</code> with the assumption kind, and nothing
+              existing moved.
+            </p>
+          </div>
+
+          <div className={CARD}>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Bot className="size-3 shrink-0" aria-hidden />
+              the {Object.keys(EDGE_INVERSES).length} inverses you never author
+            </p>
+            <p className={cn(PROSE, 'mt-2.5')}>
+              <code className="font-mono">{Object.values(EDGE_INVERSES).join(' · ')}</code>
+            </p>
+            <p className={cn(PROSE, 'mt-2')}>
+              Each is computed from the forward edge. Writing one into frontmatter is{' '}
+              <code className="font-mono">E_FM_SCHEMA</code> — not a convenience the loader tolerates.
+              This is the most common first-try mistake.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <p className="flex items-center gap-2">
+            <code className="font-mono text-[12px] font-medium text-foreground/85">
+              every edge, and what it may join
+            </code>
+            <span className="font-mono text-[11px] text-muted-foreground/70">
+              source &rarr; target &middot; {EDGE_TYPES.length} edges
+            </span>
+          </p>
+          <ul className="mt-2 flex flex-col gap-4">
+            {EDGE_TYPES.map((edge) => (
+              <li key={edge} className="flex flex-col gap-1">
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <code className={cn(MONO, 'font-medium text-foreground/85')}>{edge}</code>
+                  <span className="font-mono text-[11px] text-muted-foreground/70">
+                    {kindList(EDGE_SOURCE_KINDS[edge])} &rarr; {kindList(EDGE_TARGET_KINDS[edge])}
+                  </span>
+                </p>
+                <span className={cn(PROSE, 'min-w-0')}>
+                  {EDGE_MEANING[edge] ?? (
+                    // An edge the spec grew and this guide has not been taught.
+                    // Saying so beats dropping the row.
+                    <span className="text-muted-foreground/70">
+                      No note yet &mdash; added to the spec after this guide was written.
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <div className="rule-fade my-6" />
 
