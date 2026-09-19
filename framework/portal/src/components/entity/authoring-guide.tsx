@@ -12,6 +12,8 @@ import {
   PRODUCT_LIFECYCLE,
   STATUSES,
 } from '@/lib/catalog/vocabulary'
+import { EdgeSwatch } from '@/components/entity/edge-swatch'
+import { EDGE_STROKE_WORDS, EDGE_VISUAL_ORDER } from '@/lib/ui/edge-style'
 import { ARTIFACT_ROLES, type ArtifactRole } from '@/lib/srn/artifacts'
 import { KIND_STYLES } from '@/lib/ui/kind'
 import { cn } from '@/lib/utils'
@@ -516,19 +518,28 @@ export function AuthoringGuide({ catalog, className }: { catalog: Catalog; class
         <div className="mt-5">
           <p className="flex items-center gap-2">
             <code className="font-mono text-[12px] font-medium text-foreground/85">
-              every edge, and what it may join
+              every edge, how it is drawn, and what it may join
             </code>
             <span className="font-mono text-[11px] text-muted-foreground/70">
               source &rarr; target &middot; {EDGE_TYPES.length} edges
             </span>
           </p>
+          {/* EDGE_VISUAL_ORDER, not EDGE_TYPES: the latter is adoption order,
+              which groups nothing. This is the order the graph's legend uses,
+              so the two read as one vocabulary. */}
           <ul className="mt-2 flex flex-col gap-4">
-            {EDGE_TYPES.map((edge) => (
+            {EDGE_VISUAL_ORDER.map((edge) => (
               <li key={edge} className="flex flex-col gap-1">
-                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  {/* The line a reader will actually see, at the moment they
+                      are choosing which edge to write. */}
+                  <EdgeSwatch edge={edge} className="shrink-0" decorative />
                   <code className={cn(MONO, 'font-medium text-foreground/85')}>{edge}</code>
                   <span className="font-mono text-[11px] text-muted-foreground/70">
-                    {kindList(EDGE_SOURCE_KINDS[edge])} &rarr; {kindList(EDGE_TARGET_KINDS[edge])}
+                    {EDGE_STROKE_WORDS[edge]}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground/70">
+                    &middot; {kindList(EDGE_SOURCE_KINDS[edge])} &rarr; {kindList(EDGE_TARGET_KINDS[edge])}
                   </span>
                 </p>
                 <span className={cn(PROSE, 'min-w-0')}>

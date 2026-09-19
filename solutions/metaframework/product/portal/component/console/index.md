@@ -1,7 +1,7 @@
 ---
 name: console
 kind: component
-version: 5
+version: 6
 title: Console
 summary: The console chrome and the design tokens every other surface reads — shell, masthead, ontology hues, and the one hex mirror of the palette.
 status: review
@@ -125,9 +125,19 @@ enums, and the edges.
   most common first-try mistake, and a reader who has seen them listed as
   *derived* does not type one.
 
-Every value on this page is read from `lib/catalog/vocabulary.ts`, never
-retyped: `STATUSES`, the two lifecycle arrays, `EDGE_TYPES`, `EDGE_SOURCE_KINDS`,
-`EDGE_TARGET_KINDS` and `EDGE_INVERSES`. That module exists so a client surface
+  Each row also **draws its edge**: the stroke a reader will meet on a relation
+  graph, at the moment they are choosing which edge to write, plus the same
+  thing in words (`dashed`, `dash-dot, heavy`, `dotted, open head`). The
+  geometry is `lib/ui/edge-style.ts` and the renderer is one `EdgeSwatch`
+  shared with the graph's own legend, so a swatch and the line it explains
+  cannot drift. Before that module the only copy lived beside `MarkerType` in
+  `relation-graph.tsx`, which is `@xyflow/react` — importable by the graph and
+  not by a front page that must not carry a flow renderer.
+
+Every value on this page is read from one place, never retyped: `STATUSES`, the
+two lifecycle arrays, `EDGE_TYPES`, `EDGE_SOURCE_KINDS`, `EDGE_TARGET_KINDS` and
+`EDGE_INVERSES` from `lib/catalog/vocabulary.ts`; the stroke geometry and the
+reading order from `lib/ui/edge-style.ts`. That module exists so a client surface
 can name the contract without dragging zod into the browser — 272.7 KB of it,
 measured — and `lib/client-bundle.test.ts` holds the rule. `relations.test.ts`
 holds the rest: every edge must declare a source set, a target set, an inverse

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EDGE_MEANING } from '@/components/entity/authoring-guide'
+import { EDGE_GEOMETRY, EDGE_STROKE_WORDS, EDGE_VISUAL_ORDER } from '@/lib/ui/edge-style'
 import {
   EDGE_INVERSES,
   EDGE_SOURCE_KINDS,
@@ -66,5 +67,41 @@ describe('edge vocabulary', () => {
   /** `measures` is the metric's own edge and nothing else's. */
   it('lets only a metric measure', () => {
     expect(EDGE_SOURCE_KINDS.measures).toEqual(['metric'])
+  })
+
+  /* The guide draws these and the canvas draws these; one copy, so a legend can
+     never quietly disagree with the picture it explains. */
+  it('every edge has geometry and a spoken stroke', () => {
+    for (const edge of EDGE_TYPES) {
+      expect(EDGE_GEOMETRY[edge], `${edge} geometry`).toBeDefined()
+      expect(EDGE_STROKE_WORDS[edge], `${edge} stroke words`).toBeTruthy()
+    }
+  })
+
+  it('reading order is a permutation of the edge set, not a subset of it', () => {
+    expect([...EDGE_VISUAL_ORDER].sort()).toEqual([...EDGE_TYPES].sort())
+  })
+
+  /* The distinctions the comments in edge-style.ts argue for. If one of these
+     flips, the prose beside it became a lie. */
+  it('keeps the distinctions the stroke vocabulary is built on', () => {
+    // A public surface is the strongest claim, so it is the heaviest solid.
+    expect(EDGE_GEOMETRY.exposes.dash).toBeUndefined()
+    expect(EDGE_GEOMETRY.uses.dash).toBeUndefined()
+    expect(EDGE_GEOMETRY.exposes.width).toBeGreaterThan(EDGE_GEOMETRY.uses.width)
+
+    // Realizing a capability outweighs satisfying one requirement.
+    expect(EDGE_GEOMETRY.realizes.width).toBeGreaterThan(EDGE_GEOMETRY.implements.width)
+
+    // A dot trail differs in KIND from a dash: round cap, zero-length segment.
+    for (const edge of ['measures', 'assumes'] as const) {
+      expect(EDGE_GEOMETRY[edge].cap).toBe('round')
+    }
+
+    // An open head says nothing flows along the edge.
+    expect(EDGE_GEOMETRY.measures.arrow).toBe('open')
+    expect(EDGE_GEOMETRY.supersedes.arrow).toBe('open')
+    expect(EDGE_GEOMETRY.assumes.arrow).toBe('open')
+    expect(EDGE_GEOMETRY.uses.arrow).toBe('closed')
   })
 })

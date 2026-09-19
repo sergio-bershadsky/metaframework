@@ -31,6 +31,8 @@ import {
   type PlacedNode,
 } from '@/lib/diagrams/layout'
 import { RELATION_VERB, entityPhrase, nodeButtonLabel, relationSentence } from '@/lib/diagrams/names'
+import { EdgeSwatch } from '@/components/entity/edge-swatch'
+import { EDGE_GEOMETRY, EDGE_VISUAL_ORDER } from '@/lib/ui/edge-style'
 import { kindColorVar, kindStyle } from '@/lib/ui/kind'
 import { cn } from '@/lib/utils'
 
@@ -102,50 +104,24 @@ export interface RelationGraphProps {
  *   dash-dot it differs in kind and not in rhythm — there are no line segments
  *   in it at all — which is the difference that survives being made small.
  */
-const EDGE_STYLES = {
-  uses: { label: RELATION_VERB.uses, width: 1.25, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
-  exposes: { label: RELATION_VERB.exposes, width: 2, dash: undefined, cap: undefined, marker: MarkerType.ArrowClosed },
-  'depends-on': {
-    label: RELATION_VERB['depends-on'],
-    width: 1.25,
-    dash: '7 4',
-    cap: undefined,
-    marker: MarkerType.ArrowClosed,
-  },
-  implements: {
-    label: RELATION_VERB.implements,
-    width: 1.25,
-    dash: '1.5 3.5',
-    cap: undefined,
-    marker: MarkerType.ArrowClosed,
-  },
-  // A delivery claim, like `implements` one level up — hence a dash-dot that
-  // reads as a relative of it, and a place in the legend beside it. This map's
-  // key order is the legend order, and it follows frontmatter.md's table
-  // rather than EDGE_TYPES: that list is adoption order and grows by
-  // appending, which is the wrong thing for a reader to see first.
-  realizes: {
-    label: RELATION_VERB.realizes,
-    width: 1.9,
-    dash: '6 3 1.5 3',
-    cap: undefined,
-    marker: MarkerType.ArrowClosed,
-  },
-  // An observation, not a dependency: the open arrowhead says nothing flows
-  // along this edge, the same distinction `supersedes` draws. The round cap is
-  // what turns the dash into a dot — a zero-length segment draws nothing under
-  // a butt cap and a full circle under a round one.
-  measures: { label: RELATION_VERB.measures, width: 1, dash: '0.01 4.5', cap: 'round', marker: MarkerType.Arrow },
-  supersedes: { label: RELATION_VERB.supersedes, width: 1.25, dash: '11 4', cap: undefined, marker: MarkerType.Arrow },
-  // Finely dotted and thin: a dependency on a belief is the weakest claim in the
-  // vocabulary, and it should not read as heavily as a structural edge.
-  assumes: { label: RELATION_VERB.assumes, width: 1, dash: '1 3', cap: 'round', marker: MarkerType.Arrow },
-} satisfies Record<
-  EdgeType,
-  { label: string; width: number; dash: string | undefined; cap: 'round' | undefined; marker: MarkerType }
->
+const EDGE_STYLES = Object.fromEntries(
+  EDGE_VISUAL_ORDER.map((edge) => {
+    const geometry = EDGE_GEOMETRY[edge]
+    return [
+      edge,
+      {
+        label: RELATION_VERB[edge],
+        width: geometry.width,
+        dash: geometry.dash,
+        cap: geometry.cap,
+        marker: geometry.arrow === 'closed' ? MarkerType.ArrowClosed : MarkerType.Arrow,
+      },
+    ]
+  }),
+) as Record<EdgeType, { label: string; width: number; dash: string | undefined; cap: 'round' | undefined; marker: MarkerType }>
 
-const EDGE_ORDER = Object.keys(EDGE_STYLES) as EdgeType[]
+/** Reading order lives with the geometry now — see `lib/ui/edge-style`. */
+const EDGE_ORDER = EDGE_VISUAL_ORDER
 
 const EDGE_STROKE = 'var(--border-strong)'
 const FOCUS_STROKE = 'var(--primary)'
@@ -752,30 +728,7 @@ function GraphToolbar({
                     included. It used to draw the line and drop the head, which
                     left `realizes` and `measures` differing by a dash pattern
                     alone in the one place a reader goes to tell them apart. */}
-                <svg width="26" height="8" viewBox="0 0 26 8" aria-hidden className="shrink-0">
-                  <line
-                    x1="0"
-                    y1="4"
-                    x2={style.marker === MarkerType.ArrowClosed ? 18 : 20}
-                    y2="4"
-                    stroke="var(--border-strong)"
-                    strokeWidth={style.width}
-                    strokeDasharray={style.dash}
-                    strokeLinecap={style.cap}
-                  />
-                  {style.marker === MarkerType.ArrowClosed ? (
-                    <path d="M18 1 L25 4 L18 7 Z" fill="var(--border-strong)" />
-                  ) : (
-                    <path
-                      d="M19 1 L25 4 L19 7"
-                      fill="none"
-                      stroke="var(--border-strong)"
-                      strokeWidth="1.25"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  )}
-                </svg>
+                <EdgeSwatch edge={type} className="shrink-0" />
                 <span className="flex-1 truncate font-mono text-[10.5px] text-foreground/80">{style.label}</span>
                 <span className="font-mono text-[10.5px] tabular-nums text-muted-foreground">{counts.get(type)}</span>
               </button>
