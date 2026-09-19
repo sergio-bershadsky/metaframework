@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: frontmatter
-version: 9
+version: 10
 status: review
 title: Common frontmatter
 summary: The common frontmatter contract every entity index.md must satisfy — fields, types, typed relation edges over the twelve kinds, the status-versus-lifecycle split, and validation.
@@ -293,7 +293,8 @@ Rules:
   `E_MET_NO_SUBJECT` — two separate mistakes, two separate complaints.
 - **Inverse edges are derived, never authored.** The portal computes `used-by`,
   `exposed-by`, `depended-on-by`, `implemented-by`, `realized-by`, `measured-by`,
-  `superseded-by` from the forward edges. Authoring both directions is double
+  `superseded-by`, `assumed-by` from the forward edges — one per edge type, so
+  the list grows with `EDGE_TYPES` and never falls behind it. Authoring both directions is double
   bookkeeping and drifts. The two newest inverses follow the same construction
   as the rest — the forward name plus `-by`, computed at load, never written in
   a file:

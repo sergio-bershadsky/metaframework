@@ -1,7 +1,7 @@
 {
   "name": "@bershadsky/metaframework",
-  "version": "0.6.0",
-  "description": "Serve a metaframework solution catalog \u2014 a reviewable file tree of markdown entities \u2014 as a live portal, with reload on change",
+  "version": "0.6.1",
+  "description": "Serve a metaframework solution catalog — a reviewable file tree of markdown entities — as a live portal, with reload on change",
   "keywords": [
     "architecture",
     "architecture-as-code",
@@ -78,7 +78,7 @@
     "lucide-react": "^1.32.0",
     "mermaid": "^11.17.0",
     "monaco-editor": "^0.56.0",
-    "next": "^16.3.3",
+    "next": "16.3.3",
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",

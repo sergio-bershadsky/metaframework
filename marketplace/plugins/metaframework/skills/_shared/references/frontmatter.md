@@ -331,8 +331,9 @@ case, not a smell.
 
 **Inverse edges are DERIVED, never authored.** `used-by`, `exposed-by`,
 `depended-on-by`, `implemented-by`, `realized-by`, `measured-by`,
-`superseded-by` are computed by the portal from the forward edges. Writing one is
-a mistake, not a convenience — `E_FM_SCHEMA`.
+`superseded-by`, `assumed-by` are computed by the portal from the forward edges
+— one per edge type, so the list grows with the edge set and never falls behind
+it. Writing one is a mistake, not a convenience — `E_FM_SCHEMA`.
 
 | Forward    | Authored on           | Derived inverse | Shown on                                     |
 |------------|-----------------------|-----------------|----------------------------------------------|

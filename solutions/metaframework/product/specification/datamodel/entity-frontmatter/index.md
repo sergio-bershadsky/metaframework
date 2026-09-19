@@ -1,7 +1,7 @@
 ---
 name: entity-frontmatter
 kind: datamodel
-version: 3
+version: 4
 title: Entity frontmatter
 summary: The YAML block every entity index.md opens with — the common contract plus the kind's own fields, as a discriminated union on kind.
 status: review

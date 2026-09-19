@@ -122,3 +122,67 @@ export type ProductLifecycle = (typeof PRODUCT_LIFECYCLE)[number]
 
 export const COMPONENT_LIFECYCLE = ['planned', 'in-development', 'released', 'sunset', 'retired'] as const
 export type ComponentLifecycle = (typeof COMPONENT_LIFECYCLE)[number]
+
+/**
+ * Which source kinds may author each edge, and which target kinds it may point
+ * at (frontmatter.md).
+ *
+ * Here rather than in ./frontmatter for the reason the module note gives: the
+ * console's authoring guide names both ends of every edge to a reader, and
+ * nothing that reaches the browser may pull zod in behind it. `./frontmatter`
+ * re-exports them, so there is still exactly one copy.
+ */
+export const EDGE_SOURCE_KINDS: Record<EdgeType, readonly EntityKind[] | 'any'> = {
+  uses: 'any',
+  exposes: ['component', 'product'],
+  'depends-on': ['component', 'product'],
+  implements: ['component', 'product'],
+  supersedes: 'any',
+  // Only a built thing realizes a capability — the same two kinds that may
+  // `implements` a requirement, and for the same reason: a claim to deliver is
+  // only meaningful from something that ships.
+  realizes: ['product', 'component'],
+  // `measures` is the metric's own edge and nothing else's. The inverse
+  // (`measured-by`) is what a capability or component page shows, derived.
+  measures: ['metric'],
+  // Anything may rest on a belief — except another belief. ADR 0022 refuses
+  // chains for now: they make the reverse index recursive, and that is a
+  // commitment better made against real usage. Additive later if it is wanted.
+  assumes: ENTITY_KINDS.filter((kind) => kind !== 'assumption'),
+}
+
+export const EDGE_TARGET_KINDS: Record<EdgeType, readonly EntityKind[] | 'same-as-source'> = {
+  uses: ['datamodel', 'protocol', 'environment', 'component'],
+  exposes: ['protocol', 'datamodel'],
+  'depends-on': ['component', 'product'],
+  implements: ['requirement'],
+  supersedes: 'same-as-source',
+  // A capability is the only thing that can be realized: it is the statement of
+  // what the business can do, and building something is what turns it true.
+  realizes: ['capability'],
+  // A metric points at whatever it puts a number on. Deliberately the widest
+  // target set in the table — measuring is orthogonal to the thing measured —
+  // but not universal: measuring an actor, an environment or an ADR would be
+  // measuring a person, a place or a past decision rather than the system.
+  measures: ['capability', 'component', 'protocol', 'requirement'],
+  assumes: ['assumption'],
+}
+
+/**
+ * The derived inverse of each edge, as the console labels it.
+ *
+ * Authored on NO entity: the loader builds this index from the forward edges,
+ * and writing one into frontmatter is `E_FM_SCHEMA`. One per edge type — the
+ * index in `load.ts` is keyed by `EdgeType`, so a new edge gets an inverse the
+ * moment it is added, and this map is what the guide shows a reader.
+ */
+export const EDGE_INVERSES: Record<EdgeType, string> = {
+  uses: 'used-by',
+  exposes: 'exposed-by',
+  'depends-on': 'depended-on-by',
+  implements: 'implemented-by',
+  supersedes: 'superseded-by',
+  realizes: 'realized-by',
+  measures: 'measured-by',
+  assumes: 'assumed-by',
+}
