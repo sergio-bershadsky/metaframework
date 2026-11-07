@@ -31,3 +31,6 @@ deploy/schemas/public/
 
 # A local scratch note, not part of the repository.
 .claude/RESUME.md
+
+# Local-only Claude instructions (private channels, people) — never published
+CLAUDE.local.md
