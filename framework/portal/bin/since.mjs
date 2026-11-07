@@ -24,6 +24,16 @@
  * The consequence worth knowing: a branch that breaks the rule in one commit
  * and repairs it in the next passes here, and should. The gate is about what
  * lands, not about how it was written.
+ *
+ * ## The one exception: versions that never reached a commit
+ *
+ * The net diff cannot tell v1→v3-with-v2-committed from v1→v3-in-one-commit,
+ * and the second is permanent damage: the portal rebuilds `@2` from the commit
+ * carrying `version: 2`, and there is none. So for an entity whose version
+ * moved by more than one, the gate also reads the `version:` line of each
+ * commit in `ref..HEAD` and reports the numbers nobody carried — while the
+ * branch is still unmerged, which is the last moment the fix is a rebase rather
+ * than a note in the changelog. A version that went down is reported beside it.
  */
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -52,7 +62,24 @@ const MAX_BUFFER = 32 * 1024 * 1024
  *   repository with no commits. Distinct from `failure`: the gate did not run
  *   and nothing is wrong, exactly as when the catalog is in no repository at all
  * @property {UnbumpedEntity[]} unbumped
+ * @property {UnwrittenEntity[]} unwritten versions introduced since the ref that no commit carries
+ * @property {RegressedEntity[]} regressed entities whose version went down since the ref
  * @property {number} entitiesTouched
+ */
+
+/**
+ * @typedef {object} UnwrittenEntity
+ * @property {string} dir repository-relative entity directory
+ * @property {number} from the version at the ref
+ * @property {number} to the version in the working tree
+ * @property {number[]} missing the versions between them that no commit carries
+ */
+
+/**
+ * @typedef {object} RegressedEntity
+ * @property {string} dir
+ * @property {number} from
+ * @property {number} to
  */
 
 /** The failure string {@link git} returns when the binary is not on PATH. */
@@ -116,7 +143,15 @@ async function show(cwd, ref, file) {
  * @returns {Promise<SinceResult>}
  */
 export async function unbumpedSince({ repoRoot, ref, inCatalog }) {
-  const empty = { ok: true, failure: null, skipped: null, unbumped: [], entitiesTouched: 0 }
+  const empty = {
+    ok: true,
+    failure: null,
+    skipped: null,
+    unbumped: [],
+    unwritten: [],
+    regressed: [],
+    entitiesTouched: 0,
+  }
 
   const resolved = await git(repoRoot, ['rev-parse', '--verify', `${ref}^{commit}`])
   if (resolved.failure) {
@@ -156,6 +191,10 @@ export async function unbumpedSince({ repoRoot, ref, inCatalog }) {
 
   /** @type {UnbumpedEntity[]} */
   const unbumped = []
+  /** @type {UnwrittenEntity[]} */
+  const unwritten = []
+  /** @type {RegressedEntity[]} */
+  const regressed = []
   for (const [dir, files] of byEntity) {
     const document = `${dir}/${ENTITY_DOCUMENT}`
     const before = await show(repoRoot, ref, document)
@@ -169,7 +208,18 @@ export async function unbumpedSince({ repoRoot, ref, inCatalog }) {
 
     const wasVersion = versionOf(before)
     const isVersion = versionOf(after)
-    if (wasVersion === null || isVersion === null || wasVersion !== isVersion) continue
+    if (wasVersion === null || isVersion === null) continue
+
+    if (isVersion < wasVersion) {
+      regressed.push({ dir, from: wasVersion, to: isVersion })
+      continue
+    }
+    if (isVersion > wasVersion + 1) {
+      const missing = await unwrittenBetween(repoRoot, ref, document, wasVersion, isVersion)
+      if (missing.length > 0) unwritten.push({ dir, from: wasVersion, to: isVersion, missing })
+      continue
+    }
+    if (isVersion !== wasVersion) continue
 
     // index.md alone is legal under the status-only exemption.
     const others = files.filter((file) => file !== document)
@@ -178,7 +228,35 @@ export async function unbumpedSince({ repoRoot, ref, inCatalog }) {
     unbumped.push({ dir, version: wasVersion, changed: files.sort() })
   }
 
-  return { ok: true, failure: null, skipped: null, unbumped, entitiesTouched: byEntity.size }
+  return { ok: true, failure: null, skipped: null, unbumped, unwritten, regressed, entitiesTouched: byEntity.size }
+}
+
+/**
+ * The versions strictly between `from` and `to` that no commit in `ref..HEAD`
+ * carries.
+ *
+ * The one place this gate reads history rather than two trees, and only the
+ * `version:` line of one file: v1→v3 is the same net diff whether v2 was
+ * committed on the way or not, and only the commits can tell. `to` itself is
+ * never missing — the working tree holds it, and one pending bump is authoring,
+ * not loss. Plain `git log`, never `--first-parent`, because the portal's index
+ * walks every parent too: a version committed on a merged branch is reachable.
+ */
+async function unwrittenBetween(repoRoot, ref, document, from, to) {
+  const log = await git(repoRoot, ['log', '--format=%H', `${ref}..HEAD`, '--', document])
+  /** @type {Set<number>} */
+  const written = new Set()
+  if (!log.failure) {
+    for (const hash of log.stdout.split('\n').map((line) => line.trim()).filter(Boolean)) {
+      const version = versionOf(await show(repoRoot, hash, document))
+      if (version !== null) written.add(version)
+    }
+  }
+  const missing = []
+  for (let version = from + 1; version < to; version++) {
+    if (!written.has(version)) missing.push(version)
+  }
+  return missing
 }
 
 /**

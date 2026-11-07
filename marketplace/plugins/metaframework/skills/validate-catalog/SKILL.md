@@ -47,7 +47,8 @@ catalog-only repository needs nothing vendored into it.
   the diagnosis, so read it rather than guessing at the working directory.
 - `metaframework check --since <ref>` adds the evolution gate: every entity
   whose files changed since `<ref>` must have bumped its `version`, with the
-  status-only exemption. Use it in CI against the base of a branch. It needs
+  status-only exemption, and every version it introduced must have reached a
+  commit of its own. Use it in CI against the base of a branch. It needs
   git, and says so rather than passing silently when there is none.
 
 Output is one line per diagnostic and a summary:
@@ -369,7 +370,8 @@ available here. The check proves the tree *loads*. It does not prove the tree is
   the version check streams in beside the version picker; the gate form is
   `metaframework check --since <ref>`, which exits non-zero when an entity's
   files changed since `<ref>` without a `version` bump (a `status:`-only edit
-  is exempt). In CI, `<ref>` is the branch base.
+  is exempt), or when a version it introduced was never committed (v1→v3 in
+  one commit). In CI, `<ref>` is the branch base.
 - **One edge inside the check worth knowing.** `W_PROTO_STATES_EVENT_UNKNOWN`
   needs `workflowMessages`, which neither call site passes, so nothing emits it.
   A **missing** `journey.yaml` used to sit beside it and no longer does: it is

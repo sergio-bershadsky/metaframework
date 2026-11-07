@@ -165,6 +165,49 @@ const MONO = 'font-mono text-[12px]'
 const PROSE = 'text-[12.5px] leading-relaxed text-muted-foreground'
 
 /**
+ * Commit hygiene — authored, and normative only by citation: every rule here is
+ * a consequence of evolution.md ("every version reaches a commit of its own",
+ * the bump-in-the-same-commit rule, the status-only exemption) and of the
+ * history index resolving `@N` from the commit that carries it. The last rule
+ * names the gate that enforces the first two, so a reader can check rather
+ * than trust.
+ */
+const COMMIT_RULES: { rule: string; why: string }[] = [
+  {
+    rule: 'One bump, then commit.',
+    why: 'Raise version by exactly one and commit before touching that entity again. A second bump before the commit leaves the first number with no commit, permanently.',
+  },
+  {
+    rule: 'The bump rides with the change.',
+    why: 'Content and its version land in the same commit; a change without a bump is E_VER_UNBUMPED. Changing status alone is the one edit that needs no bump.',
+  },
+  {
+    rule: 'Many entities, one commit, is fine.',
+    why: 'The rule is per entity: each one in the commit moves by one.',
+  },
+  {
+    rule: 'Merge or rebase — never squash.',
+    why: 'A branch that committed v2 and v3 separately lands only v3 when squashed, and v2 disappears with the branch.',
+  },
+  {
+    rule: 'Rewrite only what has not been shared.',
+    why: 'Amending or rebasing your own branch is fine while each version still ends in a commit of its own; force-pushing away a commit that others may have pinned is not.',
+  },
+  {
+    rule: 'Run the gate before you push.',
+    why: 'metaframework check --since origin/main fails a change that skipped a bump and a version that no commit carries — while fixing it is still a rebase.',
+  },
+]
+
+const COMMIT_SEQUENCE = `# edit the entity, bump version: 3 -> 4
+git add solutions/acme/datamodel/order
+git commit -m "feat(order): carry the currency"   # v4 now exists
+
+# the next change to the same entity starts a new step: 4 -> 5, commit again
+
+metaframework check --since origin/main            # before pushing`
+
+/**
  * Placeholders resolved against the catalog actually loaded, not against this
  * repository's demo solutions.
  *
@@ -555,6 +598,34 @@ export function AuthoringGuide({ catalog, className }: { catalog: Catalog; class
             ))}
           </ul>
         </div>
+
+        <div className="rule-fade my-6" />
+
+        {/* --------------------------------------------------------- commits */}
+        <SectionHeading level={3} className="text-[11px]">
+          Commit hygiene: every version gets its own commit
+        </SectionHeading>
+        <p className={cn(PROSE, 'mt-1.5 max-w-3xl')}>
+          The catalog keeps only the current version of each entity on disk; every earlier one is
+          rebuilt from git, from <strong className="text-foreground/85">the commit carrying</strong>{' '}
+          <code className="font-mono">version: N</code>. A number that never reached a commit can never
+          be shown &mdash; not later, not by anyone. These rules are what keep that from happening.
+        </p>
+        <ol className="mt-3.5 flex max-w-3xl flex-col gap-2.5">
+          {COMMIT_RULES.map((rule, index) => (
+            <li key={rule.rule} className="flex items-baseline gap-3">
+              <span className="w-4 shrink-0 text-right font-mono text-[11px] text-muted-foreground/60">
+                {index + 1}
+              </span>
+              <span className={PROSE}>
+                <strong className="text-foreground/85">{rule.rule}</strong> {rule.why}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <pre className="mt-3.5 max-w-3xl overflow-x-auto rounded border border-border/70 bg-surface/50 px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <code>{COMMIT_SEQUENCE}</code>
+        </pre>
 
         <div className="rule-fade my-6" />
 

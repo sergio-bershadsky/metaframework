@@ -1,6 +1,6 @@
 # Evolution — additive-only change, the swap, git-backed history
 
-> Distilled from `framework/spec/evolution.md` (version 10), with the
+> Distilled from `framework/spec/evolution.md` (version 11), with the
 > schema-specific rules in `framework/spec/kinds/datamodel.md`. **When
 > `framework/spec/` is present in the repository, it is authoritative and wins
 > over this file.** This bundled copy exists because an installed plugin cannot
@@ -346,5 +346,10 @@ the entity page, where the version check streams in beside the version picker,
 and — as a gate — via `metaframework check --since <ref>`, which exits non-zero
 when an entity's files changed since `<ref>` without a bump. In CI, `<ref>` is
 the branch base. The gate judges the net change only: a branch that breaks the
-rule in one commit and repairs it in the next passes, deliberately. A plain
+rule in one commit and repairs it in the next passes, deliberately. One
+exception reads the commits in range: when `version` moved by more than one,
+every number in between must be carried by some commit since `<ref>`, or the
+gate fails with `E_VER_REGRESSION` — v1→v3 in one commit leaves v2 with no
+commit, and the portal can never show it. Each version gets its own commit, and
+a branch carrying versions is merged or rebased, never squashed. A plain
 `metaframework check` runs neither.

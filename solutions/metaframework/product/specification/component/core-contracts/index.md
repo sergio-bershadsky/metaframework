@@ -1,7 +1,7 @@
 ---
 name: core-contracts
 kind: component
-version: 8
+version: 9
 title: Core contracts
 summary: The five spec documents binding on every kind — index, structure, srn, frontmatter, evolution — carrying the rules no kind document may relax.
 status: review
@@ -27,7 +27,7 @@ Versions are read from their own frontmatter:
 | `structure.md`   | 10      | Monorepo layout, kind buckets, entity directories, what a body may state, naming, the artifact role table, dialects. |
 | `srn.md`         | 10      | SRN grammar, parsing, disk mapping, artifact addresses, relative refs, placement.                                    |
 | `frontmatter.md` | 8       | The common frontmatter contract and the closed edge vocabulary.                                                      |
-| `evolution.md`   | 10      | Versioning, the additive-only rule, the swap procedure, git history, dialect migration.                              |
+| `evolution.md`   | 11      | Versioning, every version on a commit of its own, the additive-only rule, the swap procedure, git history, dialects. |
 
 The spec's own document map calls them "Core contracts — binding on every kind".
 Their versions move independently and on their own commits, and none was last
@@ -89,8 +89,11 @@ surface where the portal can decide it. `E_DM_NOT_ADDITIVE` compares a
 datamodel's `schema.json` against the commit carrying its previous version, so
 removing a property or narrowing an enum does produce a diagnostic, and produces
 it over `solutions/` on every run. `E_VER_REGRESSION` is implemented in
-`framework/portal/src/lib/history/git.ts` and is still never run over
-`solutions/`; nothing compares a frontmatter contract or an acceptance-criteria
+`framework/portal/src/lib/history/git.ts` as an audit, and since
+[0025](srn://metaframework/adr/0025-version-commits-are-gated-at-commit-and-merge)
+in its gate form too: `check --since` runs it over every entity a branch
+changes, so a version that skipped its commit fails CI while the fix is still a
+rebase. Nothing compares a frontmatter contract or an acceptance-criteria
 list against its predecessor, and renaming a directory produces no diagnostic at
 all. The rule's reach is one kind wide, and this document states it for all of
 them.

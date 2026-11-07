@@ -1,7 +1,7 @@
 ---
 name: console
 kind: component
-version: 6
+version: 7
 title: Console
 summary: The console chrome and the design tokens every other surface reads — shell, masthead, ontology hues, and the one hex mirror of the palette.
 status: review
@@ -112,8 +112,8 @@ questions in the order a reader has them. `type-legend.tsx` teaches the
 vocabulary — *what am I looking at*. `authoring-guide.tsx` teaches the act —
 *how do I add to it*, which is not guessable from the catalog itself.
 
-The guide has four sections: the plugin and its commands, the basics, the two
-enums, and the edges.
+The guide has five sections: the plugin and its commands, the basics, the two
+enums, the edges, and commit hygiene.
 
 - **Status and lifecycle are different questions.** `status` is the document's
   review state, `lifecycle` is the described thing's stage in the world, and the
@@ -133,6 +133,14 @@ enums, and the edges.
   cannot drift. Before that module the only copy lived beside `MarkerType` in
   `relation-graph.tsx`, which is `@xyflow/react` — importable by the graph and
   not by a front page that must not carry a flow renderer.
+- **Commit hygiene: every version gets its own commit.** Six rules and a
+  worked sequence: one bump then commit, the bump rides with the change,
+  many entities per commit is fine, merge or rebase but never squash, rewrite
+  only what has not been shared, run `check --since` before pushing. It is here
+  because history is rebuilt from the commit carrying `version: N`, and the
+  ways to lose a number are all ordinary git habits
+  ([0025](srn://metaframework/adr/0025-version-commits-are-gated-at-commit-and-merge)).
+  The rules are authored prose citing `evolution.md`; nothing pins them to it.
 
 Every value on this page is read from one place, never retyped: `STATUSES`, the
 two lifecycle arrays, `EDGE_TYPES`, `EDGE_SOURCE_KINDS`, `EDGE_TARGET_KINDS` and

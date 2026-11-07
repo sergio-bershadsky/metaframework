@@ -1,7 +1,7 @@
 ---
 name: git-history
 kind: component
-version: 5
+version: 6
 title: Git history
 summary: Every historical read in the portal, shelled out to git through an argv array, classified into four failure reasons, and never permitted to throw.
 status: review
@@ -111,3 +111,15 @@ support is worse than none — so the caller reads a `HistoryUnavailable` of any
 of the four reasons as *say nothing*. The one thing this module promises,
 that no function throws and every failure returns a value, is what lets a
 build-time check depend on git without depending on git being there.
+
+## The gate that reads it from the other side
+
+`check --since <ref>` lives in `bin/since.mjs` and shells out to git on its own
+rather than through this module — the CLI ships without the Next.js bundle.
+It mostly compares two trees, but for an entity whose `version` moved by more
+than one it walks `<ref>..HEAD` the way this module's index does — plain
+`git log`, every parent, never `--first-parent` — and fails with
+`E_VER_REGRESSION` for each number in between that no commit carries. The two
+must agree on what "reachable" means, or the gate would pass a version this
+module then reports `never-written`
+([0025](srn://metaframework/adr/0025-version-commits-are-gated-at-commit-and-merge)).

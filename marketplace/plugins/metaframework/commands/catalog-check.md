@@ -37,7 +37,9 @@ Zero **error**-severity diagnostics is the pass condition; the command exits
 non-zero when there are any, so the same invocation is the CI gate.
 `metaframework check --since <ref>` adds the evolution gate on top: every
 entity whose files changed since `<ref>` must have bumped its `version`
-(`status:`-only edits exempt). In CI, `<ref>` is the PR base.
+(`status:`-only edits exempt), and every version it introduced must have
+reached a commit of its own (`E_VER_REGRESSION` otherwise). In CI, `<ref>` is
+the PR base.
 
 Report, in this order:
 

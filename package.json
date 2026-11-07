@@ -5,6 +5,7 @@
   "version": "0.0.0",
   "description": "Reviewable, file-based solution descriptions with a catalog portal",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "release": "bash scripts/release.sh",
     "release:dry": "bash scripts/release.sh --dry-run",
     "hygiene": "node framework/portal/scripts/repo-hygiene.mjs",

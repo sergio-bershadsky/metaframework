@@ -80,6 +80,7 @@ export const ALLOWED_TREES = [
   'scripts', // release and migration tooling
   '.github', // CI
   '.claude', // the entity-version hook, shared with anyone who clones
+  '.githooks', // pre-commit: refuses an entity version that skips a commit (ADR 0025)
   '.claude-plugin', // marketplace manifest
   'docker', // the compose file, the Dockerfiles, the chart and the env templates
   'deploy', // the Cloudflare Worker that serves the published catalog at metaframework.dev

@@ -172,3 +172,90 @@ describe('unbumpedSince', () => {
     expect(outside.failure).toBeTruthy()
   })
 })
+
+/**
+ * The second question the gate asks: did every version this change introduces
+ * reach a commit? The portal rebuilds `@N` from the commit carrying `version: N`,
+ * so a number that skipped a commit is a page that can never be drawn
+ * (`never-written` in lib/history/git.ts). The net diff cannot see this — v1→v3
+ * looks the same whether v2 was committed in between or not — so these cases
+ * read the commits in range as well as the two ends.
+ */
+describe('unbumpedSince — versions that never reached a commit', () => {
+  const doc = 'solutions/acme/datamodel/order/index.md'
+
+  it('catches two bumps landing in one commit', async () => {
+    const repo = await makeRepo()
+    await repo.write(doc, document(1, 'review'))
+    const base = repo.commit('add order')
+    await repo.write(doc, document(3, 'review', 'Twice.'))
+    repo.commit('v3 in one go')
+
+    const result = await unbumpedSince({ repoRoot: repo.root, ref: base, inCatalog })
+    expect(result.unwritten).toEqual([
+      { dir: 'solutions/acme/datamodel/order', from: 1, to: 3, missing: [2] },
+    ])
+  })
+
+  it('passes when each version got its own commit', async () => {
+    const repo = await makeRepo()
+    await repo.write(doc, document(1, 'review'))
+    const base = repo.commit('add order')
+    await repo.write(doc, document(2, 'review', 'Once.'))
+    repo.commit('v2')
+    await repo.write(doc, document(3, 'review', 'Twice.'))
+    repo.commit('v3')
+
+    const result = await unbumpedSince({ repoRoot: repo.root, ref: base, inCatalog })
+    expect(result.unwritten).toEqual([])
+    expect(result.regressed).toEqual([])
+  })
+
+  it('catches a double bump still sitting in the working tree', async () => {
+    const repo = await makeRepo()
+    await repo.write(doc, document(1, 'review'))
+    const base = repo.commit('add order')
+    await repo.write(doc, document(3, 'review', 'Twice.'))
+
+    const result = await unbumpedSince({ repoRoot: repo.root, ref: base, inCatalog })
+    expect(result.unwritten.map((entity) => entity.missing)).toEqual([[2]])
+  })
+
+  it('lets one pending bump wait for its commit', async () => {
+    const repo = await makeRepo()
+    await repo.write(doc, document(1, 'review'))
+    const base = repo.commit('add order')
+    await repo.write(doc, document(2, 'review', 'Once.'))
+    repo.commit('v2')
+    await repo.write(doc, document(3, 'review', 'Twice.'))
+
+    expect((await unbumpedSince({ repoRoot: repo.root, ref: base, inCatalog })).unwritten).toEqual([])
+  })
+
+  it('keeps versions committed on a branch that was merged, not squashed', async () => {
+    const repo = await makeRepo()
+    await repo.write(doc, document(1, 'review'))
+    const base = repo.commit('add order')
+    git(repo.root, ['checkout', '--quiet', '-b', 'feature'])
+    await repo.write(doc, document(2, 'review', 'Once.'))
+    repo.commit('v2')
+    await repo.write(doc, document(3, 'review', 'Twice.'))
+    repo.commit('v3')
+    git(repo.root, ['checkout', '--quiet', 'main'])
+    await repo.write('solutions/acme/README.md', 'unrelated')
+    repo.commit('main moves on')
+    git(repo.root, ['merge', '--quiet', '--no-ff', '-m', 'merge feature', 'feature'])
+
+    expect((await unbumpedSince({ repoRoot: repo.root, ref: base, inCatalog })).unwritten).toEqual([])
+  })
+
+  it('reports a version that went down', async () => {
+    const repo = await makeRepo()
+    await repo.write(doc, document(2, 'review'))
+    const base = repo.commit('add order at v2')
+    await repo.write(doc, document(1, 'review', 'Back.'))
+
+    const result = await unbumpedSince({ repoRoot: repo.root, ref: base, inCatalog })
+    expect(result.regressed).toEqual([{ dir: 'solutions/acme/datamodel/order', from: 2, to: 1 }])
+  })
+})

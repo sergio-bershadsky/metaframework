@@ -1,7 +1,7 @@
 ---
 kind: spec
 name: evolution
-version: 10
+version: 11
 status: review
 title: Evolution and history
 summary: Versioning and history — the integer version field, additive-only rules with legal/illegal examples for every kind, the swap procedure, the git-backed history contract, artifact pins and the constancy theorem, dialect migration, and the status states.
@@ -19,6 +19,11 @@ git.
 
 - Every entity's frontmatter carries `version`: a plain integer, starting at
   `1`, incremented by exactly 1 — monotonic, no gaps, no semver, no strings.
+- **Every version reaches a commit of its own.** History is resolved from the
+  commit carrying `version: N`, so a number that only ever existed in a working
+  tree — bumped, then bumped again before committing, or squashed away with its
+  successor on merge — names nothing and never will. A merge MUST keep the
+  commits that carry versions (a merge commit or a rebase, never a squash).
 - Any content change to the entity — its `index.md` frontmatter or prose, or
   any sibling artifact — MUST bump `version` in the same commit.
 - Exception: a change to `status` **alone** (e.g. `review` → `approved`) does
@@ -623,6 +628,18 @@ trees and judges only the net change, which is right for "may this land" — a
 branch that breaks the rule in one commit and repairs it in the next passes,
 and should, because the gate is about what lands rather than how it was
 written.
+
+The gate asks one more question, and for that one it reads the commits in
+`<ref>..HEAD`: **did every version the change introduces reach a commit?** The
+net diff cannot answer it — v1→v3 looks the same whether v2 was committed on the
+way or not — so for an entity whose `version` moved by more than one, the gate
+reads the `version:` line of each commit in range and fails, as
+`E_VER_REGRESSION`, for every number between the two ends that none carries.
+The working-tree value itself is exempt (one pending bump is authoring), and so
+is a version committed on a merged branch, because the history walk follows
+every parent. A `version` lower at the working tree than at `<ref>` fails the
+same way. Raised here, the finding is still a rebase; raised after the merge,
+the version is gone.
 
 Like `E_VER_REGRESSION` it needs history, so it is absent rather than passing
 where git is not available — with no commits there is no claim to make. It is

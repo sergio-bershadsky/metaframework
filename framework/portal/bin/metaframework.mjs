@@ -520,7 +520,8 @@ async function check({ catalogDir, port, since }) {
 }
 
 /**
- * `--since <ref>`: every entity whose files changed must have bumped `version`.
+ * `--since <ref>`: every entity whose files changed must have bumped `version`,
+ * and every version it introduced must have reached a commit.
  *
  * Separate from the loader's diagnostics on purpose. Those are decidable from
  * the files on disk and this one is decidable only from two trees, so folding
@@ -562,28 +563,50 @@ async function versionGate({ catalogDir, since }) {
     return { failed: false }
   }
 
-  if (result.unbumped.length === 0) {
+  const { unbumped, unwritten, regressed, entitiesTouched } = result
+  if (unbumped.length === 0 && unwritten.length === 0 && regressed.length === 0) {
     process.stdout.write(
-      result.entitiesTouched === 0
+      entitiesTouched === 0
         ? `\n${dim('since')}    ${since} — no catalog entity changed.\n`
-        : `\n${dim('since')}    ${since} — ${count(result.entitiesTouched, 'entity', 'entities')} changed, each either bumped its version or changed only its status.\n`,
+        : `\n${dim('since')}    ${since} — ${count(entitiesTouched, 'entity', 'entities')} changed, each either bumped its version or changed only its status, and every version reached a commit.\n`,
     )
     return { failed: false }
   }
 
-  const lines = ['', `${red('error  ')} ${bold('E_VER_UNBUMPED')}  ${dim(`${result.unbumped.length} of ${result.entitiesTouched} changed entities`)}`]
-  for (const entity of result.unbumped) {
+  const lines = []
+  if (unbumped.length > 0) {
+    lines.push('', `${red('error  ')} ${bold('E_VER_UNBUMPED')}  ${dim(`${unbumped.length} of ${entitiesTouched} changed entities`)}`)
+    for (const entity of unbumped) {
+      lines.push(
+        `        ${entity.dir} — still version ${entity.version}, but these changed since ${since}:`,
+        ...entity.changed.map((file) => `          ${dim(file)}`),
+      )
+    }
     lines.push(
-      `        ${entity.dir} — still version ${entity.version}, but these changed since ${since}:`,
-      ...entity.changed.map((file) => `          ${dim(file)}`),
+      '',
+      'Every content change bumps `version`; only a commit touching `status:` alone is exempt.',
+      'Without the bump, one version number names two different files, and a reference',
+      'pinned to it resolves to whichever the index recorded rather than to what is on disk.',
     )
   }
-  lines.push(
-    '',
-    'Every content change bumps `version`; only a commit touching `status:` alone is exempt.',
-    'Without the bump, one version number names two different files, and a reference',
-    'pinned to it resolves to whichever the index recorded rather than to what is on disk.',
-  )
+  if (unwritten.length > 0 || regressed.length > 0) {
+    lines.push('', `${red('error  ')} ${bold('E_VER_REGRESSION')}  ${dim(`${unwritten.length + regressed.length} of ${entitiesTouched} changed entities`)}`)
+    for (const entity of unwritten) {
+      lines.push(
+        `        ${entity.dir} — v${entity.from} → v${entity.to}, but no commit since ${since} carries ${entity.missing.map((version) => `v${version}`).join(', ')}`,
+      )
+    }
+    for (const entity of regressed) {
+      lines.push(`        ${entity.dir} — went down from v${entity.from} to v${entity.to}`)
+    }
+    lines.push(
+      '',
+      'A version steps by one, and each step is committed before the next one starts: the portal',
+      'rebuilds `@N` from the commit carrying `version: N`, so a number no commit carries can never',
+      'be shown. Split the work so each version lands in its own commit — while the branch is',
+      'unmerged that is a rebase; after it, the version is gone.',
+    )
+  }
   process.stdout.write(`${lines.join('\n')}\n`)
   return { failed: true }
 }

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refuse a commit whose staged entity version skips a number or goes down.
+# Activated by `npm install` at the repository root (the `prepare` script sets
+# core.hooksPath to .githooks). Why a git hook at all: ADR 0025.
+exec python3 "$(git rev-parse --show-toplevel)/scripts/entity-version-guard.py" --staged

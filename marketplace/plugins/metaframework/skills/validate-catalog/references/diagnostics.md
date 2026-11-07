@@ -952,7 +952,9 @@ The two `E_VER_*` codes surface on the entity page, where the version check
 streams in beside the version picker. The gate form is
 `metaframework check --since <ref>`: it fails an entity whose files changed
 since `<ref>` without a bump, and judges only the net change — a branch that
-breaks and repairs the rule passes, deliberately.
+breaks and repairs the rule passes, deliberately. It also raises
+`E_VER_REGRESSION` when a version introduced since `<ref>` reached no commit
+(v1→v3 in one commit) or the version went down.
 
 ## 2. Specified but not implemented
 

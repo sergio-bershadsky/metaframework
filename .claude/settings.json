@@ -7,9 +7,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/entity-version-guard.py\" --edited 2>/dev/null || true",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/entity-version-guard.py\" --edited",
             "timeout": 15,
             "statusMessage": "checking the entity version against git"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/entity-version-guard.py\" --bash",
+            "timeout": 15
           }
         ]
       }
@@ -19,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/entity-version-guard.py\" --summary 2>/dev/null || true",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/entity-version-guard.py\" --summary",
             "timeout": 15
           }
         ]
