@@ -14,7 +14,7 @@ metaframework
 ```
 
 ```text
-  metaframework 0.7.0
+  metaframework 0.7.1
 
   catalog    /Users/you/code/my-solution/solutions
   solutions  3
